@@ -41,9 +41,9 @@ const PoweredByFooter = () => {
     <footer className="w-full py-4 border-t border-base-300">
       <div className="flex justify-center items-center gap-2  font-medium opacity-50 text-sm text-base-content/70">
         <span>Powered by</span>
-        <a 
-          href="https://gtwy.ai" 
-          target="_blank" 
+        <a
+          href="https://gtwy.ai"
+          target="_blank"
           rel="noopener noreferrer"
           className="font-semibold text-primary hover:text-primary-focus transition-colors"
         >
@@ -57,19 +57,18 @@ const PoweredByFooter = () => {
 function Home({ params, searchParams, isEmbedUser }) {
   // Use the tutorial videos hook
   const { getBridgeCreationVideo } = useTutorialVideos();
-  
   const resolvedParams = use(params);
   const resolvedSearchParams = use(searchParams);
   const dispatch = useDispatch();
   const router = useRouter();
-  const { allBridges, averageResponseTime, isLoading, isFirstBridgeCreation, descriptions, bridgeStatus, showHistory, isAdminOrOwner, currentOrgRole, currentUser } = useCustomSelector((state) => {
+  const { allBridges, averageResponseTime, isLoading, isFirstBridgeCreation, descriptions, bridgeStatus, showHistory, isAdminOrOwner, currentOrgRole, currentUser, linksData } = useCustomSelector((state) => {
     const orgData = state.bridgeReducer.org[resolvedParams.org_id] || {};
     const user = state.userDetailsReducer.userDetails;
     const orgRole = state?.userDetailsReducer?.organizations?.[resolvedParams.org_id]?.role_name;
-    
+
     // Check if user is admin or owner
     const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
-    
+
     return {
       allBridges: (orgData.orgs || []).slice().reverse(),
       averageResponseTime: orgData.average_response_time || [],
@@ -79,6 +78,7 @@ function Home({ params, searchParams, isEmbedUser }) {
       bridgeStatus: state.bridgeReducer.allBridgesMap,
       showHistory: state.appInfoReducer.embedUserDetails?.showHistory || false,
       isAdminOrOwner,
+      linksData: state.flowDataReducer.flowData.linksData || [],
       currentUser: state.userDetailsReducer.userDetails,
       currentOrgRole: orgRole || "Viewer",
     };
@@ -118,7 +118,7 @@ function Home({ params, searchParams, isEmbedUser }) {
   });
   const [selectedBridgeForLimit, setSelectedBridgeForLimit] = useState(null);
   const [selectedAgentForAccess, setSelectedAgentForAccess] = useState(null);
-  
+
   // Use portal dropdown hook
   const {
     handlePortalOpen,
@@ -149,7 +149,7 @@ function Home({ params, searchParams, isEmbedUser }) {
     };
   }, []);
 
-  
+
   const filteredArchivedBridges = filterBridges?.filter((item) => item.status === 0 && !item.deletedAt);
   const filteredUnArchivedBridges = filterBridges?.filter((item) => (item.status === 1 || item.status === undefined) && !item.deletedAt);
   const filteredDeletedBridges = filterBridges?.filter((item) => item.deletedAt);
@@ -193,16 +193,16 @@ function Home({ params, searchParams, isEmbedUser }) {
     agent_usage: item?.bridge_usage ? parseFloat(item.bridge_usage).toFixed(4) : 0,
     isLoading: loadingAgentId === item._id,
     last_used: <div className="group cursor-help">
-                        <span className="group-hover:hidden">
-                          {formatRelativeTime(item.last_used || "No records found",)}
-                        </span>
-                        <span className="hidden group-hover:inline">
-                          {formatDate(item.last_used || "No records found",)}
-                        </span>
-                      </div> ,
+      <span className="group-hover:hidden">
+        {formatRelativeTime(item.last_used || "No records found",)}
+      </span>
+      <span className="hidden group-hover:inline">
+        {formatDate(item.last_used || "No records found",)}
+      </span>
+    </div>,
     last_used_orignal: item.last_used,
-    users:item.users
-    
+    users: item.users
+
   }));
 
   const ArchivedBridges = filteredArchivedBridges.filter((item) => item.status === 0).map((item) => ({
@@ -248,17 +248,17 @@ function Home({ params, searchParams, isEmbedUser }) {
     averageResponseTime: averageResponseTime[item?._id] === 0 ? <div className="text-xs">Not used in 24h</div> : <div className="text-xs">{averageResponseTime[item?._id]} sec</div>,
     isLoading: loadingAgentId === item._id,
     last_used: <div className="group cursor-help">
-                        <span className="group-hover:hidden">
-                          {formatRelativeTime(item.last_used ? item.last_used : "No records found",)}
-                        </span>
-                        <span className="hidden group-hover:inline">
-                          {formatDate(item.last_used ? item.last_used : "No records found",)}
-                        </span>
-                      </div> ,
+      <span className="group-hover:hidden">
+        {formatRelativeTime(item.last_used ? item.last_used : "No records found",)}
+      </span>
+      <span className="hidden group-hover:inline">
+        {formatDate(item.last_used ? item.last_used : "No records found",)}
+      </span>
+    </div>,
     last_used_orignal: item.last_used,
     agent_usage: item?.bridge_usage ? parseFloat(item.bridge_usage).toFixed(4) : 0,
 
-    }));
+  }));
 
   // Helper function to calculate days remaining for deletion (30 days from deletedAt)
   const getDaysRemaining = (deletedAt) => {
@@ -320,11 +320,11 @@ function Home({ params, searchParams, isEmbedUser }) {
     agent_usage: item?.bridge_usage ? parseFloat(item.bridge_usage).toFixed(4) : 0,
 
   }));
- 
+
   const onClickConfigure = (id, versionId) => {
     // Prevent multiple clicks while loading
     if (loadingAgentId) return;
-    
+
     setLoadingAgentId(id);
     // Include the type parameter to maintain sidebar selection
     router.push(`/org/${resolvedParams.org_id}/agents/configure/${id}?version=${versionId}&type=${bridgeTypeFilter}`);
@@ -359,7 +359,7 @@ function Home({ params, searchParams, isEmbedUser }) {
       console.error('Failed to archive/unarchive agents', error);
     }
   }
-  
+
   const handleSetBridgeLimit = (item) => {
     const transformedData = {
       ...item,
@@ -372,7 +372,7 @@ function Home({ params, searchParams, isEmbedUser }) {
     openModal(MODAL_TYPE.API_KEY_LIMIT_MODAL);
   };
 
-  const handleUpdateBridgeLimit = async  (bridge, limit) => {
+  const handleUpdateBridgeLimit = async (bridge, limit) => {
     closeModal(MODAL_TYPE?.API_KEY_LIMIT_MODAL);
     const dataToSend = {
       "bridge_limit": limit
@@ -388,16 +388,16 @@ function Home({ params, searchParams, isEmbedUser }) {
   }
 
   const EndComponent = ({ row }) => {
-    const isEditor = ((currentOrgRole === "Editor" && (row.users?.length === 0 || !row.users || (row.users?.length > 0 && row.users?.some(user => user === currentUser.id))))||((currentOrgRole==="Viewer")&&(row.users?.some(user => user === currentUser.id)))||currentOrgRole==="Creator")||isAdminOrOwner;
+    const isEditor = ((currentOrgRole === "Editor" && (row.users?.length === 0 || !row.users || (row.users?.length > 0 && row.users?.some(user => user === currentUser.id)))) || ((currentOrgRole === "Viewer") && (row.users?.some(user => user === currentUser.id))) || currentOrgRole === "Creator") || isAdminOrOwner;
     const handleDropdownClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
-      
+
       const dropdownContent = (
         <ul className="menu bg-base-100 rounded-box w-52 p-2 shadow">
           {!isEmbedUser && (
             <li><a onClick={(e) => {
-              e.preventDefault();           
+              e.preventDefault();
               e.stopPropagation();
               handlePortalCloseImmediate();
               handleSetBridgeLimit(row);
@@ -411,13 +411,13 @@ function Home({ params, searchParams, isEmbedUser }) {
               resetUsage(row);
             }}><RefreshIcon className="" size={16} />Reset Usage</a></li>
           )}
-         
-           <li className={`${row.status === 1 ? `hidden` : ''}`}><button onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handlePortalCloseImmediate();
-              archiveBridge(row._id, row.status != undefined ? Number(!row?.status) : undefined)
-            }}>{(row?.status === 0) ? <><ArchiveRestore size={14} className=" text-green-600" />Un-archive Agent</> : null}</button></li>
+
+          <li className={`${row.status === 1 ? `hidden` : ''}`}><button onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handlePortalCloseImmediate();
+            archiveBridge(row._id, row.status != undefined ? Number(!row?.status) : undefined)
+          }}>{(row?.status === 0) ? <><ArchiveRestore size={14} className=" text-green-600" />Un-archive Agent</> : null}</button></li>
           {/* Only show Manage Access button for Admin or Owner roles */}
           {!isEmbedUser && isAdminOrOwner && (
             <li><a onClick={(e) => {
@@ -428,79 +428,79 @@ function Home({ params, searchParams, isEmbedUser }) {
               setTimeout(() => {
                 openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
               }, 10);
-            }}><Users size={16}/>Manage Access</a></li>
+            }}><Users size={16} />Manage Access</a></li>
           )}
-            <li> <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handlePortalCloseImmediate();
-                handlePauseBridge(row._id)
-              }}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2`}
-            >
-              {bridgeStatus[row._id]?.bridge_status === BRIDGE_STATUS.PAUSED ? (
-                <>
-                  <Play size={14} className="text-green-600" />
-                  Resume Agent
-                </>
-              ) : (
-                <>
-                  <Pause size={14} className="text-red-600" />
-                  Pause Agent
-                </>
-              )}
+          <li> <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handlePortalCloseImmediate();
+              handlePauseBridge(row._id)
+            }}
+            className={`w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2`}
+          >
+            {bridgeStatus[row._id]?.bridge_status === BRIDGE_STATUS.PAUSED ? (
+              <>
+                <Play size={14} className="text-green-600" />
+                Resume Agent
+              </>
+            ) : (
+              <>
+                <Pause size={14} className="text-red-600" />
+                Pause Agent
+              </>
+            )}
+          </button></li>
+          {/* Only show Delete button for Admin or Owner roles */}
+          {isAdminOrOwner && (
+            <li><button onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handlePortalCloseImmediate();
+              setItemToDelete(row);
+              // Small delay to ensure state is set before opening modal
+              setTimeout(() => {
+                openModal(MODAL_TYPE.DELETE_MODAL);
+              }, 10);
+            }}>
+              <Trash2 size={14} className="text-red-600" />
+              Delete Agent
             </button></li>
-            {/* Only show Delete button for Admin or Owner roles */}
-            {isAdminOrOwner && (
-              <li><button onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handlePortalCloseImmediate();
-                setItemToDelete(row);
-                // Small delay to ensure state is set before opening modal
-                setTimeout(() => {
-                  openModal(MODAL_TYPE.DELETE_MODAL);
-                }, 10);
-              }}>
-                <Trash2 size={14} className="text-red-600" />
-                Delete Agent
-              </button></li>
-            )} 
+          )}
         </ul>
       );
-      
+
       handlePortalOpen(e.currentTarget, dropdownContent);
     };
 
     return (
       <div className="flex items-center gap-2">
         <div className="flex items-center mr-4 text-sm">
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          {(!isEmbedUser || (isEmbedUser && showHistory)) ? (
           <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <button className="btn btn-outline btn-ghost btn-sm" onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              router.push(`/org/${resolvedParams.org_id}/agents/history/${row._id}?version=${row?.versionId}`);
-            }}>
-              History
-            </button>
-          </div> 
-        ) : null}
-        </div>
-        {isEditor && (
-        <div className="bg-transparent">
-          <div 
-            role="button" 
-            className="hover:bg-base-200 rounded-lg p-3 cursor-pointer" 
-            onClick={handleDropdownClick}
-          >
-            <EllipsisIcon className="rotate-90" size={16} />
+            {(!isEmbedUser || (isEmbedUser && showHistory)) ? (
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button className="btn btn-outline btn-ghost btn-sm" onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  router.push(`/org/${resolvedParams.org_id}/agents/history/${row._id}?version=${row?.versionId}`);
+                }}>
+                  History
+                </button>
+              </div>
+            ) : null}
           </div>
+          {isEditor && (
+            <div className="bg-transparent">
+              <div
+                role="button"
+                className="hover:bg-base-200 rounded-lg p-3 cursor-pointer"
+                onClick={handleDropdownClick}
+              >
+                <EllipsisIcon className="rotate-90" size={16} />
+              </div>
+            </div>
+          )}
         </div>
-        )}
-      </div>
       </div>
     )
   }
@@ -509,8 +509,8 @@ function Home({ params, searchParams, isEmbedUser }) {
     return (
       <div className="flex items-center justify-center gap-2">
         <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <button 
-            className="btn btn-outline btn-ghost btn-sm whitespace-nowrap flex items-center gap-1" 
+          <button
+            className="btn btn-outline btn-ghost btn-sm whitespace-nowrap flex items-center gap-1"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -518,12 +518,12 @@ function Home({ params, searchParams, isEmbedUser }) {
             }}
           >
             <span className="flex items-center  gap-1">
-             <div className="flex text-xs items-center gap-1">
-             <Undo2 size={12} />
-             </div>
-             <div className="text-sm">
-             Undo
-             </div>
+              <div className="flex text-xs items-center gap-1">
+                <Undo2 size={12} />
+              </div>
+              <div className="text-sm">
+                Undo
+              </div>
             </span>
           </button>
         </div>
@@ -583,7 +583,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                         <PageHeader
                           title={pageHeaderContent.title}
                           description={pageHeaderContent.description}
-                          docLink="https://gtwy.ai/blogs/features/bridge"
+                          docLink={linksData?.find(link => link.title === 'Agents')?.blog_link}
                           isEmbedUser={isEmbedUser}
                         />
 
@@ -597,89 +597,89 @@ function Home({ params, searchParams, isEmbedUser }) {
                       <div className={`${typeFilteredBridges.length > 5 ? 'mr-2' : 'ml-2'}`}>
                         <button className="btn btn-primary btn-sm " onClick={() => openModal(MODAL_TYPE?.CREATE_BRIDGE_MODAL)}>+ Create {createButtonLabel}</button>
                       </div>
+                    </div>
                   </div>
+
+                  <div className="w-full overflow-visible">
+                    <CustomTable
+                      data={UnArchivedBridges}
+                      columnsToShow={['name', 'model', 'totalTokens', 'agent_usage', 'last_used']}
+                      sorting
+                      sortingColumns={['name', 'model', 'totalTokens', 'agent_usage', 'last_used']}
+                      handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)}
+                      keysToExtractOnRowClick={['_id', 'versionId']}
+                      keysToWrap={['name', 'model']}
+                      endComponent={EndComponent}
+                    />
+                  </div>
+
+                  {filteredArchivedBridges?.length > 0 && (
+                    <div className="">
+                      <div className="flex justify-center items-center my-4">
+                        <p className="border-t border-base-300 w-full"></p>
+                        <p className="bg-base-300 text-white py-1 px-2 rounded-full mx-4 whitespace-nowrap text-sm">
+                          {archivedSectionTitle}
+                        </p>
+                        <p className="border-t border-base-300 w-full"></p>
+                      </div>
+                      <div className="opacity-60 overflow-visible">
+                        <CustomTable
+                          data={ArchivedBridges}
+                          columnsToShow={['name', 'model', 'totalTokens', 'agent_usage', 'last_used']}
+                          sorting
+                          sortingColumns={['name', 'model', 'totalTokens', 'agent_usage', 'last_used']}
+                          handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)}
+                          keysToExtractOnRowClick={['_id', 'versionId']}
+                          keysToWrap={['name', 'prompt', 'model']}
+                          endComponent={EndComponent}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredDeletedBridges?.length > 0 && (
+                    <div className="">
+                      <div className="flex justify-center items-center my-4">
+                        <p className="border-t border-base-300 w-full"></p>
+                        <p className="bg-error text-white py-1 px-2 rounded-full mx-4 whitespace-nowrap text-sm">
+                          {deletedSectionTitle}
+                        </p>
+                        <p className="border-t border-base-300 w-full"></p>
+                      </div>
+                      <div className="opacity-60 overflow-visible">
+                        <CustomTable
+                          data={DeletedBridges}
+                          columnsToShow={['name', 'model', 'totalTokens', 'agent_usage', 'last_used']}
+                          sorting
+                          sortingColumns={['name', 'model', 'totalTokens', 'agent_usage', 'last_used']}
+                          keysToWrap={['name', 'model']}
+                          endComponent={DeletedEndComponent}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
-                <div className="w-full overflow-visible">
-                  <CustomTable 
-                    data={UnArchivedBridges} 
-                    columnsToShow={['name', 'model', 'totalTokens', 'agent_usage','last_used']} 
-                    sorting 
-                    sortingColumns={['name', 'model', 'totalTokens', 'agent_usage','last_used']} 
-                    handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)} 
-                    keysToExtractOnRowClick={['_id', 'versionId']} 
-                    keysToWrap={['name', 'model']} 
-                    endComponent={EndComponent} 
-                  />
-                </div>
-                
-                {filteredArchivedBridges?.length > 0 && (
-                  <div className="">
-                    <div className="flex justify-center items-center my-4">
-                      <p className="border-t border-base-300 w-full"></p>
-                      <p className="bg-base-300 text-white py-1 px-2 rounded-full mx-4 whitespace-nowrap text-sm">
-                        {archivedSectionTitle}
-                      </p>
-                      <p className="border-t border-base-300 w-full"></p>
-                    </div>
-                    <div className="opacity-60 overflow-visible">
-                      <CustomTable 
-                        data={ArchivedBridges} 
-                        columnsToShow={['name', 'model', 'totalTokens','agent_usage', 'last_used']} 
-                        sorting 
-                        sortingColumns={['name', 'model', 'totalTokens', 'agent_usage','last_used']} 
-                        handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)} 
-                        keysToExtractOnRowClick={['_id', 'versionId']} 
-                        keysToWrap={['name', 'prompt', 'model']} 
-                        endComponent={EndComponent} 
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                {filteredDeletedBridges?.length > 0 && (
-                  <div className="">
-                    <div className="flex justify-center items-center my-4">
-                      <p className="border-t border-base-300 w-full"></p>
-                      <p className="bg-error text-white py-1 px-2 rounded-full mx-4 whitespace-nowrap text-sm">
-                        {deletedSectionTitle}
-                      </p>
-                      <p className="border-t border-base-300 w-full"></p>
-                    </div>
-                    <div className="opacity-60 overflow-visible">
-                      <CustomTable 
-                        data={DeletedBridges} 
-                        columnsToShow={['name', 'model', 'totalTokens','agent_usage', 'last_used']} 
-                        sorting 
-                        sortingColumns={['name', 'model', 'totalTokens','agent_usage','last_used']} 
-                        keysToWrap={['name', 'model']} 
-                        endComponent={DeletedEndComponent} 
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
             </div>
           </div>
-          
+
           {/* Powered By Footer */}
-          
+
         </div>
-        
+
         {/* Single DeleteModal for all delete operations */}
         <DeleteModal onConfirm={deleteBridge} item={itemToDelete} title="Delete Agent" description={`Are you sure you want to delete the Agent "${itemToDelete?.actualName}"? This agent will be moved to deleted items and permanently removed after 30 days.`} loading={isDeleting} isAsync={true} />
       </div>
 
       {/* Powered By Footer pinned to bottom */}
-    {isEmbedUser && <PoweredByFooter />}
+      {isEmbedUser && <PoweredByFooter />}
       <UsageLimitModal data={selectedBridgeForLimit} onConfirm={handleUpdateBridgeLimit} item="Agent Name" />
       <AccessManagementModal agent={selectedAgentForAccess} />
-      
+
       {/* Portal components from hook */}
       <PortalStyles />
       <PortalDropdown />
-      
+
     </div>
   );
 }
