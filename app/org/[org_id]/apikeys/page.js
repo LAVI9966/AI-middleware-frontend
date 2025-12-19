@@ -163,7 +163,6 @@ const Page = () => {
               title="API Keys"
               description={descriptions?.['Provider Keys'] || "Add your model-specific API keys to enable and use different AI models in your chat."}
               docLink={linksData?.find(link => link.title === 'API Key')?.blog_link}
-              // docLink="https://techdoc.walkover.in/p/serviceapi-key?collectionId=1YnJD-Bzbg4C"
             />
 
           </div>
