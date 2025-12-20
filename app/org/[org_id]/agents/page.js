@@ -65,10 +65,8 @@ function Home({ params, searchParams, isEmbedUser }) {
     const orgData = state.bridgeReducer.org[resolvedParams.org_id] || {};
     const user = state.userDetailsReducer.userDetails;
     const orgRole = state?.userDetailsReducer?.organizations?.[resolvedParams.org_id]?.role_name;
-
     // Check if user is admin or owner
     const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
-
     return {
       allBridges: (orgData.orgs || []).slice().reverse(),
       averageResponseTime: orgData.average_response_time || [],
@@ -78,7 +76,6 @@ function Home({ params, searchParams, isEmbedUser }) {
       bridgeStatus: state.bridgeReducer.allBridgesMap,
       showHistory: state.appInfoReducer.embedUserDetails?.showHistory || false,
       isAdminOrOwner,
-      linksData: state.flowDataReducer.flowData.linksData || [],
       currentUser: state.userDetailsReducer.userDetails,
       currentOrgRole: orgRole || "Viewer",
     };
@@ -118,7 +115,6 @@ function Home({ params, searchParams, isEmbedUser }) {
   });
   const [selectedBridgeForLimit, setSelectedBridgeForLimit] = useState(null);
   const [selectedAgentForAccess, setSelectedAgentForAccess] = useState(null);
-
   // Use portal dropdown hook
   const {
     handlePortalOpen,
