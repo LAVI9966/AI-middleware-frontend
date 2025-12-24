@@ -104,10 +104,16 @@ const ComparisonCheck = ({ oldContent, newContent }) => {
                     </div>
 
                     <div className="flex justify-between items-center mt-2">
-                        <div className="text-sm text-base-content">
-                            <span className="inline-block w-4 h-4 bg-red-200 rounded mr-2"></span>Removed
-                            <span className="inline-block w-4 h-4 bg-green-200 rounded mr-2 ml-4"></span>Added
-                            <span className="inline-block w-4 h-4 bg-warning/30 rounded mr-2 ml-4"></span>Modified
+                        <div className="text-sm text-base-content flex gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: '#ee1414ff' }}></span>Removed
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: '#0c8d39ff' }}></span>Added
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: '#eaea7cff' }}></span>Modified
+                            </div>
                         </div>
                     </div>
                 </>

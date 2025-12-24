@@ -34,7 +34,7 @@ import InviteUserModal from '../modals/InviteuserModal';
 /*                                  Component                                 */
 /* -------------------------------------------------------------------------- */
 
-function MainSlider({ isEmbedUser }) {
+function MainSlider({ isEmbedUser , openDetails , userdetailsfromOrg , orgIdFromHeader}) {
   /* --------------------------- Router & selectors ------------------------- */
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -42,7 +42,7 @@ function MainSlider({ isEmbedUser }) {
   const dispatch = useDispatch();
 
   const pathParts = pathname.split('?')[0].split('/');
-  const orgId = pathParts[2];
+  const orgId =orgIdFromHeader || pathParts[2];
 
   const { userdetails, organizations, currrentOrgDetail } = useCustomSelector(state => ({
     userdetails: state.userDetailsReducer.userDetails,
@@ -65,7 +65,6 @@ function MainSlider({ isEmbedUser }) {
   const [isMobileVisible, setIsMobileVisible] = useState(false); // New state for mobile visibility
   const [showContent, setShowContent] = useState(isSideBySideMode); // Control content visibility with delay
   const [isAdminMode, setIsAdminMode] = useState(false); // New state for admin settings mode
-  
   // Theme detection placeholder (not actively used)
 
   // Effect to detect mobile screen size
@@ -390,6 +389,8 @@ function MainSlider({ isEmbedUser }) {
 
         {/* Organizations List */}
         <div className="space-y-1">
+         {!openDetails && (
+  <> 
           <div className="flex items-center justify-between px-3 mb-2">
             <div className="text-xs font-medium text-base-content/50 uppercase tracking-wider">
               Organizations
@@ -443,8 +444,9 @@ function MainSlider({ isEmbedUser }) {
               </div>
             </div>
           </button>
-          
           <hr className="border-base-300 my-2" />
+          </>
+          )}
           
           {/* User Details button */}
           <button
@@ -506,6 +508,13 @@ function MainSlider({ isEmbedUser }) {
   // Determine if sidebar should show content (expanded view) with delayed hiding
   const showSidebarContent = isMobile ? false : showContent;
 
+  if (openDetails) {
+  return (
+    <div className="absolute top-23 right-2 mt-2 bg-base-100 border border-base-300 rounded-lg shadow-lg p-2 w-[320px] z-50 animate-in fade-in-0 zoom-in-95 duration-200 slide-in-from-top-2 z-[9999]">
+      {renderOrganizationDropdown()}
+    </div>
+  );
+}
   return (
     <>
       {/* Custom Keyframes for Smooth Animations */}
