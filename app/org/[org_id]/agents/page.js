@@ -276,7 +276,7 @@ const renderLimitCell = (limit) => {
   if (!hasLimit) {
     return (
       <div className="flex items-center justify-center">
-        <Infinity size={20} className="text-primary" />
+        <Infinity size={20} className="text-base-content" />
       </div>
     );
   }
@@ -377,7 +377,7 @@ function Home({ params, searchParams, isEmbedUser }) {
     PortalDropdown,
     PortalStyles
   } = usePortalDropdown({
-    offsetX: -120,  // Better positioning for table dropdowns
+    offsetX: -100,  // Better positioning for table dropdowns
     offsetY: 5
   });
   const { isDeleting, executeDelete } = useDeleteOperation();
@@ -710,7 +710,7 @@ function Home({ params, searchParams, isEmbedUser }) {
               )}
             </div>
           )
-          : "-",
+          : <EmptyCell/>,
         totalTokens: item.metrics ? formatUsageNumber(item.metrics.total_tokens) : usageMetrics?.loading ? "Loading..." : "-",
         cost: item.metrics ? `${Number(item.metrics.total_cost).toFixed(6)}` : usageMetrics?.loading ? "Loading..." : "-",
         usage: true, // Used as key for the combined usage column

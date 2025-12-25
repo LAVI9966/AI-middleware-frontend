@@ -50,6 +50,11 @@ function MainSlider({ isEmbedUser , openDetails , userdetailsfromOrg , orgIdFrom
     currrentOrgDetail: state?.userDetailsReducer?.organizations?.[orgId]
   }));
   const orgName = useMemo(() => organizations?.[orgId]?.name || 'Organization', [organizations, orgId]);
+  const getInitials = (name = '') => {
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0][0]?.toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  };
 
   // Check if we're in side-by-side mode
   const isSideBySideMode = pathParts.length === 4;
@@ -374,13 +379,23 @@ function MainSlider({ isEmbedUser , openDetails , userdetailsfromOrg , orgIdFrom
     setIsMobileVisible(prev => !prev);
   }, []);
 
+  
+  
   // Reusable function for rendering organization dropdown content
   const renderOrganizationDropdown = useCallback(() => {
     return (
       <>
         {/* User info */}
         <div className="flex items-start gap-3 p-3 border-b border-base-300 mb-3">
+        {!openDetails ? (
           <User size={16} className="text-base-content/60 mt-3  flex-shrink-0" />
+        ) : (
+          <div className="shrink-0 w-9 h-9 bg-primary rounded-full flex items-center justify-center cursor-pointer">
+            <span className="text-primary-content font-semibold text-sm">
+              {getInitials(userdetailsfromOrg?.name || userdetails?.name || orgName)}
+            </span>
+          </div>
+        )}
           <div className="flex-1 min-w-0">
             <div className="font-medium text-sm text-base-content truncate">{userdetails?.name}</div>
             <div className="text-xs text-base-content/60 truncate mt-0.5">{userdetails?.email ?? 'user@email.com'}</div>
