@@ -703,9 +703,9 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
             <div className="min-h-screen" id="parentChatbot">
               <div className="h-full flex flex-col">
                 {/* Only show AgentSetupGuide for non-chatbot types */}
-                {bridgeType !== 'chatbot' && (
+            
                   <AgentSetupGuide promptTextAreaRef={promptTextAreaRef} params={resolvedParams} searchParams={resolvedSearchParams} />
-                )}
+                
                 {/* Only show experimental Chat for non-chatbot types */}
                 {bridgeType !== 'chatbot' && (
                   <>

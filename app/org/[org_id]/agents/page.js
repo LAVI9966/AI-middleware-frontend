@@ -315,7 +315,7 @@ function Home({ params, searchParams, isEmbedUser }) {
   const resolvedSearchParams = use(searchParams);
   const dispatch = useDispatch();
   const router = useRouter();
-
+  const type = searchParams?.type ?? "api";
   const { allBridges, averageResponseTime, isLoading, isFirstBridgeCreation, descriptions, bridgeStatus, showHistory, usageMetrics, isAdminOrOwner, currentOrgRole, currentUser, linksData, users } = useCustomSelector((state) => {
     const orgData = state.bridgeReducer.org[resolvedParams.org_id] || {};
     const user = state.userDetailsReducer.userDetails;
@@ -711,8 +711,8 @@ function Home({ params, searchParams, isEmbedUser }) {
             </div>
           )
           : <EmptyCell/>,
-        totalTokens: item.metrics ? formatUsageNumber(item.metrics.total_tokens) : usageMetrics?.loading ? "Loading..." : "-",
-        cost: item.metrics ? `${Number(item.metrics.total_cost).toFixed(6)}` : usageMetrics?.loading ? "Loading..." : "-",
+        totalTokens: item.metrics ? formatUsageNumber(item.metrics.total_tokens) : usageMetrics?.loading ? "Loading..." : <EmptyCell/>,
+        cost: item.metrics ? `${Number(item.metrics.total_cost).toFixed(6)}` : usageMetrics?.loading ? "Loading..." : <EmptyCell/>,
         usage: true, // Used as key for the combined usage column
         averageResponseTime: averageResponseTime[item?._id] ? averageResponseTime[item?._id] : "Not used in 24h",
         agent_limit: renderLimitCell(item?.bridge_limit),
@@ -1246,7 +1246,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                           className="btn btn-primary btn-sm"
                           onClick={() => openModal(MODAL_TYPE?.CREATE_BRIDGE_MODAL)}
                         >
-                          {searchParams?.type === "api" ? " + Create New API Agent" : " + Create New Chatbot Agent"}
+                          {type === "api" ? " + Create New API Agent" : " + Create New Chatbot Agent"}
                         </button>
                       </div>
                     </div>

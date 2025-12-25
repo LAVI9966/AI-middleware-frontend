@@ -4,11 +4,10 @@ import { createDiff } from '@/utils/utility'
 const ComparisonCheck = ({ oldContent, newContent }) => {
     const diffData = createDiff(oldContent || '', newContent || '');
     const isNewContentEmpty = !newContent || newContent.trim() === '';
-    
     const leftScrollRef = useRef(null);
     const rightScrollRef = useRef(null);
     const syncingRef = useRef(false);
-    
+    console.log("DIFF DATA:", diffData);
     const syncScroll = (source, target) => {
         if (syncingRef.current) return;
         syncingRef.current = true;
@@ -44,7 +43,7 @@ const ComparisonCheck = ({ oldContent, newContent }) => {
                                         <div
                                             key={index}
                                             className={`px-3 py-1 text-sm font-mono leading-relaxed border-b border-base-300/50 ${
-                                                line.type === 'deleted' ? 'bg-red-200 text-black' :
+                                                line.type === 'deleted' ? 'bg-red-200 text-base-content' :
                                                 line.type === 'modified' ? 'bg-red-100 text-black' :
                                                 line.type === 'equal' ? 'bg-base-200 text-base-content' :
                                                 'bg-base-100 opacity-30 text-base-content'
@@ -81,7 +80,7 @@ const ComparisonCheck = ({ oldContent, newContent }) => {
                                         <div
                                             key={index}
                                             className={`px-3 py-1 text-sm font-mono leading-relaxed border-b border-base-300/50 ${
-                                                line.type === 'added' ? 'bg-green-200 text-black' :
+                                                line.type === 'added' ? 'bg-green-200 text-base-content' :
                                                 line.type === 'modified' ? 'bg-green-100 text-black' :
                                                 line.type === 'equal' ? 'bg-base-200 text-base-content' :
                                                 'bg-base-100 opacity-30 text-base-content'
@@ -111,9 +110,7 @@ const ComparisonCheck = ({ oldContent, newContent }) => {
                             <div className="flex items-center gap-2">
                                 <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: '#0c8d39ff' }}></span>Added
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="inline-block w-4 h-4 rounded" style={{ backgroundColor: '#eaea7cff' }}></span>Modified
-                            </div>
+                            
                         </div>
                     </div>
                 </>
