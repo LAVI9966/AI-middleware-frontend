@@ -83,6 +83,10 @@ const Navbar = ({ isEmbedUser, params }) => {
     return TABS.findIndex(tab => tab.id === activeTab);
   }, [TABS, activeTab]);
 
+  const TAB_WIDTH = useMemo(() => {
+    return isMobile ? 90 : 120; // px
+  }, [isMobile]);
+
   const shouldShowNavbar = useCallback(() => {
     const depth = pathParts.length;
     if (depth === 3) return false;
@@ -138,11 +142,15 @@ const Navbar = ({ isEmbedUser, params }) => {
       setEditedName(agentName);
       return;
     }
-    if (trimmed !== agentName && trimmed.includes('%')) {
-      toast.error("Agent name cannot contain % character");
+    
+    // Check for special characters (allow only letters, numbers, spaces, hyphens, and underscores)
+    const specialCharRegex = /[^a-zA-Z0-9\s\-_]/;
+    if (specialCharRegex.test(trimmed)) {
+      toast.error("Agent name can only contain letters, numbers, spaces, hyphens, and underscores");
       setEditedName(agentName);
       return;
     }
+    
     if (trimmed !== agentName) {
       dispatch(updateBridgeAction({
         bridgeId: bridgeId,
@@ -489,47 +497,54 @@ const Navbar = ({ isEmbedUser, params }) => {
           {/* Right: Action buttons */}
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
             {/* Navigation Tabs - Fixed Position with Sliding Animation */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {(isEmbedUser && showHistory) || !isEmbedUser ? (
-                <div className="relative flex items-center gap-1">
-                  {/* Sliding background indicator */}
-                  <span
-                    className="absolute inset-0 ml-3 rounded-lg bg-primary shadow-sm transition-all duration-300 ease-in-out"
-                    style={{
-                      width: `${100 / (TABS.length || 1)}%`,
-                      transform: `translateX(${activeTabIndex * 100}%)`,
-                    }}
-                  />
-                  {TABS.map((tab) => {
-                    const isActive = activeTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => handleTabChange(tab.id)}
-                        className={`relative z-10 px-3 py-2 sm:px-4 h-8 rounded-lg transition-all duration-200 flex items-center gap-1 sm:gap-2 text-sm font-medium whitespace-nowrap ${
-                          isActive
-                            ? 'text-primary-content bg-transparent hover:bg-transparent'
-                            : 'text-base-content/70 hover:text-base-content hover:bg-base-200/30'
-                        }`}
-                      >
-                        <tab.icon
-                          size={14}
-                          className={`w-3.5 h-3.5 transition-opacity ${
-                            isActive ? 'opacity-100' : 'opacity-60'
-                          }`}
-                        />
-                        <span className="truncate text-xs">
-                          {isMobile ? tab.shortLabel : tab.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                // Invisible placeholder to maintain spacing when tabs are hidden
-                <div className="w-32 h-8"></div>
-              )}
-            </div>
+          <div className="flex items-center gap-1 flex-shrink-0">
+  {(isEmbedUser && showHistory) || !isEmbedUser ? (
+    <div
+      className="relative flex items-center gap-1"
+      style={{ width: `${TAB_WIDTH * TABS.length}px` }} // 🔥 CRITICAL
+    >
+      {/* Sliding background indicator */}
+      <span
+        className="absolute top-0 left-0 h-full rounded-lg bg-primary shadow-sm transition-transform duration-300 ease-in-out"
+        style={{
+          width: `${TAB_WIDTH}px`,
+          transform: `translateX(${activeTabIndex * TAB_WIDTH}px)`,
+        }}
+      />
+
+      {TABS.map((tab) => {
+        const isActive = activeTab === tab.id;
+
+        return (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            className={`relative z-10 h-8 flex items-center justify-center gap-2 text-sm font-medium transition-colors
+              ${
+                isActive
+                  ? 'text-primary-content'
+                  : 'text-base-content/70 hover:text-base-content'
+              }`}
+            style={{ width: `${TAB_WIDTH}px` }} // 🔒 lock tab width
+          >
+            <tab.icon
+              size={14}
+              className={`w-3.5 h-3.5 transition-opacity ${
+                isActive ? 'opacity-100' : 'opacity-60'
+              }`}
+            />
+            <span className="truncate text-xs">
+              {isMobile ? tab.shortLabel : tab.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  ) : (
+    <div className="w-32 h-8" />
+  )}
+</div>
+
             
             {/* Divider */}
              <div className="h-4 w-px bg-base-300 flex-shrink-0"></div>
