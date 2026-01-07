@@ -499,10 +499,8 @@ const Navbar = ({ isEmbedUser, params }) => {
             {/* Navigation Tabs - Fixed Position with Sliding Animation */}
           <div className="flex items-center gap-1 flex-shrink-0">
   {(isEmbedUser && showHistory) || !isEmbedUser ? (
-    <div
-      className="relative flex items-center gap-1"
-      style={{ width: `${TAB_WIDTH * TABS.length}px` }} // 🔥 CRITICAL
-    >
+    <div className="relative flex items-center gap-1"
+      style={{ width: `${TAB_WIDTH * TABS.length}px` }}>
       {/* Sliding background indicator */}
       <span
         className="absolute top-0 left-0 h-full rounded-lg bg-primary shadow-sm transition-transform duration-300 ease-in-out"
@@ -511,14 +509,12 @@ const Navbar = ({ isEmbedUser, params }) => {
           transform: `translateX(${activeTabIndex * TAB_WIDTH}px)`,
         }}
       />
-
       {TABS.map((tab) => {
-        const isActive = activeTab === tab.id;
-
-        return (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
+                    const isActive = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => handleTabChange(tab.id)}
             className={`relative z-10 h-8 flex items-center justify-center gap-2 text-sm font-medium transition-colors
               ${
                 isActive
@@ -527,24 +523,24 @@ const Navbar = ({ isEmbedUser, params }) => {
               }`}
             style={{ width: `${TAB_WIDTH}px` }} // 🔒 lock tab width
           >
-            <tab.icon
-              size={14}
-              className={`w-3.5 h-3.5 transition-opacity ${
-                isActive ? 'opacity-100' : 'opacity-60'
-              }`}
-            />
-            <span className="truncate text-xs">
-              {isMobile ? tab.shortLabel : tab.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  ) : (
-    <div className="w-32 h-8" />
-  )}
-</div>
-
+                        <tab.icon
+                          size={14}
+                          className={`w-3.5 h-3.5 transition-opacity ${
+                            isActive ? 'opacity-100' : 'opacity-60'
+                          }`}
+                        />
+                        <span className="truncate text-xs">
+                          {isMobile ? tab.shortLabel : tab.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                // Invisible placeholder to maintain spacing when tabs are hidden
+                <div className="w-32 h-8"></div>
+              )}
+            </div>
             
             {/* Divider */}
              <div className="h-4 w-px bg-base-300 flex-shrink-0"></div>
