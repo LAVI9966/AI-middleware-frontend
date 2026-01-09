@@ -66,7 +66,8 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
         // Format the new item with collection_id and resource_id
         const newDocItem = {
             collection_id: knowledgeBaseItem.collectionId,
-            resource_id: id
+            resource_id: id,
+            description:knowledgeBaseItem.description
         };
 
         dispatch(updateBridgeVersionAction({
