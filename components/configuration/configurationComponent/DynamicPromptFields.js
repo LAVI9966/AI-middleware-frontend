@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import DefaultVariablesSection from "./DefaultVariablesSection";
 
@@ -15,12 +15,13 @@ const DynamicPromptFields = ({
     role: "",
     goal: "",
     instructions: "",
-    embedCustomFields: [],
+    embedPromptFields: {},
   });
+  const [singlePromptValue, setSinglePromptValue] = useState("");
 
   // Get global embed config from Redux
   const { embedUserDetails } = useCustomSelector((state) => state.appInfoReducer);
-  const globalEmbedCustomFields = embedUserDetails?.prompt?.embedCustomFields;
+  const globalEmbedPromptFields = embedUserDetails?.prompt?.embedPromptFields;
 
   // Auto-migrate old string format and sync with global config
   useEffect(() => {
@@ -32,7 +33,7 @@ const DynamicPromptFields = ({
         role: "",
         goal: "",
         instructions: promptData,
-        embedCustomFields: [],
+        embedPromptFields: {},
       };
     } else if (promptData && typeof promptData === "object") {
       // New format
@@ -40,26 +41,45 @@ const DynamicPromptFields = ({
         role: promptData.role || "",
         goal: promptData.goal || "",
         instructions: promptData.instructions || "",
-        embedCustomFields: promptData.embedCustomFields || [],
+        embedPromptFields: promptData.embedPromptFields || {},
       };
     }
 
-    // Merge with global configuration if available
-    if (globalEmbedCustomFields) {
-      // Map global definitions to current values, preserving existing values
-      const mergedCustomFields = globalEmbedCustomFields.map((globalField) => {
-        const existingField = currentData.embedCustomFields?.find((f) => f.key === globalField.key);
-        return {
-          ...globalField, // Use global definition (label, type, key)
-          value: existingField?.value || "", // Use existing value or empty
-        };
-      });
+    // Merge with global configuration only for embed prompts
+    if (
+      globalEmbedPromptFields &&
+      promptData &&
+      typeof promptData === "object" &&
+      (promptData.embedPromptFields || promptData.customPrompt)
+    ) {
+      currentData.embedPromptFields = globalEmbedPromptFields;
+    }
 
-      currentData.embedCustomFields = mergedCustomFields;
+    if (isEmbedUser) {
+      const embedFields = currentData.embedPromptFields || {};
+      currentData.embedPromptFields = {
+        role: embedFields.role || { visible: false, type: "textarea", value: currentData.role || "" },
+        goal: embedFields.goal || { visible: false, type: "input", value: currentData.goal || "" },
+        instructions: embedFields.instructions || {
+          visible: false,
+          type: "textarea",
+          value: currentData.instructions || "",
+        },
+        ...embedFields,
+      };
     }
 
     setFields(currentData);
-  }, [promptData, globalEmbedCustomFields]);
+    if (isEmbedUser) {
+      if (typeof promptData === "string") {
+        setSinglePromptValue(promptData);
+      } else if (promptData && typeof promptData === "object") {
+        setSinglePromptValue(promptData.customPrompt || "");
+      } else {
+        setSinglePromptValue("");
+      }
+    }
+  }, [promptData, globalEmbedPromptFields, isEmbedUser]);
 
   // Handle field changes
   const handleFieldChange = useCallback(
@@ -74,17 +94,18 @@ const DynamicPromptFields = ({
     [fields, onChange]
   );
 
-  // Handle embed custom field changes
-  const handleCustomFieldChange = useCallback(
-    (index, value) => {
-      const updatedCustomFields = [...fields.embedCustomFields];
-      updatedCustomFields[index] = {
-        ...updatedCustomFields[index],
-        value: value,
-      };
+  // Handle embed prompt field changes
+  const handleFieldValueChange = useCallback(
+    (fieldName, value) => {
       const updatedFields = {
         ...fields,
-        embedCustomFields: updatedCustomFields,
+        embedPromptFields: {
+          ...fields.embedPromptFields,
+          [fieldName]: {
+            ...fields.embedPromptFields[fieldName],
+            value: value,
+          },
+        },
       };
       setFields(updatedFields);
       onChange?.(updatedFields);
@@ -94,128 +115,186 @@ const DynamicPromptFields = ({
 
   // Handle blur - save prompt object (same approach as PromptTextarea)
   const handleBlur = useCallback(() => {
-    // Build prompt object from current fields
-    const promptObject = {
-      role: fields.role || "",
-      goal: fields.goal || "",
-      instructions: fields.instructions || "",
-      embedCustomFields: fields.embedCustomFields || [],
-    };
+    if (isEmbedUser && typeof promptData === "string") {
+      onSave?.(singlePromptValue);
+      return;
+    }
+    const embedFields = fields.embedPromptFields || {};
+    const hasVisibleEmbedFields = Object.values(embedFields).some((fieldConfig) => fieldConfig?.visible);
+    const hasCustomPrompt = Boolean(promptData?.customPrompt && String(promptData.customPrompt).trim());
 
-    // Call onSave with the prompt object
+    if (isEmbedUser && !hasVisibleEmbedFields) {
+      onSave?.(singlePromptValue);
+      return;
+    }
+
+    const promptObject = isEmbedUser
+      ? {
+          customPrompt: hasCustomPrompt ? promptData.customPrompt : "",
+          embedPromptFields: embedFields,
+        }
+      : {
+          role: fields.role || "",
+          goal: fields.goal || "",
+          instructions: fields.instructions || "",
+          embedPromptFields: embedFields,
+        };
+
     onSave?.(promptObject);
-  }, [fields, onSave]);
+  }, [fields, isEmbedUser, onSave, promptData, singlePromptValue]);
 
   const isDisabled = isPublished && !isEditor;
+  const hasVisibleEmbedFields = useMemo(() => {
+    if (!isEmbedUser) {
+      return false;
+    }
+    return Object.values(fields.embedPromptFields || {}).some((fieldConfig) => fieldConfig?.visible);
+  }, [fields.embedPromptFields, isEmbedUser]);
+  const showSinglePrompt = isEmbedUser && !hasVisibleEmbedFields;
 
   return (
     <div className="space-y-4">
+      {showSinglePrompt && (
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">System Prompt</span>
+          </label>
+          <textarea
+            value={singlePromptValue}
+            onChange={(e) => {
+              const value = e.target.value;
+              setSinglePromptValue(value);
+              onChange?.(value);
+            }}
+            onFocus={() => setIsTextareaFocused(true)}
+            onBlur={(e) => {
+              handleBlur(e);
+              setIsTextareaFocused(false);
+            }}
+            disabled={isDisabled}
+            placeholder="Write your system prompt..."
+            className="textarea textarea-bordered w-full h-32 resize-y"
+            title={isDisabled ? "Cannot edit in published mode" : ""}
+          />
+          <div className="-mt-1">
+            <DefaultVariablesSection isPublished={isPublished} prompt={singlePromptValue} isEditor={isEditor} />
+          </div>
+        </div>
+      )}
+
       {/* Role Field - Input */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Role</span>
-        </label>
-        <input
-          type="text"
-          value={fields.role}
-          onChange={(e) => handleFieldChange("role", e.target.value)}
-          onFocus={() => setIsTextareaFocused(true)}
-          onBlur={(e) => {
-            handleBlur(e);
-            setIsTextareaFocused(false);
-          }}
-          disabled={isDisabled}
-          placeholder="e.g., Math teacher, Customer support agent"
-          className="input input-bordered w-full"
-          title={isDisabled ? "Cannot edit in published mode" : ""}
-        />
-      </div>
+      {!isEmbedUser && (
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Role</span>
+          </label>
+          <input
+            type="text"
+            value={fields.role}
+            onChange={(e) => handleFieldChange("role", e.target.value)}
+            onFocus={() => setIsTextareaFocused(true)}
+            onBlur={(e) => {
+              handleBlur(e);
+              setIsTextareaFocused(false);
+            }}
+            disabled={isDisabled}
+            placeholder="e.g., Math teacher, Customer support agent"
+            className="input input-bordered w-full"
+            title={isDisabled ? "Cannot edit in published mode" : ""}
+          />
+        </div>
+      )}
 
       {/* Goal Field - Textarea */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Goal</span>
-        </label>
-        <input
-          value={fields.goal}
-          onChange={(e) => handleFieldChange("goal", e.target.value)}
-          onFocus={() => setIsTextareaFocused(true)}
-          onBlur={(e) => {
-            handleBlur(e);
-            setIsTextareaFocused(false);
-          }}
-          disabled={isDisabled}
-          placeholder="e.g., Solve math questions, Help customers with inquiries"
-          className="input input-bordered w-full"
-          title={isDisabled ? "Cannot edit in published mode" : ""}
-        />
-      </div>
+      {!isEmbedUser && (
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Goal</span>
+          </label>
+          <input
+            value={fields.goal}
+            onChange={(e) => handleFieldChange("goal", e.target.value)}
+            onFocus={() => setIsTextareaFocused(true)}
+            onBlur={(e) => {
+              handleBlur(e);
+              setIsTextareaFocused(false);
+            }}
+            disabled={isDisabled}
+            placeholder="e.g., Solve math questions, Help customers with inquiries"
+            className="input input-bordered w-full"
+            title={isDisabled ? "Cannot edit in published mode" : ""}
+          />
+        </div>
+      )}
 
       {/* Instructions Field - Textarea */}
-      <div className="form-control">
-        <label className="label">
-          <span className="label-text font-medium">Instructions</span>
-        </label>
-        <textarea
-          value={fields.instructions}
-          onChange={(e) => handleFieldChange("instructions", e.target.value)}
-          onFocus={() => setIsTextareaFocused(true)}
-          onBlur={(e) => {
-            handleBlur(e);
-            setIsTextareaFocused(false);
-          }}
-          disabled={isDisabled}
-          placeholder="e.g., Provide step-by-step solutions, Be friendly and professional"
-          className="textarea textarea-bordered w-full h-32 resize-y"
-          title={isDisabled ? "Cannot edit in published mode" : ""}
-        />
-        {/* Manage Variables Section - No gap with Instructions */}
-        <div className="-mt-1">
-          <DefaultVariablesSection isPublished={isPublished} prompt={fields.instructions} isEditor={isEditor} />
+      {!isEmbedUser && (
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text font-medium">Instructions</span>
+          </label>
+          <textarea
+            value={fields.instructions}
+            onChange={(e) => handleFieldChange("instructions", e.target.value)}
+            onFocus={() => setIsTextareaFocused(true)}
+            onBlur={(e) => {
+              handleBlur(e);
+              setIsTextareaFocused(false);
+            }}
+            disabled={isDisabled}
+            placeholder="e.g., Provide step-by-step solutions, Be friendly and professional"
+            className="textarea textarea-bordered w-full h-32 resize-y"
+            title={isDisabled ? "Cannot edit in published mode" : ""}
+          />
+          {/* Manage Variables Section - No gap with Instructions */}
+          <div className="-mt-1">
+            <DefaultVariablesSection isPublished={isPublished} prompt={fields.instructions} isEditor={isEditor} />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Embed Custom Fields - Only show for embed users */}
-      {isEmbedUser && fields.embedCustomFields && fields.embedCustomFields.length > 0 && (
+      {/* Embed Prompt Fields - Only show for embed users */}
+      {isEmbedUser && fields.embedPromptFields && Object.keys(fields.embedPromptFields).length > 0 && (
         <div className="space-y-3">
-          <div className="divider">Custom Fields</div>
-          {fields.embedCustomFields.map((field, index) => (
-            <div key={field.key} className="form-control">
-              <label className="label">
-                <span className="label-text font-medium">{field.label}</span>
-              </label>
-              {field.type === "input" ? (
-                <input
-                  type="text"
-                  value={field.value}
-                  onChange={(e) => handleCustomFieldChange(index, e.target.value)}
-                  onFocus={() => setIsTextareaFocused(true)}
-                  onBlur={(e) => {
-                    handleBlur(e);
-                    setIsTextareaFocused(false);
-                  }}
-                  disabled={isDisabled}
-                  placeholder={`Enter ${field.label.toLowerCase()}`}
-                  className="input input-bordered w-full"
-                  title={isDisabled ? "Cannot edit in published mode" : ""}
-                />
-              ) : (
-                <textarea
-                  value={field.value}
-                  onChange={(e) => handleCustomFieldChange(index, e.target.value)}
-                  onFocus={() => setIsTextareaFocused(true)}
-                  onBlur={(e) => {
-                    handleBlur(e);
-                    setIsTextareaFocused(false);
-                  }}
-                  disabled={isDisabled}
-                  placeholder={`Enter ${field.label.toLowerCase()}`}
-                  className="textarea textarea-bordered w-full h-24 resize-y"
-                  title={isDisabled ? "Cannot edit in published mode" : ""}
-                />
-              )}
-            </div>
-          ))}
+          {Object.entries(fields.embedPromptFields)
+            .filter(([_, fieldConfig]) => fieldConfig.visible)
+            .map(([fieldName, fieldConfig]) => (
+              <div key={fieldName} className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium capitalize">{fieldName}</span>
+                </label>
+                {fieldConfig.type === "input" ? (
+                  <input
+                    type="text"
+                    value={fieldConfig.value || ""}
+                    onChange={(e) => handleFieldValueChange(fieldName, e.target.value)}
+                    onFocus={() => setIsTextareaFocused(true)}
+                    onBlur={(e) => {
+                      handleBlur(e);
+                      setIsTextareaFocused(false);
+                    }}
+                    disabled={isDisabled}
+                    placeholder={`Enter ${fieldName}`}
+                    className="input input-bordered w-full"
+                    title={isDisabled ? "Cannot edit in published mode" : ""}
+                  />
+                ) : (
+                  <textarea
+                    value={fieldConfig.value || ""}
+                    onChange={(e) => handleFieldValueChange(fieldName, e.target.value)}
+                    onFocus={() => setIsTextareaFocused(true)}
+                    onBlur={(e) => {
+                      handleBlur(e);
+                      setIsTextareaFocused(false);
+                    }}
+                    disabled={isDisabled}
+                    placeholder={`Enter ${fieldName}`}
+                    className="textarea textarea-bordered w-full h-24 resize-y"
+                    title={isDisabled ? "Cannot edit in published mode" : ""}
+                  />
+                )}
+              </div>
+            ))}
         </div>
       )}
     </div>

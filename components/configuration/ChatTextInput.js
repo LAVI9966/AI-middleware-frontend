@@ -215,7 +215,14 @@ function ChatTextInput({
       inputRef.current.style.height = "40px"; // Set initial height
     }
     // Skip prompt validation for chat models - they don't require a system prompt
-    if (prompt?.trim() === "" && modelType !== "completion" && modelType !== "embedding" && modelType !== "chat") {
+    // Handle both string and object prompt formats
+    const isPromptEmpty =
+      typeof prompt === "string"
+        ? prompt.trim() === ""
+        : !prompt ||
+          (typeof prompt === "object" && !prompt.role && !prompt.goal && !prompt.instructions && !prompt.customPrompt);
+
+    if (isPromptEmpty && modelType !== "completion" && modelType !== "embedding" && modelType !== "chat") {
       dispatch(setChatError(channelIdentifier, "Prompt is required"));
       return;
     }

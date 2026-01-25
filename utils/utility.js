@@ -925,6 +925,17 @@ export const extractPromptVariables = (prompt) => {
     extractFromText(prompt.goal);
     extractFromText(prompt.instructions);
 
+    const embedPromptFields = prompt.embedPromptFields;
+    if (embedPromptFields && typeof embedPromptFields === "object") {
+      Object.values(embedPromptFields).forEach((field) => {
+        if (field && typeof field === "object") {
+          extractFromText(field.value);
+        } else if (typeof field === "string") {
+          extractFromText(field);
+        }
+      });
+    }
+
     const customFields = prompt.embedCustomFields;
     if (Array.isArray(customFields)) {
       customFields.forEach((field) => {

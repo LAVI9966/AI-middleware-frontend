@@ -183,6 +183,11 @@ const Layout = ({ children }) => {
                   console.error("Invalid prompt JSON in embed params", err);
                 }
               }
+              try {
+                sessionStorage.setItem("embed_prompt_config", JSON.stringify(parsedPrompt));
+              } catch (err) {
+                console.error("Failed to persist embed prompt config", err);
+              }
               dispatch(setEmbedUserDetailsAction({ prompt: parsedPrompt }));
               return;
             }

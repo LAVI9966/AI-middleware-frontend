@@ -143,6 +143,54 @@ export const createEmbedAgentAction =
   async (dispatch, getState) => {
     try {
       dispatch(isPending());
+      const getEmbedPromptPayload = () => {
+        if (!isEmbedUser) {
+          return null;
+        }
+        let embedPrompt = getState().appInfoReducer?.embedUserDetails?.prompt || {};
+        if (!embedPrompt || Object.keys(embedPrompt).length === 0) {
+          try {
+            const storedPrompt = typeof window !== "undefined" ? sessionStorage.getItem("embed_prompt_config") : null;
+            embedPrompt = storedPrompt ? JSON.parse(storedPrompt) : {};
+          } catch (err) {
+            console.error("Failed to read embed prompt config from session", err);
+          }
+        }
+        const embedPromptFields = embedPrompt.embedPromptFields || {};
+        const customPrompt = typeof embedPrompt.customPrompt === "string" ? embedPrompt.customPrompt : "";
+        if (!customPrompt.trim() && Object.keys(embedPromptFields).length === 0) {
+          return null;
+        }
+        return {
+          customPrompt,
+          embedPromptFields,
+        };
+      };
+      const embedPromptPayload = getEmbedPromptPayload();
+      const applyEmbedPromptIfNeeded = async (createdAgent) => {
+        if (!isEmbedUser || !createdAgent?.versions?.[0]) {
+          return;
+        }
+        if (!embedPromptPayload) {
+          return;
+        }
+
+        const dataToSend = {
+          configuration: {
+            prompt: {
+              customPrompt: embedPromptPayload.customPrompt,
+              embedPromptFields: embedPromptPayload.embedPromptFields,
+            },
+          },
+        };
+        await dispatch(
+          updateBridgeVersionAction({
+            versionId: createdAgent.versions[0],
+            bridgeId: createdAgent._id,
+            dataToSend,
+          })
+        );
+      };
 
       // Generate unique name if not provided
       const generateUniqueName = () => {
@@ -160,6 +208,9 @@ export const createEmbedAgentAction =
             purpose: purpose.trim(),
             bridgeType: "api",
           };
+          if (embedPromptPayload) {
+            aiDataToSend.configuration = { prompt: embedPromptPayload };
+          }
 
           response = await dispatch(createBridgeWithAiAction({ dataToSend: aiDataToSend, orgId }));
 
@@ -181,6 +232,8 @@ export const createEmbedAgentAction =
               router.push(`/org/${orgId}/agents/configure/${createdAgent._id}?version=${createdAgent.versions[0]}`);
             }
 
+            await applyEmbedPromptIfNeeded(createdAgent);
+
             return { success: true, agent: createdAgent };
           }
         } catch (aiError) {
@@ -201,6 +254,9 @@ export const createEmbedAgentAction =
         bridgeType: "api",
         type: "chat",
       };
+      if (embedPromptPayload) {
+        fallbackDataToSend.configuration = { prompt: embedPromptPayload };
+      }
 
       response = await new Promise((resolve, reject) => {
         dispatch(
@@ -227,6 +283,8 @@ export const createEmbedAgentAction =
         if (router && createdAgent) {
           router.push(`/org/${orgId}/agents/configure/${createdAgent._id}?version=${createdAgent.versions[0]}`);
         }
+
+        await applyEmbedPromptIfNeeded(createdAgent);
 
         return { success: true, agent: createdAgent };
       }

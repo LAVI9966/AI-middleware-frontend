@@ -12,7 +12,6 @@ import CopyButton from "../copyButton/CopyButton";
 import defaultUserTheme from "@/public/themes/default-user-theme.json";
 import { closeModal, openModal } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
-import PromptFieldModal from "../modals/PromptFieldModal";
 
 const COLOR_LABEL_MAP = {
   "base-100": "Page Background",
@@ -579,7 +578,6 @@ function GtwyIntegrationGuideSlider({ data, handleCloseSlider }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedConfig, setLastSavedConfig] = useState(null);
-  const [editingField, setEditingField] = useState(null);
 
   // Get config and root-level data from Redux store
   const integrationData = useCustomSelector((state) =>
@@ -809,9 +807,46 @@ function GtwyIntegrationGuideSlider({ data, handleCloseSlider }) {
         apikey_object_id, // move to root
         ...restConfig
       } = configuration;
+      const promptConfig = configuration.prompt || {};
+      const customPrompt = promptConfig.customPrompt || "";
+      const embedPromptFields = promptConfig.embedPromptFields || {};
+      const promptFieldRegex = /{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}/g;
+      const promptFieldMatches = customPrompt
+        ? [...customPrompt.matchAll(promptFieldRegex)].map((match) => match[1].trim())
+        : [];
+      const uniquePromptFields = [...new Set(promptFieldMatches)];
+      const buildDefaultField = (fieldName, fallbackValue) => ({
+        visible: false,
+        type: fieldName === "goal" ? "input" : "textarea",
+        value: fallbackValue || "",
+      });
+      const resolvedBaseFields = {
+        role: embedPromptFields.role || buildDefaultField("role", promptConfig.role || ""),
+        goal: embedPromptFields.goal || buildDefaultField("goal", promptConfig.goal || ""),
+        instructions:
+          embedPromptFields.instructions || buildDefaultField("instructions", promptConfig.instructions || ""),
+      };
+      const filteredEmbedPromptFields = { ...resolvedBaseFields };
+      uniquePromptFields.forEach((fieldName) => {
+        if (filteredEmbedPromptFields[fieldName]) {
+          return;
+        }
+        filteredEmbedPromptFields[fieldName] = embedPromptFields[fieldName] || {
+          visible: true,
+          type: "input",
+          value: "",
+        };
+      });
+
       const cleanedConfig = {
         ...restConfig,
         theme_config: parsedTheme,
+        prompt: {
+          // Only save customPrompt and embedPromptFields for embed
+          // role/goal/instructions are stored in embedPromptFields.*.value
+          customPrompt,
+          embedPromptFields: filteredEmbedPromptFields,
+        },
       }; // strictly visual/config flags
 
       const dataToSend = {
@@ -853,70 +888,80 @@ function GtwyIntegrationGuideSlider({ data, handleCloseSlider }) {
     }
   };
 
-  const handleSaveCustomField = (newField) => {
-    setConfiguration((prev) => {
-      const currentPrompt = prev.prompt || {
-        role: "",
-        goal: "",
-        instructions: "",
-        embedCustomFields: [],
-      };
-
-      const currentCustomFields = Array.isArray(currentPrompt.embedCustomFields) ? currentPrompt.embedCustomFields : [];
-
-      const existingIndex = currentCustomFields.findIndex((f) => f.key === newField.key);
-      let updatedFields;
-
-      if (existingIndex >= 0) {
-        updatedFields = [...currentCustomFields];
-        updatedFields[existingIndex] = {
-          ...updatedFields[existingIndex],
-          label: newField.label,
-          type: newField.type,
-        };
-      } else {
-        updatedFields = [
-          ...currentCustomFields,
-          {
-            key: newField.key,
-            label: newField.label,
-            type: newField.type,
-            value: "",
-          },
-        ];
-      }
-
-      return {
-        ...prev,
-        prompt: {
-          ...currentPrompt,
-          embedCustomFields: updatedFields,
-        },
-      };
-    });
-    setEditingField(null);
-  };
-
-  const handleDeleteCustomField = (key) => {
-    setConfiguration((prev) => {
-      const currentPrompt = prev.prompt || {};
-      const currentCustomFields = Array.isArray(currentPrompt.embedCustomFields) ? currentPrompt.embedCustomFields : [];
-
-      return {
-        ...prev,
-        prompt: {
-          ...currentPrompt,
-          embedCustomFields: currentCustomFields.filter((f) => f.key !== key),
-        },
-      };
-    });
-  };
-
   const handleConfigChange = (key, value) => {
     setConfiguration((prev) => ({
       ...prev,
       [key]: value,
     }));
+  };
+
+  const handleCustomPromptChange = (value) => {
+    const regex = /{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}/g;
+    const matches = [...value.matchAll(regex)].map((m) => m[1].trim());
+    const uniqueFields = [...new Set(matches)];
+
+    setConfiguration((prev) => {
+      const currentPrompt = prev.prompt || {
+        role: "",
+        goal: "",
+        instructions: "",
+      };
+
+      // Preserve existing field configs
+      const oldConfig = currentPrompt.embedPromptFields || {};
+      const newConfig = {};
+
+      // Add default fields (role, goal, instructions) - always present (hidden by default)
+      ["role", "goal", "instructions"].forEach((field) => {
+        newConfig[field] = oldConfig[field] || {
+          visible: false,
+          type: field === "role" || field === "instructions" ? "textarea" : "input",
+          value: oldConfig[field]?.value || "", // Preserve existing value from embedPromptFields
+        };
+      });
+
+      // Add custom fields from template
+      uniqueFields.forEach((field) => {
+        if (!newConfig[field]) {
+          // Don't override defaults
+          newConfig[field] = oldConfig[field] || {
+            visible: true,
+            type: "input",
+            value: "",
+          };
+        }
+      });
+
+      return {
+        ...prev,
+        prompt: {
+          ...currentPrompt,
+          customPrompt: value,
+          embedPromptFields: newConfig,
+        },
+      };
+    });
+  };
+
+  const handlePromptFieldConfigChange = (fieldName, property, value) => {
+    setConfiguration((prev) => {
+      const currentPrompt = prev.prompt || {};
+      const currentFieldsConfig = currentPrompt.embedPromptFields || {};
+
+      return {
+        ...prev,
+        prompt: {
+          ...currentPrompt,
+          embedPromptFields: {
+            ...currentFieldsConfig,
+            [fieldName]: {
+              ...(currentFieldsConfig[fieldName] || { visible: true, type: "input", value: "" }),
+              [property]: value,
+            },
+          },
+        },
+      };
+    });
   };
 
   // Check if configuration has changed from the last saved state
@@ -1118,53 +1163,113 @@ window.openGtwy({
                 <div className="card-body p-3">
                   <div className="flex items-center justify-between mb-1">
                     <h4 className="card-title text-primary text-base mb-0">Prompt Fields</h4>
-                    <button
-                      className="btn btn-xs btn-outline btn-primary"
-                      onClick={() => {
-                        setEditingField(null);
-                        openModal(MODAL_TYPE.PROMPT_FIELD_MODAL);
-                      }}
-                    >
-                      + Custom Field
-                    </button>
                   </div>
                   <p className="text-xs text-base-content/70 mb-3">Configure fields visible to the user.</p>
 
-                  {/* Custom Fields List */}
-                  {configuration.prompt?.embedCustomFields && configuration.prompt.embedCustomFields.length > 0 && (
-                    <div className="mt-2 space-y-2">
-                      <div className="text-xs font-semibold opacity-60 uppercase pl-1">Custom Fields</div>
-                      {configuration.prompt.embedCustomFields.map((field) => (
-                        <div
-                          key={field.key}
-                          className="flex items-center justify-between bg-base-200/50 hover:bg-base-200 p-2 rounded-lg text-sm transition-colors border border-base-200 cursor-pointer"
-                          onClick={() => {
-                            setEditingField(field);
-                            openModal(MODAL_TYPE.PROMPT_FIELD_MODAL);
-                          }}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col">
-                              <span className="font-medium">{field.label}</span>
-                              <span className="text-[10px] opacity-50 capitalize">
-                                {field.type} • {field.key}
-                              </span>
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent opening edit modal
-                              handleDeleteCustomField(field.key);
-                            }}
-                            className="btn btn-ghost btn-xs btn-square text-error/70 hover:text-error hover:bg-error/10"
-                            title="Delete custom field"
-                          >
-                            <CloseIcon size={14} />
-                          </button>
+                  {/* Prompt Textarea */}
+                  <div className="form-control mb-4">
+                    <label className="label">
+                      <span className="label-text text-sm font-medium">Custom Prompt</span>
+                    </label>
+                    <textarea
+                      className="textarea textarea-bordered w-full h-32 text-sm"
+                      placeholder="Enter your custom prompt here..."
+                      value={configuration.prompt?.customPrompt || ""}
+                      onChange={(e) => handleCustomPromptChange(e.target.value)}
+                    />
+                    <label className="label">
+                      <span className="label-text-alt text-xs opacity-60">
+                        This prompt will be used to guide the AI's behavior in the embed
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Extracted Fields Configuration */}
+                  {configuration.prompt?.embedPromptFields &&
+                    Object.keys(configuration.prompt.embedPromptFields).length > 0 && (
+                      <div className="mt-6">
+                        <div className="space-y-2">
+                          {Object.entries(configuration.prompt.embedPromptFields).map(([fieldName, fieldConfig]) => {
+                            return (
+                              <div
+                                key={fieldName}
+                                className={`group relative flex items-center gap-3 bg-gradient-to-r from-base-100 to-base-200/50 hover:from-base-200/80 hover:to-base-200 p-3 rounded-xl transition-all duration-200 border ${
+                                  fieldConfig.visible
+                                    ? "border-primary/20 hover:border-primary/40"
+                                    : "border-base-300 hover:border-base-300/60"
+                                } ${!fieldConfig.visible ? "opacity-60" : ""}`}
+                              >
+                                {/* Left accent bar */}
+                                <div
+                                  className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl transition-all ${
+                                    fieldConfig.visible ? "bg-primary" : "bg-base-300"
+                                  }`}
+                                ></div>
+
+                                {/* Visibility Toggle */}
+                                <div className="flex items-center pl-2">
+                                  <input
+                                    type="checkbox"
+                                    className="checkbox checkbox-sm checkbox-primary"
+                                    checked={fieldConfig.visible}
+                                    onChange={(e) =>
+                                      handlePromptFieldConfigChange(fieldName, "visible", e.target.checked)
+                                    }
+                                    title={fieldConfig.visible ? "Hide field" : "Show field"}
+                                  />
+                                </div>
+
+                                {/* Field Info */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <code className="text-sm font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded">
+                                      {`{{${fieldName}}}`}
+                                    </code>
+                                    {!fieldConfig.visible && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-base-300 text-base-content/60 font-medium">
+                                        Hidden
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-base-content/50 mt-0.5">
+                                    {fieldConfig.visible
+                                      ? `Will be shown as ${fieldConfig.type === "textarea" ? "a multi-line text area" : "an input field"}`
+                                      : "Field will not be displayed to users"}
+                                  </p>
+                                </div>
+
+                                {/* Type Selector */}
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    className={`select select-bordered select-sm min-w-[110px] text-xs transition-all ${
+                                      !fieldConfig.visible ? "opacity-40 cursor-not-allowed" : "hover:border-primary/50"
+                                    }`}
+                                    value={fieldConfig.type}
+                                    onChange={(e) => handlePromptFieldConfigChange(fieldName, "type", e.target.value)}
+                                    disabled={!fieldConfig.visible}
+                                  >
+                                    <option value="input">📝 Input</option>
+                                    <option value="textarea">📄 Textarea</option>
+                                  </select>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
-                  )}
+
+                        {/* Helper text */}
+                        <div className="mt-3 p-3 bg-info/5 border border-info/20 rounded-lg">
+                          <p className="text-xs text-info/80 flex items-start gap-2">
+                            <span className="text-base mt-0.5">💡</span>
+                            <span>
+                              <strong>Tip:</strong> Use{" "}
+                              <code className="bg-info/10 px-1 rounded text-info">{"{{variable}}"}</code> syntax in your
+                              prompt. Visible fields will be shown to users when they interact with the embed.
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
                 </div>
               </div>
 
@@ -1513,12 +1618,6 @@ window.openGtwy({
           </div>
         </div>
       </aside>
-
-      <PromptFieldModal
-        existingFields={configuration.prompt?.embedCustomFields || []}
-        onSave={handleSaveCustomField}
-        fieldToEdit={editingField}
-      />
 
       {/* Confirmation Modal using the reusable component */}
       <ConfirmationModal
