@@ -32,11 +32,12 @@ const ToolsConfiguration = ({
   const [variablesPath, setVariablesPath] = useState({});
   const [functionName, setFunctionName] = useState("");
 
-  const { allFunctions, integrationData } = useCustomSelector((state) => {
+  const { allFunctions, integrationData, embedToken } = useCustomSelector((state) => {
     const orgData = state?.bridgeReducer?.org?.[orgId];
     return {
       allFunctions: orgData?.functionData || {},
       integrationData: orgData?.integrationData || {},
+      embedToken: orgData?.embed_token,
     };
   });
 
@@ -235,7 +236,7 @@ const ToolsConfiguration = ({
         name={modalType === MODAL_TYPE.PRE_FUNCTION_PARAMETER_MODAL ? "Pre Tool" : "Tool"}
         functionId={selectedFunctionId}
         Model_Name={modalType}
-        embedToken=""
+        embedToken={embedToken}
         handleSave={handleSaveFunctionData}
         toolData={toolData}
         setToolData={setToolData}
