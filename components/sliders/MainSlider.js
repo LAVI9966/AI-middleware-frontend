@@ -366,8 +366,8 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         onClick: () => {
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
-          if (isMobile) setIsMobileVisible(false);
-          router.push(`/org/${orgId}/prebuilt-prompts`);
+         window.dispatchEvent(new Event('openAddUserDialog'));
+
         },
       },
     ],
@@ -414,7 +414,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                   onClick={() => {
                     setIsOrgDropdownExpanded(false);
                     setIsOrgDropdownOpen(false);
-                    openModal(MODAL_TYPE.INVITE_USER);
+                    window.dispatchEvent(new Event('openAddUserDialog'));
                   }}
                   className="text-xs text-blue-400 hover:text-blue-600 transition-colors font-medium"
                 >
