@@ -327,9 +327,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const handleSwitchToModelTab = useCallback(() => {
     const current = new URLSearchParams(window.location.search);
     current.set("tab", "model");
-    const search = current.toString();
-    const query = search ? `?${search}` : "";
-    router.push(`${window.location.pathname}${query}`, { scroll: false });
+    router.push(`${window.location.pathname}?${current.toString()}`);
   }, [router]);
 
   const [isAgentFlowView, setIsAgentFlowView] = useState(() => resolvedSearchParams?.view === "agent-flow");

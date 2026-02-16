@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo, useMemo, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import TabsLayout from "./sections/TabsLayout";
 import PromptTab from "./sections/PromptTab";
 import ModelTab from "./sections/ModelTab";
@@ -14,32 +14,9 @@ import { BookOpen } from "lucide-react";
 import { useConfigurationContext } from "./ConfigurationContext";
 
 const NonImageModelConfig = memo(() => {
-  const { isPublished, uiState, currentView, isEmbedUser, onTabSwitchRequest } = useConfigurationContext();
-  const router = useRouter();
+  const { isPublished, uiState, currentView, isEmbedUser } = useConfigurationContext();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "prompt");
-
-  // Sync activeTab with URL param
-  useEffect(() => {
-    const tabFromUrl = searchParams.get("tab");
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl);
-    }
-  }, [searchParams, activeTab]);
-
-  useEffect(() => {
-    const handleTabSwitch = (tabId) => {
-      const current = new URLSearchParams(Array.from(searchParams.entries()));
-      current.set("tab", tabId);
-      const search = current.toString();
-      const query = search ? `?${search}` : "";
-      router.push(`${window.location.pathname}${query}`, { scroll: false });
-    };
-
-    if (onTabSwitchRequest) {
-      onTabSwitchRequest.current = handleTabSwitch;
-    }
-  }, [onTabSwitchRequest, router, searchParams]);
 
   // Sync activeTab with currentView from URL (legacy support if needed, but tab param takes precedence)
   useEffect(() => {

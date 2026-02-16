@@ -29,7 +29,6 @@ const ConfigurationPage = ({
   const router = useRouter();
   const view = searchParams?.view || "config";
   const [currentView, setCurrentView] = useState(viewOverride || view);
-  const onTabSwitchRequestRef = React.useRef(null);
 
   const configState = useConfigurationState(params, searchParams);
 
@@ -177,7 +176,6 @@ const ConfigurationPage = ({
       switchView: handleNavigation,
       isPublished,
       isEditor,
-      onTabSwitchRequest: onTabSwitchRequestRef,
       apiKeyError,
       setApiKeyError,
     }),
