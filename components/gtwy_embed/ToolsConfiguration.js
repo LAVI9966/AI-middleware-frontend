@@ -213,7 +213,7 @@ const ToolsConfiguration = ({
           integrationData={integrationData}
           getStatusClass={() => "bg-gray-100"}
           handleOpenModal={handleOpenConfigModal}
-          embedToken=""
+          embedToken={embedToken}
           params={params}
           handleRemoveEmbed={handleRemoveFunction}
           handleOpenDeleteModal={(functionId) => handleRemoveFunction(functionId)}
