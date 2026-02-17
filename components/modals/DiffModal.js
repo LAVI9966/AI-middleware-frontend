@@ -44,7 +44,7 @@ const Diff_Modal = ({ oldContent, newContent }) => {
 
   // Filter keys we explicitly care about or all if generic
   // Prioritize standard fields
-  const standardFields = ["role", "goal", "instruction", "customPrompt", "defaultPromptText"];
+  const standardFields = ["role", "goal", "instruction", "customPrompt"];
   const sortedKeys = Array.from(allKeys).sort((a, b) => {
     // Custom sort: standard fields first
     const aIdx = standardFields.indexOf(a);

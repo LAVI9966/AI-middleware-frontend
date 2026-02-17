@@ -139,7 +139,6 @@ export const preprocessPrompt = (content) => {
     // If we have embed fields, remove the customPrompt template from comparison
     // as per user request to only compare the fields
     delete processed.customPrompt;
-    delete processed.defaultPromptText;
     delete processed.useDefaultPrompt;
   }
 

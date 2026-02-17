@@ -1,3 +1,4 @@
+import { convertStructuredPromptToString } from "./promptUtils";
 export const validatePromptVariables = (prompt, variablesKeyValue) => {
   if (!prompt) return { isValid: true, missingVariables: [] };
 
@@ -6,9 +7,11 @@ export const validatePromptVariables = (prompt, variablesKeyValue) => {
   }
   // Extract variables from prompt using regex
   const regex = /{{(.*?)}}/g;
+  if (typeof prompt !== "string") {
+    prompt = convertStructuredPromptToString(prompt);
+  }
   const matches = [...prompt.matchAll(regex)];
   const promptVariables = [...new Set(matches.map((match) => match[1].trim()))];
-
   if (!promptVariables.length) return { isValid: true, missingVariables: [] };
 
   // Check which variables are missing values

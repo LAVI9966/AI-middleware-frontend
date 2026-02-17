@@ -5,6 +5,7 @@ import React from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
 import { RotateCcw } from "lucide-react";
+import { convertPromptToAdvancedView, normalizePromptToStructured } from "@/utils/promptUtils";
 
 const HistoryPagePromptUpdateModal = ({
   searchParams,
@@ -23,8 +24,25 @@ const HistoryPagePromptUpdateModal = ({
 
   const handleSave = (e) => {
     e.preventDefault();
-    const newValue = promotToUpdate?.trim() || "";
-    if (newValue !== previousPrompt) {
+
+    let newValue;
+    // Handle based on the format of promotToUpdate
+    if (typeof promotToUpdate === "string") {
+      newValue = promotToUpdate?.trim() || "";
+    } else if (typeof promotToUpdate === "object") {
+      // Ensure the object has the correct structure (role, goal, instruction)
+      newValue = normalizePromptToStructured(promotToUpdate);
+    } else {
+      newValue = "";
+    }
+
+    // Deep comparison/simple comparison based on type
+    const hasChanged =
+      typeof newValue === "string"
+        ? newValue !== previousPrompt
+        : JSON.stringify(newValue) !== JSON.stringify(previousPrompt);
+
+    if (hasChanged) {
       dispatch(
         updateBridgeVersionAction({
           versionId: searchParams?.version,
@@ -77,8 +95,8 @@ const HistoryPagePromptUpdateModal = ({
               data-testid="history-prompt-previous-textarea"
               id="history-prompt-previous-textarea"
               className="textarea bg-white dark:bg-black/15 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
-              key={previousPrompt}
-              defaultValue={previousPrompt}
+              key={typeof previousPrompt === "object" ? JSON.stringify(previousPrompt) : previousPrompt}
+              defaultValue={convertPromptToAdvancedView(previousPrompt)}
               readOnly
             />
           </div>
@@ -90,8 +108,8 @@ const HistoryPagePromptUpdateModal = ({
               data-testid="history-prompt-updated-textarea"
               id="history-prompt-updated-textarea"
               className="textarea bg-white dark:bg-black/15 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
-              key={promotToUpdate}
-              defaultValue={promotToUpdate}
+              key={typeof promotToUpdate === "object" ? JSON.stringify(promotToUpdate) : promotToUpdate}
+              defaultValue={convertPromptToAdvancedView(promotToUpdate)}
               readOnly
             />
           </div>
