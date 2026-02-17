@@ -54,6 +54,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   const [editContent, setEditContent] = useState("");
   const testCaseResultRef = useRef(null);
   const [testCaseConversation, setTestCaseConversation] = useState([]);
+  const [pendingTestIndex, setPendingTestIndex] = useState(null);
 
   // Get published version ID from Redux store
   const publishedVersionId = useCustomSelector(
@@ -208,21 +209,44 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     }
   }, [userMessage]);
 
-  const handleRunTestCase = async (index) => {
-    // Validate variables before running test
-    const validation = validateVariables();
-    const shouldShowVariables = isEmbedUser ? showVariablesFromRedux : true;
-    if (!validation.isValid && shouldShowVariables) {
-      // Open the variable collection slider
-      toggleSidebar("variable-collection-slider", "right");
+  // Listen for runAnyway event from VariableCollectionSlider
+  useEffect(() => {
+    const handleRunAnyway = () => {
+      // Check if there's a pending playground test
+      if (pendingTestIndex !== null) {
+        handleRunTestCase(pendingTestIndex, true); // Run with forceRun=true
+      }
+    };
 
-      // Store missing variables in sessionStorage for the slider to highlight
-      sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+    window.addEventListener("runAnyway", handleRunAnyway);
+    return () => window.removeEventListener("runAnyway", handleRunAnyway);
+  }, [pendingTestIndex]);
 
-      return; // Don't run the test
+  const handleRunTestCase = async (index, forceRun = false) => {
+    // Check if slider auto-open is disabled
+    const isSliderAutoOpenDisabled =
+      typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
+
+    // Validate variables before running test (skip if forceRun is true or slider is disabled)
+    if (!forceRun && !isSliderAutoOpenDisabled) {
+      const validation = validateVariables();
+      const shouldShowVariables = isEmbedUser ? showVariablesFromRedux : true;
+      if (!validation.isValid && shouldShowVariables) {
+        // Store the pending test index
+        setPendingTestIndex(index);
+
+        // Open the variable collection slider
+        toggleSidebar("variable-collection-slider", "right");
+
+        // Store missing variables in sessionStorage for the slider to highlight
+        sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+
+        return; // Don't run the test
+      }
     }
 
-    // Clear missing variables from sessionStorage if validation passes
+    // Clear pending state and missing variables
+    setPendingTestIndex(null);
     sessionStorage.removeItem("missingVariables");
 
     const conversationForTestCase = messages.slice(-6, index + 1);

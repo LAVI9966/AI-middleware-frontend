@@ -17,6 +17,8 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
   const [expandedVersions, setExpandedVersions] = useState({});
   const [selectedVersion, setSelectedVersion] = useState("");
   const [generatingTestCases, setGeneratingTestCases] = useState(false);
+  const [pendingTestId, setPendingTestId] = useState(null);
+  const [pendingRunAll, setPendingRunAll] = useState(false);
   const dispatch = useDispatch();
 
   const { testCases, versions, prompt, variablesKeyValue, isEmbedUser, showVariables } = useCustomSelector((state) => {
@@ -36,6 +38,23 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
     dispatch(getAllTestCasesOfBridgeAction({ bridgeId: params?.id }));
   }, []);
 
+  // Listen for runAnyway event from VariableCollectionSlider
+  useEffect(() => {
+    const handleRunAnyway = () => {
+      // Check if there's a pending single test
+      if (pendingTestId) {
+        runSingleTest(pendingTestId, true); // Run with forceRun=true
+      }
+      // Check if there's a pending run all
+      else if (pendingRunAll) {
+        runAllTests(true); // Run with forceRun=true
+      }
+    };
+
+    window.addEventListener("runAnyway", handleRunAnyway);
+    return () => window.removeEventListener("runAnyway", handleRunAnyway);
+  }, [pendingTestId, pendingRunAll]);
+
   // Validate missing variables in prompt (using shared utility)
   const validateVariables = useCallback(
     () => validatePromptVariables(prompt, variablesKeyValue),
@@ -44,20 +63,30 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
 
   // Build variables object from variablesKeyValue (using shared utility)
   const variables = useMemo(() => buildVariablesObject(variablesKeyValue), [variablesKeyValue]);
-  const runSingleTest = async (testId) => {
-    // Validate variables before running test
-    const validation = validateVariables();
-    if (!validation.isValid && (!isEmbedUser || (isEmbedUser && showVariables))) {
-      // Open the variable collection slider
-      toggleSidebar("variable-collection-slider", "right");
+  const runSingleTest = async (testId, forceRun = false) => {
+    // Check if slider auto-open is disabled
+    const isSliderAutoOpenDisabled =
+      typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
 
-      // Store missing variables in sessionStorage for the slider to highlight
-      sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+    // Validate variables before running test (skip if forceRun is true or slider is disabled)
+    if (!forceRun && !isSliderAutoOpenDisabled) {
+      const validation = validateVariables();
+      if (!validation.isValid && (!isEmbedUser || (isEmbedUser && showVariables))) {
+        // Store the pending test ID
+        setPendingTestId(testId);
 
-      return; // Don't run the test
+        // Open the variable collection slider
+        toggleSidebar("variable-collection-slider", "right");
+
+        // Store missing variables in sessionStorage for the slider to highlight
+        sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+
+        return; // Don't run the test
+      }
     }
 
-    // Clear missing variables from sessionStorage if validation passes
+    // Clear pending state and missing variables
+    setPendingTestId(null);
     sessionStorage.removeItem("missingVariables");
 
     setRunningTests((prev) => new Set([...prev, testId]));
@@ -82,20 +111,30 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
     }
   };
 
-  const runAllTests = async () => {
-    // Validate variables before running all tests
-    const validation = validateVariables();
-    if (!validation.isValid && (!isEmbedUser || (isEmbedUser && showVariables))) {
-      // Open the variable collection slider
-      toggleSidebar("variable-collection-slider", "right");
+  const runAllTests = async (forceRun = false) => {
+    // Check if slider auto-open is disabled
+    const isSliderAutoOpenDisabled =
+      typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
 
-      // Store missing variables in sessionStorage for the slider to highlight
-      sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+    // Validate variables before running all tests (skip if forceRun is true or slider is disabled)
+    if (!forceRun && !isSliderAutoOpenDisabled) {
+      const validation = validateVariables();
+      if (!validation.isValid && (!isEmbedUser || (isEmbedUser && showVariables))) {
+        // Set pending run all flag
+        setPendingRunAll(true);
 
-      return; // Don't run the tests
+        // Open the variable collection slider
+        toggleSidebar("variable-collection-slider", "right");
+
+        // Store missing variables in sessionStorage for the slider to highlight
+        sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+
+        return; // Don't run the tests
+      }
     }
 
-    // Clear missing variables from sessionStorage if validation passes
+    // Clear pending state and missing variables
+    setPendingRunAll(false);
     sessionStorage.removeItem("missingVariables");
 
     const testIds = Array.isArray(testCases) ? testCases.map((test) => test._id) : [];

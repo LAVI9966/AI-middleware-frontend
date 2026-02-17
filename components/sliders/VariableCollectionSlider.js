@@ -347,6 +347,12 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
     }
   }, [params?.id, versionId, variablesKeyValue, variablesPath, variable_state, syncDraftWithStore]);
 
+  // Clear the "Run Anyway" flag when variables change
+  useEffect(() => {
+    // Clear the flag so validation runs again after variable changes
+    sessionStorage.removeItem(SLIDER_DISABLE_KEY);
+  }, [variablesKeyValue]);
+
   // Check for missing variables from sessionStorage (set by chat input validation)
   useEffect(() => {
     const checkMissingVariables = () => {
