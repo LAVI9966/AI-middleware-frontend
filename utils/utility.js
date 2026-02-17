@@ -434,8 +434,6 @@ export const createDiff = (oldText, newText) => {
       // If custom prompt text exists, add it first
       if (textObj.customPrompt) {
         parts.push(`[Custom Prompt Template]\n${textObj.customPrompt}`);
-      } else if (textObj.defaultPromptText) {
-        parts.push(`[Default Prompt]\n${textObj.defaultPromptText}`);
       }
 
       // Add visible fields

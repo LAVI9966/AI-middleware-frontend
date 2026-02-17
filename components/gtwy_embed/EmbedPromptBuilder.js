@@ -7,10 +7,6 @@ import { extractVariablesFromPrompt } from "@/utils/promptUtils";
  * Embed Prompt Builder Component
  * Allows embed users to create custom prompts with dynamic field generation
  */
-// Default prompt constant (matches backend default from agentConfig.controller.js)
-const DEFAULT_PROMPT =
-  "Role: AI Bot\nObjective: Respond logically and clearly, maintaining a neutral, automated tone.\nGuidelines:\nIdentify the task or question first.\nProvide brief reasoning before the answer or action.\nKeep responses concise and contextually relevant.\nAvoid emotion, filler, or self-reference.\nUse examples or placeholders only when helpful.";
-
 const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
   // Track if we're making an internal update to prevent sync loop
   const isInternalUpdateRef = useRef(false);
@@ -23,7 +19,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
     if (typeof configPrompt === "string") {
       return {
         useDefaultPrompt: true,
-        defaultPromptText: configPrompt || DEFAULT_PROMPT,
         customPrompt: "",
         embedFields: [
           { name: "role", value: "", type: "input", hidden: true },
@@ -44,7 +39,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
       if (isDefault) {
         return {
           useDefaultPrompt: true,
-          defaultPromptText: configPrompt.defaultPromptText || DEFAULT_PROMPT,
           customPrompt: "",
           embedFields: configPrompt.embedFields || [
             { name: "role", value: "", type: "input", hidden: true },
@@ -57,7 +51,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
       // Custom prompt mode
       return {
         useDefaultPrompt: false,
-        defaultPromptText: "",
         customPrompt: configPrompt.customPrompt || "",
         embedFields: configPrompt.embedFields || [
           { name: "role", value: "", type: "input", hidden: true },
@@ -70,7 +63,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
     // Default
     return {
       useDefaultPrompt: true,
-      defaultPromptText: DEFAULT_PROMPT,
       customPrompt: "",
       embedFields: [
         { name: "role", value: "", type: "input", hidden: true },
@@ -147,12 +139,12 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
 
         // When toggling to default mode, send string; when toggling to custom, send object
         if (checked) {
-          // Default mode: send default prompt from backend as string
-          // Use existing defaultPromptText if available, otherwise use the constant
-          const defaultPromptValue = updated.defaultPromptText || DEFAULT_PROMPT;
-          // Update defaultPromptText if it's empty
-          updated.defaultPromptText = defaultPromptValue;
-          onChange(defaultPromptValue);
+          // Default mode: send object with useDefaultPrompt: true
+          onChange({
+            useDefaultPrompt: true,
+            customPrompt: updated.customPrompt || "",
+            embedFields: updated.embedFields || [],
+          });
         } else {
           // Custom mode: send as object
           onChange({
@@ -290,17 +282,20 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
         // String means default prompt mode
         newConfig = {
           useDefaultPrompt: true,
-          defaultPromptText: configPrompt || DEFAULT_PROMPT,
           customPrompt: "",
+          // Don't inherit embedFields when switching to string mode externally
+          // unless we are sure it's the same context (which is hard to know here).
+          // But since we added key={embed_id} in parent, this component re-mounts on context switch.
+          // So we only care about prop updates within the SAME context.
+          // In same context, if config becomes string, we can keep fields?
+          // Actually, if config becomes string, it means user (or system) reset to default.
           embedFields: prev.embedFields || [
             { name: "role", value: "", type: "input", hidden: true },
             { name: "goal", value: "", type: "input", hidden: true },
             { name: "instruction", value: "", type: "textarea", hidden: true },
           ],
         };
-        shouldUpdate =
-          newConfig.defaultPromptText !== prev.defaultPromptText ||
-          newConfig.useDefaultPrompt !== prev.useDefaultPrompt;
+        shouldUpdate = newConfig.useDefaultPrompt !== prev.useDefaultPrompt;
       } else if (typeof configPrompt === "object" && configPrompt !== null) {
         // Prioritize explicit useDefaultPrompt flag if present
         const isDefault =
@@ -311,7 +306,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
           // Default mode
           newConfig = {
             useDefaultPrompt: true,
-            defaultPromptText: configPrompt.defaultPromptText || DEFAULT_PROMPT,
             customPrompt: "",
             embedFields: configPrompt.embedFields ||
               prev.embedFields || [
@@ -324,7 +318,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
           // Custom mode
           newConfig = {
             useDefaultPrompt: false,
-            defaultPromptText: "",
             customPrompt: configPrompt.customPrompt || "",
             embedFields: configPrompt.embedFields || [
               { name: "role", value: "", type: "input", hidden: true },
@@ -338,7 +331,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
         // No prompt config, use defaults
         newConfig = {
           useDefaultPrompt: true,
-          defaultPromptText: DEFAULT_PROMPT,
           customPrompt: "",
           embedFields: [
             { name: "role", value: "", type: "input", hidden: true },
@@ -357,137 +349,129 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
   }, [configuration?.prompt]);
 
   return (
-    <div className="space-y-4 p-4 bg-base-200 rounded-lg border border-base-300">
+    <>
       <h5 className="text-sm font-semibold text-primary border-b border-base-300 pb-2">Prompt Configuration</h5>
-
-      {/* Toggle: Use Default Prompt */}
-      <div className="form-control">
-        <label className="label cursor-pointer justify-start gap-2">
+      <div className="space-y-4 p-2 bg-base-200 rounded-lg border border-base-300">
+        {/* Toggle: Use Default Prompt */}
+        <div className="form-control bg-base-200 rounded flex flex-row items-center justify-between">
+          <span className="label-text text-sm ml-1">Use default prompt</span>
           <input
             type="checkbox"
-            className="toggle toggle-primary"
+            className="toggle toggle-sm"
             checked={promptConfig.useDefaultPrompt}
             onChange={(e) => handleUseDefaultToggle(e.target.checked)}
           />
-          <span className="label-text">Use default prompt</span>
-        </label>
-        <span className="text-xs text-base-content/60 ml-12">
-          When enabled, uses the default system prompt from backend (no textarea shown). When disabled, shows custom
-          prompt builder.
-        </span>
-      </div>
-
-      {/* Default Prompt Info (shown when useDefaultPrompt is true) */}
-      {promptConfig.useDefaultPrompt && (
-        <div className="alert alert-info mt-4">
-          <Info className="stroke-current shrink-0 w-6 h-6" />
-          <span className="text-sm">
-            Using default system prompt from backend. The prompt will be automatically applied when creating agents.
-          </span>
         </div>
-      )}
 
-      {/* Custom Prompt Builder (shown when useDefaultPrompt is false) */}
-      {!promptConfig.useDefaultPrompt && (
-        <div className="space-y-4 mt-4">
-          {/* Custom Prompt Textarea */}
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text text-sm font-medium">Custom Prompt Template</span>
-            </label>
-            <textarea
-              className="textarea textarea-bordered w-full h-32 font-mono text-sm"
-              placeholder='e.g., "You are a {{role}} and your context is {{context}}"'
-              value={promptConfig.customPrompt}
-              onChange={(e) => handleCustomPromptChange(e.target.value)}
-            />
-            <label className="label">
-              <span className="label-text-alt text-base-content/60">
-                Use {`{{variable}}`} syntax to create dynamic fields
-              </span>
-            </label>
-          </div>
+        {/* Default Prompt Info (shown when useDefaultPrompt is true) */}
+        {promptConfig.useDefaultPrompt && (
+          <p className="text-xs text-base-content/70 pl-2">
+            Using default system prompt from backend. The prompt will be automatically applied when creating agents.
+          </p>
+        )}
 
-          {/* Detected Fields List */}
-          {promptConfig.embedFields.length > 0 && (
-            <div className="space-y-2">
+        {/* Custom Prompt Builder (shown when useDefaultPrompt is false) */}
+        {!promptConfig.useDefaultPrompt && (
+          <div className="space-y-4 mt-4 p-2">
+            {/* Custom Prompt Textarea */}
+            <div className="form-control">
               <label className="label">
-                <span className="label-text text-sm font-medium">Dynamic Fields</span>
+                <span className="label-text text-sm font-medium">Custom Prompt Template</span>
               </label>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {promptConfig.embedFields.map((field) => (
-                  <div key={field.name} className="p-3 bg-base-100 rounded border border-base-300 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <code className="text-xs bg-base-200 px-2 py-1 rounded font-mono">{`{{${field.name}}}`}</code>
-                        <span className="text-xs text-base-content/70">
-                          {["role", "goal", "instruction"].includes(field.name) ? "(Default)" : "(Custom)"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {/* Field Type Selector (shown when visible) */}
-                        {/* {!field.hidden && ( */}
-                        <div className="space-y-1">
-                          {!field.hidden ? (
-                            <div className="flex items-center gap-2">
-                              <select
-                                className="select select-xs select-bordered min-w-[150px]"
-                                value={field.type}
-                                onChange={(e) => handleFieldTypeChange(field.name, e.target.value)}
-                              >
-                                <option value="input">Input</option>
-                                <option value="textarea">Textarea</option>
-                              </select>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                className="input input-xs input-bordered w-full min-w-[150px]"
-                                placeholder="Description"
-                                value={field.description || ""}
-                                onChange={(e) => handleFieldDescriptionChange(field.name, e.target.value)}
-                              />
-                            </div>
-                          )}
+              <textarea
+                className="textarea textarea-bordered w-full h-64 font-mono text-sm"
+                placeholder='e.g., "You are a {{role}} and your context is {{context}}"'
+                value={promptConfig.customPrompt}
+                onChange={(e) => handleCustomPromptChange(e.target.value)}
+              />
+              <label className="label">
+                <span className="label-text-alt text-base-content/60">
+                  Use {`{{variable}}`} syntax to create dynamic fields
+                </span>
+              </label>
+            </div>
+
+            {/* Detected Fields List */}
+            {promptConfig.embedFields.length > 0 && (
+              <div className="space-y-2">
+                <label className="label">
+                  <span className="label-text text-sm font-medium">Dynamic Fields</span>
+                </label>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {promptConfig.embedFields.map((field) => (
+                    <div key={field.name} className="p-3 bg-base-100 rounded border border-base-300 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm bg-base-200 px-2 py-1 rounded font-mono">{`{{${field.name}}}`}</code>
+                          <span className="text-sm text-base-content/70">
+                            {["role", "goal", "instruction"].includes(field.name) ? "(Default)" : "(Custom)"}
+                          </span>
                         </div>
-                        {/* Show/Hide Toggle */}
-                        <label className="label cursor-pointer gap-1">
-                          <span className="label-text text-xs">Hide</span>
-                          <input
-                            type="checkbox"
-                            className="toggle toggle-xs"
-                            checked={field.hidden}
-                            onChange={(e) => handleFieldVisibilityToggle(field.name, e.target.checked)}
-                          />
-                        </label>
+                        <div className="flex items-center gap-2">
+                          {/* Field Type Selector (shown when visible) */}
+                          {/* {!field.hidden && ( */}
+                          <div className="space-y-1">
+                            {!field.hidden ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="select select-sm select-bordered min-w-[150px]"
+                                  value={field.type}
+                                  onChange={(e) => handleFieldTypeChange(field.name, e.target.value)}
+                                >
+                                  <option value="input">Input</option>
+                                  <option value="textarea">Textarea</option>
+                                </select>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  className="input input-sm input-bordered w-full min-w-[150px]"
+                                  placeholder="Description"
+                                  value={field.description || ""}
+                                  onChange={(e) => handleFieldDescriptionChange(field.name, e.target.value)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                          {/* Show/Hide Toggle */}
+                          <label className="label cursor-pointer gap-1">
+                            <span className="label-text text-sm">Hide</span>
+                            <input
+                              type="checkbox"
+                              className="toggle toggle-sm"
+                              checked={field.hidden}
+                              onChange={(e) => handleFieldVisibilityToggle(field.name, e.target.checked)}
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Validation Error */}
-          {validationError && (
-            <div className="alert alert-error text-sm py-2">
-              <XCircle className="stroke-current shrink-0 h-6 w-6" />
-              <span>{validationError}</span>
-            </div>
-          )}
+            {/* Validation Error */}
+            {validationError && (
+              <div className="alert alert-error text-sm py-2">
+                <XCircle className="stroke-current shrink-0 h-6 w-6" />
+                <span>{validationError}</span>
+              </div>
+            )}
 
-          {/* Info Message */}
-          <div className="alert alert-info">
-            <Info className="stroke-current shrink-0 w-6 h-6" />
-            <span className="text-xs">
-              Default fields (role, goal, instruction) are always available but hidden by default. You can enable them
-              manually.
-            </span>
+            {/* Info Message */}
+            <div className="alert alert-info">
+              <Info className="stroke-current shrink-0 w-6 h-6" />
+              <span className="text-xs">
+                Default fields (role, goal, instruction) are always available but hidden by default. You can enable them
+                manually.
+              </span>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 

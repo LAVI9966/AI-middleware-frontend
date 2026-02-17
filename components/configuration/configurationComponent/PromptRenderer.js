@@ -110,26 +110,6 @@ const PromptRenderer = memo(
     if (isEmbedUser && viewMode === "simple") {
       const promptToUse = currentPromptValue;
 
-      // If prompt is a string, show single textarea (useDefaultPrompt = true)
-      if (typeof promptToUse === "string") {
-        return (
-          <PromptTextarea
-            key="embed-simple-string"
-            textareaRef={textareaRef}
-            initialValue={promptToUse}
-            onChange={handlePromptChange}
-            isPromptHelperOpen={uiState.isPromptHelperOpen}
-            onKeyDown={handleKeyDown}
-            isPublished={isPublished}
-            isEditor={isEditor}
-            onSave={handleSavePrompt}
-            onFocus={handleTextareaFocus}
-            onTextAreaBlur={handleTextareaBlur}
-            variablesSection={variablesSection}
-          />
-        );
-      }
-
       // If prompt is an object with embedFields, show custom fields
       if (typeof promptToUse === "object" && promptToUse !== null && promptToUse.embedFields) {
         return (
@@ -147,42 +127,22 @@ const PromptRenderer = memo(
         );
       }
 
-      // If prompt is an object with role/goal/instruction (structured format)
-      if (
-        typeof promptToUse === "object" &&
-        promptToUse !== null &&
-        (promptToUse.role !== undefined || promptToUse.goal !== undefined || promptToUse.instruction !== undefined)
-      ) {
-        return (
-          <StructuredPromptInput
-            key="embed-simple-structured"
-            prompt={promptToUse}
-            onChange={handlePromptChange}
-            onSave={handleSavePrompt}
-            isPublished={isPublished}
-            isEditor={isEditor}
-            onFocus={handleTextareaFocus}
-            onBlur={handleTextareaBlur}
-            isPromptHelperOpen={uiState.isPromptHelperOpen}
-            variablesSection={variablesSection}
-          />
-        );
-      }
-
-      // Fallback for embed user simple view
+      // If prompt is NOT an object with embedFields, for embed users we want to show structured input (Role/Goal/Instruction)
+      // This covers:
+      // 1. String prompts (Old embed user / Default prompt) -> Will be normalized to  instruction: string
+      // 2. Object prompts without embedFields -> e.g.  role, goal, instruction  or customPrompt
+      // This unifies the experience for "Main-like" embed users and "Old" embed users.
       return (
-        <PromptTextarea
-          key="embed-simple-fallback"
-          textareaRef={textareaRef}
-          initialValue={typeof promptToUse === "string" ? promptToUse : ""}
+        <StructuredPromptInput
+          key="embed-simple-structured"
+          prompt={promptToUse}
           onChange={handlePromptChange}
-          isPromptHelperOpen={uiState.isPromptHelperOpen}
-          onKeyDown={handleKeyDown}
+          onSave={handleSavePrompt}
           isPublished={isPublished}
           isEditor={isEditor}
-          onSave={handleSavePrompt}
           onFocus={handleTextareaFocus}
-          onTextAreaBlur={handleTextareaBlur}
+          onBlur={handleTextareaBlur}
+          isPromptHelperOpen={uiState.isPromptHelperOpen}
           variablesSection={variablesSection}
         />
       );

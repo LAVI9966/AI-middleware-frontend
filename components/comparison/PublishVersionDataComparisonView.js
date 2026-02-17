@@ -132,7 +132,6 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
 
         // Remove templates if embed fields exist
         delete obj.prompt.customPrompt;
-        delete obj.prompt.defaultPromptText;
         delete obj.prompt.useDefaultPrompt;
       }
 
@@ -305,7 +304,6 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
                     path.endsWith(".goal") ||
                     path.endsWith(".instruction") ||
                     path.endsWith(".customPrompt") ||
-                    path.endsWith(".defaultPromptText") ||
                     path.includes(".embedFields.");
 
                   return (

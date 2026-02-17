@@ -38,6 +38,15 @@ const IntegrationModal = ({ params, type = "embed" }) => {
         hideAdvancedConfigurations: false,
         hidePreTool: false,
         hideCreateManuallyButton: false,
+        prompt: {
+          useDefaultPrompt: true,
+          customPrompt: "",
+          embedFields: [
+            { name: "role", value: "", type: "input", hidden: true },
+            { name: "goal", value: "", type: "input", hidden: true },
+            { name: "instruction", value: "", type: "textarea", hidden: true },
+          ],
+        },
       };
     }
 

@@ -118,17 +118,8 @@ const ResourceChunksModal = ({ resourceId, resourceName }) => {
 
         {/* Footer */}
         {!isLoading && !error && chunks.length > 0 && (
-          <div className="flex justify-between items-center mt-4 pt-3 border-t border-base-300">
+          <div className="flex justify-between items-center mt-4 border-t border-base-300">
             <span className="text-sm text-gray-500">Total chunks: {chunks.length}</span>
-            <button
-              data-testid="resource-chunks-close-footer-button"
-              id="resource-chunks-close-footer-button"
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={handleClose}
-            >
-              Close
-            </button>
           </div>
         )}
       </div>

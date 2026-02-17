@@ -216,6 +216,42 @@ const InputConfigComponent = memo(
       [uiState.isPromptHelperOpen, updateUiState]
     );
 
+    // Calculate if we should hide the prompt UI for embed users with no visible fields
+    const shouldHidePromptUI = useMemo(() => {
+      // Only applies to Embed Users in Simple View with Object prompt format
+      if (
+        isEmbedUser &&
+        viewMode === "simple" &&
+        typeof currentPromptValue === "object" &&
+        currentPromptValue !== null &&
+        currentPromptValue.embedFields
+      ) {
+        // If there are no visible fields, hide the UI
+        const visibleFields = currentPromptValue.embedFields.filter((field) => !field.hidden);
+        return visibleFields.length === 0;
+      }
+      return false;
+    }, [isEmbedUser, viewMode, currentPromptValue]);
+
+    if (shouldHidePromptUI) {
+      return (
+        <div data-testid="input-config-container" id="input-config-container" ref={promptTextAreaRef}>
+          <Diff_Modal
+            oldContent={
+              typeof oldContentRef.current === "object"
+                ? JSON.stringify(oldContentRef.current, null, 2)
+                : oldContentRef.current
+            }
+            newContent={
+              !isEmbedUser
+                ? JSON.stringify(promptState.newContent || normalizePromptToStructured(reduxPrompt), null, 2)
+                : textareaRef.current?.value || currentPromptValue
+            }
+          />
+        </div>
+      );
+    }
+
     return (
       <div data-testid="input-config-container" id="input-config-container" ref={promptTextAreaRef}>
         <PromptHeader

@@ -656,6 +656,7 @@ window.openGtwy({
               <div className="card bg-base-100 shadow-sm">
                 <div className="card-body p-3">
                   <EmbedPromptBuilder
+                    key={data?.embed_id}
                     configuration={configuration}
                     onChange={(promptValue) => {
                       // promptValue can be string (useDefaultPrompt=true) or object (useDefaultPrompt=false)

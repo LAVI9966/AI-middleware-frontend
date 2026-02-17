@@ -1,5 +1,4 @@
 import React, { useCallback } from "react";
-import { Info } from "lucide-react";
 
 /**
  * Embed Prompt Fields Component
@@ -78,6 +77,10 @@ const EmbedPromptFields = ({
   // Get visible fields (not hidden)
   const visibleFields = (promptConfig.embedFields || []).filter((field) => !field.hidden);
 
+  if (visibleFields.length === 0) {
+    return null;
+  }
+
   return (
     <div id="embed-prompt-fields" className="w-full">
       {/* Dynamic Fields */}
@@ -116,13 +119,6 @@ const EmbedPromptFields = ({
               )}
             </div>
           ))}
-        </div>
-      )}
-
-      {visibleFields.length === 0 && (
-        <div className="alert alert-info">
-          <Info className="stroke-current shrink-0 w-6 h-6" />
-          <span className="text-xs">No visible fields to fill. All fields are hidden.</span>
         </div>
       )}
 
