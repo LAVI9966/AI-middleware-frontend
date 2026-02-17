@@ -156,9 +156,10 @@ const ThreadItem = ({
     if (item?.user === "user") {
       return "user";
     }
-    if (item?.llm_message) return "llm_message";
-    if (item?.updated_llm_message) return "updated_llm_message";
+    // Prioritize chatbot_message first
     if (item?.chatbot_message) return "chatbot_message";
+    if (item?.updated_llm_message) return "updated_llm_message";
+    if (item?.llm_message) return "llm_message";
     if (item?.error) return "error";
     return "llm_message"; // Default fallback
   };
@@ -256,6 +257,18 @@ const ThreadItem = ({
         return item.llm_message || item.user || "";
     }
   }, [messageType, item]);
+
+  // Helper function to detect if content contains HTML
+  const containsHTML = (str) => {
+    if (!str) return false;
+    const htmlPattern = /<\/?[a-z][\s\S]*>/i;
+    return htmlPattern.test(str);
+  };
+
+  // Helper function to check if current message is chatbot_message
+  const isChatbotMessage = () => {
+    return messageType === "chatbot_message" || messageType === 0;
+  };
 
   const selectMessageType = useCallback((type) => {
     setMessageType(type);
@@ -819,17 +832,21 @@ const ThreadItem = ({
                 {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
 
                 {/* Message content */}
-                <ReactMarkdown
-                  components={{
-                    code: ({ node, inline, className, children, ...props }) => (
-                      <CodeBlock className={className} {...props}>
-                        {children}
-                      </CodeBlock>
-                    ),
-                  }}
-                >
-                  {getMessageToDisplay()}
-                </ReactMarkdown>
+                {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
+                  <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }) => (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      ),
+                    }}
+                  >
+                    {getMessageToDisplay()}
+                  </ReactMarkdown>
+                )}
 
                 {/* Edit button for assistant messages */}
                 {!item?.llm_urls?.length && !item?.fromRTLayer && (
