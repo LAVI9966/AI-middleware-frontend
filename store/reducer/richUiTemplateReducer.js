@@ -25,10 +25,19 @@ const richUiTemplateSlice = createSlice({
       state.isError = true;
       state.errorMessage = action.payload;
     },
+    createRichUiTemplateApiSuccess: (state, action) => {
+      state.isLoading = false;
+      state.templates = [...state.templates, action.payload];
+      state.isError = false;
+    },
   },
 });
 
-export const { getRichUiTemplatesPending, getRichUiTemplatesSuccess, getRichUiTemplatesError } =
-  richUiTemplateSlice.actions;
+export const {
+  getRichUiTemplatesPending,
+  getRichUiTemplatesSuccess,
+  getRichUiTemplatesError,
+  createRichUiTemplateApiSuccess,
+} = richUiTemplateSlice.actions;
 
 export default richUiTemplateSlice.reducer;

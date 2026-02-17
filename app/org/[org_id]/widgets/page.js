@@ -3,21 +3,24 @@ import MainLayout from "@/components/layoutComponents/MainLayout";
 import PageHeader from "@/components/Pageheader";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { MODAL_TYPE } from "@/utils/enums";
-import { openModal, closeModal, formatRelativeTime } from "@/utils/utility";
-import { PlayIcon, Plus, Sparkles, X, SendHorizontal, Send } from "lucide-react";
+import { openModal, closeModal, formatRelativeTime, formatDate } from "@/utils/utility";
+import { PlayIcon, Sparkles, X, SendHorizontal, Send } from "lucide-react";
 import React, { useEffect, useState, use, useRef } from "react";
 import SearchItems from "@/components/UI/SearchItems";
 import TemplatePlayground from "@/components/modals/TemplatePlayground";
 import SaveWidgetModal from "@/components/modals/SaveWidgetModal";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
-import { generateRichUITemplate, createRichUiTemplateApi } from "@/config/utilityApi";
+import { generateRichUITemplate } from "@/config/utilityApi";
 import ReactMarkdown from "@/components/LazyMarkdown";
 import CodeBlock from "@/components/codeBlock/CodeBlock";
+import { createRichUiTemplateAction } from "@/store/action/richUiTemplateAction";
+import { useDispatch } from "react-redux";
 
 export const runtime = "edge";
 
 const TemplatesPage = ({ params }) => {
+  const dispatch = useDispatch();
   const resolvedParams = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -190,8 +193,7 @@ const TemplatesPage = ({ params }) => {
         template_format: template_format,
       };
 
-      await createRichUiTemplateApi(payload);
-
+      await dispatch(createRichUiTemplateAction(payload));
       toast.success("Widget saved successfully!");
       setSavedMessageIds((prev) => new Set(prev).add(widgetToSave.id));
       setWidgetToSave(null);
@@ -334,9 +336,6 @@ const TemplatesPage = ({ params }) => {
               <div className="border-t border-base-300 bg-base-50/50 backdrop-blur-sm px-6 py-4">
                 <div className="max-w-4xl mx-auto">
                   <div className="relative flex items-center w-full rounded-xl p-2 bg-base-300 backdrop-blur-sm transition-all ">
-                    <div className="pr-3 text-base-content/50">
-                      <Plus size={20} />
-                    </div>
                     <input
                       ref={inputRef}
                       type="text"
@@ -404,9 +403,6 @@ const TemplatesPage = ({ params }) => {
 
                   <div className="w-full relative">
                     <div className="relative flex items-center w-full rounded-xl p-2 bg-base-300 backdrop-blur-sm transition-all">
-                      <div className="pr-3 text-base-content/50">
-                        <Plus size={20} />
-                      </div>
                       <input
                         type="text"
                         className="input w-full outline-none border-none focus:outline-none focus:ring-0"
@@ -466,14 +462,14 @@ const TemplatesPage = ({ params }) => {
               {filterWidgets.map((widget) => (
                 <div
                   key={widget._id}
-                  className="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow duration-200"
+                  className="card bg-base-100 shadow-lg hover:shadow-xl transition-shadow duration-200 group"
                 >
                   {/* Widget Preview */}
-                  <div className="h-32 bg-base-200 border-b border-base-300 relative overflow-hidden group">
+                  <div className="h-32 bg-base-200 border-b border-base-300 relative overflow-hidden">
                     {widget.html ? (
                       <div className="absolute inset-0 p-2 text-xs overflow-hidden">
                         <div
-                          className="w-full h-full transform scale-75 origin-top-left"
+                          className="w-full h-full transform scale-100 origin-top-left"
                           dangerouslySetInnerHTML={{
                             __html: widget.html.replace(
                               /\{\{(\w+)\}\}/g,
@@ -515,8 +511,11 @@ const TemplatesPage = ({ params }) => {
                       {widget.description || "No description available"}
                     </p>
 
-                    <div className="text-[10px] text-base-content/50 uppercase tracking-wider font-medium">
+                    <div className="text-[10px] text-base-content/50 uppercase tracking-wider font-medium group-hover:hidden">
                       {formatRelativeTime(widget.createdAt)}
+                    </div>
+                    <div className="text-[10px] text-base-content/50 uppercase tracking-wider font-medium hidden group-hover:block">
+                      {formatDate(widget.createdAt)}
                     </div>
                   </div>
                 </div>
