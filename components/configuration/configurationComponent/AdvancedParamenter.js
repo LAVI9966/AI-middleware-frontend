@@ -8,7 +8,7 @@ import { getDefaultJsonSchema, generateCombinedSchema } from "@/utils/defaultJso
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/Icons";
 import JsonSchemaModal from "@/components/modals/JsonSchemaModal";
 import JsonSchemaBuilderModal from "@/components/modals/JsonSchemaBuilderModal";
-import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
@@ -333,58 +333,14 @@ const AdvancedParameters = ({
 
   // State for selected widgets (indices)
   const [selectedWidgets, setSelectedWidgets] = useState([]);
-  const [savedWidgets, setSavedWidgets] = useState([]);
 
   useEffect(() => {
     if (configuration?.response_type?.template_id && Array.isArray(configuration.response_type.template_id)) {
       setSelectedWidgets(configuration.response_type.template_id);
-      setSavedWidgets(configuration.response_type.template_id);
     } else {
       setSelectedWidgets([]);
-      setSavedWidgets([]);
     }
   }, [configuration?.response_type?.template_id]);
-
-  // Check if there are changes in widget selection
-  const hasWidgetChanges = useMemo(() => {
-    if (selectedWidgets.length !== savedWidgets.length) return true;
-    const sortedSelected = [...selectedWidgets].sort();
-    const sortedSaved = [...savedWidgets].sort();
-    return !sortedSelected.every((id, index) => id === sortedSaved[index]);
-  }, [selectedWidgets, savedWidgets]);
-
-  // Function to handle applying selected widgets
-  const handleApplyWidgets = useCallback(() => {
-    const combinedSchema = generateCombinedSchema(selectedWidgets, richUiWidgets);
-
-    if (combinedSchema) {
-      const schemaString = JSON.stringify(combinedSchema, null, 4);
-      setObjectFieldValue(schemaString);
-
-      const updatedDataToSend = {
-        configuration: {
-          response_type: {
-            type: "json_schema", // Ensure type is json_schema
-            json_schema: combinedSchema,
-            is_template: true,
-            template_id: selectedWidgets,
-          },
-        },
-      };
-
-      dispatch(
-        updateBridgeVersionAction({
-          bridgeId: params?.id,
-          versionId: searchParams?.version,
-          dataToSend: updatedDataToSend,
-        })
-      );
-
-      toast.success(`Applied ${selectedWidgets.length} widgets`);
-    } else {
-      toast.error("No valid widgets selected");
-    }
-  }, [selectedWidgets, richUiWidgets, dispatch, params?.id, searchParams?.version]);
 
   // Helper function to render parameter fields
   const renderParameterField = (key, { field, min = 0, max, step, default: defaultValue, options }) => {
@@ -644,16 +600,6 @@ const AdvancedParameters = ({
                           Manage
                         </button>
                       </div>
-                      {selectedWidgets.length > 0 && (
-                        <button
-                          type="button"
-                          className="btn btn-xs btn-primary"
-                          onClick={handleApplyWidgets}
-                          disabled={isReadOnly || !hasWidgetChanges}
-                        >
-                          Apply Selected ({selectedWidgets.length})
-                        </button>
-                      )}
                     </div>
                     <div className="flex gap-3 overflow-x-auto pb-2">
                       {richUiWidgets.map((widgetObj) => {
@@ -666,12 +612,39 @@ const AdvancedParameters = ({
                             className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-colors min-w-[280px] flex-shrink-0 ${isSelected ? "bg-primary/10 border-primary" : "bg-base-100 border-base-200 hover:bg-base-200"}`}
                             onClick={() => {
                               if (isReadOnly) return;
-                              setSelectedWidgets((prev) => {
-                                if (prev.includes(widgetObj._id)) {
-                                  return prev.filter((id) => id !== widgetObj._id);
-                                }
-                                return [...prev, widgetObj._id];
-                              });
+
+                              // Update selected widgets
+                              const newSelectedWidgets = selectedWidgets.includes(widgetObj._id)
+                                ? selectedWidgets.filter((id) => id !== widgetObj._id)
+                                : [...selectedWidgets, widgetObj._id];
+
+                              setSelectedWidgets(newSelectedWidgets);
+
+                              // Apply changes immediately
+                              const combinedSchema = generateCombinedSchema(newSelectedWidgets, richUiWidgets);
+
+                              if (combinedSchema) {
+                                const updatedDataToSend = {
+                                  configuration: {
+                                    response_type: {
+                                      type: "json_schema",
+                                      json_schema: combinedSchema,
+                                      is_template: true,
+                                      template_id: newSelectedWidgets,
+                                    },
+                                  },
+                                };
+
+                                dispatch(
+                                  updateBridgeVersionAction({
+                                    bridgeId: params?.id,
+                                    versionId: searchParams?.version,
+                                    dataToSend: updatedDataToSend,
+                                  })
+                                );
+
+                                toast.success(`Updated widgets (${newSelectedWidgets.length} selected)`);
+                              }
                             }}
                           >
                             {/* Content Preview */}
