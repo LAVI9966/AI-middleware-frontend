@@ -3,7 +3,6 @@
 // Normalize prompt to structured format If string: convert to  role: "", goal: "", instruction: string  If object: ensure it has role, goal, instruction fields
 
 export const normalizePromptToStructured = (prompt, isEmbedUser, embedConfig) => {
-  console.log("Normalizing prompt to structured format", prompt, isEmbedUser, embedConfig);
   // If Embed User is migrating and has configuration available
   if (isEmbedUser && embedConfig) {
     // Check if prompt config exists inside embedConfig
@@ -29,7 +28,6 @@ export const normalizePromptToStructured = (prompt, isEmbedUser, embedConfig) =>
         embedFields: promptConfig.embedFields, // This includes the 'hidden' property which PromptRenderer respects
         useDefaultPrompt: false,
       };
-      console.log("Migrating Embed User Prompt. Resulting fields:", result);
       return result;
     }
   }
@@ -39,32 +37,6 @@ export const normalizePromptToStructured = (prompt, isEmbedUser, embedConfig) =>
   }
 
   // If it's a string (legacy format), we want to return empty structure
-  // so user has to explicitly fill in Role, Goal, Instruction
-  if (typeof prompt === "string") {
-    return {
-      role: "",
-      goal: "",
-      instruction: "",
-    };
-  }
-
-  // If it's already an object, ensure it has the required fields
-  if (typeof prompt === "object") {
-    const structuredPrompt = {
-      role: prompt.role || "",
-      goal: prompt.goal || "",
-      instruction: prompt.instruction || "",
-    };
-
-    // Only add embed fields if they already exist in the prompt object
-    if (prompt.customPrompt !== undefined) structuredPrompt.customPrompt = prompt.customPrompt;
-    if (prompt.embedFields !== undefined) structuredPrompt.embedFields = prompt.embedFields;
-    if (prompt.useDefaultPrompt !== undefined) structuredPrompt.useDefaultPrompt = prompt.useDefaultPrompt;
-
-    return structuredPrompt;
-  }
-
-  return { role: "", goal: "", instruction: "" };
   // so user has to explicitly fill in Role, Goal, Instruction
   if (typeof prompt === "string") {
     return {

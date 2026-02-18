@@ -315,7 +315,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChang
   return (
     <>
       <h5 className="text-sm font-semibold text-primary border-b border-base-300 pb-2">Prompt Configuration</h5>
-      here
       <div className="space-y-4 p-2 bg-base-200 rounded-lg border border-base-300">
         {/* Toggle: Use Default Prompt */}
         <div className="form-control bg-base-200 rounded flex flex-row items-center justify-between">
