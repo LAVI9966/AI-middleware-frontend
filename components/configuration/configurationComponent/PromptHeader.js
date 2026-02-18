@@ -22,6 +22,9 @@ const PromptHeader = memo(
     onViewModeChange = () => {},
     showDiffButton = true,
     isEmbedUser = false,
+    onMigratePrompt = () => {},
+    migratePrompt = false,
+    showEmbedMigratePrompt = false,
   }) => {
     const handleOpenDiff = useCallback(() => {
       onOpenDiff?.();
@@ -110,37 +113,52 @@ const PromptHeader = memo(
             </span>
           )}
           {/* View Mode Selector */}
-          <div className="flex items-center bg-base-200 rounded-lg p-0.5">
-            <button
-              type="button"
-              className={`px-3 py-1 text-xs rounded-md transition-all ${
-                viewMode === "simple"
-                  ? "bg-base-100 shadow-sm text-base-content font-medium"
-                  : "text-base-content/60 hover:text-base-content"
-              } ${isPublished || !isEditor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              onMouseDown={(e) => {
-                if (isPublished || !isEditor) return;
-                e.preventDefault();
-                onViewModeChange("simple");
-              }}
-            >
-              Simple
-            </button>
-            <button
-              type="button"
-              className={`px-3 py-1 text-xs rounded-md transition-all ${
-                viewMode === "advanced"
-                  ? "bg-base-100 shadow-sm text-base-content font-medium"
-                  : "text-base-content/60 hover:text-base-content"
-              } ${isPublished || !isEditor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-              onMouseDown={(e) => {
-                if (isPublished || !isEditor) return;
-                e.preventDefault();
-                onViewModeChange("advanced");
-              }}
-            >
-              Advanced
-            </button>
+          <div className="btn-group">
+            {!isEmbedUser && (
+              <button
+                type="button"
+                className={`btn btn-xs ${
+                  viewMode === "simple" ? "btn-active" : ""
+                } ${isPublished || !isEditor ? "btn-disabled" : ""}`}
+                onMouseDown={(e) => {
+                  if (isPublished || !isEditor) return;
+                  e.preventDefault();
+                  onViewModeChange("simple");
+                }}
+              >
+                Simple
+              </button>
+            )}
+            {typeof prompt === "string" || (isEmbedUser && showEmbedMigratePrompt)
+              ? (!isEmbedUser || migratePrompt) && (
+                  <button
+                    type="button"
+                    className={`btn btn-xs ${isPublished || !isEditor ? "btn-disabled" : ""}`}
+                    onMouseDown={(e) => {
+                      if (isPublished || !isEditor) return;
+                      e.preventDefault();
+                      onMigratePrompt();
+                    }}
+                    title="Convert simple prompt to structured format (Role, Goal, Instruction)"
+                  >
+                    Migrate Prompt
+                  </button>
+                )
+              : !isEmbedUser && (
+                  <button
+                    type="button"
+                    className={`btn btn-xs ${
+                      viewMode === "advanced" ? "btn-active" : ""
+                    } ${isPublished || !isEditor ? "btn-disabled" : ""}`}
+                    onMouseDown={(e) => {
+                      if (isPublished || !isEditor) return;
+                      e.preventDefault();
+                      onViewModeChange("advanced");
+                    }}
+                  >
+                    Advanced
+                  </button>
+                )}
           </div>
         </div>
       </div>

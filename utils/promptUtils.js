@@ -2,17 +2,47 @@
 
 // Normalize prompt to structured format If string: convert to  role: "", goal: "", instruction: string  If object: ensure it has role, goal, instruction fields
 
-export const normalizePromptToStructured = (prompt) => {
+export const normalizePromptToStructured = (prompt, isEmbedUser, embedConfig) => {
+  // If Embed User is migrating and has configuration available
+  if (isEmbedUser && embedConfig) {
+    // Check if prompt config exists inside embedConfig
+    const promptConfig = embedConfig.prompt || {};
+
+    // If using default prompt (useDefaultPrompt: true) -> Return standard Role/Goal/Instruction structure
+    if (promptConfig.useDefaultPrompt) {
+      if (typeof prompt === "object" && (prompt.role || prompt.goal || prompt.instruction)) {
+        return prompt;
+      }
+      return {
+        role: "",
+        goal: "",
+        instruction: "",
+      };
+    }
+
+    // If NOT using default prompt -> Return structure with custom embed fields
+    // We construct the object based on the embedConfig.prompt
+    if (!promptConfig.useDefaultPrompt && promptConfig.embedFields) {
+      const result = {
+        customPrompt: promptConfig.customPrompt || "",
+        embedFields: promptConfig.embedFields, // This includes the 'hidden' property which PromptRenderer respects
+        useDefaultPrompt: false,
+      };
+      return result;
+    }
+  }
+
   if (!prompt) {
     return { role: "", goal: "", instruction: "" };
   }
 
-  // If it's a string (legacy format), put it in instruction field
+  // If it's a string (legacy format), we want to return empty structure
+  // so user has to explicitly fill in Role, Goal, Instruction
   if (typeof prompt === "string") {
     return {
       role: "",
       goal: "",
-      instruction: prompt,
+      instruction: "",
     };
   }
 
