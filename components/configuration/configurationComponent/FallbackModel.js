@@ -28,6 +28,7 @@ const FallbackModel = ({ params, searchParams, bridgeType, isPublished, isEditor
     currentModel,
     embedDefaultApiKeys,
     showDefaultApikeys,
+    embedModelsConfig,
   } = useCustomSelector((state) => {
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
     const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
@@ -51,6 +52,7 @@ const FallbackModel = ({ params, searchParams, bridgeType, isPublished, isEditor
       DefaultModel: state?.serviceReducer?.default_model || [],
       embedDefaultApiKeys: state.appInfoReducer.embedUserDetails?.apikey_object_id || {},
       showDefaultApikeys: state.appInfoReducer.embedUserDetails?.addDefaultApiKeys,
+      embedModelsConfig: state.appInfoReducer.embedUserDetails?.models || {},
     };
   });
   useEffect(() => {
@@ -296,7 +298,13 @@ const FallbackModel = ({ params, searchParams, bridgeType, isPublished, isEditor
                     className="dropdown-content z-high menu bg-base-100 rounded-box w-full p-1 shadow border border-base-300 max-h-80 overflow-y-auto"
                   >
                     {Array.isArray(SERVICES) &&
-                      SERVICES.map((svc) => {
+                      SERVICES.filter((svc) => {
+                        // For embed users with showDefaultApikeys, only show services in embedDefaultApiKeys
+                        if (showDefaultApikeys && embedDefaultApiKeys) {
+                          return embedDefaultApiKeys.hasOwnProperty(svc.value);
+                        }
+                        return true;
+                      }).map((svc) => {
                         const hasApiKeys = hasApiKeysForService(svc.value);
                         return (
                           <li key={svc.value}>
@@ -352,7 +360,14 @@ const FallbackModel = ({ params, searchParams, bridgeType, isPublished, isEditor
                   role="button"
                   className="btn btn-sm w-full justify-between border border-base-200 bg-base-300 text-base-content/70 hover:bg-base-200 font-normal"
                 >
-                  <span>{fallbackModelName ? truncateText(fallbackModelName, 30) : "Select a Model"}</span>
+                  <span>
+                    {fallbackModelName
+                      ? truncateText(
+                          embedModelsConfig?.[fallbackService]?.[fallbackModelName]?.value || fallbackModelName,
+                          30
+                        )
+                      : "Select a Model"}
+                  </span>
                   <ChevronDownIcon size={16} />
                 </summary>
                 <ul
@@ -380,6 +395,11 @@ const FallbackModel = ({ params, searchParams, bridgeType, isPublished, isEditor
 
                             if (currentModel === modelName || currentModel === option) return null;
 
+                            // Get display name from embedModelsConfig for embed users
+                            const serviceConfig = embedModelsConfig?.[fallbackService];
+                            const modelConfig = serviceConfig?.[modelName];
+                            const displayName = modelConfig?.value || modelName;
+
                             return (
                               <li
                                 key={`${group}-${option}`}
@@ -392,7 +412,7 @@ const FallbackModel = ({ params, searchParams, bridgeType, isPublished, isEditor
                               >
                                 {selected && <span className="flex-shrink-0 ml-2">✓</span>}
                                 <span className={`truncate flex-1 pl-2 ${!selected ? "ml-4" : ""}`}>
-                                  {truncateText(modelName || option, 30)}
+                                  {truncateText(displayName || option, 30)}
                                 </span>
                               </li>
                             );
