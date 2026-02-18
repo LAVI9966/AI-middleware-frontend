@@ -205,7 +205,7 @@ const ActionDescription = ({ descriptionRef, handleInputChange, isPublished, isE
       data-testid="action-description-textarea"
       id="action-description-textarea"
       disabled={isPublished || !isEditor}
-      className="textarea bg-white dark:bg-black/15 textarea-bordered h-24"
+      className="textarea bg-base-100 textarea-bordered h-24"
       placeholder="Enter a brief bio"
       ref={descriptionRef}
       onChange={handleInputChange}
@@ -227,7 +227,7 @@ const ActionDataInput = ({ dataRef, handleInputChange, isPublished, isEditor = t
       data-testid="action-data-structure-textarea"
       id="action-data-structure-textarea"
       disabled={isPublished || !isEditor}
-      className="textarea bg-white dark:bg-black/15 textarea-bordered h-24"
+      className="textarea bg-base-100 textarea-bordered h-24"
       placeholder="Enter data structure format"
       ref={dataRef}
       onChange={handleInputChange}

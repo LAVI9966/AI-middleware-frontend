@@ -94,7 +94,7 @@ const HistoryPagePromptUpdateModal = ({
             <textarea
               data-testid="history-prompt-previous-textarea"
               id="history-prompt-previous-textarea"
-              className="textarea bg-white dark:bg-black/15 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
+              className="textarea bg-base-100 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
               key={typeof previousPrompt === "object" ? JSON.stringify(previousPrompt) : previousPrompt}
               defaultValue={convertPromptToAdvancedView(previousPrompt)}
               readOnly
@@ -107,7 +107,7 @@ const HistoryPagePromptUpdateModal = ({
             <textarea
               data-testid="history-prompt-updated-textarea"
               id="history-prompt-updated-textarea"
-              className="textarea bg-white dark:bg-black/15 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
+              className="textarea bg-base-100 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
               key={typeof promotToUpdate === "object" ? JSON.stringify(promotToUpdate) : promotToUpdate}
               defaultValue={convertPromptToAdvancedView(promotToUpdate)}
               readOnly

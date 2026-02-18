@@ -9,14 +9,14 @@ import { useConfigurationContext } from "./ConfigurationContext";
 const ChatbotConfigSection = ({ isPublished, isEditor = true }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const [isChatbotAccordionOpen, setIsChatbotAccordionOpen] = useState(false);
-  const { params, searchParams, bridgeType } = useConfigurationContext();
+  const { params, searchParams, bridgeType, modelType } = useConfigurationContext();
 
   const toggleChatbotAccordion = () => {
     setIsChatbotAccordionOpen(!isChatbotAccordionOpen);
   };
 
   // Only show for chatbot bridge type
-  if (bridgeType !== "chatbot") {
+  if (bridgeType !== "chatbot" || modelType === "image") {
     return null;
   }
 

@@ -43,7 +43,7 @@ const SettingsTab = () => {
 
       {/* Settings Items - No Label, No Accordion */}
       <div className="flex flex-col gap-6 w-full">
-        {shouldShowAgentType && bridgeType?.toString()?.toLowerCase() !== "chatbot" && (
+        {shouldShowAgentType && bridgeType?.toString()?.toLowerCase() !== "chatbot" && modelType !== "image" && (
           <div className="">
             <BridgeTypeToggle
               params={params}
@@ -103,21 +103,20 @@ const SettingsTab = () => {
                 />
               </div>
             </div>
-
-            {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
-              <div className="">
-                <AdvancedConfiguration
-                  params={params}
-                  searchParams={searchParams}
-                  bridgeType={bridgeType}
-                  modelType={modelType}
-                  isPublished={isPublished}
-                  isEditor={isEditor}
-                  isEmbedUser={isEmbedUser}
-                />
-              </div>
-            )}
           </>
+        )}
+        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
+          <div className="">
+            <AdvancedConfiguration
+              params={params}
+              searchParams={searchParams}
+              bridgeType={bridgeType}
+              modelType={modelType}
+              isPublished={isPublished}
+              isEditor={isEditor}
+              isEmbedUser={isEmbedUser}
+            />
+          </div>
         )}
       </div>
 

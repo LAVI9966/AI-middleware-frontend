@@ -14,11 +14,17 @@ import { BookOpen } from "lucide-react";
 import { useConfigurationContext } from "./ConfigurationContext";
 
 const NonImageModelConfig = memo(() => {
-  const { isPublished, uiState, currentView, isEmbedUser } = useConfigurationContext();
+  const { isPublished, uiState, currentView, isEmbedUser, modelType } = useConfigurationContext();
   const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "prompt");
 
-  // Sync activeTab with currentView from URL (legacy support if needed, but tab param takes precedence)
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || (modelType === "image" ? "model" : "prompt"));
+
+  useEffect(() => {
+    if (modelType === "image" && (!currentView || currentView === "config")) {
+      setActiveTab("model");
+    }
+  }, [modelType, currentView]);
+
   useEffect(() => {
     if (currentView && currentView !== "config" && currentView !== "agent-flow" && currentView !== "chatbot-config") {
       if (!searchParams.get("tab")) {

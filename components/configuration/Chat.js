@@ -755,7 +755,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     id="chat-edit-textarea"
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-[100px] resize-y text-base-content bg-base-100"
+                                    className="textarea textarea-bordered w-full min-h-[100px] resize-y text-base-content bg-base-100"
                                     placeholder="Edit message content..."
                                   />
                                   <div className="flex gap-2 mt-2">

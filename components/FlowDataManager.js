@@ -841,7 +841,7 @@ export function AgentSidebar({ isOpen, title, agents, onClose, nodes, onChoose, 
                           onChange={(e) => setInputValue(e.target.value)}
                           placeholder="Describe what the agent should do..."
                           rows={2}
-                          className="textarea bg-white dark:bg-black/15 textarea-bordered textarea-primary w-full resize-none"
+                          className="textarea bg-base-100 textarea-bordered textarea-primary w-full resize-none"
                         />
                       )}
                     </div>

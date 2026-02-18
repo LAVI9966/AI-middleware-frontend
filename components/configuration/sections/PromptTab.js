@@ -6,14 +6,21 @@ import { useConfigurationContext } from "../ConfigurationContext";
 import AdvancedParameters from "../configurationComponent/AdvancedParamenter";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import Protected from "@/components/Protected";
+import UnsupportedFeatureOverlay from "../UnsupportedFeatureOverlay";
 
 const PromptTab = ({ isPublished, isEmbedUser }) => {
-  const { params, searchParams, isEditor } = useConfigurationContext();
+  const { params, searchParams, isEditor, validationConfig } = useConfigurationContext();
   const { hideAdvancedParameters } = useCustomSelector((state) => ({
     hideAdvancedParameters: state.appInfoReducer.embedUserDetails.hideAdvancedParameters,
   }));
+
+  // Check if system_prompt is supported by the current model
+  const isPromptSupported = validationConfig?.system_prompt !== false;
+
   return (
-    <div data-testid="prompt-tab-container" id="prompt-tab-container" className="flex flex-col w-full">
+    <div data-testid="prompt-tab-container" id="prompt-tab-container" className="flex flex-col w-full relative">
+      {!isPromptSupported && <UnsupportedFeatureOverlay featureName="System Prompt" />}
+
       <InputSection />
 
       <div

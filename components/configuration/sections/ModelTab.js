@@ -26,6 +26,7 @@ const ModelTab = () => {
     isPublished,
     isEditor,
     apiKeyError,
+    modelType,
   } = useConfigurationContext();
   const shouldRenderApiKey = useMemo(
     () => (!showDefaultApikeys && isEmbedUser) || !isEmbedUser,
@@ -122,7 +123,7 @@ const ModelTab = () => {
           </div>
         )}
         {/* Fallback Model Section */}
-        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
+        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && modelType !== "image" && (
           <div className="space-y-2">
             <FallbackModel
               params={params}
