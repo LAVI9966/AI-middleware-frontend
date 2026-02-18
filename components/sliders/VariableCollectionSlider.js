@@ -209,6 +209,18 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
     return keys;
   }, [variablesPath]);
 
+  const visibleEmbedFieldNameSet = useMemo(() => {
+    if (!isEmbedUser || typeof prompt !== "object" || !Array.isArray(prompt?.embedFields)) {
+      return new Set();
+    }
+    return new Set(
+      prompt.embedFields
+        .filter((field) => !field?.hidden)
+        .map((field) => (typeof field?.name === "string" ? field.name.trim() : ""))
+        .filter(Boolean)
+    );
+  }, [isEmbedUser, prompt]);
+
   const promptKeySet = useMemo(() => {
     if (!prompt) {
       return new Set();
@@ -332,10 +344,20 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
         }
       });
 
-      const { normalised } = validateVariables(allVariables, { suppressErrors: true });
+      // For embed users, keep only hidden/embed-independent vars in the slider.
+      // Visible embed fields are collected directly in embed form UI.
+      const filteredVariables =
+        isEmbedUser && visibleEmbedFieldNameSet.size > 0
+          ? allVariables.filter((variable) => {
+              const key = typeof variable?.key === "string" ? variable.key.trim() : "";
+              return !key || !visibleEmbedFieldNameSet.has(key);
+            })
+          : allVariables;
+
+      const { normalised } = validateVariables(filteredVariables, { suppressErrors: true });
       setDraftVariables(normalised);
     },
-    [variablesKeyValue, variablesPath, variable_state]
+    [isEmbedUser, variable_state, variablesKeyValue, variablesPath, visibleEmbedFieldNameSet]
   );
 
   useEffect(() => {

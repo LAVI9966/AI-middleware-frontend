@@ -66,6 +66,26 @@ const PromptRenderer = memo(
 
     // MAIN USER - SIMPLE VIEW: Show structured fields (Role, Goal, Instruction)
     if (!isEmbedUser && viewMode === "simple") {
+      // If prompt is a string, show simple textarea
+      if (typeof currentPromptValue === "string") {
+        return (
+          <PromptTextarea
+            key="main-simple-string"
+            textareaRef={textareaRef}
+            initialValue={currentPromptValue}
+            onChange={handlePromptChange}
+            onSave={handleSavePrompt}
+            isPromptHelperOpen={uiState.isPromptHelperOpen}
+            onKeyDown={handleKeyDown}
+            isPublished={isPublished}
+            isEditor={isEditor}
+            onFocus={handleTextareaFocus}
+            onTextAreaBlur={handleTextareaBlur}
+            variablesSection={variablesSection}
+          />
+        );
+      }
+
       return (
         <StructuredPromptInput
           key="main-simple"
@@ -127,10 +147,29 @@ const PromptRenderer = memo(
         );
       }
 
+      // If prompt is a string, show simple textarea
+      if (typeof promptToUse === "string") {
+        return (
+          <PromptTextarea
+            key="embed-simple-string"
+            textareaRef={textareaRef}
+            initialValue={promptToUse}
+            onChange={handlePromptChange}
+            onSave={handleSavePrompt}
+            isPromptHelperOpen={uiState.isPromptHelperOpen}
+            onKeyDown={handleKeyDown}
+            isPublished={isPublished}
+            isEditor={isEditor}
+            onFocus={handleTextareaFocus}
+            onTextAreaBlur={handleTextareaBlur}
+            variablesSection={variablesSection}
+          />
+        );
+      }
+
       // If prompt is NOT an object with embedFields, for embed users we want to show structured input (Role/Goal/Instruction)
       // This covers:
-      // 1. String prompts (Old embed user / Default prompt) -> Will be normalized to  instruction: string
-      // 2. Object prompts without embedFields -> e.g.  role, goal, instruction  or customPrompt
+      // 1. Object prompts without embedFields -> e.g.  role, goal, instruction  or customPrompt
       // This unifies the experience for "Main-like" embed users and "Old" embed users.
       return (
         <StructuredPromptInput

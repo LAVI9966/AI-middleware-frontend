@@ -8,6 +8,7 @@ import PromptHeader from "./PromptHeader";
 import PromptRenderer from "./PromptRenderer";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { normalizePromptToStructured } from "@/utils/promptUtils";
+import MigratePromptWarningModal from "../../modals/MigratePromptWarningModal";
 
 // Ultra-smooth InputConfigComponent with ref-based approach
 const InputConfigComponent = memo(
@@ -28,7 +29,10 @@ const InputConfigComponent = memo(
     isEditor,
     isEmbedUser,
   }) => {
-    const { showVariables } = useCustomSelector((state) => state.appInfoReducer.embedUserDetails);
+    // Get full embed details for migration logic
+    const embedDetails = useCustomSelector((state) => state.appInfoReducer.embedUserDetails);
+    const { showVariables } = embedDetails;
+
     // Optimized Redux selector with memoization and shallow comparison
     const { prompt: reduxPrompt, oldContent } = usePromptSelector(params, searchParams);
     // Refs for zero-render typing experience
@@ -76,11 +80,19 @@ const InputConfigComponent = memo(
             hasChanges = true; // Format changed
           }
         } else {
-          // For main users: structured format
-          if (typeof reduxPrompt === "string") {
+          // For main users: allow both string and structured format
+          if (typeof reduxPrompt === "string" && typeof value === "string") {
+            hasChanges = value.trim() !== reduxPrompt.trim();
+          } else if (typeof reduxPrompt === "string") {
+            // Comparing object value (from structured view) to string redux variable
             hasChanges = JSON.stringify(value) !== JSON.stringify(normalizePromptToStructured(reduxPrompt));
           } else if (typeof reduxPrompt === "object") {
-            hasChanges = JSON.stringify(value) !== JSON.stringify(reduxPrompt);
+            if (typeof value === "string") {
+              // Should not happen if View prevents it, but safe to check
+              hasChanges = true;
+            } else {
+              hasChanges = JSON.stringify(value) !== JSON.stringify(reduxPrompt);
+            }
           } else {
             hasChanges = JSON.stringify(value) !== JSON.stringify({ role: "", goal: "", instruction: "" });
           }
@@ -112,8 +124,15 @@ const InputConfigComponent = memo(
         const isEventLike = typeof val === "object" && val !== null && "nativeEvent" in val;
         if (val == null || isEventLike) {
           if (!isEmbedUser) {
-            // For main users, get structured prompt from state
-            currentValue = promptState.newContent || normalizePromptToStructured(reduxPrompt);
+            // For main users: check format. If new content, use it. If not, use reduxPrompt (string or object).
+            // Fallback to normalized structure only if we don't have a string/object (e.g. null/undefined).
+            if (promptState.newContent) {
+              currentValue = promptState.newContent;
+            } else if (typeof reduxPrompt === "string") {
+              currentValue = reduxPrompt;
+            } else {
+              currentValue = normalizePromptToStructured(reduxPrompt);
+            }
           } else {
             // For embed users: check format
             if (typeof reduxPrompt === "string") {
@@ -233,6 +252,29 @@ const InputConfigComponent = memo(
       return false;
     }, [isEmbedUser, viewMode, currentPromptValue]);
 
+    const embedPromptConfig = useMemo(() => embedDetails?.prompt || {}, [embedDetails]);
+    const shouldShowEmbedMigratePrompt = useMemo(() => {
+      if (!isEmbedUser || !embedDetails?.migratePrompt) return false;
+
+      // Legacy string prompt should always allow migration
+      if (typeof currentPromptValue === "string") return true;
+
+      // For custom embed prompt mode, only show migrate if folder customPrompt changed
+      if (
+        embedPromptConfig &&
+        typeof embedPromptConfig === "object" &&
+        embedPromptConfig.useDefaultPrompt === false &&
+        typeof currentPromptValue === "object" &&
+        currentPromptValue !== null
+      ) {
+        const agentCustomPrompt = (currentPromptValue.customPrompt || "").trim();
+        const folderCustomPrompt = (embedPromptConfig.customPrompt || "").trim();
+        return agentCustomPrompt !== folderCustomPrompt;
+      }
+
+      return false;
+    }, [isEmbedUser, embedDetails, currentPromptValue, embedPromptConfig]);
+
     if (shouldHidePromptUI) {
       return (
         <div data-testid="input-config-container" id="input-config-container" ref={promptTextAreaRef}>
@@ -273,6 +315,15 @@ const InputConfigComponent = memo(
           onViewModeChange={setViewMode}
           showDiffButton={showDiffButton}
           isEmbedUser={isEmbedUser}
+          onMigratePrompt={() => {
+            setPromptState((prev) => ({
+              ...prev,
+              pendingMigration: true,
+            }));
+            openModal(MODAL_TYPE.MIGRATE_PROMPT_WARNING_MODAL || "MIGRATE_PROMPT_WARNING_MODAL");
+          }}
+          migratePrompt={embedDetails?.migratePrompt}
+          showEmbedMigratePrompt={shouldShowEmbedMigratePrompt}
         />
 
         <div className="form-control relative">
@@ -301,11 +352,44 @@ const InputConfigComponent = memo(
           }
           newContent={
             !isEmbedUser
-              ? JSON.stringify(promptState.newContent || normalizePromptToStructured(reduxPrompt), null, 2)
+              ? typeof (promptState.newContent || reduxPrompt) === "string"
+                ? promptState.newContent || reduxPrompt
+                : JSON.stringify(promptState.newContent || normalizePromptToStructured(reduxPrompt), null, 2)
               : textareaRef.current?.value || currentPromptValue
           }
         />
         <PromptSummaryModal modalType={MODAL_TYPE.PROMPT_SUMMARY} params={params} searchParams={searchParams} />
+
+        <MigratePromptWarningModal
+          isMainMigration={!isEmbedUser && typeof currentPromptValue === "string"}
+          isEmbedMigration={isEmbedUser && shouldShowEmbedMigratePrompt}
+          embedPromptConfig={embedPromptConfig}
+          agentPromptConfig={
+            typeof currentPromptValue === "object" && currentPromptValue !== null ? currentPromptValue : {}
+          }
+          sourcePrompt={typeof currentPromptValue === "string" ? currentPromptValue : ""}
+          onSaveStructured={(structured) => {
+            handlePromptChange(structured);
+            handleSavePrompt(structured);
+            setPromptState((prev) => ({ ...prev, pendingMigration: false }));
+          }}
+          onSaveEmbed={(embedPrompt) => {
+            handlePromptChange(embedPrompt);
+            handleSavePrompt(embedPrompt);
+            setPromptState((prev) => ({ ...prev, pendingMigration: false }));
+          }}
+          onConfirm={() => {
+            // For main users, migrate to empty role/goal/instruction fields
+            let structured;
+            if (!isEmbedUser) {
+              structured = { role: "", goal: "", instruction: "" };
+            } else {
+              structured = normalizePromptToStructured(currentPromptValue, isEmbedUser, embedDetails);
+            }
+            handlePromptChange(structured);
+            setPromptState((prev) => ({ ...prev, pendingMigration: false }));
+          }}
+        />
       </div>
     );
   }

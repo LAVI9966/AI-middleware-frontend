@@ -96,7 +96,7 @@ const EmbedPromptFields = ({
               {field.type === "input" ? (
                 <input
                   type="text"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full text-sm"
                   placeholder={`Enter value for ${field.name}`}
                   value={field.value || ""}
                   onChange={(e) => handleFieldValueChange(field.name, e.target.value)}
@@ -107,7 +107,7 @@ const EmbedPromptFields = ({
                 />
               ) : (
                 <textarea
-                  className="textarea textarea-bordered w-full h-32"
+                  className="textarea textarea-bordered w-full h-32 text-sm leading-relaxed"
                   placeholder={`Enter value for ${field.name}`}
                   value={field.value || ""}
                   onChange={(e) => handleFieldValueChange(field.name, e.target.value)}

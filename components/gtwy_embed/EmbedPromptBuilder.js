@@ -7,7 +7,7 @@ import { extractVariablesFromPrompt } from "@/utils/promptUtils";
  * Embed Prompt Builder Component
  * Allows embed users to create custom prompts with dynamic field generation
  */
-const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
+const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChange }) => {
   // Track if we're making an internal update to prevent sync loop
   const isInternalUpdateRef = useRef(false);
 
@@ -20,11 +20,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
       return {
         useDefaultPrompt: true,
         customPrompt: "",
-        embedFields: [
-          { name: "role", value: "", type: "input", hidden: true },
-          { name: "goal", value: "", type: "input", hidden: true },
-          { name: "instruction", value: "", type: "textarea", hidden: true },
-        ],
+        embedFields: [],
       };
     }
 
@@ -39,12 +35,8 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
       if (isDefault) {
         return {
           useDefaultPrompt: true,
-          customPrompt: "",
-          embedFields: configPrompt.embedFields || [
-            { name: "role", value: "", type: "input", hidden: true },
-            { name: "goal", value: "", type: "input", hidden: true },
-            { name: "instruction", value: "", type: "textarea", hidden: true },
-          ],
+          customPrompt: configPrompt.customPrompt || "",
+          embedFields: configPrompt.embedFields || [],
         };
       }
 
@@ -52,11 +44,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
       return {
         useDefaultPrompt: false,
         customPrompt: configPrompt.customPrompt || "",
-        embedFields: configPrompt.embedFields || [
-          { name: "role", value: "", type: "input", hidden: true },
-          { name: "goal", value: "", type: "input", hidden: true },
-          { name: "instruction", value: "", type: "textarea", hidden: true },
-        ],
+        embedFields: configPrompt.embedFields || [],
       };
     }
 
@@ -64,11 +52,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
     return {
       useDefaultPrompt: true,
       customPrompt: "",
-      embedFields: [
-        { name: "role", value: "", type: "input", hidden: true },
-        { name: "goal", value: "", type: "input", hidden: true },
-        { name: "instruction", value: "", type: "textarea", hidden: true },
-      ],
+      embedFields: [],
     };
   });
 
@@ -85,12 +69,10 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
     if (promptConfig.useDefaultPrompt) return;
 
     const currentFieldNames = new Set(promptConfig.embedFields.map((f) => f.name));
-    const defaultFieldNames = new Set(["role", "goal", "instruction"]);
-
     // Add detected variables as fields if they don't exist
     const newFields = [...promptConfig.embedFields];
     detectedVariables.forEach((varName) => {
-      if (!currentFieldNames.has(varName) && !defaultFieldNames.has(varName)) {
+      if (!currentFieldNames.has(varName)) {
         // Check if field already exists with a value (preserve existing values)
         const existingField = promptConfig.embedFields.find((f) => f.name === varName);
         newFields.push({
@@ -104,7 +86,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
 
     // Remove fields that are no longer in the prompt (except default fields)
     const fieldsToKeep = newFields.filter((field) => {
-      if (defaultFieldNames.has(field.name)) return true; // Always keep default fields
       return detectedVariables.includes(field.name);
     });
 
@@ -282,18 +263,14 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
         // String means default prompt mode
         newConfig = {
           useDefaultPrompt: true,
-          customPrompt: "",
+          customPrompt: prev.customPrompt || "",
           // Don't inherit embedFields when switching to string mode externally
           // unless we are sure it's the same context (which is hard to know here).
           // But since we added key={embed_id} in parent, this component re-mounts on context switch.
           // So we only care about prop updates within the SAME context.
           // In same context, if config becomes string, we can keep fields?
           // Actually, if config becomes string, it means user (or system) reset to default.
-          embedFields: prev.embedFields || [
-            { name: "role", value: "", type: "input", hidden: true },
-            { name: "goal", value: "", type: "input", hidden: true },
-            { name: "instruction", value: "", type: "textarea", hidden: true },
-          ],
+          embedFields: prev.embedFields || [],
         };
         shouldUpdate = newConfig.useDefaultPrompt !== prev.useDefaultPrompt;
       } else if (typeof configPrompt === "object" && configPrompt !== null) {
@@ -306,24 +283,15 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
           // Default mode
           newConfig = {
             useDefaultPrompt: true,
-            customPrompt: "",
-            embedFields: configPrompt.embedFields ||
-              prev.embedFields || [
-                { name: "role", value: "", type: "input", hidden: true },
-                { name: "goal", value: "", type: "input", hidden: true },
-                { name: "instruction", value: "", type: "textarea", hidden: true },
-              ],
+            customPrompt: configPrompt.customPrompt || prev.customPrompt || "",
+            embedFields: configPrompt.embedFields || prev.embedFields || [],
           };
         } else {
           // Custom mode
           newConfig = {
             useDefaultPrompt: false,
             customPrompt: configPrompt.customPrompt || "",
-            embedFields: configPrompt.embedFields || [
-              { name: "role", value: "", type: "input", hidden: true },
-              { name: "goal", value: "", type: "input", hidden: true },
-              { name: "instruction", value: "", type: "textarea", hidden: true },
-            ],
+            embedFields: configPrompt.embedFields || [],
           };
         }
         shouldUpdate = JSON.stringify(newConfig) !== JSON.stringify(prev);
@@ -332,11 +300,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
         newConfig = {
           useDefaultPrompt: true,
           customPrompt: "",
-          embedFields: [
-            { name: "role", value: "", type: "input", hidden: true },
-            { name: "goal", value: "", type: "input", hidden: true },
-            { name: "instruction", value: "", type: "textarea", hidden: true },
-          ],
+          embedFields: [],
         };
         shouldUpdate = JSON.stringify(newConfig) !== JSON.stringify(prev);
       }
@@ -365,7 +329,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
 
         {/* Default Prompt Info (shown when useDefaultPrompt is true) */}
         {promptConfig.useDefaultPrompt && (
-          <p className="text-xs text-base-content/70 pl-2">
+          <p className="text-xs text-base-content/70 px-1">
             Using default system prompt from backend. The prompt will be automatically applied when creating agents.
           </p>
         )}
@@ -397,15 +361,13 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
                 <label className="label">
                   <span className="label-text text-sm font-medium">Dynamic Fields</span>
                 </label>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="space-y-2">
                   {promptConfig.embedFields.map((field) => (
                     <div key={field.name} className="p-3 bg-base-100 rounded border border-base-300 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <code className="text-sm bg-base-200 px-2 py-1 rounded font-mono">{`{{${field.name}}}`}</code>
-                          <span className="text-sm text-base-content/70">
-                            {["role", "goal", "instruction"].includes(field.name) ? "(Default)" : "(Custom)"}
-                          </span>
+                          <span className="text-sm text-base-content/70">(Custom)</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {/* Field Type Selector (shown when visible) */}
@@ -460,12 +422,10 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate }) => {
               </div>
             )}
 
-            {/* Info Message */}
-            <div className="alert alert-info">
+            <div className="alert alert-warning">
               <Info className="stroke-current shrink-0 w-6 h-6" />
               <span className="text-xs">
-                Default fields (role, goal, instruction) are always available but hidden by default. You can enable them
-                manually.
+                The new fields are applied only to new agents or until users migrate to new fields.
               </span>
             </div>
           </div>

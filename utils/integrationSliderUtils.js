@@ -145,6 +145,14 @@ export const CONFIG_SCHEMA = [
     section: "Interface Options",
   },
   {
+    key: "migratePrompt",
+    type: "toggle",
+    label: "Migrate Prompt",
+    description: "Enable this option to migrate the prompt.",
+    defaultValue: false,
+    section: "Interface Options",
+  },
+  {
     key: "themeMode",
     type: "select",
     label: "Theme Mode",
