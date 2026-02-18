@@ -425,7 +425,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChang
             <div className="alert alert-warning">
               <Info className="stroke-current shrink-0 w-6 h-6" />
               <span className="text-xs">
-                The new fields are applied only to agents, when user migrate to new fields.{" "}
+                The new fields are applied only to new agents or until users migrate to new fields.
               </span>
             </div>
           </div>
