@@ -63,7 +63,8 @@ export const CONFIG_SCHEMA = [
     key: "hidePreTool",
     type: "toggle",
     label: "Hide Pre Tool",
-    description: "Display pre tool",
+    description:
+      "When enabled, allows you to configure a global pre-tool that will be automatically attached to every agent created in the embed.",
     defaultValue: false,
     section: "Interface Options",
   },
@@ -113,14 +114,6 @@ export const CONFIG_SCHEMA = [
     section: "Display Settings",
   },
   {
-    key: "addDefaultApiKeys",
-    type: "toggle",
-    label: "Add Default ApiKeys",
-    description: "Add default api keys",
-    defaultValue: false,
-    section: "Display Settings",
-  },
-  {
     key: "showResponseType",
     type: "toggle",
     label: "Show Response Type",
@@ -164,6 +157,14 @@ export const CONFIG_SCHEMA = [
     description: "Customize model display names and visibility for each service",
     defaultValue: {},
     section: "Model Settings",
+  },
+  {
+    key: "addDefaultApiKeys",
+    type: "toggle",
+    label: "Add Default ApiKeys",
+    description: "Add default api keys",
+    defaultValue: false,
+    section: "Display Settings",
   },
 ];
 
