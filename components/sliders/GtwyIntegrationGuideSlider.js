@@ -46,7 +46,7 @@ const ModelCustomization = ({ value = {}, onChange }) => {
 
     updatedModels[service][modelName] = updatedModels[service][modelName]
       ? { ...updatedModels[service][modelName] }
-      : { hide: false, value: modelName };
+      : { hide: false, value: undefined };
 
     updatedModels[service][modelName][field] = fieldValue;
 
@@ -54,7 +54,7 @@ const ModelCustomization = ({ value = {}, onChange }) => {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 bg-base-200 rounded-md">
       {Object.keys(serviceModels).length === 0 ? (
         <div className="text-sm text-base-content/60 p-4 bg-base-200 rounded">
           No services available. Please configure services first.
@@ -73,11 +73,11 @@ const ModelCustomization = ({ value = {}, onChange }) => {
           if (allModels.length === 0) return null;
 
           return (
-            <div key={service} className="border border-base-300 rounded-lg overflow-hidden">
+            <div key={service} className="border bg-base-200 border-base-300 rounded-lg overflow-hidden">
               <button
                 type="button"
                 onClick={() => toggleService(service)}
-                className="w-full flex items-center justify-between p-3 bg-base-200 hover:bg-base-300 transition-colors"
+                className="w-full flex items-center justify-between p-3 bg-base-200 transition-colors"
               >
                 <span className="font-medium text-sm capitalize">{service}</span>
                 <span className="text-xs text-base-content/60">
@@ -86,11 +86,14 @@ const ModelCustomization = ({ value = {}, onChange }) => {
               </button>
 
               {expandedServices[service] && (
-                <div className="p-3 space-y-2 bg-base-100">
+                <div className="p-3 space-y-2 bg-base-200">
                   {allModels.map((modelName) => {
-                    const modelConfig = value[service]?.[modelName] || { hide: false, value: modelName };
+                    const modelConfig = value[service]?.[modelName] || { hide: false, value: undefined };
                     return (
-                      <div key={modelName} className="flex items-center gap-2 p-2 bg-base-200 rounded">
+                      <div
+                        key={modelName}
+                        className="grid grid-cols-[auto_200px_1fr] items-center gap-3 p-2 bg-base-100 rounded"
+                      >
                         <input
                           type="checkbox"
                           className="checkbox checkbox-sm"
@@ -98,16 +101,14 @@ const ModelCustomization = ({ value = {}, onChange }) => {
                           onChange={(e) => handleModelChange(service, modelName, "hide", !e.target.checked)}
                           title="Show/Hide model"
                         />
-                        <div className="flex-1 flex items-center gap-2">
-                          <span className="text-xs text-base-content/60 min-w-[120px]">{modelName}</span>
-                          <input
-                            type="text"
-                            className="input input-bordered input-sm flex-1"
-                            value={modelConfig.value || modelName}
-                            onChange={(e) => handleModelChange(service, modelName, "value", e.target.value)}
-                            placeholder="Display name"
-                          />
-                        </div>
+                        <span className="text-xs text-base-content/60 truncate">{modelName}</span>
+                        <input
+                          type="text"
+                          className="input input-bordered input-sm w-full bg-base-200"
+                          value={modelConfig.value !== undefined ? modelConfig.value : modelName}
+                          onChange={(e) => handleModelChange(service, modelName, "value", e.target.value)}
+                          placeholder={modelName}
+                        />
                       </div>
                     );
                   })}
@@ -170,12 +171,23 @@ const ConfigInput = ({ config, value, onChange }) => {
     <div
       className={`form-control rounded p-2 ${type === "nested" ? "bg-base-100 border border-base-300" : "bg-base-200"}`}
     >
-      <label className={`label ${type === "toggle" ? "cursor-pointer" : ""} py-1`}>
-        <span className="label-text text-sm font-medium">{label}</span>
-        {type === "toggle" && renderInput()}
-      </label>
-      {type !== "toggle" && <div className={type === "nested" ? "mt-2" : "mt-1"}>{renderInput()}</div>}
-      {description && <p className="text-xs text-base-content/70 mt-1 pl-2">{description}</p>}
+      {type === "toggle" ? (
+        <label className="label cursor-pointer py-1">
+          <div className="flex flex-col gap-1">
+            <span className="label-text text-sm font-medium">{label}</span>
+            {description && <p className="text-xs text-base-content/70">{description}</p>}
+          </div>
+          {renderInput()}
+        </label>
+      ) : (
+        <>
+          <div className="mb-1">
+            <span className="label-text text-sm font-medium">{label}</span>
+            {description && <p className="text-xs text-base-content/70 mt-1">{description}</p>}
+          </div>
+          <div className={type === "nested" ? "mt-2" : "mt-1"}>{renderInput()}</div>
+        </>
+      )}
     </div>
   );
 };
@@ -568,6 +580,15 @@ function GtwyIntegrationGuideSlider({ data, handleCloseSlider }) {
       } else if (currentValue === value) {
         // For other keys, simple comparison
         return prev; // No change, don't update
+      }
+
+      // If hidePreTool is being set to false, set pre_tool_id to empty string
+      if (key === "hidePreTool" && value === false) {
+        return {
+          ...prev,
+          [key]: value,
+          pre_tool_id: "",
+        };
       }
 
       return {

@@ -352,15 +352,15 @@ const TemplatesPage = ({ params }) => {
                     />
                     <button
                       className={`p-2 rounded-lg transition-all duration-200 ${
-                        currentInput.trim()
+                        currentInput.trim() && !isGenerating
                           ? "text-base-content hover:opacity-80"
                           : "text-base-content/30 cursor-not-allowed"
                       }`}
                       onClick={handleSendMessage}
-                      disabled={!currentInput.trim()}
+                      disabled={!currentInput.trim() || isGenerating}
                     >
                       <div className="transition-all duration-300 ease-in-out transform">
-                        {currentInput.trim() ? (
+                        {currentInput.trim() && !isGenerating ? (
                           <SendHorizontal className="animate-in fade-in zoom-in duration-200" />
                         ) : (
                           <Send className="animate-in fade-in zoom-in duration-200" />

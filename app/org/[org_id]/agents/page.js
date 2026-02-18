@@ -40,15 +40,19 @@ const BRIDGE_STATUS = {
   PAUSED: 0,
 };
 
-const ModelBadge = ({ model }) => {
+const ModelBadge = ({ model, service, modelsConfig }) => {
   if (!model) return null;
+
+  // Get custom model name from modelsConfig if available
+  const modelConfig = modelsConfig?.[service]?.[model];
+  const displayName = modelConfig?.value !== undefined ? modelConfig.value : model;
 
   return (
     <span
       className="mt-1 inline-flex w-fit max-w-xs items-center gap-1 rounded-full border border-base-300/70 bg-base-200/60 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-base-content/60"
-      title={model}
+      title={displayName || model}
     >
-      <span className="truncate text-base-content/70 normal-case max-w-[140px]">{model}</span>
+      <span className="truncate text-base-content/70 normal-case max-w-[140px]">{displayName || model}</span>
     </span>
   );
 };
@@ -314,6 +318,7 @@ function Home({ params, searchParams, isEmbedUser }) {
     currentUser,
     linksData,
     users,
+    modelsConfig,
   } = useCustomSelector((state) => {
     const orgData = state.bridgeReducer.org[resolvedParams.org_id] || {};
     const user = state.userDetailsReducer.userDetails;
@@ -336,6 +341,7 @@ function Home({ params, searchParams, isEmbedUser }) {
       linksData: state.flowDataReducer.flowData.linksData || [],
       currentUser: state.userDetailsReducer.userDetails,
       currentOrgRole: orgRole || "Viewer",
+      modelsConfig: state.appInfoReducer.embedUserDetails?.models || {},
     };
   });
   const bridgeTypeFilter = resolvedSearchParams?.type?.toLowerCase() === "chatbot" ? "chatbot" : "api";
@@ -705,7 +711,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                   )}
                 </div>
               </div>
-              <ModelBadge model={item.configuration?.model} />
+              <ModelBadge model={item.configuration?.model} service={item.service} modelsConfig={modelsConfig} />
             </div>
           </div>
         ),
@@ -809,7 +815,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                 {loadingAgentId === item._id && <span className="text-xs text-primary opacity-70">Loading...</span>}
               </div>
             </div>
-            <ModelBadge model={item.configuration?.model} />
+            <ModelBadge model={item.configuration?.model} service={item.service} modelsConfig={modelsConfig} />
           </div>
         </div>
       ),
