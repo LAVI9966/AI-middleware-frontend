@@ -227,7 +227,7 @@ function OptimiseBaseModal({
                 <textarea
                   id="optimise-content-textarea"
                   data-testid="optimise-content-textarea"
-                  className="textarea bg-white dark:bg-black/15 textarea-bordered border focus:border-primary caret-base-content p-2 w-full resize-none flex-grow min-h-[60vh]"
+                  className="textarea bg-base-100 textarea-bordered border focus:border-primary caret-base-content p-2 w-full resize-none flex-grow min-h-[60vh]"
                   value={textareaContent}
                   onChange={(e) => handleContentChange(e.target.value)}
                   readOnly={isStreaming}

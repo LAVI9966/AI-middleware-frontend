@@ -256,14 +256,14 @@ const ConfigurationPage = ({
           <div
             data-testid="published-data-banner"
             id="published-banner"
-            className={`sticky top-0 z-40 bg-blue-50 dark:bg-slate-800 border-b border-blue-200 dark:border-slate-700 py-2 ${
+            className={`sticky top-0 z-40 bg-primary/20 border-b border-primary/20 py-2 ${
               bannerState.animatingPublished ? "animate-slide-out-to-navbar" : "animate-slide-in-from-navbar"
             }`}
           >
             <div className="flex items-center justify-center gap-2 text-sm">
-              <Lock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-blue-700 dark:text-slate-300">
-                This is a <span className="text-blue-800 dark:text-white font-medium">read-only</span> published data.
+              <Lock className="h-4 w-4 text-info" />
+              <span className="text-base-content/80">
+                This is a <span className="text-base-content font-medium">read-only</span> published data.
               </span>
             </div>
           </div>
@@ -274,15 +274,14 @@ const ConfigurationPage = ({
           <div
             data-testid="non-editor-banner"
             id="non-editor-banner"
-            className={`sticky top-0 z-40 bg-amber-50 dark:bg-slate-800 border-b border-amber-200 dark:border-slate-700 py-2 ${
+            className={`sticky top-0 z-40 bg-primary/20 border-b border-primary/20 py-2 ${
               bannerState.animatingNonEditor ? "animate-slide-out-to-navbar" : "animate-slide-in-from-navbar"
             }`}
           >
             <div className="flex items-center justify-center gap-2 text-sm">
-              <Lock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-blue-700 dark:text-slate-300">
-                You don't have <span className="text-blue-800 dark:text-white font-medium">edit access</span> to update
-                this agent.
+              <Lock className="h-4 w-4 text-primary" />
+              <span className="text-base-content/80">
+                You don't have <span className="text-base-content font-medium">edit access</span> to update this agent.
               </span>
             </div>
           </div>

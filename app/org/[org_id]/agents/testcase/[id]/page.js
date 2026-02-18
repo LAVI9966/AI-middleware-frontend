@@ -285,7 +285,7 @@ function TestCases({ params }) {
                                       <textarea
                                         value={editExpectedOutput}
                                         onChange={(e) => setEditExpectedOutput(e.target.value)}
-                                        className="textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-20"
+                                        className="textarea bg-base-100 textarea-bordered w-full min-h-20"
                                       />
                                     ) : (
                                       <div className="p-3 bg-base-100 rounded-md shadow-sm text-sm text-base-content whitespace-pre-wrap overflow-auto max-h-40">

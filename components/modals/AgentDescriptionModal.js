@@ -18,7 +18,7 @@ const AgentDescriptionModal = ({ setDescription, handleSaveAgent, description, i
           <textarea
             data-testid="agent-description-textarea"
             id="agent-description-textarea"
-            className="textarea bg-white dark:bg-black/15 textarea-bordered w-full h-32"
+            className="textarea bg-base-100 textarea-bordered w-full h-32"
             placeholder="Enter description for the agent..."
             defaultValue={description}
             key={description}

@@ -127,7 +127,7 @@ const WebhookForm = ({ params, searchParams }) => {
           id="batch-api-messages-textarea"
           onChange={handleMessagesChange}
           placeholder="Enter messages separated by commas"
-          className="textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-64"
+          className="textarea bg-base-100 textarea-bordered w-full min-h-64"
           rows={4}
         />
       </div>

@@ -141,7 +141,7 @@ const UserReferenceForRichText = ({ params, searchParams, isPublished, isEditor 
             <textarea
               data-testid="user-reference-textarea"
               id="user-reference-textarea"
-              className="textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-[7rem] resize-y border-base-300 focus:border-base-content/30 focus:outline-none transition-colors text-sm leading-relaxed placeholder:text-base-content/40"
+              className="textarea bg-base-100 textarea-bordered w-full min-h-[7rem] resize-y border-base-300 focus:border-base-content/30 focus:outline-none transition-colors text-sm leading-relaxed placeholder:text-base-content/40"
               defaultValue={userReference}
               onBlur={handleUserReferenceChange}
               key={userReference}
