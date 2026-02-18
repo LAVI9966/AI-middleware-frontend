@@ -1,6 +1,7 @@
 "use client";
 
 import React, { memo, useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import TabsLayout from "./sections/TabsLayout";
 import PromptTab from "./sections/PromptTab";
 import ModelTab from "./sections/ModelTab";
@@ -14,14 +15,17 @@ import { useConfigurationContext } from "./ConfigurationContext";
 
 const NonImageModelConfig = memo(() => {
   const { isPublished, uiState, currentView, isEmbedUser } = useConfigurationContext();
-  const [activeTab, setActiveTab] = useState("prompt");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "prompt");
 
-  // Sync activeTab with currentView from URL
+  // Sync activeTab with currentView from URL (legacy support if needed, but tab param takes precedence)
   useEffect(() => {
     if (currentView && currentView !== "config" && currentView !== "agent-flow" && currentView !== "chatbot-config") {
-      setActiveTab(currentView);
+      if (!searchParams.get("tab")) {
+        setActiveTab(currentView);
+      }
     }
-  }, [currentView]);
+  }, [currentView, searchParams]);
 
   const tabs = useMemo(() => {
     const baseTabs = [

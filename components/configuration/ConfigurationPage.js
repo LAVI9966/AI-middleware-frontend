@@ -23,6 +23,8 @@ const ConfigurationPage = ({
   closeHelperButtonLocation,
   onViewChange,
   viewOverride,
+  apiKeyError,
+  setApiKeyError,
 }) => {
   const router = useRouter();
   const view = searchParams?.view || "config";
@@ -174,6 +176,8 @@ const ConfigurationPage = ({
       switchView: handleNavigation,
       isPublished,
       isEditor,
+      apiKeyError,
+      setApiKeyError,
     }),
     [
       configState,
@@ -194,6 +198,7 @@ const ConfigurationPage = ({
       isEditor,
       currentView,
       handleNavigation,
+      apiKeyError,
     ]
   );
 
