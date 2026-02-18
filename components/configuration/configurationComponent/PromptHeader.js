@@ -113,15 +113,13 @@ const PromptHeader = memo(
             </span>
           )}
           {/* View Mode Selector */}
-          <div className="flex items-center bg-base-200 rounded-lg p-0.5">
+          <div className="btn-group">
             {!isEmbedUser && (
               <button
                 type="button"
-                className={`px-3 py-1 text-xs rounded-md transition-all ${
-                  viewMode === "simple"
-                    ? "bg-base-100 shadow-sm text-base-content font-medium"
-                    : "text-base-content/60 hover:text-base-content"
-                } ${isPublished || !isEditor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                className={`btn btn-xs ${
+                  viewMode === "simple" ? "btn-active" : ""
+                } ${isPublished || !isEditor ? "btn-disabled" : ""}`}
                 onMouseDown={(e) => {
                   if (isPublished || !isEditor) return;
                   e.preventDefault();
@@ -135,9 +133,7 @@ const PromptHeader = memo(
               ? (!isEmbedUser || migratePrompt) && (
                   <button
                     type="button"
-                    className={`px-3 py-1 text-xs rounded-md transition-all text-base-content/60 hover:text-base-content hover:bg-base-100 ${
-                      isPublished || !isEditor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                    }`}
+                    className={`btn btn-xs ${isPublished || !isEditor ? "btn-disabled" : ""}`}
                     onMouseDown={(e) => {
                       if (isPublished || !isEditor) return;
                       e.preventDefault();
@@ -151,11 +147,9 @@ const PromptHeader = memo(
               : !isEmbedUser && (
                   <button
                     type="button"
-                    className={`px-3 py-1 text-xs rounded-md transition-all ${
-                      viewMode === "advanced"
-                        ? "bg-base-100 shadow-sm text-base-content font-medium"
-                        : "text-base-content/60 hover:text-base-content"
-                    } ${isPublished || !isEditor ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    className={`btn btn-xs ${
+                      viewMode === "advanced" ? "btn-active" : ""
+                    } ${isPublished || !isEditor ? "btn-disabled" : ""}`}
                     onMouseDown={(e) => {
                       if (isPublished || !isEditor) return;
                       e.preventDefault();
