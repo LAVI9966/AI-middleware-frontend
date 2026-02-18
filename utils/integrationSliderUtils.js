@@ -157,6 +157,14 @@ export const CONFIG_SCHEMA = [
     ],
     section: "Display Settings",
   },
+  {
+    key: "models",
+    type: "nested",
+    label: "Model Name Customization",
+    description: "Customize model display names and visibility for each service",
+    defaultValue: {},
+    section: "Model Settings",
+  },
 ];
 
 // Theme utility functions

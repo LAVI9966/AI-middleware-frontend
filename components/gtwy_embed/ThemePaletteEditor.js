@@ -64,35 +64,29 @@ const ThemePaletteEditor = ({ theme, onColorChange }) => {
             </button>
             {isOpen && (
               <div className="px-3 pb-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {tokens.map((token) => {
-                    const value = theme?.[mode]?.[token] || "";
-                    const hexValue = oklchToHex(value);
+                    const value = theme?.[mode]?.[token] || defaultUserTheme?.[mode]?.[token] || "";
+                    const hexValue = oklchToHex(value, "#808080");
                     return (
-                      <div key={token} className="form-control">
-                        <label className="label py-1">
-                          <span className="label-text text-xs">{COLOR_LABEL_MAP[token] || token}</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            id={`theme-color-${mode}-${token}`}
-                            type="color"
-                            value={hexValue}
-                            onChange={(e) => {
-                              const newHex = e.target.value;
-                              const newOklch = hexToOklchString(newHex, value);
-                              onColorChange(mode, token, newOklch);
-                            }}
-                            className="w-12 h-8 rounded cursor-pointer border border-base-300"
-                          />
-                          <input
-                            type="text"
-                            value={value}
-                            onChange={(e) => onColorChange(mode, token, e.target.value)}
-                            className="input input-sm input-bordered flex-1 font-mono text-xs"
-                            placeholder="oklch(...)"
-                          />
+                      <div key={token} className="flex items-center justify-between gap-3">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-base-content">{COLOR_LABEL_MAP[token] || token}</div>
+                          <div className="text-xs font-mono text-base-content/60 mt-0.5">{value || "oklch(...)"}</div>
                         </div>
+                        <input
+                          id={`theme-color-${mode}-${token}`}
+                          type="color"
+                          value={hexValue}
+                          onChange={(e) => {
+                            const newHex = e.target.value;
+                            const newOklch = hexToOklchString(newHex);
+                            if (newOklch) {
+                              onColorChange(mode, token, newOklch);
+                            }
+                          }}
+                          className="w-12 h-12 rounded cursor-pointer border border-base-300"
+                        />
                       </div>
                     );
                   })}
