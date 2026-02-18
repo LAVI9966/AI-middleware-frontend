@@ -55,7 +55,7 @@ const ThemePaletteEditor = ({ theme, onColorChange }) => {
               onClick={() => toggleMode(mode)}
             >
               <div>
-                <p className="text-sm text-base-content/70">{MODE_TITLES[mode]}</p>
+                <p className="text-xs text-base-content/70">{MODE_TITLES[mode]}</p>
               </div>
               <ChevronDown
                 size={16}
@@ -71,7 +71,7 @@ const ThemePaletteEditor = ({ theme, onColorChange }) => {
                     return (
                       <div key={token} className="flex items-center justify-between gap-3">
                         <div className="flex-1">
-                          <div className="text-sm font-medium text-base-content">{COLOR_LABEL_MAP[token] || token}</div>
+                          <div className="text-xs font-medium text-base-content">{COLOR_LABEL_MAP[token] || token}</div>
                           <div className="text-xs font-mono text-base-content/60 mt-0.5">{value || "oklch(...)"}</div>
                         </div>
                         <input
@@ -85,7 +85,7 @@ const ThemePaletteEditor = ({ theme, onColorChange }) => {
                               onColorChange(mode, token, newOklch);
                             }
                           }}
-                          className="w-12 h-12 rounded cursor-pointer border border-base-300"
+                          className="w-10 h-10 rounded cursor-pointer border border-base-300"
                         />
                       </div>
                     );
