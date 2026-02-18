@@ -752,6 +752,8 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                           apiKeySectionRef={apiKeySectionRef}
                           params={resolvedParams}
                           searchParams={resolvedSearchParams}
+                          draftPrompt={promptState.newContent}
+                          hasDraftPromptChanges={promptState.hasUnsavedChanges}
                           onVisibilityChange={setIsGuideVisible}
                           onSwitchToModelTab={handleSwitchToModelTab}
                           setApiKeyError={setApiKeyError}
@@ -983,6 +985,8 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                 apiKeySectionRef={apiKeySectionRef}
                 params={resolvedParams}
                 searchParams={resolvedSearchParams}
+                draftPrompt={promptState.newContent}
+                hasDraftPromptChanges={promptState.hasUnsavedChanges}
                 onSwitchToModelTab={handleSwitchToModelTab}
                 setApiKeyError={setApiKeyError}
               />

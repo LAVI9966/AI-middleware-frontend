@@ -730,7 +730,6 @@ window.openGtwy({
                   <p className="text-xs text-base-content/70">
                     Customize how GTWY appears and behaves in your application
                   </p>
-
                   <div className="space-y-4 mt-2">
                     {/* Dynamically render sections */}
                     {Object.entries(groupedConfigs).map(([sectionName, configs]) => (
@@ -763,6 +762,7 @@ window.openGtwy({
                       handleConfigChange("prompt", promptValue);
                     }}
                     onValidate={setIsPromptValid}
+                    onConfigChange={handleConfigChange}
                   />
                 </div>
               </div>

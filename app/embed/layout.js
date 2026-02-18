@@ -172,6 +172,10 @@ const Layout = ({ children, isEmbedUser }) => {
           if (value === undefined) return;
 
           // Handle special cases
+          if (key === "prompt") {
+            dispatch(setEmbedUserDetailsAction({ [key]: value }));
+            return;
+          }
           if (key === "theme_config") {
             let parsedTheme = value;
             if (typeof value === "string") {

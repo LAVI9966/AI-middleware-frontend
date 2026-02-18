@@ -65,7 +65,7 @@ const StructuredPromptInput = memo(
           <input
             type="text"
             id="prompt-role-input"
-            className="input input-bordered w-full"
+            className="input input-bordered w-full text-sm"
             placeholder="Enter the role of the AI agent"
             value={localPrompt.role}
             onChange={(e) => handleFieldChange("role", e.target.value)}
@@ -84,7 +84,7 @@ const StructuredPromptInput = memo(
           <input
             type="text"
             id="prompt-goal-input"
-            className="input input-bordered w-full"
+            className="input input-bordered w-full text-sm"
             placeholder="Enter the goal of the AI agent"
             value={localPrompt.goal}
             onChange={(e) => handleFieldChange("goal", e.target.value)}
@@ -102,7 +102,7 @@ const StructuredPromptInput = memo(
           </label>
           <textarea
             id="prompt-instruction-textarea"
-            className={`textarea textarea-bordered w-full ${
+            className={`textarea textarea-bordered w-full text-sm leading-relaxed ${
               isPromptHelperOpen ? "h-[calc(100vh-334px)] min-h-[400px]" : "h-96 min-h-96"
             } resize-y`}
             placeholder="Enter detailed instructions for the AI agent..."
