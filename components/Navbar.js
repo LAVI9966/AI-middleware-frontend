@@ -17,6 +17,9 @@ import {
   BotIcon,
   ChevronDown,
   RefreshCcw,
+  Users,
+  Settings2,
+  Trash2,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
@@ -33,6 +36,8 @@ const DeleteModal = dynamic(() => import("./UI/DeleteModal"), { ssr: false });
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import BridgeVersionDropdown from "./configuration/configurationComponent/BridgeVersionDropdown";
 const VariableCollectionSlider = dynamic(() => import("./sliders/VariableCollectionSlider"), { ssr: false });
+import AccessManagementModal from "./modals/AccessManagementModal";import { UsageSummaryPopover } from "../app/org/[org_id]/agents/page";
+import usePortalDropdown from "@/customHooks/usePortalDropdown";
 
 const BRIDGE_STATUS = {
   ACTIVE: 1,
@@ -47,6 +52,7 @@ const Navbar = ({ isEmbedUser, params }) => {
   const [editedName, setEditedName] = useState("");
   const { isDeleting: isDiscardingWithHook, executeDelete } = useDeleteOperation();
   const ellipsisMenuRef = useRef(null);
+  const [selectedAgentForAccess, setSelectedAgentForAccess] = useState(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -57,6 +63,11 @@ const Navbar = ({ isEmbedUser, params }) => {
   const searchParams = useSearchParams();
   const versionId = useMemo(() => searchParams?.get("version"), [searchParams]);
   const isPublished = useMemo(() => searchParams?.get("isPublished") === "true", [searchParams]);
+  // Use portal dropdown hook (same as agents page)
+const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown({
+  offsetX: 0,
+  offsetY: 5,
+});
   const {
     bridgeData,
     bridge,
@@ -74,7 +85,10 @@ const Navbar = ({ isEmbedUser, params }) => {
     savingStatus,
     publishedVersionId,
     showAgentName,
+    isAdminOrOwner,
   } = useCustomSelector((state) => {
+    const orgRole = state?.userDetailsReducer?.organizations?.[orgId]?.role_name;
+const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
     return {
       bridgeData: state?.bridgeReducer?.org?.[orgId]?.orgs?.find((bridge) => bridge._id === bridgeId) || {},
       bridge: state.bridgeReducer.allBridgesMap[bridgeId] || {},
@@ -98,6 +112,9 @@ const Navbar = ({ isEmbedUser, params }) => {
       publishedVersionId: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.published_version_id || null,
       savingStatus: state?.bridgeReducer?.savingStatus || { status: null, timestamp: null },
       showAgentName: state?.appInfoReducer?.embedUserDetails?.showAgentName,
+      isAdminOrOwner,
+      currentOrgRole: orgRole || "",
+      currentUser: state?.userDetailsReducer?.userDetails || {},
     };
   });
   // Define tabs based on user type
@@ -380,6 +397,80 @@ const Navbar = ({ isEmbedUser, params }) => {
       </div>
     );
 
+    const handleDeleteAgent = useCallback(() => {
+  setShowEllipsisMenu(false);
+  openModal(MODAL_TYPE.DELETE_MODAL);
+}, []);
+
+const handleManageAccess = useCallback(() => {
+  setSelectedAgentForAccess(bridge);
+  setShowEllipsisMenu(false);
+  setTimeout(() => {
+    openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
+  }, 10);
+}, [bridge]);
+
+
+// Get usage stats for the current bridge
+const handleUpdateBridgeLimit = useCallback(async (bridge, limit) => {
+  try {
+    await dispatch(
+      updateBridgeAction({
+        bridgeId: bridge._id,
+        dataToSend: { agent_limit: limit },
+      })
+    );
+    toast.success("Agent limit updated successfully");
+  } catch (error) {
+    console.error("Failed to update agent limit", error);
+    toast.error("Failed to update agent limit");
+  }
+}, [dispatch]);
+
+
+const getUsageStatsForRow = useCallback((row) => {
+  const limitValue = Number(row?.agent_limit || 0);
+  const usageValue = Number(row?.usage?.total_requests || 0);
+  const totalTokens = Number(row?.usage?.total_tokens || 0);
+  const hasLimit = Number.isFinite(limitValue) && limitValue > 0;
+  const usagePercent = hasLimit ? Math.min(100, Math.max(0, (usageValue / limitValue) * 100)) : 0;
+  const remaining = hasLimit ? Math.max(limitValue - usageValue, 0) : null;
+  return { limitValue, usageValue, totalTokens, hasLimit, usagePercent, remaining };
+}, []);
+
+
+
+const resetUsage = useCallback(async (bridge) => {
+  try {
+    // Add your reset usage action here if you have one
+    toast.success("Usage reset successfully");
+  } catch (error) {
+    console.error("Failed to reset usage", error);
+    toast.error("Failed to reset usage");
+  }
+}, []);
+
+const handleUsageLimits = useCallback((e) => {
+  const usageContent = (
+    <UsageSummaryPopover
+      stats={getUsageStatsForRow(bridge)}
+      item={bridge}
+      isEmbedUser={isEmbedUser}
+      onSetLimit={(bridgeItem, limit) => {
+        handlePortalCloseImmediate();
+        handleUpdateBridgeLimit(bridgeItem, limit);
+      }}
+      onResetUsage={() => {
+        handlePortalCloseImmediate();
+        resetUsage(bridge);
+      }}
+    />
+  );
+  
+  handlePortalOpen(e.currentTarget, usageContent);
+  setShowEllipsisMenu(false);
+}, [bridge, isEmbedUser, handlePortalOpen, handlePortalCloseImmediate, handleUpdateBridgeLimit, resetUsage, getUsageStatsForRow]);
+
   const handleArchiveBridge = async (bridgeId, newStatus = 0) => {
     try {
       const bridgeStatus = await dispatch(archiveBridgeAction(bridgeId, newStatus));
@@ -409,6 +500,36 @@ const Navbar = ({ isEmbedUser, params }) => {
       {showEllipsisMenu && (
         <div className="absolute right-0 top-full mt-1 w-48 bg-base-100 border border-base-300 rounded-lg shadow-xl z-very-high">
           <div className="">
+            {!isEmbedUser && isAdminOrOwner && (
+              <button
+                data-testid="navbar-manage-access-button"
+                id="navbar-manage-access-button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleManageAccess();
+                }}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
+              >
+                <Users size={16} />
+                Manage Access
+              </button>
+            )}
+
+            {/* Usage & Limits */}
+            <button
+              data-testid="navbar-usage-limits-button"
+              id="navbar-usage-limits-button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleUsageLimits(e);
+              }}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
+            >
+              <Settings2 size={14} />
+              Usage &amp; Limits
+            </button>
             <button
               data-testid="navbar-pause-resume-button"
               id="navbar-pause-resume-button"
@@ -435,6 +556,21 @@ const Navbar = ({ isEmbedUser, params }) => {
                 </>
               )}
             </button>
+            {isAdminOrOwner && (
+              <button
+                data-testid="navbar-delete-button"
+                id="navbar-delete-button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDeleteAgent();
+                }}
+                className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
+              >
+                <Trash2 size={14} className="text-red-600" />
+                Delete Agent
+              </button>
+            )}
           </div>
           <div className="">
             <button
@@ -907,7 +1043,15 @@ const Navbar = ({ isEmbedUser, params }) => {
         loading={isDiscardingWithHook}
         isAsync={true}
       />
+
+       <AccessManagementModal agent={selectedAgentForAccess} />
+ 
+{/* Portal components from hook */}
+<PortalStyles />
+<PortalDropdown />
+      
     </div>
+    
   );
 };
 

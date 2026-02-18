@@ -83,7 +83,7 @@ const UsageProgressDonut = ({ percent, label }) => (
   </div>
 );
 
-const UsageSummaryPopover = ({ stats, item, isEmbedUser, onSetLimit, onResetUsage }) => {
+export const UsageSummaryPopover = ({ stats, item, isEmbedUser, onSetLimit, onResetUsage }) => {
   const { hasLimit, usagePercent, usageValue, limitValue, remaining } = stats;
   const [limit, setLimit] = useState(limitValue ?? "");
   const [isLimitDirty, setIsLimitDirty] = useState(false);
