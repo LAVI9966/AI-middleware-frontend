@@ -147,51 +147,56 @@ const Layout = ({ children, isEmbedUser }) => {
   // Initialize tokens and setup immediately (without waiting for openGtwy)
   useEffect(() => {
     const initializeTokens = () => {
-      // Reset theme config on initialization
-      if (urlParamsObj.org_id && urlParamsObj.token && (urlParamsObj.folder_id || urlParamsObj.gtwy_user)) {
-        // Clear previous embed user details to prevent theme persistence
-        dispatch(clearEmbedThemeDetailsAction());
+      // Early return if required params are missing
+      if (!urlParamsObj.org_id || !urlParamsObj.token || (!urlParamsObj.folder_id && !urlParamsObj.gtwy_user)) {
+        return;
+      }
 
-        if (urlParamsObj.token) {
-          dispatch(setEmbedUserDetailsAction({ isEmbedUser: true }));
-          sessionStorage.setItem("local_token", urlParamsObj.token);
-          sessionStorage.setItem("gtwy_org_id", urlParamsObj?.org_id);
-          sessionStorage.setItem("gtwy_folder_id", urlParamsObj?.folder_id);
-          urlParamsObj?.folder_id && sessionStorage.setItem("embedUser", true);
-        }
+      // Clear previous embed user details to prevent theme persistence
+      dispatch(clearEmbedThemeDetailsAction());
 
-        if (urlParamsObj.config) {
-          Object.entries(urlParamsObj.config).forEach(([key, value]) => {
-            if (value === undefined) return;
-            if (key === "apikey_object_id") {
-              dispatch(setEmbedUserDetailsAction({ [key]: value }));
-              return;
-            }
-            if (key === "theme_config") {
-              let parsedTheme = value;
-              if (typeof value === "string") {
-                try {
-                  parsedTheme = JSON.parse(value);
-                } catch (err) {
-                  console.error("Invalid theme_config JSON in embed params", err);
-                }
+      // Set session storage and embed user flag
+      dispatch(setEmbedUserDetailsAction({ isEmbedUser: true }));
+      sessionStorage.setItem("local_token", urlParamsObj.token);
+      sessionStorage.setItem("gtwy_org_id", urlParamsObj.org_id);
+      sessionStorage.setItem("gtwy_folder_id", urlParamsObj.folder_id);
+      if (urlParamsObj.folder_id) {
+        sessionStorage.setItem("embedUser", true);
+      }
+
+      // Process config parameters
+      if (urlParamsObj.config) {
+        const configUpdates = {};
+
+        Object.entries(urlParamsObj.config).forEach(([key, value]) => {
+          if (value === undefined) return;
+
+          // Handle special cases
+          if (key === "theme_config") {
+            let parsedTheme = value;
+            if (typeof value === "string") {
+              try {
+                parsedTheme = JSON.parse(value);
+              } catch (err) {
+                console.error("Invalid theme_config JSON in embed params", err);
+                return;
               }
-              dispatch(setEmbedUserDetailsAction({ theme_config: parsedTheme }));
-              return;
             }
-            if (key === "themeMode") {
-              dispatch(setEmbedUserDetailsAction({ themeMode: value }));
-              return;
-            }
-
-            dispatch(setEmbedUserDetailsAction({ [key]: toBoolean(value) }));
-          });
+            configUpdates[key] = parsedTheme;
+          } else if (key === "apikey_object_id" || key === "models" || key === "themeMode") {
+            configUpdates[key] = value;
+          } else {
+            configUpdates[key] = toBoolean(value);
+          }
+        });
+        if (Object.keys(configUpdates).length > 0) {
+          dispatch(setEmbedUserDetailsAction(configUpdates));
         }
+      }
 
-        // Set agent name but don't navigate yet
-        if (urlParamsObj?.agent_name) {
-          setCurrentAgentName(urlParamsObj.agent_name);
-        }
+      // Set agent name but don't navigate yet
+      if (urlParamsObj.agent_name) {
+        setCurrentAgentName(urlParamsObj.agent_name);
       }
     };
 
