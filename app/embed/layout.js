@@ -92,7 +92,7 @@ const Layout = ({ children, isEmbedUser }) => {
     [dispatch, router]
   );
 
-  const handleAgentNavigation = useCallback(async (agentName, orgId, agentPurpose, meta) => {
+  const handleAgentCreation = useCallback((agentName, orgId, agentPurpose, meta) => {
     setIsLoading(true);
     createNewAgent(agentName, orgId, agentPurpose, meta);
   }, []);
@@ -150,7 +150,7 @@ const Layout = ({ children, isEmbedUser }) => {
     if (hasAgentParams && urlParamsObj.org_id) {
       setIsLoading(true);
       if (urlParamsObj?.agent_name && currentAgentName) {
-        handleAgentNavigation(currentAgentName, urlParamsObj.org_id);
+        handleAgentCreation(currentAgentName, urlParamsObj.org_id);
       } else if (urlParamsObj?.agent_id) {
         router.push(`/org/${urlParamsObj.org_id}/agents/configure/${urlParamsObj.agent_id}?isEmbedUser=true`);
       } else if (urlParamsObj?.agent_purpose) {
@@ -167,7 +167,7 @@ const Layout = ({ children, isEmbedUser }) => {
     } else {
       setIsLoading(false);
     }
-  }, [openGtwyReceived, urlParamsObj, currentAgentName, handleAgentNavigation, router, createNewAgent]);
+  }, [openGtwyReceived, urlParamsObj, currentAgentName, handleAgentCreation, router, createNewAgent]);
 
   // Handle postMessage events from parent
   useEffect(() => {
@@ -179,12 +179,7 @@ const Layout = ({ children, isEmbedUser }) => {
 
       if (messageData?.agent_name) {
         setIsLoading(true);
-        handleAgentNavigation(
-          messageData.agent_name,
-          orgId,
-          messageData.agent_purpose || null,
-          messageData.meta || null
-        );
+        handleAgentCreation(messageData.agent_name, orgId, messageData.agent_purpose || null, messageData.meta || null);
         return;
       } else if (messageData?.agent_id && orgId) {
         if (messageData?.meta) {
