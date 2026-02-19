@@ -3,14 +3,13 @@ import React, { useCallback, useEffect, useState, useMemo, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation";
 import { setEmbedUserDetailsAction, clearEmbedThemeDetailsAction } from "@/store/action/appInfoAction";
 import { useDispatch } from "react-redux";
-import { updateBridgeAction, createEmbedAgentAction } from "@/store/action/bridgeAction";
+import { updateBridgeAction, createEmbedAgentAction, getAllBridgesAction } from "@/store/action/bridgeAction";
 import { sendDataToParent, toBoolean } from "@/utils/utility";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import ServiceInitializer from "@/components/organization/ServiceInitializer";
 import { ThemeManager, useThemeManager } from "@/customHooks/useThemeManager";
 import defaultUserTheme from "@/public/themes/default-user-theme.json";
 import Protected from "@/components/Protected";
-import { getAllBridges } from "@/config";
 
 const Layout = ({ children, isEmbedUser }) => {
   const searchParams = useSearchParams();
@@ -42,7 +41,7 @@ const Layout = ({ children, isEmbedUser }) => {
 
   useEffect(() => {
     if (isAgentDataGetted.current) {
-      dispatch(getAllBridges(urlParamsObj.org_id));
+      dispatch(getAllBridgesAction(urlParamsObj.org_id));
       isAgentDataGetted.current = false;
     }
   }, []);
