@@ -657,27 +657,27 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
         }
       }
 
-      await dispatch(
+      const data = await dispatch(
         publishBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.get("version"),
           orgId: params?.org_id,
           isPublic: isPublicAgent,
-        }).then((data) => {
-          if (data && isEmbedUser) {
-            sendDataToParent(
-              "published",
-              {
-                name: agent_name,
-                agent_description: agent_description,
-                agent_id: params?.id,
-                agent_version_id: searchParams?.get("version"),
-              },
-              "Agent Published Successfully"
-            );
-          }
         })
       );
+
+      if (data && isEmbedUser) {
+        sendDataToParent(
+          "published",
+          {
+            name: agent_name,
+            agent_description: agent_description,
+            agent_id: params?.id,
+            agent_version_id: searchParams?.get("version"),
+          },
+          "Agent Published Successfully"
+        );
+      }
 
       // Publish selected connected agents in bulk if available
       if (selectedAgentsToPublish.size > 0) {
