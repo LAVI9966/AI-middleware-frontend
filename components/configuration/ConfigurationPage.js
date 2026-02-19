@@ -256,7 +256,7 @@ const ConfigurationPage = ({
           <div
             data-testid="published-data-banner"
             id="published-banner"
-            className={`sticky top-0 z-40 bg-primary/20 border-b border-primary/20 py-2 ${
+            className={`sticky top-0 z-40 bg-primary/20 backdrop-blur-lg border-b border-primary/20 py-2 ${
               bannerState.animatingPublished ? "animate-slide-out-to-navbar" : "animate-slide-in-from-navbar"
             }`}
           >
@@ -274,7 +274,7 @@ const ConfigurationPage = ({
           <div
             data-testid="non-editor-banner"
             id="non-editor-banner"
-            className={`sticky top-0 z-40 bg-primary/20 border-b border-primary/20 py-2 ${
+            className={`sticky top-0 z-40 bg-primary/20 backdrop-blur-sm border-b border-primary/20 py-2 ${
               bannerState.animatingNonEditor ? "animate-slide-out-to-navbar" : "animate-slide-in-from-navbar"
             }`}
           >
