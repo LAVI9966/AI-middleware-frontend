@@ -140,17 +140,25 @@ function ChatTextInput({
     // Extract variables from prompt using regex
     const regex = /{{(.*?)}}/g;
     // Handle both string and object formats
+    // Check if this is embed user format (has customPrompt and useDefaultPrompt is false)
+    const isEmbedFormat = typeof prompt === "object" && prompt.customPrompt && prompt.useDefaultPrompt === false;
     let promptText = "";
+
     if (typeof prompt === "string") {
       promptText = prompt;
     } else if (typeof prompt === "object") {
-      // Check if this is embed user format (has customPrompt and useDefaultPrompt is false)
-      const isEmbedFormat = prompt.customPrompt && prompt.useDefaultPrompt === false;
-
       if (isEmbedFormat) {
-        // For embed users: use customPrompt template to find variables, and only check visible embedFields
+        // For embed users: use customPrompt template to find variables
         if (prompt.customPrompt) promptText += prompt.customPrompt + " ";
-        // Note: We use customPrompt to find variables, but validation will check visible embedFields
+
+        // Also include hidden fields content to find variables within them
+        if (Array.isArray(prompt.embedFields)) {
+          prompt.embedFields.forEach((field) => {
+            if (field.hidden && field.value) {
+              promptText += field.value + " ";
+            }
+          });
+        }
       } else {
         // For main users: extract from default fields (role, goal, instruction)
         if (prompt.role) promptText += prompt.role + " ";
@@ -165,7 +173,14 @@ function ChatTextInput({
       }
     }
     const matches = promptText ? [...promptText.matchAll(regex)] : [];
-    const promptVariables = [...new Set(matches.map((match) => match[1].trim()))];
+    let promptVariables = [...new Set(matches.map((match) => match[1].trim()))];
+
+    // For embed users, filter out variables that match visible embed fields
+    if (isEmbedFormat && Array.isArray(prompt.embedFields)) {
+      const visibleFields = prompt.embedFields.filter((field) => !field.hidden).map((field) => field.name);
+
+      promptVariables = promptVariables.filter((variable) => !visibleFields.includes(variable));
+    }
 
     if (!promptVariables.length) return { isValid: true, missingVariables: [] };
 

@@ -89,7 +89,7 @@ const AgentSetupGuide = ({
       }
 
       // Main user format - check for instruction field
-      if (promptValue.instruction?.trim()) {
+      if (promptValue.instruction?.trim() || promptValue.goal?.trim() || promptValue.role?.trim()) {
         return true;
       }
     }

@@ -130,7 +130,9 @@ export const extractVariablesFromPrompt = (prompt) => {
   const variables = [];
   for (const match of matches) {
     if (match[1]) {
-      variables.push(match[1].trim());
+      if (match[1] !== "pre_function") {
+        variables.push(match[1].trim());
+      }
     }
   }
 

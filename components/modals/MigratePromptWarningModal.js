@@ -136,14 +136,14 @@ const MigratePromptWarningModal = ({
                     : "Current Prompt (String)"}
                 </h4>
                 {isEmbedMigration && !isEmbedDefaultPromptMode && hasAgentVisibleFields ? (
-                  <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 p-2">
                     {visibleAgentFields.length > 0 ? (
                       visibleAgentFields.map((field) => (
                         <div key={field?.name} className="space-y-1 min-w-0">
                           <label className="text-xs font-medium text-base-content/70 break-all">{field?.name}</label>
                           {field?.type === "textarea" ? (
                             <textarea
-                              className="textarea textarea-bordered w-full h-20"
+                              className="textarea textarea-bordered w-full h-20  min-h-48"
                               value={field?.value || ""}
                               readOnly
                             />
@@ -163,7 +163,7 @@ const MigratePromptWarningModal = ({
                   </div>
                 ) : (
                   <textarea
-                    className="textarea textarea-bordered w-full h-[50vh] text-sm font-mono"
+                    className="textarea textarea-bordered w-full h-[50vh] min-h-48 text-sm font-mono"
                     value={sourcePrompt || ""}
                     readOnly
                   />
@@ -198,7 +198,7 @@ const MigratePromptWarningModal = ({
                     />
                   </>
                 ) : (
-                  <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                  <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 p-2">
                     {visibleEmbedFields.length > 0 ? (
                       visibleEmbedFields.map((field) => {
                         const fieldName = field?.name || "";
