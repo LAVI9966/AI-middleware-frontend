@@ -15,6 +15,7 @@ const ApiKeyInput = ({
   hideAdvancedParameters = false,
   isPublished,
   isEditor = true,
+  hasError = false,
 }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
@@ -114,8 +115,14 @@ const ApiKeyInput = ({
   }, [filteredApiKeys, bridge.service, bridge?.configuration?.model, bridgeType]);
 
   return (
-    <div id="apikey-input-container" className="relative form-control w-auto text-base-content" ref={apiKeySectionRef}>
+    <div
+      data-testid="apikey-input-container"
+      id="apikey-input-container"
+      className="relative form-control w-auto text-base-content"
+      ref={apiKeySectionRef}
+    >
       <Dropdown
+        testId="apikey-input-dropdown"
         id="apikey-input-dropdown"
         disabled={isReadOnly}
         options={dropdownOptions}
@@ -129,6 +136,7 @@ const ApiKeyInput = ({
         style={{ backgroundColor: "color-mix(in oklab, var(--color-white) 3%, transparent)" }}
         maxLabelLength={20}
         menuClassName="w-full min-w-[200px]"
+        hasError={hasError}
       />
 
       <ApiKeyModal

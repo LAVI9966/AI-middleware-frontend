@@ -663,6 +663,19 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           versionId: searchParams?.get("version"),
           orgId: params?.org_id,
           isPublic: isPublicAgent,
+        }).then((data) => {
+          if (data && isEmbedUser) {
+            sendDataToParent(
+              "published",
+              {
+                name: agent_name,
+                agent_description: agent_description,
+                agent_id: params?.id,
+                agent_version_id: searchParams?.get("version"),
+              },
+              "Agent Published Successfully"
+            );
+          }
         })
       );
 
@@ -676,21 +689,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           toast.warning("Main agent published, but some connected agents failed to publish");
         }
       }
-
-      // Handle embed user callback
-      if (isEmbedUser) {
-        sendDataToParent(
-          "published",
-          {
-            name: agent_name,
-            agent_description: agent_description,
-            agent_id: params?.id,
-            agent_version_id: searchParams?.get("version"),
-          },
-          "Agent Published Successfully"
-        );
-      }
-
       dispatch(getAllBridgesAction());
       closeModal(MODAL_TYPE.PUBLISH_BRIDGE_VERSION);
     } catch (error) {
@@ -952,7 +950,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                       id="publish-description-textarea"
                       name="description"
                       placeholder="Enter a description"
-                      className="textarea bg-white dark:bg-black/15 textarea-bordered w-full h-20"
+                      className="textarea bg-base-100 textarea-bordered w-full h-20"
                       value={formData.description}
                       onChange={handleChange}
                     />

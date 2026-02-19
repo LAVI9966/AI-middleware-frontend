@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Play, Clock, AlertCircle, Eye, EyeOff, History, ChevronDown, ChevronRight, TrashIcon } from "lucide-react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
@@ -8,6 +8,8 @@ import {
   runTestCaseAction,
   generateAdditionalTestCasesAction,
 } from "@/store/action/testCasesAction";
+import { toggleSidebar } from "@/utils/utility";
+import { validatePromptVariables, buildVariablesObject } from "@/utils/variableValidation";
 
 const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
   const [runningTests, setRunningTests] = useState(new Set());
@@ -15,21 +17,87 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
   const [expandedVersions, setExpandedVersions] = useState({});
   const [selectedVersion, setSelectedVersion] = useState("");
   const [generatingTestCases, setGeneratingTestCases] = useState(false);
+  const [pendingTestId, setPendingTestId] = useState(null);
+  const [pendingRunAll, setPendingRunAll] = useState(false);
   const dispatch = useDispatch();
 
-  const { testCases, versions } = useCustomSelector((state) => ({
-    testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
-    versions: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions || [],
-  }));
+  const { testCases, versions, prompt, variablesKeyValue, isEmbedUser, showVariables } = useCustomSelector((state) => {
+    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[resolvedParams?.version];
+    return {
+      testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
+      versions: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions || [],
+      prompt: versionData?.configuration?.prompt,
+      variablesKeyValue:
+        state?.variableReducer?.VariableMapping?.[params?.id]?.[resolvedParams?.version]?.variables || [],
+      isEmbedUser: state?.appInfoReducer?.embedUserDetails?.isEmbedUser || false,
+      showVariables: state?.appInfoReducer?.embedUserDetails?.showVariables || false,
+    };
+  });
 
   useEffect(() => {
     dispatch(getAllTestCasesOfBridgeAction({ bridgeId: params?.id }));
   }, []);
-  const runSingleTest = async (testId) => {
+
+  // Listen for runAnyway event from VariableCollectionSlider
+  useEffect(() => {
+    const handleRunAnyway = () => {
+      // Check if there's a pending single test
+      if (pendingTestId) {
+        runSingleTest(pendingTestId, true); // Run with forceRun=true
+      }
+      // Check if there's a pending run all
+      else if (pendingRunAll) {
+        runAllTests(true); // Run with forceRun=true
+      }
+    };
+
+    window.addEventListener("runAnyway", handleRunAnyway);
+    return () => window.removeEventListener("runAnyway", handleRunAnyway);
+  }, [pendingTestId, pendingRunAll]);
+
+  // Validate missing variables in prompt (using shared utility)
+  const validateVariables = useCallback(
+    () => validatePromptVariables(prompt, variablesKeyValue),
+    [prompt, variablesKeyValue]
+  );
+
+  // Build variables object from variablesKeyValue (using shared utility)
+  const variables = useMemo(() => buildVariablesObject(variablesKeyValue), [variablesKeyValue]);
+  const runSingleTest = async (testId, forceRun = false) => {
+    // Check if slider auto-open is disabled
+    const isSliderAutoOpenDisabled =
+      typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
+
+    // Validate variables before running test (skip if forceRun is true or slider is disabled)
+    if (!forceRun && !isSliderAutoOpenDisabled) {
+      const validation = validateVariables();
+      if (!validation.isValid && (!isEmbedUser || (isEmbedUser && showVariables))) {
+        // Store the pending test ID
+        setPendingTestId(testId);
+
+        // Open the variable collection slider
+        toggleSidebar("variable-collection-slider", "right");
+
+        // Store missing variables in sessionStorage for the slider to highlight
+        sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+
+        return; // Don't run the test
+      }
+    }
+
+    // Clear pending state and missing variables
+    setPendingTestId(null);
+    sessionStorage.removeItem("missingVariables");
+
     setRunningTests((prev) => new Set([...prev, testId]));
     try {
       await dispatch(
-        runTestCaseAction({ versionId: resolvedParams?.version, bridgeId: params?.id, testcase_id: testId })
+        runTestCaseAction({
+          versionId: resolvedParams?.version,
+          bridgeId: params?.id,
+          testcase_id: testId,
+          variables,
+        })
       );
       // No need to refetch - runTestCaseAction now updates Redux store directly
     } catch (error) {
@@ -43,10 +111,41 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
     }
   };
 
-  const runAllTests = async () => {
+  const runAllTests = async (forceRun = false) => {
+    // Check if slider auto-open is disabled
+    const isSliderAutoOpenDisabled =
+      typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
+
+    // Validate variables before running all tests (skip if forceRun is true or slider is disabled)
+    if (!forceRun && !isSliderAutoOpenDisabled) {
+      const validation = validateVariables();
+      if (!validation.isValid && (!isEmbedUser || (isEmbedUser && showVariables))) {
+        // Set pending run all flag
+        setPendingRunAll(true);
+
+        // Open the variable collection slider
+        toggleSidebar("variable-collection-slider", "right");
+
+        // Store missing variables in sessionStorage for the slider to highlight
+        sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+
+        return; // Don't run the tests
+      }
+    }
+
+    // Clear pending state and missing variables
+    setPendingRunAll(false);
+    sessionStorage.removeItem("missingVariables");
+
     const testIds = Array.isArray(testCases) ? testCases.map((test) => test._id) : [];
     setRunningTests(new Set(testIds));
-    await dispatch(runTestCaseAction({ versionId: resolvedParams?.version, bridgeId: params?.id }));
+    await dispatch(
+      runTestCaseAction({
+        versionId: resolvedParams?.version,
+        bridgeId: params?.id,
+        variables,
+      })
+    );
     // No need to refetch - runTestCaseAction now updates Redux store directly
     setRunningTests(new Set());
   };
@@ -129,10 +228,19 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
   };
   const testCaseArray = Array.isArray(testCases) ? testCases : [];
   return (
-    <div id="testcase-sidebar" className="bg-base-100 h-full overflow-y-auto border-r border-base-content/20">
-      <div id="testcase-sidebar-header" className="p-4 border-b border-base-content/20 flex flex-row justify-between">
+    <div
+      data-testid="testcase-sidebar"
+      id="testcase-sidebar"
+      className="bg-base-100 h-full overflow-y-auto border-r border-base-content/20"
+    >
+      <div
+        data-testid="testcase-sidebar-header"
+        id="testcase-sidebar-header"
+        className="p-4 border-b border-base-content/20 flex flex-row justify-between"
+      >
         <h2 className="text-lg font-semibold text-base-content">Test Cases</h2>
         <button
+          data-testid="testcase-run-all-button"
           id="testcase-run-all-button"
           className="btn btn-sm text-base-content bg-blue-500   rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors duration-200"
           onClick={runAllTests}
@@ -155,15 +263,20 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
         {/* Run All Button */}
       </div>
 
-      <div id="testcase-list-container" className="p-4 space-y-3">
+      <div data-testid="testcase-list-container" id="testcase-list-container" className="p-4 space-y-3">
         {testCaseArray.length === 0 ? (
-          <div id="testcase-empty-state" className="text-center py-12 text-base-content">
+          <div
+            data-testid="testcase-empty-state"
+            id="testcase-empty-state"
+            className="text-center py-12 text-base-content"
+          >
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-base-content/60" />
             <p className="text-base font-medium mb-2">No test cases available</p>
             <p className="text-sm text-base-content/70 mb-6">
               Generate test cases to validate your bridge configuration
             </p>
             <button
+              data-testid="testcase-generate-button"
               id="testcase-generate-button"
               className="btn btn-primary btn-md gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
               onClick={generateMoreTestCases}
@@ -189,6 +302,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
               const isExpanded = expandedTests.has(testCase._id);
               return (
                 <div
+                  data-testid={`testcase-card-${testCase._id}`}
                   id={`testcase-card-${testCase._id}`}
                   key={testCase._id}
                   className={`group border rounded-lg p-3 transition-all duration-200 cursor-pointer hover:bg-base-200/50 hover:border-primary/50 ${getStatusColor(testCase._id)}`}
@@ -229,6 +343,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
                     </div>
                     <div className="flex items-center space-x-1">
                       <button
+                        data-testid={`testcase-toggle-expand-${testCase._id}`}
                         id={`testcase-toggle-expand-${testCase._id}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -240,6 +355,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
                         {isExpanded ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                       <button
+                        data-testid={`testcase-run-button-${testCase._id}`}
                         id={`testcase-run-button-${testCase._id}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -260,6 +376,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
                         )}
                       </button>
                       <button
+                        data-testid={`testcase-delete-button-${testCase._id}`}
                         id={`testcase-delete-button-${testCase._id}`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -310,7 +427,11 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
 
                   {/* Expanded Details */}
                   {isExpanded && (
-                    <div id={`testcase-details-${testCase._id}`} className="mt-3 p-3 bg-base-100 rounded">
+                    <div
+                      data-testid={`testcase-details-${testCase._id}`}
+                      id={`testcase-details-${testCase._id}`}
+                      className="mt-3 p-3 bg-base-100 rounded"
+                    >
                       <div className="space-y-2 text-xs">
                         <div>
                           <span
@@ -354,6 +475,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
                             }}
                           >
                             <div
+                              data-testid={`testcase-history-toggle-${testCase._id}`}
                               id={`testcase-history-toggle-${testCase._id}`}
                               className="flex items-center justify-between cursor-pointer py-1"
                               onClick={(e) => {
@@ -374,6 +496,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
 
                             {expandedVersions[testCase._id] && (
                               <div
+                                data-testid={`testcase-history-table-${testCase._id}`}
                                 id={`testcase-history-table-${testCase._id}`}
                                 className="mt-2 border border-base-content/20 rounded overflow-hidden"
                               >

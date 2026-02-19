@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import CodeBlock from "../codeBlock/CodeBlock";
 import ChatTextInput from "./ChatTextInput";
 import { PdfIcon } from "@/icons/pdfIcon";
@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import TestCaseSidebar from "./TestCaseSidebar";
 import AddTestCaseModal from "../modals/AddTestCaseModal";
-import { createConversationForTestCase } from "@/utils/utility";
+import { createConversationForTestCase, toggleSidebar } from "@/utils/utility";
+import { validatePromptVariables, buildVariablesObject } from "@/utils/variableValidation";
 import { runTestCaseAction } from "@/store/action/testCasesAction";
 import { useDispatch } from "react-redux";
 import { useCustomSelector } from "@/customHooks/customSelector";
@@ -53,6 +54,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   const [editContent, setEditContent] = useState("");
   const testCaseResultRef = useRef(null);
   const [testCaseConversation, setTestCaseConversation] = useState([]);
+  const [pendingTestIndex, setPendingTestIndex] = useState(null);
 
   // Get published version ID from Redux store
   const publishedVersionId = useCustomSelector(
@@ -72,10 +74,23 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   }, [params, searchParams, publishedVersionId]);
 
   // Redux selectors for chat state
-  const { messages, finishReasonDescription } = useCustomSelector((state) => ({
-    messages: state?.chatReducer?.messagesByChannel?.[channelIdentifier] || [],
-    finishReasonDescription: state?.flowDataReducer?.flowData?.finishReasonsData || [],
-  }));
+  const {
+    messages,
+    finishReasonDescription,
+    variablesKeyValue,
+    prompt,
+    showVariables: showVariablesFromRedux,
+  } = useCustomSelector((state) => {
+    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
+    return {
+      messages: state?.chatReducer?.messagesByChannel?.[channelIdentifier] || [],
+      finishReasonDescription: state?.flowDataReducer?.flowData?.finishReasonsData || [],
+      variablesKeyValue:
+        state?.variableReducer?.VariableMapping?.[params?.id]?.[searchParams?.version]?.variables || [],
+      prompt: versionData?.configuration?.prompt,
+      showVariables: state?.appInfoReducer?.embedUserDetails?.showVariables || false,
+    };
+  });
 
   // Initialize channel and RT layer
   useEffect(() => {
@@ -85,6 +100,15 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   }, [channelIdentifier, dispatch]);
 
   useRtLayerEventHandler(channelIdentifier);
+
+  // Build variables object from variablesKeyValue (using shared utility)
+  const variables = useMemo(() => buildVariablesObject(variablesKeyValue), [variablesKeyValue]);
+
+  // Validate missing variables in prompt (using shared utility)
+  const validateVariables = useCallback(
+    () => validatePromptVariables(prompt, variablesKeyValue),
+    [prompt, variablesKeyValue]
+  );
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (el) {
@@ -185,7 +209,46 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     }
   }, [userMessage]);
 
-  const handleRunTestCase = async (index) => {
+  // Listen for runAnyway event from VariableCollectionSlider
+  useEffect(() => {
+    const handleRunAnyway = () => {
+      // Check if there's a pending playground test
+      if (pendingTestIndex !== null) {
+        handleRunTestCase(pendingTestIndex, true); // Run with forceRun=true
+      }
+    };
+
+    window.addEventListener("runAnyway", handleRunAnyway);
+    return () => window.removeEventListener("runAnyway", handleRunAnyway);
+  }, [pendingTestIndex]);
+
+  const handleRunTestCase = async (index, forceRun = false) => {
+    // Check if slider auto-open is disabled
+    const isSliderAutoOpenDisabled =
+      typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
+
+    // Validate variables before running test (skip if forceRun is true or slider is disabled)
+    if (!forceRun && !isSliderAutoOpenDisabled) {
+      const validation = validateVariables();
+      const shouldShowVariables = isEmbedUser ? showVariablesFromRedux : true;
+      if (!validation.isValid && shouldShowVariables) {
+        // Store the pending test index
+        setPendingTestIndex(index);
+
+        // Open the variable collection slider
+        toggleSidebar("variable-collection-slider", "right");
+
+        // Store missing variables in sessionStorage for the slider to highlight
+        sessionStorage.setItem("missingVariables", JSON.stringify(validation.missingVariables));
+
+        return; // Don't run the test
+      }
+    }
+
+    // Clear pending state and missing variables
+    setPendingTestIndex(null);
+    sessionStorage.removeItem("missingVariables");
+
     const conversationForTestCase = messages.slice(-6, index + 1);
     conversationForTestCase.push(messages[index + 1]);
     const { conversation, expected } = createConversationForTestCase(conversationForTestCase);
@@ -198,7 +261,13 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     };
     try {
       const data = await dispatch(
-        runTestCaseAction({ versionId: searchParams.version, bridgeId: null, testcase_id: null, testCaseData })
+        runTestCaseAction({
+          versionId: searchParams.version,
+          bridgeId: null,
+          testcase_id: null,
+          testCaseData,
+          variables,
+        })
       );
       const updatedMessages = [...messages];
       updatedMessages[index + 1] = {
@@ -221,7 +290,38 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
   // Opens the embedded chatbot panel and sends any necessary data beforehand
 
-  const renderMessageAttachments = (message) => {
+  // ----------------- RICH UI ACTIONS -----------------
+  const handleRichUIActions = (event) => {
+    // Event delegation: find closest element with data-action
+    const target = event.target.closest("[data-action]");
+    if (!target) return;
+
+    event.preventDefault();
+
+    const actionDataStr = target.getAttribute("data-action");
+    const elementId = target.getAttribute("id");
+    try {
+      const actionPayload = JSON.parse(actionDataStr);
+      // 1. Show loading state
+      target.classList.add("loading", "loading-spinner", "btn-disabled"); // DaisyUI classes
+
+      // 2. Send to parent
+      if (typeof window !== "undefined") {
+        window.parent.postMessage(
+          {
+            type: "GTWY_ACTION",
+            payload: actionPayload,
+            elementId: elementId,
+          },
+          "*"
+        );
+      }
+    } catch (e) {
+      console.error("Failed to parse action data", e);
+    }
+  };
+
+  const _renderMessageAttachments = (message) => {
     // Check for both image_urls (user images) and llm_urls (assistant images)
     const isAssistant = message?.sender === "assistant" || message?.role === "assistant";
     const hasUserImages = !isAssistant && Array.isArray(message?.image_urls) && message.image_urls.length > 0;
@@ -301,6 +401,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               <span className="text-sm font-medium">YouTube Video</span>
             </div>
             <a
+              data-testid="chat-youtube-link"
               id="chat-youtube-link"
               href={message.youtube_url}
               target="_blank"
@@ -317,6 +418,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             {message.files.map((url, fileIndex) =>
               typeof url === "string" && url ? (
                 <a
+                  data-testid={`chat-file-link-${fileIndex}`}
                   id={`chat-file-link-${fileIndex}`}
                   key={fileIndex}
                   href={url}
@@ -338,9 +440,10 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   };
 
   return (
-    <div id="chat-container" className="px-4 pt-4 bg-base-300">
-      <div id="chat-header" className="w-full flex justify-between items-center px-2">
+    <div data-testid="chat-container" id="chat-container" className="px-4 pt-4 bg-base-300">
+      <div data-testid="chat-header" id="chat-header" className="w-full flex justify-between items-center px-2">
         <button
+          data-testid="chat-toggle-testcases-button"
           id="chat-toggle-testcases-button"
           className="btn btn-sm btn-square"
           onClick={() => setShowTestCases((prev) => !prev)}
@@ -358,6 +461,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
           {messages?.length > 0 && (
             <div className="flex items-center gap-2 justify-center">
               <select
+                data-testid="chat-strategy-select"
                 id="chat-strategy-select"
                 className="select select-sm select-bordered"
                 value={selectedStrategy}
@@ -367,7 +471,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                 <option value="ai">AI</option>
                 <option value="exact">Exact</option>
               </select>
-              <button id="chat-add-testcase-button" className="btn btn-sm" onClick={handleResetChat}>
+              <button
+                data-testid="chat-add-testcase-button"
+                id="chat-add-testcase-button"
+                className="btn btn-sm"
+                onClick={handleResetChat}
+              >
                 {" "}
                 <PlusIcon size={14} />
                 Add Test Case
@@ -377,7 +486,11 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
           {/* Test Cases Toggle Button */}
         </div>
       </div>
-      <div id="chat-content-wrapper" className="flex mt-4 h-[86vh] overflow-hidden relative">
+      <div
+        data-testid="chat-content-wrapper"
+        id="chat-content-wrapper"
+        className="flex mt-4 h-[86vh] overflow-hidden relative"
+      >
         {/* Overlay Test Cases Sidebar */}
         {showTestCases && (
           <div id="chat-testcase-sidebar-overlay" className="absolute inset-0 z-low flex">
@@ -386,6 +499,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
             {/* Sidebar */}
             <div
+              data-testid="chat-testcase-sidebar"
               id="chat-testcase-sidebar"
               className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-30 animate-slideIn"
             >
@@ -395,10 +509,15 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
         )}
 
         {/* Chat Section */}
-        <div id="chat-messages-section" className="w-full flex-grow min-w-0 relative">
+        <div
+          data-testid="chat-messages-section"
+          id="chat-messages-section"
+          className="w-full flex-grow min-w-0 relative"
+        >
           {/* Loading overlay for testcase loading */}
           {isLoadingTestCase && (
             <div
+              data-testid="chat-loading-overlay"
               id="chat-loading-overlay"
               className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-md z-50"
             >
@@ -411,13 +530,16 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
           <div className="sm:p-2 justify-between flex flex-col h-full min-h-0 w-full z-low">
             <div
+              data-testid="chat-messages-container"
               id="chat-messages-container"
               ref={messagesContainerRef}
               className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 mb-4 pr-2"
+              onClick={handleRichUIActions}
             >
               {messages.map((message, index) => {
                 return (
                   <div
+                    data-testid={`chat-message-${index}`}
                     id={`chat-message-${index}`}
                     key={index}
                     className={`chat show-on-hover ${
@@ -524,6 +646,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                         >
                           {message?.sender === "user" && message?.content && (
                             <button
+                              data-testid={`chat-run-test-button-${index}`}
                               id={`chat-run-test-button-${index}`}
                               className="btn btn-sm btn-outline hover:btn-primary see-on-hover flex mt-2"
                               onClick={() => handleRunTestCase(index)}
@@ -612,7 +735,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                   : message.sender === "error"
                                     ? "bg-error/10 border border-error/30 text-error"
                                     : ""
-                              }`}
+                              } ${message?.type === "template" ? "!bg-transparent" : ""}`}
                             >
                               {/* Show loader overlay if this is the message being tested */}
                               {isRunningTestCase && currentRunIndex !== null && index === currentRunIndex + 1 && (
@@ -628,14 +751,16 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                               {editingMessage === message.id ? (
                                 <div className="w-full">
                                   <textarea
+                                    data-testid="chat-edit-textarea"
                                     id="chat-edit-textarea"
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-[100px] resize-y text-base-content bg-base-100"
+                                    className="textarea textarea-bordered w-full min-h-[100px] resize-y text-base-content bg-base-100"
                                     placeholder="Edit message content..."
                                   />
                                   <div className="flex gap-2 mt-2">
                                     <button
+                                      data-testid="chat-save-edit-button"
                                       id="chat-save-edit-button"
                                       onClick={() => handleSaveEdit(message.id)}
                                       className="btn btn-sm btn-success"
@@ -644,6 +769,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       Save
                                     </button>
                                     <button
+                                      data-testid="chat-cancel-edit-button"
                                       id="chat-cancel-edit-button"
                                       onClick={handleCancelEdit}
                                       className="btn btn-sm btn-error"
@@ -659,6 +785,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                   {/* Edit Button for Assistant Messages */}
                                   {message.sender === "assistant" && !message.isLoading && (
                                     <button
+                                      data-testid={`chat-edit-message-button-${message.id}`}
                                       id={`chat-edit-message-button-${message.id}`}
                                       onClick={() => handleEditMessage(message.id, message.content)}
                                       className="absolute -top-2 -right-5 opacity-0 group-hover:opacity-100 transition-opacity btn btn-sm btn-circle btn-ghost"
@@ -696,12 +823,20 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       }}
                                     >
                                       {/* Show model's actual response if testcase was run, otherwise show original content */}
-                                      {message.testCaseResult && message.sender === "assistant"
-                                        ? message.testCaseResult.actual_result || message.content
-                                        : message.content}
+                                      {message.type !== "template" &&
+                                        (message.testCaseResult && message.sender === "assistant"
+                                          ? message.testCaseResult.actual_result || message.content
+                                          : message.content)}
                                     </ReactMarkdown>
                                   )}
-                                  {renderMessageAttachments(message)}
+
+                                  {/* Render Template Content (without HTML) */}
+                                  {message?.type === "template" && message?.content && (
+                                    <div
+                                      className="mt-4 template-html-container w-full"
+                                      dangerouslySetInnerHTML={{ __html: message.content }}
+                                    />
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -710,6 +845,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           {/* Absolute Toggle Button for Test Case Results */}
                           {message?.testCaseResult && (
                             <button
+                              data-testid={`chat-toggle-result-button-${message.id}`}
                               id={`chat-toggle-result-button-${message.id}`}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -751,7 +887,11 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               })}
             </div>
 
-            <div id="chat-input-wrapper" className=" border-base-content/30 px-4 pt-4 mb-2 sm:mb-0 w-full">
+            <div
+              data-testid="chat-input-wrapper"
+              id="chat-input-wrapper"
+              className=" border-base-content/30 px-4 pt-4 mb-2 sm:mb-0 w-full"
+            >
               <div className="relative flex flex-col gap-4 w-full">
                 <div className="flex flex-row gap-2">
                   <ChatTextInput

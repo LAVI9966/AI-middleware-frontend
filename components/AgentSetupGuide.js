@@ -10,7 +10,11 @@ const AgentSetupGuide = ({
   promptTextAreaRef,
   isEmbedUser,
   searchParams,
+  draftPrompt,
+  hasDraftPromptChanges = false,
   onVisibilityChange = () => {},
+  onSwitchToModelTab = () => {},
+  setApiKeyError = () => {},
 }) => {
   const { bridgeApiKey, prompt, shouldPromptShow, service, showDefaultApikeys, modelName, bridgeType } =
     useCustomSelector((state) => {
@@ -41,21 +45,75 @@ const AgentSetupGuide = ({
         bridgeType: bridgeDataFromState?.bridgeType,
       };
     });
-  const [isVisible, setIsVisible] = useState(
-    isEmbedUser && showDefaultApikeys && prompt != ""
-      ? false
-      : (!bridgeApiKey || (prompt === "" && shouldPromptShow)) &&
-          ((bridgeType === "chatbot" && modelName !== "gpt-5-nano") || bridgeType !== "chatbot" || prompt === "")
-  );
+  const effectivePrompt = hasDraftPromptChanges ? draftPrompt : prompt;
   const [isAnimating, setIsAnimating] = useState(false);
   const [showError, setShowError] = useState(false);
   const [errorType, setErrorType] = useState("");
+  const [isVisible, setIsVisible] = useState(
+    isEmbedUser && showDefaultApikeys && effectivePrompt != ""
+      ? false
+      : (!bridgeApiKey || (effectivePrompt === "" && shouldPromptShow)) &&
+          ((bridgeType === "chatbot" && modelName !== "gpt-5-nano") ||
+            bridgeType !== "chatbot" ||
+            effectivePrompt === "")
+  );
 
+  // Helper to check if prompt has meaningful content
+  const hasPromptContent = (promptValue) => {
+    if (!promptValue) return false;
+
+    // String format
+    if (typeof promptValue === "string") {
+      return promptValue.trim() !== "";
+    }
+
+    // Object format
+    if (typeof promptValue === "object") {
+      // Embed user with default prompt enabled
+      if (promptValue.useDefaultPrompt === true) {
+        return true;
+      }
+
+      // Check visible embed fields
+      if (Array.isArray(promptValue.embedFields)) {
+        const visibleFields = promptValue.embedFields.filter((f) => !f.hidden);
+        if (visibleFields.length > 0) {
+          return visibleFields.some((f) => f.value && f.value.trim() !== "");
+        }
+      }
+
+      // If embed fields exist but none are visible, this should still be treated as missing setup.
+      // Do not mark as configured just because a customPrompt template string exists.
+      if (!Array.isArray(promptValue.embedFields) && promptValue.customPrompt?.trim()) {
+        return true;
+      }
+
+      // Main user format - check for instruction field
+      if (promptValue.instruction?.trim()) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  const isEmbedPromptIncomplete = (promptValue) => {
+    if (!isEmbedUser || !promptValue || typeof promptValue !== "object") return false;
+    if (!Array.isArray(promptValue.embedFields)) return false;
+
+    const visibleFields = promptValue.embedFields.filter((f) => !f.hidden);
+    if (visibleFields.length === 0) return true;
+
+    return !visibleFields.some((f) => (f?.value || "").trim() !== "");
+  };
   // Track step completion
   const getStepCompletion = (stepNumber) => {
     switch (stepNumber) {
       case "1": // Define Agent's Purpose
-        return prompt !== "" || promptTextAreaRef?.current?.querySelector("textarea")?.value?.trim() !== "";
+        return (
+          hasPromptContent(effectivePrompt) ||
+          promptTextAreaRef?.current?.querySelector("textarea")?.value?.trim() !== ""
+        );
       case "2": // Configure API Access
         return !!bridgeApiKey || (modelName === "gpt-5-nano" && bridgeType === "chatbot");
       case "3": // Connect External Functions (optional)
@@ -68,19 +126,10 @@ const AgentSetupGuide = ({
         return false;
     }
   };
-  const resetBorder = (ref, selector) => {
-    if (ref?.current) {
-      const element = ref.current.querySelector(selector);
-      if (element) {
-        element.style.borderColor = "";
-      }
-    }
-  };
-
   const setErrorBorder = (ref, selector, scrollToView = false) => {
     if (ref?.current) {
       if (scrollToView) {
-        ref.current.scrollIntoView({ behavior: "smooth" });
+        ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
       }
       setTimeout(() => {
         const element = ref.current.querySelector(selector);
@@ -93,26 +142,53 @@ const AgentSetupGuide = ({
   };
 
   useEffect(() => {
-    if (isEmbedUser && showDefaultApikeys && prompt !== "") {
+    // Explicitly handle migrated embed prompt state so guide appears immediately
+    if (isEmbedPromptIncomplete(effectivePrompt)) {
+      setIsVisible(true);
+      return;
+    }
+
+    if (isEmbedUser && showDefaultApikeys && hasPromptContent(effectivePrompt)) {
       setIsVisible(false);
       return;
     }
+    // For main users: if any of role, goal, instruction changes and is empty, show the guide
+    let showGuide = false;
+    if (!isEmbedUser && typeof effectivePrompt === "object" && effectivePrompt !== null) {
+      if (
+        ("role" in effectivePrompt && effectivePrompt.role === "") ||
+        ("goal" in effectivePrompt && effectivePrompt.goal === "") ||
+        ("instruction" in effectivePrompt && effectivePrompt.instruction === "")
+      ) {
+        showGuide = true;
+      }
+    }
     const hasPrompt =
-      prompt !== "" ||
+      hasPromptContent(effectivePrompt) ||
       !shouldPromptShow ||
-      (promptTextAreaRef.current && promptTextAreaRef.current.querySelector("textarea").value.trim() !== "");
+      (promptTextAreaRef.current && promptTextAreaRef.current.querySelector("textarea")?.value?.trim() !== "");
     const hasApiKey = !!bridgeApiKey;
     if (!shouldPromptShow) {
       setShowError(false);
     }
     if (hasPrompt) {
-      resetBorder(promptTextAreaRef, "textarea");
+      if (errorType === "prompt") {
+        setShowError(false);
+        setErrorType("");
+      }
     }
-
     if (hasApiKey) {
-      resetBorder(apiKeySectionRef, "select");
+      if (errorType === "apikey") {
+        setShowError(false);
+        setErrorType("");
+        setApiKeyError(false);
+      }
     }
-
+    // Show guide if any main user field is empty
+    if (showGuide) {
+      setIsVisible(true);
+      return;
+    }
     // Hide guide if:
     // 1. It's gpt-5-nano model and has prompt (only for chatbot) OR
     // 2. Both prompt and API key are provided
@@ -132,7 +208,7 @@ const AgentSetupGuide = ({
     }
   }, [
     bridgeApiKey,
-    prompt,
+    effectivePrompt,
     apiKeySectionRef,
     promptTextAreaRef,
     shouldPromptShow,
@@ -141,11 +217,13 @@ const AgentSetupGuide = ({
     modelName,
     bridgeType,
     isVisible,
+    draftPrompt,
+    hasDraftPromptChanges,
   ]);
 
   // Function to handle chatbot open/close with delay
   const checkConfigToOpenChatbot = () => {
-    const hasPrompt = prompt !== "" || !shouldPromptShow;
+    const hasPrompt = hasPromptContent(effectivePrompt) || !shouldPromptShow;
     const hasApiKey = bridgeApiKey;
     if (
       bridgeType === "chatbot" &&
@@ -162,7 +240,7 @@ const AgentSetupGuide = ({
     setTimeout(() => {
       checkConfigToOpenChatbot();
     }, 2000);
-  }, [bridgeApiKey, prompt, shouldPromptShow, modelName, bridgeType]);
+  }, [bridgeApiKey, effectivePrompt, shouldPromptShow, modelName, bridgeType, draftPrompt, hasDraftPromptChanges]);
 
   useEffect(() => {
     if (typeof onVisibilityChange === "function") {
@@ -171,14 +249,21 @@ const AgentSetupGuide = ({
   }, [isVisible, onVisibilityChange]);
 
   const handleStart = () => {
-    if (isEmbedUser && showDefaultApikeys && prompt !== "") {
+    if (isEmbedPromptIncomplete(effectivePrompt)) {
+      setShowError(true);
+      setErrorType("prompt");
+      setErrorBorder(promptTextAreaRef, "textarea", true);
+      return;
+    }
+
+    if (isEmbedUser && showDefaultApikeys && hasPromptContent(effectivePrompt)) {
       setIsVisible(false);
       return;
     }
     if (
       shouldPromptShow &&
       promptTextAreaRef.current &&
-      prompt === "" &&
+      !hasPromptContent(effectivePrompt) &&
       promptTextAreaRef.current.querySelector("textarea").value.trim() === ""
     ) {
       setShowError(true);
@@ -189,7 +274,13 @@ const AgentSetupGuide = ({
     if (!bridgeApiKey && !(modelName === "gpt-5-nano" && bridgeType === "chatbot")) {
       setShowError(true);
       setErrorType("apikey");
-      setErrorBorder(apiKeySectionRef, "button", true);
+      onSwitchToModelTab();
+      setApiKeyError(true);
+      setTimeout(() => {
+        if (apiKeySectionRef?.current) {
+          apiKeySectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 400);
       return;
     }
 
@@ -203,16 +294,16 @@ const AgentSetupGuide = ({
 
   if (
     !isVisible ||
-    (bridgeApiKey && prompt !== "") ||
-    (modelName === "gpt-5-nano" && prompt !== "" && bridgeType === "chatbot")
+    (bridgeApiKey && hasPromptContent(effectivePrompt)) ||
+    (modelName === "gpt-5-nano" && hasPromptContent(effectivePrompt) && bridgeType === "chatbot")
   ) {
-    resetBorder(promptTextAreaRef, "textarea");
-    resetBorder(apiKeySectionRef, "select");
     return null;
   }
 
   return (
     <div
+      data-testid="agent-setup-guide-container"
+      id="agent-setup-guide-container"
       className={`w-full h-full z-very-low bg-base-300 overflow-hidden relative transition-all duration-300 ${isAnimating ? "opacity-0 scale-95" : "opacity-100 scale-100"}`}
     >
       <div className="card w-full h-full">
@@ -236,6 +327,8 @@ const AgentSetupGuide = ({
 
                 return (
                   <div
+                    data-testid={`agent-setup-step-${step}`}
+                    id={`agent-setup-step-${step}`}
                     key={step}
                     className={`card shadow-sm transition-all duration-300 hover:shadow-md ${
                       isCompleted ? "bg-success/10 border border-success/20" : "bg-base-200 border border-base-300"
@@ -302,6 +395,7 @@ const AgentSetupGuide = ({
 
           <div className="text-center mt-6 flex-shrink-0">
             <button
+              data-testid="agent-setup-get-started-button"
               id="agent-setup-get-started-button"
               onClick={handleStart}
               className="btn btn-lg gap-2 bg-base-content text-base-100 hover:bg-base-content/90 border-base-content shadow-md hover:shadow-lg transition-all duration-200"

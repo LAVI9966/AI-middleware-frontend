@@ -23,6 +23,8 @@ const Dropdown = ({
   onOpenChange,
   renderTriggerContent,
   children,
+  testId = "dropdown",
+  hasError = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -140,6 +142,7 @@ const Dropdown = ({
 
   const DefaultTrigger = (
     <button
+      data-testid={`${testId}-trigger-button`}
       id="dropdown-trigger-button"
       type="button"
       disabled={disabled}
@@ -180,7 +183,22 @@ const Dropdown = ({
   const placementCls = placement === "bottom-end" ? "dropdown-end" : "";
 
   return (
-    <div className={cx("dropdown rounded-md border-base-content/10 w-full", placementCls, open ? "dropdown-open" : "")}>
+    <div
+      className={cx(
+        "dropdown rounded-md border-base-content/10 w-full",
+        placementCls,
+        open ? "dropdown-open" : "",
+        hasError ? "ring-2 ring-red-500 ring-offset-2" : ""
+      )}
+      style={
+        hasError
+          ? {
+              border: "2px solid red",
+              boxShadow: "0 0 0 3px rgba(255, 0, 0, 0.2)",
+            }
+          : {}
+      }
+    >
       {TriggerWrapper}
 
       <div
@@ -192,6 +210,7 @@ const Dropdown = ({
           {enableSearch && (
             <div className="p-2 border-b border-base-content/10">
               <input
+                data-testid={`${testId}-search-input`}
                 id="dropdown-search-input"
                 autoFocus
                 type="text"
@@ -218,6 +237,7 @@ const Dropdown = ({
                     return (
                       <li key={String(opt.value)} className="whitespace-nowrap">
                         <a
+                          data-testid={`${testId}-option-${opt.value}`}
                           id={`dropdown-option-${opt.value}`}
                           className={cx(
                             "flex items-start gap-2 w-full rounded-md hover:bg-base-200",
@@ -278,6 +298,7 @@ const Dropdown = ({
                         return (
                           <li key={String(opt.value)} className="whitespace-nowrap">
                             <a
+                              data-testid={`${testId}-grouped-option-${opt.value}`}
                               id={`dropdown-grouped-option-${opt.value}`}
                               className={cx(
                                 "flex items-start gap-2 w-full rounded-md hover:bg-base-200",

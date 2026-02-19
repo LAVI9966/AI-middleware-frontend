@@ -123,6 +123,7 @@ const EnhancedImage = ({ src, alt, width, height, className, type = "large", onE
       {imageState === "loaded" && type === "large" && (
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <button
+            data-testid="thread-item-image-open-new-tab"
             id="thread-item-image-open-new-tab"
             onClick={() => window.open(src, "_blank")}
             className="btn btn-sm btn-circle btn-ghost bg-base-100/80 hover:bg-base-100"
@@ -155,9 +156,10 @@ const ThreadItem = ({
     if (item?.user === "user") {
       return "user";
     }
-    if (item?.llm_message) return "llm_message";
-    if (item?.updated_llm_message) return "updated_llm_message";
+    // Prioritize chatbot_message first
     if (item?.chatbot_message) return "chatbot_message";
+    if (item?.updated_llm_message) return "updated_llm_message";
+    if (item?.llm_message) return "llm_message";
     if (item?.error) return "error";
     return "llm_message"; // Default fallback
   };
@@ -255,6 +257,18 @@ const ThreadItem = ({
         return item.llm_message || item.user || "";
     }
   }, [messageType, item]);
+
+  // Helper function to detect if content contains HTML
+  const containsHTML = (str) => {
+    if (!str) return false;
+    const htmlPattern = /<\/?[a-z][\s\S]*>/i;
+    return htmlPattern.test(str);
+  };
+
+  // Helper function to check if current message is chatbot_message
+  const isChatbotMessage = () => {
+    return messageType === "chatbot_message" || messageType === 0;
+  };
 
   const selectMessageType = useCallback((type) => {
     setMessageType(type);
@@ -540,6 +554,7 @@ const ThreadItem = ({
 
   return (
     <div
+      data-testid={`message-${messageId}`}
       key={`item-id-${item?.id}`}
       id={`message-${messageId}`}
       ref={(el) => (threadRefs.current[messageId] = el)}
@@ -597,6 +612,7 @@ const ThreadItem = ({
                 <span>Visualize</span>
               </button>
               <button
+                data-testid="thread-item-user-aiconfig-button"
                 id="thread-item-user-aiconfig-button"
                 className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
                 onClick={() => handleUserButtonClick("AiConfig")}
@@ -605,6 +621,7 @@ const ThreadItem = ({
                 <span>AI Config</span>
               </button>
               <button
+                data-testid="thread-item-user-variables-button"
                 id="thread-item-user-variables-button"
                 className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
                 onClick={() => handleUserButtonClick("variables")}
@@ -613,6 +630,7 @@ const ThreadItem = ({
                 <span>Variables</span>
               </button>
               <button
+                data-testid="thread-item-user-system-prompt-button"
                 id="thread-item-user-system-prompt-button"
                 className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
                 onClick={() => handleUserButtonClick("system Prompt")}
@@ -621,6 +639,7 @@ const ThreadItem = ({
                 <span>System Prompt</span>
               </button>
               <button
+                data-testid="thread-item-user-more-button"
                 id="thread-item-user-more-button"
                 className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
                 onClick={() => handleUserButtonClick("more")}
@@ -648,6 +667,7 @@ const ThreadItem = ({
                     .flatMap((toolObj) => Object.entries(toolObj || {}))
                     .map(([toolKey, tool], index) => (
                       <div
+                        data-testid={`thread-item-tool-${toolKey || index}`}
                         id={`thread-item-tool-${toolKey || index}`}
                         key={toolKey || index}
                         onClick={(event) => handleToolPrimaryClick(event, tool)}
@@ -660,6 +680,7 @@ const ThreadItem = ({
                         </div>
                         <div className="flex gap-3">
                           <div
+                            data-testid={`thread-item-tool-logs-${toolKey || index}`}
                             id={`thread-item-tool-logs-${toolKey || index}`}
                             className="tooltip tooltip-top relative text-base-content"
                             data-tip="function logs"
@@ -672,6 +693,7 @@ const ThreadItem = ({
                           </div>
                           <div className="tooltip tooltip-top pr-2 relative text-base-content" data-tip="function data">
                             <FileClockIcon
+                              data-testid={`thread-item-tool-data-${toolKey || index}`}
                               id={`thread-item-tool-data-${toolKey || index}`}
                               size={22}
                               onClick={(e) => {
@@ -699,6 +721,7 @@ const ThreadItem = ({
               <div className="w-100 p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors mb-7">
                 <div className="relative rounded-full bg-base-300 flex justify-center items-center">
                   <BotIcon
+                    data-testid="thread-item-bot-icon"
                     id="thread-item-bot-icon"
                     className="cursor-pointer bot-icon text-base-content"
                     size={20}
@@ -726,6 +749,7 @@ const ThreadItem = ({
                         {item.chatbot_message && (
                           <li>
                             <button
+                              data-testid="thread-item-select-chatbot-message"
                               id="thread-item-select-chatbot-message"
                               className={`px-2 py-1 rounded-md ${
                                 messageType === "chatbot_message" || messageType === 0
@@ -746,6 +770,7 @@ const ThreadItem = ({
                         {item.llm_message && (
                           <li>
                             <button
+                              data-testid="thread-item-select-llm-message"
                               id="thread-item-select-llm-message"
                               className={`px-2 py-1 rounded-md ${
                                 messageType === "llm_message" || messageType === 1
@@ -766,6 +791,7 @@ const ThreadItem = ({
                         {item.updated_llm_message && (
                           <li>
                             <button
+                              data-testid="thread-item-select-updated-message"
                               id="thread-item-select-updated-message"
                               className={`px-2 py-1 rounded-md ${
                                 messageType === "updated_llm_message" || messageType === 2
@@ -806,17 +832,21 @@ const ThreadItem = ({
                 {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
 
                 {/* Message content */}
-                <ReactMarkdown
-                  components={{
-                    code: ({ node, inline, className, children, ...props }) => (
-                      <CodeBlock className={className} {...props}>
-                        {children}
-                      </CodeBlock>
-                    ),
-                  }}
-                >
-                  {getMessageToDisplay()}
-                </ReactMarkdown>
+                {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
+                  <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }) => (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      ),
+                    }}
+                  >
+                    {getMessageToDisplay()}
+                  </ReactMarkdown>
+                )}
 
                 {/* Edit button for assistant messages */}
                 {!item?.llm_urls?.length && !item?.fromRTLayer && (

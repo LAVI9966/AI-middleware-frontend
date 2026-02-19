@@ -4,17 +4,19 @@ import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
 import { generateRandomID, openModal, trimPropertyNames } from "@/utils/utility";
+import { getDefaultJsonSchema, generateCombinedSchema } from "@/utils/defaultJsonSchemas";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/Icons";
 import JsonSchemaModal from "@/components/modals/JsonSchemaModal";
 import JsonSchemaBuilderModal from "@/components/modals/JsonSchemaBuilderModal";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
+import { useRouter } from "next/navigation";
 import OnBoarding from "@/components/OnBoarding";
 import TutorialSuggestionToast from "@/components/TutorialSuggestoinToast";
 import InfoTooltip from "@/components/InfoTooltip";
 import { setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
-import { CircleQuestionMark } from "lucide-react";
+import { Check, CircleQuestionMark, ExternalLink } from "lucide-react";
 
 const AdvancedParameters = ({
   params,
@@ -42,8 +44,8 @@ const AdvancedParameters = ({
   const [messages, setMessages] = useState([]);
   const dropdownContainerRef = useRef(null);
   const dispatch = useDispatch();
+  const router = useRouter();
 
-  // Handle outside click to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownContainerRef.current && !dropdownContainerRef.current.contains(event.target)) {
@@ -68,6 +70,7 @@ const AdvancedParameters = ({
     connected_agents,
     modelInfoData,
     bridge,
+    richUiWidgets,
     showResponseType,
   } = useCustomSelector((state) => {
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
@@ -91,6 +94,7 @@ const AdvancedParameters = ({
       connected_agents: isPublished ? bridgeDataFromState?.connected_agents : versionData?.connected_agents,
       modelInfoData,
       bridge: activeData,
+      richUiWidgets: state?.richUiTemplateReducer?.templates || [],
       showResponseType: state.appInfoReducer.embedUserDetails.showResponseType,
     };
   });
@@ -327,6 +331,17 @@ const AdvancedParameters = ({
     [dispatch, params?.id, searchParams?.version]
   );
 
+  // State for selected widgets (indices)
+  const [selectedWidgets, setSelectedWidgets] = useState([]);
+
+  useEffect(() => {
+    if (configuration?.response_type?.template_id && Array.isArray(configuration.response_type.template_id)) {
+      setSelectedWidgets(configuration.response_type.template_id);
+    } else {
+      setSelectedWidgets([]);
+    }
+  }, [configuration?.response_type?.template_id]);
+
   // Helper function to render parameter fields
   const renderParameterField = (key, { field, min = 0, max, step, default: defaultValue, options }) => {
     const isDeafaultObject = typeof modelInfoData?.[key]?.default === "object";
@@ -338,6 +353,8 @@ const AdvancedParameters = ({
     const name = ADVANCED_BRIDGE_PARAMETERS?.[key]?.name || key;
     const description = ADVANCED_BRIDGE_PARAMETERS?.[key]?.description || "";
     const isDefaultValue = configuration?.[key] === "default";
+    // Check if this parameter has a default value defined in model info
+    const hasDefaultValue = modelInfoData?.[key]?.default !== undefined;
     const inputSizeClass = "input-sm h-8";
     const selectSizeClass = "select-sm h-8";
     const buttonSizeClass = "btn-sm h-8";
@@ -384,6 +401,7 @@ const AdvancedParameters = ({
             )}
             {field === "boolean" && (
               <input
+                data-testid={`advanced-param-checkbox-${key}`}
                 id={`advanced-param-checkbox-${key}`}
                 name={key}
                 type="checkbox"
@@ -399,20 +417,19 @@ const AdvancedParameters = ({
               />
             )}
           </div>
-          <div className="w-[110px] flex justify-end flex-shrink-0 min-h-[32px]">
-            {!isDefaultValue && (
-              <button
-                id={`advanced-param-reset-${key}`}
-                type="button"
-                className="text-xs text-base-content/60 hover:text-base-content cursor-pointer px-3 py-1 rounded hover:bg-base-200 transition-colors whitespace-nowrap inline-block"
-                onClick={() => setSliderValue("default", key, isDeafaultObject)}
-                disabled={isReadOnly}
-                title="Reset to default value"
-              >
-                Set Default
-              </button>
-            )}
-          </div>
+          {/* Set Default button - shows when parameter has default value and is not currently default */}
+          {hasDefaultValue && !isDefaultValue && !isReadOnly && (
+            <button
+              data-testid={`advanced-param-reset-${key}`}
+              id={`advanced-param-set-default-btn-${key}`}
+              type="button"
+              className="btn btn-xs btn-ghost text-primary hover:bg-primary/10"
+              onClick={() => setSliderValue("default", key, isDeafaultObject)}
+              title="Reset to default value"
+            >
+              Set Default
+            </button>
+          )}
         </div>
 
         {field !== "boolean" && (
@@ -420,6 +437,7 @@ const AdvancedParameters = ({
             {/* Text input */}
             {field === "text" && (
               <input
+                data-testid={`advanced-param-text-${key}`}
                 id={`advanced-param-text-${key}`}
                 type="text"
                 value={isDefaultValue ? "default" : inputConfiguration?.[key] || ""}
@@ -447,6 +465,7 @@ const AdvancedParameters = ({
             {/* Number input */}
             {field === "number" && (
               <input
+                data-testid={`advanced-param-number-${key}`}
                 id={`advanced-param-number-${key}`}
                 type="number"
                 min={min}
@@ -470,29 +489,284 @@ const AdvancedParameters = ({
 
             {/* Select input */}
             {field === "select" && (
-              <select
-                id={`advanced-param-select-${key}`}
-                value={isDefaultValue ? "default" : configuration?.[key]?.[defaultValue?.key] || configuration?.[key]}
-                onChange={(e) => handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject)}
-                className={`select ${selectSizeClass} w-full bg-base-300 border-base-200 text-base-content/70 text-sm`}
-                name={key}
-                disabled={isReadOnly}
-              >
-                {isDefaultValue && <option value="default">default</option>}
-                {options?.map((option) => (
-                  <option
-                    key={typeof option === "object" ? option?.value || option?.type : option}
-                    value={typeof option === "object" ? option?.value || option?.type : option}
-                  >
-                    {typeof option === "object" ? option?.displayName || option?.type || option?.value : option}
-                  </option>
-                ))}
-              </select>
+              <div className="w-full">
+                <select
+                  data-testid={`advanced-param-select-${key}`}
+                  id={`advanced-param-select-${key}`}
+                  value={(() => {
+                    if (key === "response_type") {
+                      // Handle response_type specifically
+                      if (configuration?.[key]?.is_template) {
+                        return "widget";
+                      } else if (configuration?.[key]?.type) {
+                        return configuration?.[key]?.type;
+                      } else if (configuration?.[key] === "default") {
+                        return "default";
+                      } else {
+                        return configuration?.[key] || "default";
+                      }
+                    }
+                    // For other keys, use the original logic
+                    return isDefaultValue
+                      ? "default"
+                      : configuration?.[key]?.[defaultValue?.key] || configuration?.[key];
+                  })()}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value;
+                    if (key === "response_type") {
+                      if (selectedValue === "widget") {
+                        // Remove existing JSON schema and set default schema with anyOf field
+                        const defaultSchema = getDefaultJsonSchema("greeting", true); // true = include anyOf
+                        const updatedDataToSend = {
+                          configuration: {
+                            response_type: {
+                              type: "json_schema",
+                              json_schema: defaultSchema, // Use default schema with anyOf field
+                              is_template: true,
+                              template_id: [], // Clear existing template IDs
+                            },
+                          },
+                        };
+                        dispatch(
+                          updateBridgeVersionAction({
+                            bridgeId: params?.id,
+                            versionId: searchParams?.version,
+                            dataToSend: updatedDataToSend,
+                          })
+                        );
+                        toast.success("Applied default schema with anyOf field");
+                        return;
+                      } else if (selectedValue === "json_schema") {
+                        // Set type to json_schema AND is_template to false
+                        const updatedDataToSend = {
+                          configuration: {
+                            [key]: {
+                              type: "json_schema",
+                              is_template: false,
+                              json_schema: configuration?.[key]?.json_schema || {},
+                            },
+                          },
+                        };
+                        dispatch(
+                          updateBridgeVersionAction({
+                            bridgeId: params?.id,
+                            versionId: searchParams?.version,
+                            dataToSend: updatedDataToSend,
+                          })
+                        );
+                        return;
+                      } else if (selectedValue === "default") {
+                        // Handle default case
+                        setSliderValue("default", key, isDeafaultObject);
+                        return;
+                      }
+                    }
+                    // Fallback for other keys or normal types
+                    handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject);
+                  }}
+                  className={`select select-bordered ${selectSizeClass} w-full`}
+                  name={key}
+                  disabled={isReadOnly}
+                >
+                  {hasDefaultValue && <option value="default">default</option>}
+                  {options?.map((option) => (
+                    <option
+                      key={typeof option === "object" ? option?.value || option?.type : option}
+                      value={typeof option === "object" ? option?.value || option?.type : option}
+                    >
+                      {typeof option === "object" ? option?.displayName || option?.type || option?.value : option}
+                    </option>
+                  ))}
+                  {key === "response_type" &&
+                    !isEmbedUser &&
+                    options?.some((opt) => {
+                      const optType = typeof opt === "object" ? opt?.type || opt?.value : opt;
+                      return optType === "json_schema";
+                    }) && <option value="widget">Widget</option>}
+                </select>
+
+                {/* Widget UI - Only show if response_type is widget (is_template = true) */}
+                {key === "response_type" && configuration?.[key]?.is_template && (
+                  <div className="mb-3 p-3 bg-base-200 rounded-lg mt-2">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium">Available Widgets:</div>
+                        <button
+                          type="button"
+                          className="btn btn-xs btn-ghost gap-1 text-primary"
+                          onClick={() => router.push(`/org/${params?.org_id}/widgets`)}
+                          title="Manage Widgets"
+                        >
+                          <ExternalLink size={12} />
+                          Manage
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {richUiWidgets.map((widgetObj) => {
+                        const widgetName = widgetObj.name || `Widget`;
+                        const isSelected = selectedWidgets.includes(widgetObj._id);
+
+                        return (
+                          <div
+                            key={widgetObj._id}
+                            className={`flex flex-col gap-2 p-3 rounded-lg border cursor-pointer transition-colors min-w-[280px] flex-shrink-0 ${isSelected ? "bg-primary/10 border-primary" : "bg-base-100 border-base-200 hover:bg-base-200"}`}
+                            onClick={() => {
+                              if (isReadOnly) return;
+
+                              // Update selected widgets
+                              const newSelectedWidgets = selectedWidgets.includes(widgetObj._id)
+                                ? selectedWidgets.filter((id) => id !== widgetObj._id)
+                                : [...selectedWidgets, widgetObj._id];
+
+                              setSelectedWidgets(newSelectedWidgets);
+
+                              // Apply changes immediately
+                              const combinedSchema = generateCombinedSchema(newSelectedWidgets, richUiWidgets);
+
+                              if (combinedSchema) {
+                                const updatedDataToSend = {
+                                  configuration: {
+                                    response_type: {
+                                      type: "json_schema",
+                                      json_schema: combinedSchema,
+                                      is_template: true,
+                                      template_id: newSelectedWidgets,
+                                    },
+                                  },
+                                };
+
+                                dispatch(
+                                  updateBridgeVersionAction({
+                                    bridgeId: params?.id,
+                                    versionId: searchParams?.version,
+                                    dataToSend: updatedDataToSend,
+                                  })
+                                );
+
+                                toast.success(`Updated widgets (${newSelectedWidgets.length} selected)`);
+                              }
+                            }}
+                          >
+                            {/* Content Preview */}
+                            {widgetObj.html && (
+                              <div className="relative w-full h-40 bg-base-100 rounded border border-base-300 overflow-hidden pointer-events-none mb-2">
+                                <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                  <div
+                                    className="transform scale-[0.5] origin-top-left w-[200%]"
+                                    dangerouslySetInnerHTML={{ __html: widgetObj.html }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-sm font-medium capitalize truncate">{widgetName}</span>
+                              {isSelected && <Check className="w-5 h-5 text-primary shrink-0" />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* JSON Schema textarea and modal - positioned below the key/label */}
+                {field === "select" &&
+                  !isDefaultValue &&
+                  configuration?.[key]?.type === "json_schema" &&
+                  !configuration?.[key]?.is_template && (
+                    <div id={`advanced-param-json-schema-${key}`} className="mt-3 space-y-2">
+                      <div
+                        id={`advanced-param-json-schema-header-${key}`}
+                        className="flex justify-between items-center"
+                      >
+                        <div className="flex gap-2 mt-4 ml-auto">
+                          <span
+                            className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
+                            onClick={() => {
+                              openModal(MODAL_TYPE.JSON_SCHEMA_BUILDER);
+                            }}
+                          >
+                            Build Visually
+                          </span>
+                          <span className="text-xs text-base-content/50">|</span>
+                          <span
+                            className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
+                            onClick={() => {
+                              openModal(MODAL_TYPE.JSON_SCHEMA);
+                            }}
+                          >
+                            Build with AI
+                          </span>
+                        </div>
+                      </div>
+
+                      <textarea
+                        id={`advanced-param-json-schema-textarea-${key}`}
+                        key={`${key}-${configuration?.[key]}-${objectFieldValue}-${configuration}`}
+                        type="input"
+                        defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
+                        onBlur={(e) => {
+                          try {
+                            const parsedValue = JSON.parse(e.target.value);
+
+                            // Trim schema name and all property names
+                            const trimmedValue = {
+                              ...parsedValue,
+                              name: parsedValue.name?.trim(),
+                              schema: parsedValue.schema
+                                ? {
+                                    ...parsedValue.schema,
+                                    properties: trimPropertyNames(parsedValue.schema.properties),
+                                  }
+                                : parsedValue.schema,
+                            };
+
+                            handleSelectChange(
+                              { target: { value: "json_schema" } },
+                              key,
+                              defaultValue,
+                              trimmedValue,
+                              true
+                            );
+                          } catch (error) {
+                            console.error(error);
+                            toast.error("Invalid JSON schema");
+                          }
+                        }}
+                        className="textarea textarea-bordered w-full h-32 font-mono text-xs"
+                        placeholder="Enter JSON schema..."
+                        disabled={isReadOnly}
+                      />
+                      <JsonSchemaBuilderModal params={params} searchParams={searchParams} isReadOnly={isReadOnly} />
+                      <JsonSchemaModal
+                        params={params}
+                        searchParams={searchParams}
+                        messages={messages}
+                        setMessages={setMessages}
+                        thread_id={thread_id}
+                        onResetThreadId={() => {
+                          const newId = generateRandomID();
+                          setThreadId(newId);
+                          setThreadIdForVersionReducer &&
+                            dispatch(
+                              setThreadIdForVersionReducer({
+                                bridgeId: params?.id,
+                                versionId: searchParams?.version,
+                                thread_id: newId,
+                              })
+                            );
+                        }}
+                      />
+                    </div>
+                  )}
+              </div>
             )}
             {/* Slider input */}
             {field === "slider" && (
               <div className="flex items-center gap-2 w-full">
                 <button
+                  data-testid={`advanced-param-slider-min-btn-${key}`}
                   id={`advanced-param-slider-min-btn-${key}`}
                   type="button"
                   className={`btn ${buttonSizeClass} btn-ghost border border-base-content/20`}
@@ -509,6 +783,7 @@ const AdvancedParameters = ({
                 </button>
                 {sliderValueNode}
                 <input
+                  data-testid={`advanced-param-slider-${key}`}
                   id={`advanced-param-slider-${key}`}
                   type="range"
                   min={min || 0}
@@ -541,6 +816,7 @@ const AdvancedParameters = ({
                   disabled={isReadOnly}
                 />
                 <button
+                  data-testid={`advanced-param-slider-max-btn-${key}`}
                   id={`advanced-param-slider-max-btn-${key}`}
                   type="button"
                   className={`btn ${buttonSizeClass} btn-ghost border border-base-content/20 text-sm`}
@@ -562,6 +838,7 @@ const AdvancedParameters = ({
             {field === "dropdown" && (
               <div id={`advanced-param-dropdown-wrapper-${key}`} className="relative w-full" ref={dropdownContainerRef}>
                 <div
+                  data-testid={`advanced-param-dropdown-trigger-${key}`}
                   id={`advanced-param-dropdown-trigger-${key}`}
                   className={`flex items-center gap-2 input input-bordered ${inputSizeClass} w-full min-h-[2rem] cursor-pointer`}
                   disabled={isReadOnly}
@@ -581,11 +858,13 @@ const AdvancedParameters = ({
 
                 {showDropdown && (
                   <div
+                    data-testid={`advanced-param-dropdown-menu-${key}`}
                     id={`advanced-param-dropdown-menu-${key}`}
                     className="absolute top-full left-0 right-0 bg-base-300 border border-base-200 rounded-md shadow-lg z-50 max-h-[200px] overflow-y-auto mt-1 p-2"
                   >
                     <div className="p-2 top-0 bg-base-100">
                       <input
+                        data-testid={`advanced-param-dropdown-search-${key}`}
                         id={`advanced-param-dropdown-search-${key}`}
                         type="text"
                         placeholder="Search functions..."
@@ -713,85 +992,6 @@ const AdvancedParameters = ({
                 )}
               </div>
             )}
-          </div>
-        )}
-
-        {/* JSON Schema textarea and modal - positioned below the key/label */}
-        {field === "select" && !isDefaultValue && configuration?.[key]?.type === "json_schema" && (
-          <div id={`advanced-param-json-schema-${key}`} className="mt-3 space-y-2">
-            <div id={`advanced-param-json-schema-header-${key}`} className="flex justify-between items-center">
-              <div className="flex gap-2 mt-4 ml-auto">
-                <span
-                  className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
-                  onClick={() => {
-                    openModal(MODAL_TYPE.JSON_SCHEMA_BUILDER);
-                  }}
-                >
-                  Build Visually
-                </span>
-                <span className="text-xs text-base-content/50">|</span>
-                <span
-                  className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
-                  onClick={() => {
-                    openModal(MODAL_TYPE.JSON_SCHEMA);
-                  }}
-                >
-                  Build with AI
-                </span>
-              </div>
-            </div>
-
-            <textarea
-              id={`advanced-param-json-schema-textarea-${key}`}
-              key={`${key}-${configuration?.[key]}-${objectFieldValue}-${configuration}`}
-              type="input"
-              defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
-              onBlur={(e) => {
-                try {
-                  const parsedValue = JSON.parse(e.target.value);
-
-                  // Trim schema name and all property names
-                  const trimmedValue = {
-                    ...parsedValue,
-                    name: parsedValue.name?.trim(),
-                    schema: parsedValue.schema
-                      ? {
-                          ...parsedValue.schema,
-                          properties: trimPropertyNames(parsedValue.schema.properties),
-                        }
-                      : parsedValue.schema,
-                  };
-
-                  handleSelectChange({ target: { value: "json_schema" } }, key, defaultValue, trimmedValue, true);
-                } catch (error) {
-                  console.error(error);
-                  toast.error("Invalid JSON schema");
-                }
-              }}
-              className="textarea textarea-bordered w-full h-32 font-mono text-xs"
-              placeholder="Enter JSON schema..."
-              disabled={isReadOnly}
-            />
-            <JsonSchemaBuilderModal params={params} searchParams={searchParams} isReadOnly={isReadOnly} />
-            <JsonSchemaModal
-              params={params}
-              searchParams={searchParams}
-              messages={messages}
-              setMessages={setMessages}
-              thread_id={thread_id}
-              onResetThreadId={() => {
-                const newId = generateRandomID();
-                setThreadId(newId);
-                setThreadIdForVersionReducer &&
-                  dispatch(
-                    setThreadIdForVersionReducer({
-                      bridgeId: params?.id,
-                      versionId: searchParams?.version,
-                      thread_id: newId,
-                    })
-                  );
-              }}
-            />
           </div>
         )}
       </div>

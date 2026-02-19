@@ -24,6 +24,7 @@ const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
   // Use createPortal to render directly to document body
   return createPortal(
     <div
+      data-testid="model-preview-container"
       id="model-preview-container"
       className="w-[260px] bg-base-100 border border-base-content/20 rounded-lg shadow-xl p-4 transition-all duration-200 ease-in-out"
       style={previewStyle}
@@ -107,24 +108,28 @@ const ModelDropdown = ({ params, searchParams, isPublished, isEditor = true }) =
   const isReadOnly = isPublished || !isEditor;
   const dispatch = useDispatch();
   const dropdownRef = useRef(null);
-  const { model, fineTuneModel, modelType, modelsList, bridgeType } = useCustomSelector((state) => {
-    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
-    const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
-    const isPublished = searchParams?.isPublished === "true";
+  const { model, fineTuneModel, modelType, modelsList, bridgeType, service, modelsConfig } = useCustomSelector(
+    (state) => {
+      const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
+      const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
+      const isPublished = searchParams?.isPublished === "true";
 
-    // Use bridgeData when isPublished=true, otherwise use versionData
-    const activeData = isPublished ? bridgeDataFromState : versionData;
+      // Use bridgeData when isPublished=true, otherwise use versionData
+      const activeData = isPublished ? bridgeDataFromState : versionData;
 
-    return {
-      model: isPublished ? bridgeDataFromState?.configuration?.model : versionData?.configuration?.model,
-      fineTuneModel: isPublished
-        ? bridgeDataFromState?.configuration?.fine_tune_model?.current_model
-        : versionData?.configuration?.fine_tune_model?.current_model,
-      modelType: isPublished ? bridgeDataFromState?.configuration?.type : versionData?.configuration?.type,
-      modelsList: state?.modelReducer?.serviceModels[activeData?.service],
-      bridgeType: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType,
-    };
-  });
+      return {
+        model: isPublished ? bridgeDataFromState?.configuration?.model : versionData?.configuration?.model,
+        fineTuneModel: isPublished
+          ? bridgeDataFromState?.configuration?.fine_tune_model?.current_model
+          : versionData?.configuration?.fine_tune_model?.current_model,
+        modelType: isPublished ? bridgeDataFromState?.configuration?.type : versionData?.configuration?.type,
+        modelsList: state?.modelReducer?.serviceModels[activeData?.service],
+        bridgeType: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType,
+        service: activeData?.service,
+        modelsConfig: state?.appInfoReducer?.embedUserDetails?.models || {},
+      };
+    }
+  );
 
   const [hoveredModel, setHoveredModel] = useState(null);
   const [modelSpecs, setModelSpecs] = useState();
@@ -145,7 +150,6 @@ const ModelDropdown = ({ params, searchParams, isPublished, isEditor = true }) =
       })
     );
   };
-
   // Build flat options for global Dropdown while preserving group info and specs
   const modelOptions = useMemo(() => {
     const opts = [];
@@ -160,15 +164,23 @@ const ModelDropdown = ({ params, searchParams, isPublished, isEditor = true }) =
         const cfg = options?.[optionKey];
         const modelName = cfg?.configuration?.model?.default;
         if (!modelName) return;
+
+        const serviceConfig = modelsConfig?.[service];
+        const modelConfig = serviceConfig?.[modelName];
+        if (modelConfig?.hide === true) return;
+
         const specs = cfg?.validationConfig?.specification;
+
+        const displayName = modelConfig?.value || modelName;
+
         const displayLabel =
           modelName === "gpt-5-nano" && bridgeType === "chatbot" ? (
             <div className="flex items-center gap-2">
-              <span>{modelName}</span>
+              <span>{displayName}</span>
               <span className="badge badge-success badge-sm text-xs">FREE</span>
             </div>
           ) : (
-            modelName
+            displayName
           );
 
         opts.push({
@@ -180,8 +192,7 @@ const ModelDropdown = ({ params, searchParams, isPublished, isEditor = true }) =
       });
     });
     return opts;
-  }, [modelsList, bridgeType]);
-
+  }, [modelsList, bridgeType, modelsConfig, service]);
   const handleSelect = useCallback(
     (val, opt) => {
       const selectedGroup = opt?.meta?.group;
@@ -205,9 +216,14 @@ const ModelDropdown = ({ params, searchParams, isPublished, isEditor = true }) =
   }, []);
 
   return (
-    <div id="model-dropdown-container" className="flex flex-col items-start gap-4 relative">
+    <div
+      data-testid="model-dropdown-container"
+      id="model-dropdown-container"
+      className="flex flex-col items-start gap-4 relative"
+    >
       <div className="w-full" ref={dropdownRef}>
         <Dropdown
+          testId="model-dropdown"
           disabled={isReadOnly}
           options={modelOptions}
           value={model || ""}
@@ -232,6 +248,7 @@ const ModelDropdown = ({ params, searchParams, isPublished, isEditor = true }) =
             <span className="label-text text-base-content">Fine-Tune Model</span>
           </div>
           <input
+            data-testid="fine-tune-model-input"
             id="fine-tune-model-input"
             type="text"
             name="name"
