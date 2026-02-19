@@ -75,7 +75,8 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
   const debounceTimers = useRef(new Map());
   const fetchVersionData = useCallback(
     (versionId) => {
-      if (!versionId || !params?.id || !shouldFetch) return;
+      // Don't fetch if versionId is null, "null" string, or empty
+      if (!versionId || versionId === "null" || !params?.id || !shouldFetch) return;
       if (globalFetchTracker.inProgress.has(versionId)) {
         return;
       }
@@ -131,17 +132,22 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
 
   // SendDataToChatbot effect - only runs when version changes
   useEffect(() => {
-    if (!currentVersion) return;
-
     const timer = setInterval(() => {
       if (typeof SendDataToChatbot !== "undefined") {
-        SendDataToChatbot(currentIsPublished ? { version_id: "null" } : { version_id: currentVersion });
+        // If currentVersion is null or "null" or isPublished, use versions[0]
+        let versionToSend = currentVersion;
+
+        if (!currentVersion || currentVersion === "null" || currentIsPublished) {
+          versionToSend = bridgeVersionsArray.length > 0 ? bridgeVersionsArray[0] : "null";
+        }
+
+        SendDataToChatbot({ version_id: versionToSend });
         clearInterval(timer);
       }
     }, 300);
 
     return () => clearInterval(timer);
-  }, [currentVersion, currentIsPublished]);
+  }, [currentVersion, currentIsPublished, bridgeVersionsArray]);
 
   // Initialize version only once on mount or when versions become available
   useEffect(() => {
@@ -152,6 +158,17 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
     // If isPublished=true, don't push version ID - just return
     if (currentIsPublished) {
       hasInitialized.current = true;
+      return;
+    }
+
+    // If version is null or "null" string, use versions[0]
+    if ((currentVersion === null || currentVersion === "null") && bridgeVersionsArray.length > 0) {
+      const firstVersion = bridgeVersionsArray[0];
+      if (firstVersion) {
+        hasInitialized.current = true;
+        router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${firstVersion}`);
+        fetchVersionData(firstVersion);
+      }
       return;
     }
 
