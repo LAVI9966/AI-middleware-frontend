@@ -31,8 +31,9 @@ import {
 // Model Customization Component
 // ---------------------------------------------
 const ModelCustomization = ({ value = {}, onChange }) => {
-  const { serviceModels } = useCustomSelector((state) => ({
+  const { serviceModels, SERVICES } = useCustomSelector((state) => ({
     serviceModels: state?.modelReducer?.serviceModels || {},
+    SERVICES: state?.serviceReducer?.services || [],
   }));
   const [expandedServices, setExpandedServices] = useState({});
 
@@ -53,14 +54,21 @@ const ModelCustomization = ({ value = {}, onChange }) => {
     onChange("models", updatedModels);
   };
 
+  // Filter to only show services that are present in SERVICES
+  const availableServiceValues = Array.isArray(SERVICES) ? SERVICES.map((svc) => svc?.value).filter(Boolean) : [];
+
+  const filteredServiceModels = Object.entries(serviceModels).filter(([service]) =>
+    availableServiceValues.includes(service)
+  );
+
   return (
     <div className="space-y-2 bg-base-200 rounded-md">
-      {Object.keys(serviceModels).length === 0 ? (
+      {filteredServiceModels.length === 0 ? (
         <div className="text-sm text-base-content/60 p-4 bg-base-200 rounded">
           No services available. Please configure services first.
         </div>
       ) : (
-        Object.entries(serviceModels).map(([service, types]) => {
+        filteredServiceModels.map(([service, types]) => {
           const allModels = [];
           Object.entries(types || {}).forEach(([type, models]) => {
             Object.keys(models || {}).forEach((modelName) => {
