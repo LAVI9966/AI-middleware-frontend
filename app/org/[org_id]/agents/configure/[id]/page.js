@@ -742,7 +742,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                           onVisibilityChange={setIsGuideVisible}
                         />
                         {/* Only show experimental Chat for non-chatbot types */}
-                        {bridgeType !== "chatbot" && (
+                        {bridgeType !== "chatbot" && !isGuideVisible && (
                           <>
                             {!sessionStorage.getItem("orchestralUser") ? (
                               <div id="chat-content-container" className="flex-1 min-h-0">
@@ -968,7 +968,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               />
 
               {/* Only show experimental Chat for non-chatbot types */}
-              {bridgeType !== "chatbot" && (
+              {bridgeType !== "chatbot" && !isGuideVisible && (
                 <>
                   {!sessionStorage.getItem("orchestralUser") ? (
                     <div id="mobile-chat-content-container" className="flex-1 min-h-0">
