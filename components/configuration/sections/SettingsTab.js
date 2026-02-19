@@ -34,7 +34,7 @@ const SettingsTab = () => {
   const isReadOnly = isPublished || !isEditor;
 
   return (
-    <div id="settings-tab-container" className="flex flex-col mt-4 gap-6 w-full">
+    <div data-testid="settings-tab-container" id="settings-tab-container" className="flex flex-col mt-4 gap-6 w-full">
       {shouldShowTriggers && (
         <div className="rounded-xl w-full">
           <TriggersList params={params} searchParams={searchParams} isEmbedUser={isEmbedUser} isReadOnly={isReadOnly} />
@@ -43,7 +43,7 @@ const SettingsTab = () => {
 
       {/* Settings Items - No Label, No Accordion */}
       <div className="flex flex-col gap-6 w-full">
-        {shouldShowAgentType && bridgeType?.toString()?.toLowerCase() !== "chatbot" && (
+        {shouldShowAgentType && bridgeType?.toString()?.toLowerCase() !== "chatbot" && modelType !== "image" && (
           <div className="">
             <BridgeTypeToggle
               params={params}
@@ -60,6 +60,7 @@ const SettingsTab = () => {
           <>
             {!isEmbedUser && (
               <div
+                data-testid="agent-flow-section"
                 id="agent-flow-section"
                 className="border border-base-200 p-3 flex items-center justify-between gap-4"
               >
@@ -70,6 +71,7 @@ const SettingsTab = () => {
                 <label className="label cursor-pointer gap-2">
                   <span className="text-xs font-semibold">{currentView === "agent-flow" ? "On" : "Off"}</span>
                   <input
+                    data-testid="connected-agent-flow-toggle"
                     id="connected-agent-flow-toggle"
                     type="checkbox"
                     disabled={isReadOnly}
@@ -101,26 +103,25 @@ const SettingsTab = () => {
                 />
               </div>
             </div>
-
-            {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
-              <div className="">
-                <AdvancedConfiguration
-                  params={params}
-                  searchParams={searchParams}
-                  bridgeType={bridgeType}
-                  modelType={modelType}
-                  isPublished={isPublished}
-                  isEditor={isEditor}
-                  isEmbedUser={isEmbedUser}
-                />
-              </div>
-            )}
           </>
+        )}
+        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
+          <div className="">
+            <AdvancedConfiguration
+              params={params}
+              searchParams={searchParams}
+              bridgeType={bridgeType}
+              modelType={modelType}
+              isPublished={isPublished}
+              isEditor={isEditor}
+              isEmbedUser={isEmbedUser}
+            />
+          </div>
         )}
       </div>
 
       {/* Chatbot Configuration - Keep Accordion */}
-      <div id="chatbot-config-section" className="w-full max-w-2xl">
+      <div data-testid="chatbot-config-section" id="chatbot-config-section" className="w-full max-w-2xl">
         <ChatbotConfigSection isPublished={isPublished} isEditor={isEditor} />
       </div>
     </div>

@@ -63,7 +63,27 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
   };
 
   const replaceVariablesInPrompt = (prompt) => {
-    return prompt.replace(/{{(.*?)}}/g, (_, variableName) => {
+    // Handle both string and object formats
+    let promptText = "";
+    if (typeof prompt === "string") {
+      promptText = prompt;
+    } else if (typeof prompt === "object") {
+      // Extract text from structured prompt object
+      if (prompt.role) promptText += prompt.role + " ";
+      if (prompt.goal) promptText += prompt.goal + " ";
+      if (prompt.instruction) promptText += prompt.instruction + " ";
+      if (prompt.customPrompt) promptText += prompt.customPrompt + " ";
+      // Extract from embedFields if present
+      if (Array.isArray(prompt.embedFields)) {
+        prompt.embedFields.forEach((field) => {
+          if (field.value) promptText += field.value + " ";
+        });
+      }
+    }
+
+    if (!promptText) return "";
+
+    return promptText.replace(/{{(.*?)}}/g, (_, variableName) => {
       const value = variablesKeyValue[variableName];
       if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
         return value;
@@ -90,6 +110,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
 
   return (
     <div
+      data-testid="chat-details-slider"
       id="chat-details-slider"
       ref={sidebarRef}
       className={`fixed inset-y-0 right-0 border-l-2 bg-base-100 shadow-2xl rounded-md ${
@@ -102,6 +123,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-base-content tracking-tight">Chat Details</h2>
               <button
+                data-testid="chat-details-close-button"
                 id="chat-details-close-button"
                 onClick={() => setIsSliderOpen(false)}
                 className="btn btn-ghost btn-circle hover:bg-base-100 transition-colors duration-200"
@@ -147,6 +169,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
                                   <div className="absolute top-2 right-2">
                                     <div className="dropdown dropdown-end">
                                       <div
+                                        data-testid="chat-details-variables-copy-dropdown"
                                         id="chat-details-variables-copy-dropdown"
                                         tabIndex={0}
                                         role="button"
@@ -162,6 +185,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
                                       >
                                         <li>
                                           <a
+                                            data-testid="chat-details-copy-current-values"
                                             id="chat-details-copy-current-values"
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -182,6 +206,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
                                         </li>
                                         <li>
                                           <a
+                                            data-testid="chat-details-copy-key-value-pairs"
                                             id="chat-details-copy-key-value-pairs"
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -214,6 +239,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
                                 ></div>
                                 {key === "system Prompt" && (
                                   <button
+                                    data-testid="chat-details-copy-system-prompt"
                                     id="chat-details-copy-system-prompt"
                                     onClick={() =>
                                       copyToClipboard(

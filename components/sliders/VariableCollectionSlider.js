@@ -209,15 +209,66 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
     return keys;
   }, [variablesPath]);
 
+  const visibleEmbedFieldNameSet = useMemo(() => {
+    if (!isEmbedUser || typeof prompt !== "object" || !Array.isArray(prompt?.embedFields)) {
+      return new Set();
+    }
+    return new Set(
+      prompt.embedFields
+        .filter((field) => !field?.hidden)
+        .map((field) => (typeof field?.name === "string" ? field.name.trim() : ""))
+        .filter(Boolean)
+    );
+  }, [isEmbedUser, prompt]);
+
   const promptKeySet = useMemo(() => {
     if (!prompt) {
       return new Set();
     }
-    const matches = prompt.match(/\{\{([^}]+)\}\}/g);
+
+    // Handle both string and object formats
+    let promptText = "";
+    if (typeof prompt === "string") {
+      promptText = prompt;
+    } else if (typeof prompt === "object") {
+      // Extract text from structured prompt object
+      if (prompt.role) promptText += prompt.role + " ";
+      if (prompt.goal) promptText += prompt.goal + " ";
+      if (prompt.instruction) promptText += prompt.instruction + " ";
+      // For embed users: extract from customPrompt
+      if (prompt.customPrompt) promptText += prompt.customPrompt + " ";
+
+      // Extract from embedFields - ONLY hidden fields (visible fields are shown in embed UI)
+      if (Array.isArray(prompt.embedFields)) {
+        prompt.embedFields.forEach((field) => {
+          // Only include hidden fields in variable extraction
+          if (field.hidden && field.value) {
+            promptText += field.value + " ";
+          }
+        });
+      }
+    }
+
+    if (!promptText || typeof promptText !== "string") {
+      return new Set();
+    }
+
+    const matches = promptText.match(/\{\{([^}]+)\}\}/g);
     if (!matches) {
       return new Set();
     }
     const keys = matches.map((match) => match.replace(/[{}]/g, "").trim()).filter(Boolean);
+
+    // For embed users: filter out variables that match visible embedField names
+    // Visible fields are shown in the embed UI, so they shouldn't appear in the variable slider
+    if (typeof prompt === "object" && Array.isArray(prompt.embedFields)) {
+      const visibleFieldNames = new Set(prompt.embedFields.filter((field) => !field.hidden).map((field) => field.name));
+
+      // Only include variables that are NOT visible embed fields
+      const filteredKeys = keys.filter((key) => !visibleFieldNames.has(key));
+      return new Set(filteredKeys);
+    }
+
     return new Set(keys);
   }, [prompt]);
 
@@ -293,10 +344,20 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
         }
       });
 
-      const { normalised } = validateVariables(allVariables, { suppressErrors: true });
+      // For embed users, keep only hidden/embed-independent vars in the slider.
+      // Visible embed fields are collected directly in embed form UI.
+      const filteredVariables =
+        isEmbedUser && visibleEmbedFieldNameSet.size > 0
+          ? allVariables.filter((variable) => {
+              const key = typeof variable?.key === "string" ? variable.key.trim() : "";
+              return !key || !visibleEmbedFieldNameSet.has(key);
+            })
+          : allVariables;
+
+      const { normalised } = validateVariables(filteredVariables, { suppressErrors: true });
       setDraftVariables(normalised);
     },
-    [variablesKeyValue, variablesPath, variable_state]
+    [isEmbedUser, variable_state, variablesKeyValue, variablesPath, visibleEmbedFieldNameSet]
   );
 
   useEffect(() => {
@@ -323,6 +384,12 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
       syncDraftWithStore();
     }
   }, [params?.id, versionId, variablesKeyValue, variablesPath, variable_state, syncDraftWithStore]);
+
+  // Clear the "Run Anyway" flag when variables change
+  useEffect(() => {
+    // Clear the flag so validation runs again after variable changes
+    sessionStorage.removeItem(SLIDER_DISABLE_KEY);
+  }, [variablesKeyValue]);
 
   // Check for missing variables from sessionStorage (set by chat input validation)
   useEffect(() => {
@@ -945,9 +1012,44 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
   useEffect(() => {
     // sync prompt variables into groups
     if (!prompt || !variableGroups.length) return;
+
+    // Handle both string and object formats
+    let promptText = "";
+    if (typeof prompt === "string") {
+      promptText = prompt;
+    } else if (typeof prompt === "object") {
+      // Extract text from structured prompt object
+      if (prompt.role) promptText += prompt.role + " ";
+      if (prompt.goal) promptText += prompt.goal + " ";
+      if (prompt.instruction) promptText += prompt.instruction + " ";
+      // For embed users: extract from customPrompt
+      if (prompt.customPrompt) promptText += prompt.customPrompt + " ";
+      // Extract from embedFields - ONLY hidden fields (visible fields are shown in embed UI)
+      if (Array.isArray(prompt.embedFields)) {
+        prompt.embedFields.forEach((field) => {
+          // Only include hidden fields in variable extraction
+          if (field.hidden && field.value) {
+            promptText += field.value + " ";
+          }
+        });
+      }
+    }
+
+    if (!promptText) return;
+
     const regex = /{{(.*?)}}/g;
-    const matches = [...prompt.matchAll(regex)];
-    const promptVariables = [...new Set(matches.map((match) => match[1].trim()))];
+    const matches = [...promptText.matchAll(regex)];
+    let promptVariables = [...new Set(matches.map((match) => match[1].trim()))];
+
+    // For embed users: filter out variables that match visible embedField names
+    // Visible fields are shown in the embed UI, so they shouldn't appear in the variable slider
+    if (typeof prompt === "object" && Array.isArray(prompt.embedFields)) {
+      const visibleFieldNames = new Set(prompt.embedFields.filter((field) => !field.hidden).map((field) => field.name));
+
+      // Only include variables that are NOT visible embed fields
+      promptVariables = promptVariables.filter((key) => !visibleFieldNames.has(key));
+    }
+
     if (!promptVariables.length) return;
 
     variableGroups.forEach((group) => {
@@ -1260,7 +1362,12 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
                               id={`variable-delete-button-${index}`}
                               type="button"
                               className="btn btn-ghost btn-xs text-error"
-                              disabled={!isCurrentRowEnabled || !variable.key.trim()}
+                              disabled={
+                                !isCurrentRowEnabled ||
+                                !variable.key.trim() ||
+                                promptKeySet.has(trimmedKey) ||
+                                variablesPathKeySet.has(trimmedKey)
+                              }
                               onClick={() => handleDeleteVariable(index)}
                               title="Delete variable"
                             >

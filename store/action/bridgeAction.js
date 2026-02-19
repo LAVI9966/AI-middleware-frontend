@@ -80,6 +80,9 @@ export const getBridgeVersionAction =
   async (dispatch) => {
     try {
       dispatch(isPending());
+      if (!versionId || versionId === "null") {
+        return;
+      }
       const data = await getBridgeVersionApi({ bridgeVersionId: versionId });
       dispatch(fetchSingleBridgeVersionReducer({ bridge: data?.agent }));
       return data?.agent;
@@ -674,6 +677,7 @@ export const publishBridgeVersionAction =
         dispatch(publishBrigeVersionReducer({ versionId: data?.version_id, bridgeId, orgId }));
         toast.success("Agent Version published successfully");
       }
+      return data;
     } catch (error) {
       console.error(error);
     }

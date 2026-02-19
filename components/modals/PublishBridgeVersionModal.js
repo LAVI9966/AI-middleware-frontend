@@ -657,7 +657,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
         }
       }
 
-      await dispatch(
+      const data = await dispatch(
         publishBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.get("version"),
@@ -666,19 +666,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
         })
       );
 
-      // Publish selected connected agents in bulk if available
-      if (selectedAgentsToPublish.size > 0) {
-        try {
-          await dispatch(publishBulkVersionAction(Array.from(selectedAgentsToPublish)));
-          toast.success(`Successfully published ${selectedAgentsToPublish.size} connected agent(s)`);
-        } catch (error) {
-          console.error("Error publishing connected agents:", error);
-          toast.warning("Main agent published, but some connected agents failed to publish");
-        }
-      }
-
-      // Handle embed user callback
-      if (isEmbedUser) {
+      if (data && isEmbedUser) {
         sendDataToParent(
           "published",
           {
@@ -691,6 +679,16 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
         );
       }
 
+      // Publish selected connected agents in bulk if available
+      if (selectedAgentsToPublish.size > 0) {
+        try {
+          await dispatch(publishBulkVersionAction(Array.from(selectedAgentsToPublish)));
+          toast.success(`Successfully published ${selectedAgentsToPublish.size} connected agent(s)`);
+        } catch (error) {
+          console.error("Error publishing connected agents:", error);
+          toast.warning("Main agent published, but some connected agents failed to publish");
+        }
+      }
       dispatch(getAllBridgesAction());
       closeModal(MODAL_TYPE.PUBLISH_BRIDGE_VERSION);
     } catch (error) {
@@ -952,7 +950,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                       id="publish-description-textarea"
                       name="description"
                       placeholder="Enter a description"
-                      className="textarea bg-white dark:bg-black/15 textarea-bordered w-full h-20"
+                      className="textarea bg-base-100 textarea-bordered w-full h-20"
                       value={formData.description}
                       onChange={handleChange}
                     />
