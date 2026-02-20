@@ -194,6 +194,7 @@ export const bridgeReducer = createSlice({
     },
     updateBridgeVersionReducer: (state, action) => {
       const { bridges, functionData } = action.payload;
+      console.log("REDUCER: Parsed bridge data being stored:", bridges);
       // Use the complete bridges object that was already merged in the action
       // Don't destructure or we'll lose fields like agents, variables_path, etc.
       state.bridgeVersionMapping[bridges.parent_id][bridges._id] = bridges;

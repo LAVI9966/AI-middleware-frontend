@@ -114,11 +114,11 @@ const PromptHeader = memo(
           )}
           {/* View Mode Selector */}
           <div className="btn-group">
-            {!isEmbedUser && (
+            {!isEmbedUser && typeof prompt !== "string" && (
               <button
                 type="button"
-                className={`btn btn-xs ${
-                  viewMode === "simple" ? "btn-active" : ""
+                className={`btn btn-xs mr-2 ${
+                  viewMode === "simple" ? "" : "btn-active"
                 } ${isPublished || !isEditor ? "btn-disabled" : ""}`}
                 onMouseDown={(e) => {
                   if (isPublished || !isEditor) return;
@@ -148,7 +148,7 @@ const PromptHeader = memo(
                   <button
                     type="button"
                     className={`btn btn-xs ${
-                      viewMode === "advanced" ? "btn-active" : ""
+                      viewMode === "advanced" ? "" : "btn-active"
                     } ${isPublished || !isEditor ? "btn-disabled" : ""}`}
                     onMouseDown={(e) => {
                       if (isPublished || !isEditor) return;

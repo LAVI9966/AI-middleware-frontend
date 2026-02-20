@@ -3,7 +3,7 @@ import PromptTextarea from "./PromptTextarea";
 import StructuredPromptInput from "./StructuredPromptInput";
 import EmbedPromptFields from "./EmbedPromptFields";
 import DefaultVariablesSection from "./DefaultVariablesSection";
-import { extractVariablesFromPrompt, convertPromptToAdvancedView } from "@/utils/promptUtils";
+import { convertPromptToAdvancedView } from "@/utils/promptUtils";
 
 /**
  * PromptRenderer Component
@@ -26,7 +26,7 @@ const PromptRenderer = memo(
     textareaRef,
   }) => {
     // Extract embed fields for embed users
-    const { hiddenFields, allEmbedFieldNames } = useMemo(() => {
+    const { hiddenFields } = useMemo(() => {
       let hiddenFields = [];
       let allEmbedFieldNames = [];
 
@@ -42,12 +42,6 @@ const PromptRenderer = memo(
       return { hiddenFields, allEmbedFieldNames };
     }, [isEmbedUser, currentPromptValue]);
 
-    // Extract variables from prompt and filter out embed fields
-    const customVariables = useMemo(() => {
-      const allVariables = extractVariablesFromPrompt(currentPromptValue);
-      return allVariables.filter((varName) => !allEmbedFieldNames.includes(varName));
-    }, [currentPromptValue, allEmbedFieldNames]);
-
     // Conditionally render variables section based on user type and showVariables setting
     // Main users: always show
     // Embed users: only show if showVariables is enabled
@@ -58,7 +52,6 @@ const PromptRenderer = memo(
         isPublished={isPublished}
         prompt={currentPromptValue}
         isEditor={isEditor}
-        customVariables={customVariables}
         hiddenFields={hiddenFields}
         isEmbedUser={isEmbedUser}
       />
