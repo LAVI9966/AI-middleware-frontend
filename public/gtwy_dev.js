@@ -516,6 +516,7 @@
         }
 
         if ('parentId' in dataToSend) {
+            gtwyEmbedManager.state.tempDataToSend = { ...gtwyEmbedManager.state.tempDataToSend, ...dataToSend };
             const prevParentId = gtwyEmbedManager.props['parentId'];
             const existingParent = document.getElementById(prevParentId);
 
@@ -544,6 +545,7 @@
 
         const iframe = document.getElementById('iframe-component-gtwyInterfaceEmbed');
         if (iframe?.contentWindow && dataToSend) {
+            gtwyEmbedManager.state.tempDataToSend = { ...gtwyEmbedManager.state.tempDataToSend, ...dataToSend };
             sendMessageToGtwy({ type: 'gtwyInterfaceData', data: dataToSend });
         }
 
