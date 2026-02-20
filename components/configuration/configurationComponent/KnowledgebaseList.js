@@ -68,6 +68,7 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
       collection_id: knowledgeBaseItem.collectionId,
       resource_id: id,
       description: knowledgeBaseItem.description,
+      name: knowledgeBaseItem.title,
     };
 
     dispatch(
