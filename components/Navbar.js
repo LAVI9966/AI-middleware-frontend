@@ -24,7 +24,12 @@ import {
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { updateBridgeAction, dicardBridgeVersionAction, archiveBridgeAction } from "@/store/action/bridgeAction";
+import {
+  updateBridgeAction,
+  dicardBridgeVersionAction,
+  archiveBridgeAction,
+  deleteBridgeAction,
+} from "@/store/action/bridgeAction";
 import { updateBridgeVersionReducer } from "@/store/reducer/bridgeReducer";
 import { MODAL_TYPE } from "@/utils/enums";
 import { openModal, toggleSidebar, sendDataToParent } from "@/utils/utility";
@@ -36,7 +41,8 @@ const DeleteModal = dynamic(() => import("./UI/DeleteModal"), { ssr: false });
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import BridgeVersionDropdown from "./configuration/configurationComponent/BridgeVersionDropdown";
 const VariableCollectionSlider = dynamic(() => import("./sliders/VariableCollectionSlider"), { ssr: false });
-import AccessManagementModal from "./modals/AccessManagementModal";import { UsageSummaryPopover } from "../app/org/[org_id]/agents/page";
+import AccessManagementModal from "./modals/AccessManagementModal";
+import { UsageSummaryPopover } from "../app/org/[org_id]/agents/page";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 
 const BRIDGE_STATUS = {
@@ -64,10 +70,10 @@ const Navbar = ({ isEmbedUser, params }) => {
   const versionId = useMemo(() => searchParams?.get("version"), [searchParams]);
   const isPublished = useMemo(() => searchParams?.get("isPublished") === "true", [searchParams]);
   // Use portal dropdown hook (same as agents page)
-const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown({
-  offsetX: 0,
-  offsetY: 5,
-});
+  const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown({
+    offsetX: -100,
+    offsetY: 5,
+  });
   const {
     bridgeData,
     bridge,
@@ -88,9 +94,12 @@ const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyl
     isAdminOrOwner,
   } = useCustomSelector((state) => {
     const orgRole = state?.userDetailsReducer?.organizations?.[orgId]?.role_name;
-const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
+    const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
     return {
-      bridgeData: state?.bridgeReducer?.org?.[orgId]?.orgs?.find((bridge) => bridge._id === bridgeId) || {},
+      bridgeData:
+        state?.bridgeReducer?.org?.[orgId]?.orgs?.find((bridge) => bridge._id === bridgeId) ||
+        state.bridgeReducer.allBridgesMap[bridgeId] ||
+        {},
       bridge: state.bridgeReducer.allBridgesMap[bridgeId] || {},
       publishedVersion: state.bridgeReducer.allBridgesMap?.[bridgeId]?.published_version_id ?? null,
       isDrafted: state.bridgeReducer.bridgeVersionMapping?.[bridgeId]?.[versionId]?.is_drafted ?? false,
@@ -397,79 +406,81 @@ const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
       </div>
     );
 
-    const handleDeleteAgent = useCallback(() => {
-  setShowEllipsisMenu(false);
-  openModal(MODAL_TYPE.DELETE_MODAL);
-}, []);
+  const handleDeleteAgentConfirm = useCallback(async () => {
+    await executeDelete(async () => {
+      const response = await dispatch(deleteBridgeAction({ bridgeId, org_id: orgId }));
+      toast.success(response?.data?.message || "Agent deleted successfully");
+      router.push(`/org/${orgId}/agents`);
+    });
+  }, [executeDelete, dispatch, bridgeId, orgId, router]);
 
-const handleManageAccess = useCallback(() => {
-  setSelectedAgentForAccess(bridge);
-  setShowEllipsisMenu(false);
-  setTimeout(() => {
-    openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
-  }, 10);
-}, [bridge]);
+  const handleDeleteAgent = useCallback(() => {
+    setShowEllipsisMenu(false);
+    openModal(MODAL_TYPE.DELETE_AGENT_MODAL);
+  }, []);
 
+  const handleManageAccess = useCallback(() => {
+    setSelectedAgentForAccess(bridge);
+    setShowEllipsisMenu(false);
+    setTimeout(() => {
+      openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
+    }, 10);
+  }, [bridge]);
 
-// Get usage stats for the current bridge
-const handleUpdateBridgeLimit = useCallback(async (bridge, limit) => {
-  try {
-    await dispatch(
-      updateBridgeAction({
-        bridgeId: bridge._id,
-        dataToSend: { agent_limit: limit },
-      })
-    );
-    toast.success("Agent limit updated successfully");
-  } catch (error) {
-    console.error("Failed to update agent limit", error);
-    toast.error("Failed to update agent limit");
-  }
-}, [dispatch]);
+  const handleUpdateBridgeLimit = async (bridge, limit) => {
+    const dataToSend = {
+      bridge_limit: limit,
+    };
+    const res = await dispatch(updateBridgeAction({ bridgeId: bridge._id, dataToSend }));
+    if (res?.success) toast.success("Agent Usage Limit Updated Successfully");
+  };
 
+  const getUsageStatsForRow = (row) => {
+    const limitValue = Number(row?.agent_limit_original ?? row?.bridge_limit ?? 0);
+    const usageValue = Number(row?.agent_usage ?? row?.bridge_usage ?? 0);
+    const totalTokens = Number(row?.totalTokens ?? row?.total_tokens ?? 0);
+    const hasLimit = Number.isFinite(limitValue) && limitValue > 0;
+    const usagePercent = hasLimit ? Math.min(100, Math.max(0, (usageValue / limitValue) * 100)) : 0;
+    const remaining = hasLimit ? Math.max(limitValue - usageValue, 0) : null;
+    return { limitValue, usageValue, totalTokens, hasLimit, usagePercent, remaining };
+  };
 
-const getUsageStatsForRow = useCallback((row) => {
-  const limitValue = Number(row?.agent_limit || 0);
-  const usageValue = Number(row?.usage?.total_requests || 0);
-  const totalTokens = Number(row?.usage?.total_tokens || 0);
-  const hasLimit = Number.isFinite(limitValue) && limitValue > 0;
-  const usagePercent = hasLimit ? Math.min(100, Math.max(0, (usageValue / limitValue) * 100)) : 0;
-  const remaining = hasLimit ? Math.max(limitValue - usageValue, 0) : null;
-  return { limitValue, usageValue, totalTokens, hasLimit, usagePercent, remaining };
-}, []);
+  const resetUsage = async (bridge) => {
+    const dataToSend = { bridge_usage: 0 };
+    const res = await dispatch(updateBridgeAction({ bridgeId: bridge._id, dataToSend }));
+    if (res?.success) toast.success("Agent Usage Reset Successfully");
+  };
 
-
-
-const resetUsage = useCallback(async (bridge) => {
-  try {
-    // Add your reset usage action here if you have one
-    toast.success("Usage reset successfully");
-  } catch (error) {
-    console.error("Failed to reset usage", error);
-    toast.error("Failed to reset usage");
-  }
-}, []);
-
-const handleUsageLimits = useCallback((e) => {
-  const usageContent = (
-    <UsageSummaryPopover
-      stats={getUsageStatsForRow(bridge)}
-      item={bridge}
-      isEmbedUser={isEmbedUser}
-      onSetLimit={(bridgeItem, limit) => {
-        handlePortalCloseImmediate();
-        handleUpdateBridgeLimit(bridgeItem, limit);
-      }}
-      onResetUsage={() => {
-        handlePortalCloseImmediate();
-        resetUsage(bridge);
-      }}
-    />
+  const handleUsageLimits = useCallback(
+    (e) => {
+      const usageContent = (
+        <UsageSummaryPopover
+          stats={getUsageStatsForRow(bridgeData)}
+          item={bridge}
+          isEmbedUser={isEmbedUser}
+          onSetLimit={(bridgeItem, limit) => {
+            handlePortalCloseImmediate();
+            handleUpdateBridgeLimit(bridgeItem, limit);
+          }}
+          onResetUsage={() => {
+            handlePortalCloseImmediate();
+            resetUsage(bridge);
+          }}
+        />
+      );
+      handlePortalOpen(e.currentTarget, usageContent);
+      setShowEllipsisMenu(false);
+    },
+    [
+      bridge,
+      isEmbedUser,
+      handlePortalOpen,
+      handlePortalCloseImmediate,
+      handleUpdateBridgeLimit,
+      resetUsage,
+      getUsageStatsForRow,
+    ]
   );
-  
-  handlePortalOpen(e.currentTarget, usageContent);
-  setShowEllipsisMenu(false);
-}, [bridge, isEmbedUser, handlePortalOpen, handlePortalCloseImmediate, handleUpdateBridgeLimit, resetUsage, getUsageStatsForRow]);
 
   const handleArchiveBridge = async (bridgeId, newStatus = 0) => {
     try {
@@ -1043,15 +1054,22 @@ const handleUsageLimits = useCallback((e) => {
         loading={isDiscardingWithHook}
         isAsync={true}
       />
+      <DeleteModal
+        modalType={MODAL_TYPE.DELETE_AGENT_MODAL}
+        onConfirm={handleDeleteAgentConfirm}
+        title="Delete Agent"
+        description="Are you sure you want to delete this agent? It will be moved to deleted items and permanently removed after 30 days."
+        buttonTitle="Delete"
+        loading={isDiscardingWithHook}
+        isAsync={true}
+      />
 
-       <AccessManagementModal agent={selectedAgentForAccess} />
- 
-{/* Portal components from hook */}
-<PortalStyles />
-<PortalDropdown />
-      
+      <AccessManagementModal agent={selectedAgentForAccess} />
+
+      {/* Portal components from hook */}
+      <PortalStyles />
+      <PortalDropdown />
     </div>
-    
   );
 };
 
