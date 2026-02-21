@@ -1,32 +1,41 @@
 "use client";
-import { getFromCookies } from "@/utils/utility";
+import { getFromCookies ,openModal} from "@/utils/utility";
 import { useEffect } from "react";
+import { MODAL_TYPE } from "@/utils/enums";
 
 export const runtime = "edge";
 
 const page = () => {
-  useEffect(() => {
-    // Check if script is already loaded
-    if (document.querySelector('script[src="https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js"]')) {
-      return;
-    }
 
+useEffect(() => {
     const configuration = {
-      authToken: getFromCookies("proxy_token") || "",
-      success: (data) => {},
-      failure: (error) => {
-        console.error("failure reason", error);
-      },
-    };
+    authToken: getFromCookies("proxy_token") || "",
+    success: (data) => {},
+    failure: (error) => {
+      console.error("failure reason", error);
+    },
+  };
 
+  const existingScript = document.querySelector(
+    'script[src="https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js"]'
+  );
+
+  if (existingScript) {
+  existingScript.parentNode.removeChild(existingScript);
+  const scriptSrc = document.createElement("script");
+  scriptSrc.type = "text/javascript";
+  scriptSrc.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
+  scriptSrc.onload = () => {
+    if (window.initVerification) {
+      window.initVerification(configuration);
+    }
+  };
+  document.body.appendChild(scriptSrc);
+}else {
     const scriptSrc = document.createElement("script");
     scriptSrc.type = "text/javascript";
     scriptSrc.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
-
-    // Add configuration to window object
     window.proxyAuthConfig = configuration;
-
-    // Add onload handler directly to script element
     scriptSrc.onload = () => {
       if (window.initVerification) {
         window.initVerification(configuration);
@@ -34,25 +43,48 @@ const page = () => {
         console.error("initVerification function not found");
       }
     };
-
-    // Add error handling
     scriptSrc.onerror = (error) => {
       console.error("Failed to load script:", error);
     };
-
     document.body.appendChild(scriptSrc);
+  }
 
-    return () => {
-      const existingScript = document.querySelector(
-        'script[src="https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js"]'
-      );
-      if (existingScript) {
-        document.body.removeChild(existingScript);
+  return () => {
+    // Remove current script on unmount, then reload with user-management config for other pages
+    const existingScript = document.querySelector(
+      'script[src="https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js"]'
+    );
+    if (existingScript) {
+      existingScript.parentNode.removeChild(existingScript);
+    }
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
+    script.onload = function () {
+      if (typeof window.initVerification === "function") {
+        window.initVerification({
+          authToken: getFromCookies("proxy_token") || "",
+          pass: true,
+          type: "user-management",
+          exclude_role_ids: [18, 20],
+          success: (data) => {},
+          failure: (error) => {},
+        });
       }
-      delete window.proxyAuthConfig;
     };
-  }, []);
+    document.head.appendChild(script);
+  };
+}, []);
 
+useEffect(() => {
+  const handleOpenDialog = () => {
+    openModal(MODAL_TYPE.INVITE_USER);
+  };
+  window.addEventListener('openAddUserDialog', handleOpenDialog);
+  return () => {
+    window.removeEventListener('openAddUserDialog', handleOpenDialog);
+  };
+}, []);
   return <div id="proxyContainer"></div>;
 };
 

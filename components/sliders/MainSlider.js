@@ -366,8 +366,8 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         onClick: () => {
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
-         window.dispatchEvent(new Event('openAddUserDialog'));
-
+          if (isMobile) setIsMobileVisible(false);
+          router.push(`/org/${orgId}/prebuilt-prompts`);
         },
       },
     ],
