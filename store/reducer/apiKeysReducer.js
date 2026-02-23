@@ -78,6 +78,14 @@ export const apiKeysReducer = createSlice({
       }
     },
 
+    updateApiKeyStatusReducer: (state, action) => {
+      const { org_id, apikey_id, status } = action.payload;
+      if (state.apikeys?.[org_id]) {
+        const key = state.apikeys[org_id].find((k) => k._id === apikey_id);
+        if (key) key.status = status;
+      }
+    },
+
     apikeyDeleteReducer: (state, action) => {
       const { org_id, name } = action.payload;
       if (state.apikeys[org_id]) {
@@ -94,6 +102,7 @@ export const {
   apikeyRollBackReducer,
   apikeyUpdateReducer,
   apikeyDeleteReducer,
+  updateApiKeyStatusReducer,
 } = apiKeysReducer.actions;
 
 export default apiKeysReducer.reducer;
