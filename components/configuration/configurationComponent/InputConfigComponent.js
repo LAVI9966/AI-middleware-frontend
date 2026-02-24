@@ -109,8 +109,8 @@ const InputConfigComponent = memo(
 
       const fields = embedPromptConfig.embedFields.filter((f) => !f.hidden).map((f) => ({ ...f, deprecated: false }));
       dbKeys.forEach((key) => {
-        if (!appInfoNames.has(key) && dbValues[key]) {
-          fields.push({ name: key, type: "input", hidden: false, deprecated: true });
+        if (!appInfoNames.has(key)) {
+          fields.push({ name: key, type: "textarea", hidden: false, deprecated: true });
         }
       });
 
@@ -326,6 +326,7 @@ const InputConfigComponent = memo(
                         readOnly={field.deprecated}
                         onFocus={handleTextareaFocus}
                         onBlur={(e) => {
+                          if (field.deprecated) return;
                           handleTextareaBlur(e);
                           if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
@@ -343,6 +344,7 @@ const InputConfigComponent = memo(
                         readOnly={field.deprecated}
                         onFocus={handleTextareaFocus}
                         onBlur={(e) => {
+                          if (field.deprecated) return;
                           handleTextareaBlur(e);
                           if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
@@ -350,12 +352,14 @@ const InputConfigComponent = memo(
                         placeholder={field.deprecated ? "(no longer used in prompt)" : `Enter ${field.name}...`}
                       />
                     )}
-                    {field.deprecated && activeEmbedFieldValues[field.name] && !isPublished && isEditor && (
+                    {field.deprecated && !isPublished && isEditor && (
                       <button
                         type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-error"
-                        title="Clear deprecated field"
-                        onClick={() => {
+                        className="absolute right-2 top-2 text-base-content/40 hover:text-error"
+                        title="Clear deprecated field value"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          event.preventDefault();
                           handleClearDeprecatedField(field.name);
                         }}
                       >
