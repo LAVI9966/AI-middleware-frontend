@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { Info, XCircle } from "lucide-react";
+import { XCircle } from "lucide-react";
 import { extractVariablesFromPrompt } from "@/utils/promptUtils";
 
 /**
@@ -421,13 +421,6 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChang
                 <span>{validationError}</span>
               </div>
             )}
-
-            <div className="alert alert-warning">
-              <Info className="stroke-current shrink-0 w-6 h-6" />
-              <span className="text-xs">
-                The new fields are applied only to new agents or until users migrate to new fields.
-              </span>
-            </div>
           </div>
         )}
       </div>

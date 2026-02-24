@@ -753,7 +753,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               id="publish-summary-accordion-toggle"
               type="checkbox"
               className="peer"
-              defaultChecked={summaryAccordionOpen}
               checked={summaryAccordionOpen}
               onChange={(e) => setSummaryAccordionOpen(e.target.checked)}
             />

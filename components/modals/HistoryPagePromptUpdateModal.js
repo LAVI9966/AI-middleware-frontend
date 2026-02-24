@@ -5,7 +5,7 @@ import React from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
 import { RotateCcw } from "lucide-react";
-import { convertPromptToAdvancedView, normalizePromptToStructured } from "@/utils/promptUtils";
+import { promptObjectToString, parsePromptObject } from "@/utils/promptUtils";
 
 const HistoryPagePromptUpdateModal = ({
   searchParams,
@@ -31,7 +31,7 @@ const HistoryPagePromptUpdateModal = ({
       newValue = promotToUpdate?.trim() || "";
     } else if (typeof promotToUpdate === "object") {
       // Ensure the object has the correct structure (role, goal, instruction)
-      newValue = normalizePromptToStructured(promotToUpdate);
+      newValue = parsePromptObject(promotToUpdate);
     } else {
       newValue = "";
     }
@@ -96,7 +96,7 @@ const HistoryPagePromptUpdateModal = ({
               id="history-prompt-previous-textarea"
               className="textarea bg-base-100 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
               key={typeof previousPrompt === "object" ? JSON.stringify(previousPrompt) : previousPrompt}
-              defaultValue={convertPromptToAdvancedView(previousPrompt)}
+              defaultValue={typeof previousPrompt === "string" ? previousPrompt : promptObjectToString(previousPrompt)}
               readOnly
             />
           </div>
@@ -109,7 +109,7 @@ const HistoryPagePromptUpdateModal = ({
               id="history-prompt-updated-textarea"
               className="textarea bg-base-100 textarea-bordered border border-base-300 w-full min-h-96 focus:border-primary caret-base-content p-2"
               key={typeof promotToUpdate === "object" ? JSON.stringify(promotToUpdate) : promotToUpdate}
-              defaultValue={convertPromptToAdvancedView(promotToUpdate)}
+              defaultValue={typeof promotToUpdate === "string" ? promotToUpdate : promptObjectToString(promotToUpdate)}
               readOnly
             />
           </div>

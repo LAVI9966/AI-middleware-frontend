@@ -1,16 +1,13 @@
-import { convertStructuredPromptToString } from "./promptUtils";
 export const validatePromptVariables = (prompt, variablesKeyValue) => {
   if (!prompt) return { isValid: true, missingVariables: [] };
 
   if (!Array.isArray(variablesKeyValue)) {
     variablesKeyValue = [];
   }
-  // Extract variables from prompt using regex
+  // Extract variables from prompt using regex — prompt may be an object
+  const promptStr = typeof prompt === "object" ? Object.values(prompt).join(" ") : String(prompt);
   const regex = /{{(.*?)}}/g;
-  if (typeof prompt !== "string") {
-    prompt = convertStructuredPromptToString(prompt);
-  }
-  const matches = [...prompt.matchAll(regex)];
+  const matches = [...promptStr.matchAll(regex)];
   const promptVariables = [...new Set(matches.map((match) => match[1].trim()))];
   if (!promptVariables.length) return { isValid: true, missingVariables: [] };
 
