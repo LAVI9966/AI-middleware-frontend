@@ -34,9 +34,9 @@ const PromptHeader = memo(
         <div
           data-testid="prompt-header-helper-open"
           id="prompt-header-helper-open"
-          className={`flex items-center justify-between px-4 py-2.5 border-b border-base-300 bg-base-100 ${!isEditor ? "mt-8" : ""}`}
+          className={`flex items-center justify-end px-4 py-2.5 border-b border-base-300 bg-base-100 ${!isEditor ? "mt-8" : ""}`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex justify-end gap-2">
             {prompt && showDiffButton && (
               <button
                 type="button"
@@ -159,7 +159,7 @@ const PromptHeader = memo(
             <button
               type="button"
               data-testid="prompt-header-migrate-button"
-              className="btn btn-xs btn-outline border-warning/50 text-warning hover:bg-warning/10 hover:border-warning gap-1"
+              className="btn btn-xs btn-outline"
               onMouseDown={(e) => {
                 e.preventDefault();
                 onMigratePrompt();

@@ -217,7 +217,6 @@ const InputConfigComponent = memo(
     const handleOpenPromptHelper = useCallback(() => {
       if (!uiState.isPromptHelperOpen && window.innerWidth > 710) {
         updateUiState({ isPromptHelperOpen: true });
-        if (typeof window.closeTechDoc === "function") window.closeTechDoc();
       }
     }, [uiState.isPromptHelperOpen, updateUiState]);
 
