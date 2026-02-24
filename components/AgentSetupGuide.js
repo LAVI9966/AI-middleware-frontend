@@ -10,8 +10,6 @@ const AgentSetupGuide = ({
   promptTextAreaRef,
   isEmbedUser,
   searchParams,
-  draftPrompt,
-  hasDraftPromptChanges = false,
   onVisibilityChange = () => {},
   onSwitchToModelTab = () => {},
   setApiKeyError = () => {},
@@ -45,77 +43,31 @@ const AgentSetupGuide = ({
         bridgeType: bridgeDataFromState?.bridgeType,
       };
     });
-  const effectivePrompt = hasDraftPromptChanges ? draftPrompt : prompt;
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [showError, setShowError] = useState(false);
-  const [errorType, setErrorType] = useState("");
-  const [isVisible, setIsVisible] = useState(
-    isEmbedUser && showDefaultApikeys && effectivePrompt != ""
-      ? false
-      : (!bridgeApiKey || (effectivePrompt === "" && shouldPromptShow)) &&
-          ((bridgeType === "chatbot" && modelName !== "gpt-5-nano") ||
-            bridgeType !== "chatbot" ||
-            effectivePrompt === "")
-  );
-
   // Helper to check if prompt has meaningful content
   const hasPromptContent = (promptValue) => {
     if (!promptValue) return false;
-
-    // String format
-    if (typeof promptValue === "string") {
-      return promptValue.trim() !== "";
-    }
-
-    // Object format
+    if (typeof promptValue === "string") return promptValue.trim() !== "";
     if (typeof promptValue === "object") {
-      // Embed user with default prompt enabled
-      if (promptValue.useDefaultPrompt === true) {
-        return true;
-      }
-
-      // Check visible embed fields
-      if (Array.isArray(promptValue.embedFields)) {
-        const visibleFields = promptValue.embedFields.filter((f) => !f.hidden);
-        if (visibleFields.length > 0) {
-          return visibleFields.some((f) => f.value && f.value.trim() !== "");
-        }
-      }
-
-      // If embed fields exist but none are visible, this should still be treated as missing setup.
-      // Do not mark as configured just because a customPrompt template string exists.
-      if (!Array.isArray(promptValue.embedFields) && promptValue.customPrompt?.trim()) {
-        return true;
-      }
-
-      // Main user format - check for instruction field
-      if (promptValue.instruction?.trim()) {
-        return true;
-      }
+      return Object.values(promptValue).some((v) => typeof v === "string" && v.trim() !== "");
     }
-
     return false;
   };
 
-  const isEmbedPromptIncomplete = (promptValue) => {
-    if (!isEmbedUser || !promptValue || typeof promptValue !== "object") return false;
-    if (!Array.isArray(promptValue.embedFields)) return false;
-
-    const visibleFields = promptValue.embedFields.filter((f) => !f.hidden);
-    if (visibleFields.length === 0) return true;
-
-    return !visibleFields.some((f) => (f?.value || "").trim() !== "");
-  };
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorType, setErrorType] = useState("");
+  const [isVisible, setIsVisible] = useState(() => {
+    if (hasPromptContent(prompt)) return false;
+    if (isEmbedUser && showDefaultApikeys) return true;
+    return !bridgeApiKey;
+  });
   // Track step completion
   const getStepCompletion = (stepNumber) => {
     switch (stepNumber) {
       case "1": // Define Agent's Purpose
-        return (
-          hasPromptContent(effectivePrompt) ||
-          promptTextAreaRef?.current?.querySelector("textarea")?.value?.trim() !== ""
-        );
+        return hasPromptContent(prompt);
       case "2": // Configure API Access
-        return !!bridgeApiKey || (modelName === "gpt-5-nano" && bridgeType === "chatbot");
+        return !!bridgeApiKey || showDefaultApikeys || (modelName === "gpt-5-nano" && bridgeType === "chatbot");
       case "3": // Connect External Functions (optional)
         return true; // Always considered complete since it's optional
       case "4": // Choose AI Service (optional)
@@ -142,58 +94,33 @@ const AgentSetupGuide = ({
   };
 
   useEffect(() => {
-    // Explicitly handle migrated embed prompt state so guide appears immediately
-    if (isEmbedPromptIncomplete(effectivePrompt)) {
-      setIsVisible(true);
+    // Embed user with default API keys: hide only when prompt has content
+    if (isEmbedUser && showDefaultApikeys) {
+      if (hasPromptContent(prompt)) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
       return;
     }
 
-    if (isEmbedUser && showDefaultApikeys && hasPromptContent(effectivePrompt)) {
-      setIsVisible(false);
-      return;
-    }
-    // For main users: if any of role, goal, instruction changes and is empty, show the guide
-    let showGuide = false;
-    if (!isEmbedUser && typeof effectivePrompt === "object" && effectivePrompt !== null) {
-      if (
-        ("role" in effectivePrompt && effectivePrompt.role === "") ||
-        ("goal" in effectivePrompt && effectivePrompt.goal === "") ||
-        ("instruction" in effectivePrompt && effectivePrompt.instruction === "")
-      ) {
-        showGuide = true;
-      }
-    }
-    const hasPrompt =
-      hasPromptContent(effectivePrompt) ||
-      !shouldPromptShow ||
-      (promptTextAreaRef.current && promptTextAreaRef.current.querySelector("textarea")?.value?.trim() !== "");
+    const hasPrompt = hasPromptContent(prompt);
     const hasApiKey = !!bridgeApiKey;
-    if (!shouldPromptShow) {
+
+    if (hasPrompt || !shouldPromptShow) {
       setShowError(false);
-    }
-    if (hasPrompt) {
-      if (errorType === "prompt") {
-        setShowError(false);
-        setErrorType("");
-      }
+      setErrorType("");
     }
     if (hasApiKey) {
-      if (errorType === "apikey") {
-        setShowError(false);
-        setErrorType("");
-        setApiKeyError(false);
-      }
+      setShowError(false);
+      setErrorType("");
+      setApiKeyError(false);
     }
-    // Show guide if any main user field is empty
-    if (showGuide) {
-      setIsVisible(true);
-      return;
-    }
-    // Hide guide if:
-    // 1. It's gpt-5-nano model and has prompt (only for chatbot) OR
-    // 2. Both prompt and API key are provided
-    // For API agents, always require API key even with gpt-5-nano
-    if ((modelName === "gpt-5-nano" && hasPrompt && bridgeType === "chatbot") || (hasPrompt && hasApiKey)) {
+
+    const promptRequired = shouldPromptShow !== false;
+    const shouldHide = promptRequired ? hasPrompt && hasApiKey : hasApiKey;
+
+    if (shouldHide) {
       if (isVisible) {
         setIsAnimating(true);
         setTimeout(() => {
@@ -201,29 +128,14 @@ const AgentSetupGuide = ({
           setIsAnimating(false);
         }, 300);
       }
-      setShowError(false);
-      setErrorType("");
     } else {
       setIsVisible(true);
     }
-  }, [
-    bridgeApiKey,
-    effectivePrompt,
-    apiKeySectionRef,
-    promptTextAreaRef,
-    shouldPromptShow,
-    service,
-    showDefaultApikeys,
-    modelName,
-    bridgeType,
-    isVisible,
-    draftPrompt,
-    hasDraftPromptChanges,
-  ]);
+  }, [bridgeApiKey, prompt, shouldPromptShow, showDefaultApikeys]);
 
   // Function to handle chatbot open/close with delay
   const checkConfigToOpenChatbot = () => {
-    const hasPrompt = hasPromptContent(effectivePrompt) || !shouldPromptShow;
+    const hasPrompt = hasPromptContent(prompt) || !shouldPromptShow;
     const hasApiKey = bridgeApiKey;
     if (
       bridgeType === "chatbot" &&
@@ -240,7 +152,7 @@ const AgentSetupGuide = ({
     setTimeout(() => {
       checkConfigToOpenChatbot();
     }, 2000);
-  }, [bridgeApiKey, effectivePrompt, shouldPromptShow, modelName, bridgeType, draftPrompt, hasDraftPromptChanges]);
+  }, [bridgeApiKey, prompt, shouldPromptShow, modelName, bridgeType]);
 
   useEffect(() => {
     if (typeof onVisibilityChange === "function") {
@@ -249,23 +161,7 @@ const AgentSetupGuide = ({
   }, [isVisible, onVisibilityChange]);
 
   const handleStart = () => {
-    if (isEmbedPromptIncomplete(effectivePrompt)) {
-      setShowError(true);
-      setErrorType("prompt");
-      setErrorBorder(promptTextAreaRef, "textarea", true);
-      return;
-    }
-
-    if (isEmbedUser && showDefaultApikeys && hasPromptContent(effectivePrompt)) {
-      setIsVisible(false);
-      return;
-    }
-    if (
-      shouldPromptShow &&
-      promptTextAreaRef.current &&
-      !hasPromptContent(effectivePrompt) &&
-      promptTextAreaRef.current.querySelector("textarea").value.trim() === ""
-    ) {
+    if (shouldPromptShow && !hasPromptContent(prompt)) {
       setShowError(true);
       setErrorType("prompt");
       setErrorBorder(promptTextAreaRef, "textarea", true);
@@ -291,14 +187,7 @@ const AgentSetupGuide = ({
       setIsAnimating(false);
     }, 300);
   };
-
-  if (
-    !isVisible ||
-    (bridgeApiKey && hasPromptContent(effectivePrompt)) ||
-    (modelName === "gpt-5-nano" && hasPromptContent(effectivePrompt) && bridgeType === "chatbot")
-  ) {
-    return null;
-  }
+  if (!isVisible) return null;
 
   return (
     <div
