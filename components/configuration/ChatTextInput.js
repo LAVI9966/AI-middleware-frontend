@@ -864,14 +864,14 @@ function ChatTextInput({
           <button
             id="chat-send-button"
             className={`btn btn-circle transition-all duration-200 ${
-              loading || uploading || modelType === "image"
+              loading || uploading
                 ? "btn-disabled"
                 : " btn hover:btn-primary-focus hover:scale-105 shadow-lg hover:shadow-xl"
             }`}
             onClick={() => {
               handleSendMessage();
             }}
-            disabled={loading || uploading || modelType === "image"}
+            disabled={loading || uploading}
           >
             {loading || uploading ? (
               <span className="loading loading-dots loading-md"></span>
