@@ -2,7 +2,17 @@
 "use client";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
-import { ChevronDown, LogOut, ChevronRight, ChevronLeft, User, AlignJustify, ArrowLeft, Keyboard } from "lucide-react";
+import {
+  ChevronDown,
+  LogOut,
+  ChevronRight,
+  ChevronLeft,
+  User,
+  AlignJustify,
+  ArrowLeft,
+  Keyboard,
+  Building2,
+} from "lucide-react";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { logoutUserFromMsg91, switchOrg, switchUser } from "@/config/index";
@@ -477,6 +487,20 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           >
             <User size={14} className="flex-shrink-0" />
             <div className="font-medium text-sm">User Details</div>
+          </button>
+
+          {/* Update Org Details button */}
+          <button
+            id="main-slider-org-details-button"
+            onClick={() => {
+              router.push(`/org/${orgId}/orgDetails`);
+              setIsOrgDropdownOpen(false);
+              setIsOrgDropdownExpanded(false);
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
+          >
+            <Building2 size={14} className="flex-shrink-0" />
+            <div className="text-sm">update organization</div>
           </button>
 
           {/* Logout button */}
