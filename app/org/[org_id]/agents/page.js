@@ -10,7 +10,6 @@ import TutorialSuggestionToast from "@/components/TutorialSuggestoinToast";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import OpenAiIcon from "@/icons/OpenAiIcon";
 import {
-  archiveBridgeAction,
   clearBridgeUsageMetricsAction,
   deleteBridgeAction,
   fetchBridgeUsageMetricsAction,
@@ -29,7 +28,7 @@ import { toast } from "react-toastify";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 import SearchItems from "@/components/UI/SearchItems";
 import AgentEmptyState from "@/components/AgentEmptyState";
-import { ArchiveRestore, Funnel, Pause, Play, Settings2, Trash2, Undo2, Users, Infinity } from "lucide-react";
+import { Funnel, Pause, Play, Settings2, Trash2, Undo2, Users, Infinity } from "lucide-react";
 import DeleteModal from "@/components/UI/DeleteModal";
 import AccessManagementModal from "@/components/modals/AccessManagementModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
@@ -359,7 +358,6 @@ function Home({ params, searchParams, isEmbedUser }) {
         descriptions?.Agents || "Build and manage API-powered AI agents for workflows, automations, and integrations.",
     };
   }, [bridgeTypeFilter, descriptions]);
-  const archivedSectionTitle = bridgeTypeFilter === "chatbot" ? "Archived Chatbots" : "Archived Agents";
   const deletedSectionTitle = bridgeTypeFilter === "chatbot" ? "Deleted Chatbots" : "Deleted Agents";
   // Initialize with empty array instead of typeFilteredBridges to avoid reference error
   const [filterBridges, setFilterBridges] = useState([]);
@@ -581,12 +579,10 @@ function Home({ params, searchParams, isEmbedUser }) {
     (item) => (item.status === 1 || item.status === undefined) && !item.deletedAt
   );
   const filteredDeletedBridges = filterBridges?.filter((item) => item.deletedAt);
-  const filteredArchivedBridges = filterBridges?.filter((item) => item.status === 0 && !item.deletedAt);
 
   // Apply usage filter to prioritize metrics API agents
   const usageFilteredUnArchived = applyUsageFilter(filteredUnArchivedBridges);
   const usageFilteredDeleted = applyUsageFilter(filteredDeletedBridges);
-  const usageFilteredArchived = applyUsageFilter(filteredArchivedBridges);
 
   useEffect(() => {
     if (usageMetrics?.filters) {
@@ -608,76 +604,6 @@ function Home({ params, searchParams, isEmbedUser }) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(0, diffDays);
   };
-
-  const ArchivedBridges = usageFilteredArchived
-    .filter((item) => item.status === 0)
-    .map((item) => ({
-      _id: item._id,
-      model: item.configuration?.model || "",
-      name: (
-        <div className="flex gap-3">
-          <div className="flex gap-2 items-center">
-            {loadingAgentId === item._id ? (
-              <div className="loading loading-spinner loading-sm"></div>
-            ) : (
-              getIconOfService(item.service, 20, 20)
-            )}
-          </div>
-          <div className="flex-col">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span
-                  className={loadingAgentId === item._id ? "opacity-50 truncate block flex-1" : "truncate block flex-1"}
-                >
-                  {item.name}
-                </span>
-                {loadingAgentId === item._id && <span className="text-xs text-primary opacity-70">Loading...</span>}
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                {item.bridge_status === 0 && (
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium bg-warning/10 text-warning border border-warning/20">
-                    <ClockIcon size={12} />
-                    <span className="hidden sm:inline">Paused</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-      actualName: item?.name || "",
-      slugName: item?.slugName || "",
-      service: item.service === "openai" ? <OpenAiIcon /> : item.service,
-      bridgeType: item.bridgeType,
-      status: item.status,
-      bridge_status: item.bridge_status,
-      versionId: item?.published_version_id || item?.versions?.[0],
-      totalTokens: item.metrics ? (
-        formatUsageNumber(item.metrics.total_tokens)
-      ) : usageMetrics?.loading ? (
-        <LoadingSkeleton />
-      ) : (
-        <EmptyCell />
-      ),
-      totalTokens_original: item.metrics?.total_tokens || 0,
-      cost: item.metrics ? (
-        `${Number(item.metrics.total_cost).toFixed(4)}`
-      ) : usageMetrics?.loading ? (
-        <LoadingSkeleton />
-      ) : (
-        <EmptyCell />
-      ),
-      averageResponseTime:
-        averageResponseTime[item?._id] === 0 ? (
-          <div className="text-xs">Not used in 24h</div>
-        ) : (
-          <div className="text-xs">{averageResponseTime[item?._id]} sec</div>
-        ),
-      isLoading: loadingAgentId === item._id,
-      last_used: renderMetricsTimestamp(item, item.last_used),
-      last_used_orignal: usageMetricsMap[item._id]?.last_used_time || item.last_used,
-      agent_usage: item?.bridge_usage ? parseFloat(item.bridge_usage).toFixed(4) : 0,
-    }));
 
   const UnArchivedBridges = usageFilteredUnArchived
     ?.filter((item) => item.status === 1 || item.status === undefined)
@@ -910,20 +836,6 @@ function Home({ params, searchParams, isEmbedUser }) {
       toast.error("Failed to update agent status");
     }
   };
-  const archiveBridge = (bridgeId, newStatus = 0) => {
-    try {
-      dispatch(archiveBridgeAction(bridgeId, newStatus)).then((bridgeStatus) => {
-        if (bridgeStatus === 1) {
-          toast.success("Agent Unarchived Successfully");
-        } else {
-          toast.success("Agent Archived Successfully");
-        }
-        router.push(`/org/${resolvedParams.org_id}/agents`);
-      });
-    } catch (error) {
-      console.error("Failed to archive/unarchive agents", error);
-    }
-  };
 
   const handleUpdateBridgeLimit = async (bridge, limit) => {
     const dataToSend = {
@@ -1107,23 +1019,6 @@ function Home({ params, searchParams, isEmbedUser }) {
 
       const dropdownContent = (
         <ul className="menu bg-base-100 rounded-box w-52 p-2 shadow">
-          <li className={`${row.status === 1 ? `hidden` : ""}`}>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handlePortalCloseImmediate();
-                archiveBridge(row._id, row.status != undefined ? Number(!row?.status) : undefined);
-              }}
-            >
-              {row?.status === 0 ? (
-                <>
-                  <ArchiveRestore size={14} className=" text-green-600" />
-                  Un-archive Agent
-                </>
-              ) : null}
-            </button>
-          </li>
           {/* Only show Manage Access button for Admin or Owner roles */}
           {!isEmbedUser && isAdminOrOwner && (
             <li>
@@ -1393,32 +1288,6 @@ function Home({ params, searchParams, isEmbedUser }) {
                       customCellRenderers={customCellRenderers}
                     />
                   </div>
-
-                  {filteredArchivedBridges?.length > 0 && (
-                    <div className="">
-                      <div className="flex justify-center items-center my-4">
-                        <p className="border-t border-base-300 w-full"></p>
-                        <p className="bg-base-300 text-base-content py-1 px-2 rounded-full mx-4 whitespace-nowrap text-sm">
-                          {archivedSectionTitle}
-                        </p>
-                        <p className="border-t border-base-300 w-full"></p>
-                      </div>
-                      <div className="opacity-60 overflow-visible">
-                        <CustomTable
-                          data={ArchivedBridges}
-                          columnsToShow={["name", "model", "cost", "totalTokens", "agent_usage", "last_used"]}
-                          sorting
-                          sortingColumns={["name", "model", "cost", "totalTokens", "agent_usage", "last_used"]}
-                          handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)}
-                          keysToExtractOnRowClick={["_id", "versionId"]}
-                          keysToWrap={["name", "prompt", "model"]}
-                          endComponent={EndComponent}
-                          customGetColumnLabel={getColumnLabel}
-                          customCellRenderers={customCellRenderers}
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {filteredDeletedBridges?.length > 0 && (
                     <div className="">
