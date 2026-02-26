@@ -28,7 +28,7 @@ const PromptHeader = memo(
       onOpenDiff?.();
     }, [onOpenDiff]);
 
-    const { hidePromptHelper } = useCustomSelector(
+    const hidePromptHelper = useCustomSelector(
       (state) => state.appInfoReducer?.embedUserDetails?.hidePromptHelper || false
     );
 
