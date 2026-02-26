@@ -4,22 +4,15 @@ import dynamic from "next/dynamic";
 import {
   TestTube,
   MessageCircleMore,
-  Pause,
-  Play,
   ClipboardX,
   BookCheck,
-  MoreVertical,
   Clock,
   Home,
   HistoryIcon,
-  ArchiveRestore,
   Edit2,
   BotIcon,
   ChevronDown,
   RefreshCcw,
-  Users,
-  Settings2,
-  Trash2,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
@@ -27,7 +20,6 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import {
   updateBridgeAction,
   dicardBridgeVersionAction,
-  archiveBridgeAction,
   deleteBridgeAction,
 } from "@/store/action/bridgeAction";
 import { updateBridgeVersionReducer } from "@/store/reducer/bridgeReducer";
@@ -42,7 +34,7 @@ import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import BridgeVersionDropdown from "./configuration/configurationComponent/BridgeVersionDropdown";
 const VariableCollectionSlider = dynamic(() => import("./sliders/VariableCollectionSlider"), { ssr: false });
 import AccessManagementModal from "./modals/AccessManagementModal";
-import { UsageSummaryPopover } from "../app/org/[org_id]/agents/page";
+import AgentActionMenu from "@/components/agents/AgentActionMenu";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 
 const BRIDGE_STATUS = {
@@ -53,7 +45,6 @@ const BRIDGE_STATUS = {
 const Navbar = ({ isEmbedUser, params }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [showEllipsisMenu, setShowEllipsisMenu] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
   const { isDeleting: isDiscardingWithHook, executeDelete } = useDeleteOperation();
@@ -160,18 +151,6 @@ const Navbar = ({ isEmbedUser, params }) => {
     return ["configure", "history", "testcase"].some((seg) => pathname.includes(seg));
   }, [pathParts.length, pathname]);
 
-  // Close ellipsis menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (ellipsisMenuRef?.current && !ellipsisMenuRef?.current.contains(event.target)) {
-        setShowEllipsisMenu(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   // Scroll detection
   useEffect(() => {
     let ticking = false;
@@ -255,25 +234,7 @@ const Navbar = ({ isEmbedUser, params }) => {
     },
     [handleNameSave, handleNameCancel]
   );
-
-  const handlePauseBridge = useCallback(async () => {
-    const newStatus = bridgeStatus === BRIDGE_STATUS.PAUSED ? BRIDGE_STATUS.ACTIVE : BRIDGE_STATUS.PAUSED;
-
-    try {
-      await dispatch(
-        updateBridgeAction({
-          bridgeId,
-          dataToSend: { bridge_status: newStatus },
-        })
-      );
-      toast.success(`Agent ${newStatus === BRIDGE_STATUS.ACTIVE ? "resumed" : "paused"} successfully`);
-      setShowEllipsisMenu(false); // Close menu after action
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update agent status");
-    }
-  }, [dispatch, bridgeId, bridgeStatus]);
-
+  
   const handleDiscardChanges = useCallback(async () => {
     await executeDelete(async () => {
       dispatch(
@@ -414,201 +375,21 @@ const Navbar = ({ isEmbedUser, params }) => {
     });
   }, [executeDelete, dispatch, bridgeId, orgId, router]);
 
-  const handleDeleteAgent = useCallback(() => {
-    setShowEllipsisMenu(false);
-    openModal(MODAL_TYPE.DELETE_AGENT_MODAL);
-  }, []);
-
-  const handleManageAccess = useCallback(() => {
-    setSelectedAgentForAccess(bridge);
-    setShowEllipsisMenu(false);
-    setTimeout(() => {
-      openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
-    }, 10);
-  }, [bridge]);
-
-  const handleUpdateBridgeLimit = async (bridge, limit) => {
-    const dataToSend = {
-      bridge_limit: limit,
-    };
-    const res = await dispatch(updateBridgeAction({ bridgeId: bridge._id, dataToSend }));
-    if (res?.success) toast.success("Agent Usage Limit Updated Successfully");
-  };
-
-  const getUsageStatsForRow = (row) => {
-    const limitValue = Number(row?.agent_limit_original ?? row?.bridge_limit ?? 0);
-    const usageValue = Number(row?.agent_usage ?? row?.bridge_usage ?? 0);
-    const totalTokens = Number(row?.totalTokens ?? row?.total_tokens ?? 0);
-    const hasLimit = Number.isFinite(limitValue) && limitValue > 0;
-    const usagePercent = hasLimit ? Math.min(100, Math.max(0, (usageValue / limitValue) * 100)) : 0;
-    const remaining = hasLimit ? Math.max(limitValue - usageValue, 0) : null;
-    return { limitValue, usageValue, totalTokens, hasLimit, usagePercent, remaining };
-  };
-
-  const resetUsage = async (bridge) => {
-    const dataToSend = { bridge_usage: 0 };
-    const res = await dispatch(updateBridgeAction({ bridgeId: bridge._id, dataToSend }));
-    if (res?.success) toast.success("Agent Usage Reset Successfully");
-  };
-
-  const handleUsageLimits = useCallback(
-    (e) => {
-      const usageContent = (
-        <UsageSummaryPopover
-          stats={getUsageStatsForRow(bridgeData)}
-          item={bridge}
-          isEmbedUser={isEmbedUser}
-          onSetLimit={(bridgeItem, limit) => {
-            handlePortalCloseImmediate();
-            handleUpdateBridgeLimit(bridgeItem, limit);
-          }}
-          onResetUsage={() => {
-            handlePortalCloseImmediate();
-            resetUsage(bridge);
-          }}
-        />
-      );
-      handlePortalOpen(e.currentTarget, usageContent);
-      setShowEllipsisMenu(false);
-    },
-    [
-      bridge,
-      isEmbedUser,
-      handlePortalOpen,
-      handlePortalCloseImmediate,
-      handleUpdateBridgeLimit,
-      resetUsage,
-      getUsageStatsForRow,
-    ]
-  );
-
-  const handleArchiveBridge = async (bridgeId, newStatus = 0) => {
-    try {
-      const bridgeStatus = await dispatch(archiveBridgeAction(bridgeId, newStatus));
-      if (bridgeStatus === 1) {
-        toast.success("Agent Unarchived Successfully");
-      } else {
-        toast.success("Agent Archived Successfully");
-      }
-    } catch (error) {
-      console.error("Failed to archive/unarchive agents", error);
-    }
-  };
-
-  // Ellipsis Menu Component
-  const EllipsisMenu = () => (
-    <div className="relative" ref={ellipsisMenuRef}>
-      <button
-        data-testid="navbar-ellipsis-menu-toggle"
-        id="navbar-ellipsis-menu-toggle"
-        onClick={() => setShowEllipsisMenu(!showEllipsisMenu)}
-        className="p-2 hover:bg-base-200 rounded-md transition-colors"
-        title="More options"
-      >
-        <MoreVertical size={16} />
-      </button>
-
-      {showEllipsisMenu && (
-        <div className="absolute right-0 top-full mt-1 w-48 bg-base-100 border border-base-300 rounded-lg shadow-xl z-very-high">
-          <div className="">
-            {!isEmbedUser && isAdminOrOwner && (
-              <button
-                data-testid="navbar-manage-access-button"
-                id="navbar-manage-access-button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleManageAccess();
-                }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
-              >
-                <Users size={16} />
-                Manage Access
-              </button>
-            )}
-
-            {/* Usage & Limits */}
-            <button
-              data-testid="navbar-usage-limits-button"
-              id="navbar-usage-limits-button"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleUsageLimits(e);
-              }}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
-            >
-              <Settings2 size={14} />
-              Usage &amp; Limits
-            </button>
-            <button
-              data-testid="navbar-pause-resume-button"
-              id="navbar-pause-resume-button"
-              onMouseDown={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                await handlePauseBridge();
-                setShowEllipsisMenu(false);
-              }}
-              disabled={isUpdatingBridge}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer ${
-                isUpdatingBridge ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-            >
-              {bridgeStatus === BRIDGE_STATUS.PAUSED ? (
-                <>
-                  <Play size={14} className="text-green-600" />
-                  Resume Agent
-                </>
-              ) : (
-                <>
-                  <Pause size={14} className="text-red-600" />
-                  Pause Agent
-                </>
-              )}
-            </button>
-            {isAdminOrOwner && (
-              <button
-                data-testid="navbar-delete-button"
-                id="navbar-delete-button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleDeleteAgent();
-                }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
-              >
-                <Trash2 size={14} className="text-red-600" />
-                Delete Agent
-              </button>
-            )}
-          </div>
-          <div className="">
-            <button
-              data-testid="navbar-archive-restore-button"
-              id="navbar-archive-restore-button"
-              onMouseDown={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                await handleArchiveBridge(bridgeId, isArchived ? 0 : 1);
-                setShowEllipsisMenu(false);
-              }}
-              disabled={isUpdatingBridge}
-              className={`w-full px-4 text-left text-sm hover:bg-base-200 flex items-center gap-1 cursor-pointer ${
-                isUpdatingBridge ? "opacity-50 cursor-not-allowed" : ""
-              } ${isArchived ? "hidden" : ""}`}
-            >
-              {!isArchived ? (
-                <>
-                  <ArchiveRestore size={14} className="text-red-600" />
-                  Unarchive Agent
-                </>
-              ) : null}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    const EllipsisMenu = () => (
+    <AgentActionMenu
+      menuRef={ellipsisMenuRef}
+      bridge={bridge}
+      bridgeData={bridgeData}
+      bridgeStatus={bridgeStatus}
+      isArchived={isArchived}
+      isUpdatingBridge={isUpdatingBridge}
+      isEmbedUser={isEmbedUser}
+      isAdminOrOwner={isAdminOrOwner}
+      orgId={orgId}
+      onSetSelectedAgent={setSelectedAgentForAccess}
+      handlePortalOpen={handlePortalOpen}
+      handlePortalCloseImmediate={handlePortalCloseImmediate}
+    />
   );
   if (!shouldShowNavbar()) return null;
 

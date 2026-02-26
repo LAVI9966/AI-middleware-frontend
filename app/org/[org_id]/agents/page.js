@@ -9,6 +9,7 @@ import Protected from "@/components/Protected";
 import TutorialSuggestionToast from "@/components/TutorialSuggestoinToast";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import OpenAiIcon from "@/icons/OpenAiIcon";
+import { AgentMenuItems } from "@/components/agents/AgentActionMenu";
 import {
   archiveBridgeAction,
   clearBridgeUsageMetricsAction,
@@ -1072,37 +1073,16 @@ function Home({ params, searchParams, isEmbedUser }) {
       currentOrgRole === "Creator" ||
       isAdminOrOwner;
     const usageStats = getUsageStatsForRow(row);
-    const handleUsageSummaryClick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
 
-      const usageContent = (
-        <UsageSummaryPopover
-          stats={usageStats}
-          item={row}
-          isEmbedUser={isEmbedUser}
-          onSetLimit={(bridge, limit) => {
-            handlePortalCloseImmediate();
-            handleUpdateBridgeLimit(bridge, limit);
-          }}
-          onResetUsage={() => {
-            handlePortalCloseImmediate();
-            resetUsage(row);
-          }}
-        />
-      );
-
-      handlePortalOpen(e.currentTarget, usageContent);
-    };
-
-    const handleDropdownClick = (e) => {
+      const handleDropdownClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
 
       const dropdownContent = (
-        <ul className="menu bg-base-100 rounded-box w-52 p-2 shadow">
-          <li className={`${row.status === 1 ? `hidden` : ""}`}>
+        <div className="bg-base-100 rounded-box w-52 shadow p-1">
+          {row?.status === 0 && (
             <button
+              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1110,88 +1090,32 @@ function Home({ params, searchParams, isEmbedUser }) {
                 archiveBridge(row._id, row.status != undefined ? Number(!row?.status) : undefined);
               }}
             >
-              {row?.status === 0 ? (
-                <>
-                  <ArchiveRestore size={14} className=" text-green-600" />
-                  Un-archive Agent
-                </>
-              ) : null}
+              <ArchiveRestore size={14} className="text-green-600" />
+              Un-archive Agent
             </button>
-          </li>
-          {/* Only show Manage Access button for Admin or Owner roles */}
-          {!isEmbedUser && isAdminOrOwner && (
-            <li>
-              <a
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handlePortalCloseImmediate();
-                  setSelectedAgentForAccess(row);
-                  setTimeout(() => {
-                    openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
-                  }, 10);
-                }}
-              >
-                <Users size={16} />
-                Manage Access
-              </a>
-            </li>
           )}
-          <li>
-            <button
-              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2"
-              onClick={handleUsageSummaryClick}
-            >
-              <Settings2 size={14} />
-              Usage &amp; Limits
-            </button>
-          </li>
-
-          <li>
-            {" "}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handlePortalCloseImmediate();
-                handlePauseBridge(row._id);
-              }}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2`}
-            >
-              {bridgeStatus[row._id]?.bridge_status === BRIDGE_STATUS.PAUSED ? (
-                <>
-                  <Play size={14} className="text-green-600" />
-                  Resume Agent
-                </>
-              ) : (
-                <>
-                  <Pause size={14} className="text-red-600" />
-                  Pause Agent
-                </>
-              )}
-            </button>
-          </li>
-          {/* Only show Delete button for Admin or Owner roles */}
-          {isAdminOrOwner && (
-            <li>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handlePortalCloseImmediate();
-                  setItemToDelete(row);
-                  // Small delay to ensure state is set before opening modal
-                  setTimeout(() => {
-                    openModal(MODAL_TYPE.DELETE_MODAL);
-                  }, 10);
-                }}
-              >
-                <Trash2 size={14} className="text-red-600" />
-                Delete Agent
-              </button>
-            </li>
-          )}
-        </ul>
+          <AgentMenuItems
+            bridge={row}
+            bridgeData={row}
+            bridgeStatus={bridgeStatus[row._id]?.bridge_status}
+            isArchived={row?.status === 0}
+            isUpdatingBridge={false}
+            isEmbedUser={isEmbedUser}
+            isAdminOrOwner={isAdminOrOwner}
+            orgId={resolvedParams.org_id}
+            onClose={handlePortalCloseImmediate}
+            onSetSelectedAgent={(agent) => {
+              setSelectedAgentForAccess(agent);
+            }}
+            handlePortalOpen={handlePortalOpen}
+            handlePortalCloseImmediate={handlePortalCloseImmediate}
+            onDelete={() => {
+              handlePortalCloseImmediate();
+              setItemToDelete(row);
+              setTimeout(() => openModal(MODAL_TYPE.DELETE_MODAL), 10);
+            }}
+          />
+        </div>
       );
 
       handlePortalOpen(e.currentTarget, dropdownContent);
