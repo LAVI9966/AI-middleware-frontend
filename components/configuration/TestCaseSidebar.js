@@ -11,7 +11,7 @@ import {
 import { toggleSidebar } from "@/utils/utility";
 import { validatePromptVariables, buildVariablesObject } from "@/utils/variableValidation";
 
-const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
+const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClick }) => {
   const [runningTests, setRunningTests] = useState(new Set());
   const [expandedTests, setExpandedTests] = useState(new Set());
   const [expandedVersions, setExpandedVersions] = useState({});
@@ -97,6 +97,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
           bridgeId: params?.id,
           testcase_id: testId,
           variables,
+          matching_type,
         })
       );
       // No need to refetch - runTestCaseAction now updates Redux store directly
@@ -144,6 +145,7 @@ const TestCaseSidebar = ({ params, resolvedParams, onTestCaseClick }) => {
         versionId: resolvedParams?.version,
         bridgeId: params?.id,
         variables,
+        matching_type,
       })
     );
     // No need to refetch - runTestCaseAction now updates Redux store directly

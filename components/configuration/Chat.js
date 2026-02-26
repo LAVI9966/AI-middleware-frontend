@@ -503,7 +503,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               id="chat-testcase-sidebar"
               className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-30 animate-slideIn"
             >
-              <TestCaseSidebar params={params} resolvedParams={searchParams} onTestCaseClick={handleTestCaseClick} />
+              <TestCaseSidebar
+                params={params}
+                resolvedParams={searchParams}
+                matching_type={selectedStrategy}
+                onTestCaseClick={handleTestCaseClick}
+              />
             </div>
           </div>
         )}
