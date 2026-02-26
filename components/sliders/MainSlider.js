@@ -129,6 +129,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
       });
 
       clearCookie();
+      localStorage.clear();
       sessionStorage.clear();
       if (process.env.NEXT_PUBLIC_ENV === "PROD") {
         router.replace("https://gtwy.ai/");
