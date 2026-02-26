@@ -1,9 +1,8 @@
 "use client";
 import { useCustomSelector } from "@/customHooks/customSelector";
+import { generateAffiliateEmbedTokenApi } from "@/config/integrationApi";
 import { useParams } from "next/navigation";
 import { useEffect, useRef } from "react";
-
-export const runtime = "edge";
 
 export default function ReferAndEarnPage() {
   const { org_id } = useParams();
@@ -22,17 +21,12 @@ export default function ReferAndEarnPage() {
 
     (async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/api/utils/affiliate/embed-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            organization: "GTWY AI",
-            expires_in_hours: 720,
-            label: "Dashboard Widget",
-          }),
+        const json = await generateAffiliateEmbedTokenApi({
+          organization: orgName,
+          expires_in_hours: 720,
+          label: "Dashboard Widget",
         });
-        const json = await res.json();
-        const embedToken = (json.data && json.data.embed_token) || json.embed_token || "";
+        const embedToken = (json?.data && json.data.embed_token) || json?.embed_token || "";
 
         if (cancelled || !containerRef.current) return;
 
