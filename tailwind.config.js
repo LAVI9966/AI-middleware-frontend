@@ -26,6 +26,13 @@ module.exports = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./utils/**/*.{js,ts,jsx,tsx}",
+  ],
+  safelist: [
+    { pattern: /bg-(red|green|yellow|orange|gray)-500\/(20|30)/ },
+    { pattern: /border-(red|green|yellow|orange|gray)-500/ },
+    { pattern: /border-l-4/ },
+    { pattern: /text-(red|green|yellow|orange|gray)-(400|500|600)/ },
   ],
   theme: {
     extend: {
