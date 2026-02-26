@@ -503,6 +503,20 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
             <div className="text-sm">update organization</div>
           </button>
 
+          {/* Refer & Earn button */}
+          <button
+            id="main-slider-refer-earn-button"
+            onClick={() => {
+              router.push(`/org/${orgId}/referAndEarn`);
+              setIsOrgDropdownOpen(false);
+              setIsOrgDropdownExpanded(false);
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
+          >
+            <span className="text-sm flex-shrink-0">🎁</span>
+            <div className="font-medium text-sm">Refer &amp; Earn</div>
+          </button>
+
           {/* Logout button */}
           <button
             id="main-slider-logout-button"
