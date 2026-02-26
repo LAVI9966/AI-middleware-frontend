@@ -2,6 +2,7 @@ import React, { memo, useCallback } from "react";
 import { PROMPT_VIEW_MODE } from "@/utils/enums";
 import Protected from "@/components/Protected";
 import { FileDiff, X, Upload, Sparkles } from "lucide-react";
+import { useCustomSelector } from "@/customHooks/customSelector";
 
 // Optimized header component with memoization
 const PromptHeader = memo(
@@ -21,10 +22,15 @@ const PromptHeader = memo(
     onViewModeChange = () => {},
     onMigratePrompt = () => {},
     isEmbedCustomPrompt = false,
+    isEmbedUser = false,
   }) => {
     const handleOpenDiff = useCallback(() => {
       onOpenDiff?.();
     }, [onOpenDiff]);
+
+    const { hidePromptHelper } = useCustomSelector(
+      (state) => state.appInfoReducer?.embedUserDetails?.hidePromptHelper || false
+    );
 
     const isStructuredPrompt = typeof prompt === "object" && prompt !== null;
     const canEdit = !isPublished && isEditor;
@@ -109,7 +115,7 @@ const PromptHeader = memo(
             </button>
           )}
 
-          {!isPromptHelperOpen && (
+          {!isPromptHelperOpen && ((isEmbedUser && !hidePromptHelper) || !isEmbedUser) && (
             <button
               type="button"
               data-testid="prompt-header-open-helper-button"
