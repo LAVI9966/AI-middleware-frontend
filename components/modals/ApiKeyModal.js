@@ -181,7 +181,7 @@ const ApiKeyModal = ({
   );
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE?.API_KEY_MODAL}>
+    <Modal MODAL_ID={MODAL_TYPE?.API_KEY_MODAL} onClose={handleClose}>
       <form id="apikey-modal-form" onSubmit={handleSubmit} className="modal-box flex flex-col gap-4">
         <h3 className="font-bold text-lg">{isEditing ? "Update API Key" : "Add New API Key"}</h3>
         {API_KEY_MODAL_INPUT.map((field) => {
@@ -193,7 +193,7 @@ const ApiKeyModal = ({
           const isRequired = field !== "comment" && field !== "apikey_limit";
           return (
             <div id={`apikey-modal-field-${field}`} key={field} className="flex flex-col gap-2">
-              <label htmlFor={field} className="label-text">
+              <label className="label-text">
                 {displayLabel}
                 {isRequired && RequiredItem()} <span className="opacity-55">{field === "apikey_limit" && "in $"}</span>
               </label>
