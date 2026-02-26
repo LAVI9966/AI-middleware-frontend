@@ -10,7 +10,7 @@ import AdvancedParameters from "../configurationComponent/AdvancedParamenter";
 import FallbackModel from "../configurationComponent/FallbackModel";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import InfoTooltip from "@/components/InfoTooltip";
-import { ShieldAlert } from "lucide-react";
+import { CircleAlert } from "lucide-react";
 
 const ModelTab = () => {
   const {
@@ -108,7 +108,7 @@ const ModelTab = () => {
                   !isFallbackEnabled ? (
                     <div className="text-xs max-w-[220px]">
                       <div className="font-semibold text-warning">Fallback Model</div>
-                      <div className="mt-1 opacity-80">Please enable the fallback model below.</div>
+                      <div className="mt-1 opacity-80">You can select a fallback model below.</div>
                     </div>
                   ) : (
                     <div className="text-xs space-y-1">
@@ -131,7 +131,7 @@ const ModelTab = () => {
                     isFallbackEnabled ? "" : "opacity-70"
                   }`}
                 >
-                  <ShieldAlert size={16} className={isFallbackEnabled ? "text-warning" : "text-gray-400"} />
+                  <CircleAlert size={16} className={isFallbackEnabled ? "text-warning" : "text-gray-400"} />
                 </button>
               </InfoTooltip>
             </div>
