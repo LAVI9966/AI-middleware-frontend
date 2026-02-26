@@ -15,7 +15,6 @@ const page = () => {
         console.error("failure reason", error);
       },
     };
-    console.log(configuration, "configuration");
     const scriptSrc = document.createElement("script");
     scriptSrc.type = "text/javascript";
     scriptSrc.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
