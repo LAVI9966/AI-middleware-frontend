@@ -24,7 +24,6 @@ import { getAllKnowBaseDataAction } from "@/store/action/knowledgeBaseAction";
 import { updateUserMetaOnboarding, updateOrgMetaAction, getUsersAction } from "@/store/action/orgAction";
 import { getServiceAction } from "@/store/action/serviceAction";
 import { getFromCookies, removeCookie, setInCookies } from "@/utils/utility";
-
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, use } from "react";
 import { useDispatch } from "react-redux";
@@ -100,10 +99,12 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       dispatch(getFinishReasonsAction());
     }
     if (pathName.endsWith("agents") && !isEmbedUser) {
-      dispatch(getGuardrailsTemplatesAction());
       dispatch(userDetails());
-      dispatch(getDescriptionsAction());
     }
+    dispatch(getDescriptionsAction());
+    dispatch(getGuardrailsTemplatesAction());
+    dispatch(getDescriptionsAction());
+    dispatch(getGuardrailsTemplatesAction());
     dispatch(getLinksAction());
 
     if (pathName.endsWith("apikeys") && !isEmbedUser) {
@@ -287,7 +288,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
   const scriptSrc = process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC;
 
   useEffect(() => {
-    if (isValidOrg && !isEmbedUser) {
+    if (isValidOrg && !isEmbedUser && !pathName.includes("/chatbotConfig")) {
       const updateScript = (token) => {
         const existingScript = document.getElementById(scriptId);
         if (existingScript) {
@@ -318,7 +319,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
         }
       };
     }
-  }, [isValidOrg]);
+  }, [isValidOrg, pathName]);
 
   useEffect(() => {
     const onFocus = async () => {
