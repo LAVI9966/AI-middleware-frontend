@@ -837,6 +837,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       dangerouslySetInnerHTML={{ __html: message.content }}
                                     />
                                   )}
+
+                                  {/* Render message attachments (images, etc.) */}
+                                  {_renderMessageAttachments(message)}
                                 </div>
                               )}
                             </div>
