@@ -1,90 +1,63 @@
+
 "use client";
-import { getFromCookies ,openModal} from "@/utils/utility";
+import { getFromCookies, openModal } from "@/utils/utility";
 import { useEffect } from "react";
 import { MODAL_TYPE } from "@/utils/enums";
 
 export const runtime = "edge";
 
+const PROXY_SCRIPT_SRC = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
+
+const removeProxyScript = () => {
+  const existing = document.querySelector(`script[src="${PROXY_SCRIPT_SRC}"]`);
+  if (existing) existing.parentNode.removeChild(existing);
+};
+
+const loadProxyScript = (config, appendTo = document.body) => {
+  removeProxyScript();
+  const script = document.createElement("script");
+  script.type = "text/javascript";
+  script.src = PROXY_SCRIPT_SRC;
+  script.onload = () => {
+    if (typeof window.initVerification === "function") {
+      window.initVerification(config);
+    } else {
+      console.error("initVerification function not found");
+    }
+  };
+  script.onerror = (error) => console.error("Failed to load proxy script:", error);
+  appendTo.appendChild(script);
+};
+
 const page = () => {
+  useEffect(() => {
+    loadProxyScript({
+      authToken: getFromCookies("proxy_token") || "",
+      success: () => { },
+      failure: (error) => console.error("failure reason", error),
+    });
 
-useEffect(() => {
-    const configuration = {
-    authToken: getFromCookies("proxy_token") || "",
-    success: (data) => {},
-    failure: (error) => {
-      console.error("failure reason", error);
-    },
-  };
-
-  const existingScript = document.querySelector(
-    'script[src="https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js"]'
-  );
-
-  if (existingScript) {
-  existingScript.parentNode.removeChild(existingScript);
-  const scriptSrc = document.createElement("script");
-  scriptSrc.type = "text/javascript";
-  scriptSrc.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
-  scriptSrc.onload = () => {
-    if (window.initVerification) {
-      window.initVerification(configuration);
-    }
-  };
-  document.body.appendChild(scriptSrc);
-}else {
-    const scriptSrc = document.createElement("script");
-    scriptSrc.type = "text/javascript";
-    scriptSrc.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
-    window.proxyAuthConfig = configuration;
-    scriptSrc.onload = () => {
-      if (window.initVerification) {
-        window.initVerification(configuration);
-      } else {
-        console.error("initVerification function not found");
-      }
-    };
-    scriptSrc.onerror = (error) => {
-      console.error("Failed to load script:", error);
-    };
-    document.body.appendChild(scriptSrc);
-  }
-
-  return () => {
-    // Remove current script on unmount, then reload with user-management config for other pages
-    const existingScript = document.querySelector(
-      'script[src="https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js"]'
-    );
-    if (existingScript) {
-      existingScript.parentNode.removeChild(existingScript);
-    }
-    const script = document.createElement("script");
-    script.type = "text/javascript";
-    script.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
-    script.onload = function () {
-      if (typeof window.initVerification === "function") {
-        window.initVerification({
+    return () => {
+      loadProxyScript(
+        {
           authToken: getFromCookies("proxy_token") || "",
           pass: true,
           type: "user-management",
-          exclude_role_ids: [18, 20],
-          success: (data) => {},
-          failure: (error) => {},
-        });
-      }
+          exclude_role_ids: process.env.NEXT_PUBLIC_PROXY_USER_ROLE_ID,
+          success: () => { },
+          failure: () => { },
+        },
+        document.head
+      );
     };
-    document.head.appendChild(script);
-  };
-}, []);
+  }, []);
 
-useEffect(() => {
-  const handleOpenDialog = () => {
-    openModal(MODAL_TYPE.INVITE_USER);
-  };
-  window.addEventListener('openAddUserDialog', handleOpenDialog);
-  return () => {
-    window.removeEventListener('openAddUserDialog', handleOpenDialog);
-  };
-}, []);
+  useEffect(() => {
+    const handleOpenDialog = () => openModal(MODAL_TYPE.INVITE_USER);
+    window.addEventListener("openAddUserDialog", handleOpenDialog);
+    return () => window.removeEventListener("openAddUserDialog", handleOpenDialog);
+  }, []);
+
   return <div id="proxyContainer"></div>;
 };
 
