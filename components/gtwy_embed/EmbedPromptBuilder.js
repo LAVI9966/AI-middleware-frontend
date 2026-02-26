@@ -7,7 +7,7 @@ import { extractVariablesFromPrompt } from "@/utils/promptUtils";
  * Embed Prompt Builder Component
  * Allows embed users to create custom prompts with dynamic field generation
  */
-const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChange }) => {
+const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate, onConfigChange }) => {
   // Track if we're making an internal update to prevent sync loop
   const isInternalUpdateRef = useRef(false);
 
@@ -314,7 +314,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChang
 
   return (
     <>
-      <h5 className="text-sm font-semibold text-primary border-b border-base-300 pb-2">Prompt Configuration</h5>
+      <h5 className="text-sm font-semibold border-b border-base-300 pb-2">Prompt Configuration</h5>
       <div className="space-y-4 p-2 bg-base-200 rounded-lg border border-base-300">
         {/* Toggle: Use Default Prompt */}
         <div className="form-control bg-base-200 rounded flex flex-row items-center justify-between">
@@ -347,6 +347,13 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChang
                 placeholder='e.g., "You are a {{role}} and your context is {{context}}"'
                 value={promptConfig.customPrompt}
                 onChange={(e) => handleCustomPromptChange(e.target.value)}
+                onBlur={() =>
+                  onPromptBlur?.({
+                    useDefaultPrompt: false,
+                    customPrompt: promptConfig.customPrompt,
+                    embedFields: promptConfig.embedFields || [],
+                  })
+                }
               />
               <label className="label">
                 <span className="label-text-alt text-base-content/60">
@@ -392,6 +399,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onValidate, onConfigChang
                                   placeholder="Description"
                                   value={field.description || ""}
                                   onChange={(e) => handleFieldDescriptionChange(field.name, e.target.value)}
+                                  onBlur={() => onPromptBlur?.(promptConfig)}
                                 />
                               </div>
                             )}

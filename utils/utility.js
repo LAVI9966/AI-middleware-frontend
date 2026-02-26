@@ -152,6 +152,13 @@ export const isValidJson = (jsonString) => {
   }
 };
 
+export const collapseMainSlider = () => {
+  const mainSlider = document.getElementById("main-slider");
+  if (mainSlider && !mainSlider.classList.contains("-translate-x-full")) {
+    toggleSidebar("main-slider", "left");
+  }
+};
+
 export const toggleSidebar = (sidebarId, direction = "left") => {
   const sidebar = document.getElementById(sidebarId);
   if (!sidebar) return;
