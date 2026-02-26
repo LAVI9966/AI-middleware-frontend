@@ -578,6 +578,7 @@ const AdvancedParameters = ({
                     </option>
                   ))}
                   {key === "response_type" &&
+                    !isEmbedUser &&
                     options?.some((opt) => {
                       const optType = typeof opt === "object" ? opt?.type || opt?.value : opt;
                       return optType === "json_schema";

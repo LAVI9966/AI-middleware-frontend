@@ -456,7 +456,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             {showTestCases ? <CloseCircleIcon /> : <Menu />}
           </div>
         </button>
-        <span className="label-text">Experiments</span>
+        <span className="label-text">New Test Case</span>
         <div className="flex items-center gap-2">
           {messages?.length > 0 && (
             <div className="flex items-center gap-2 justify-center">
@@ -503,7 +503,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               id="chat-testcase-sidebar"
               className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-30 animate-slideIn"
             >
-              <TestCaseSidebar params={params} resolvedParams={searchParams} onTestCaseClick={handleTestCaseClick} />
+              <TestCaseSidebar
+                params={params}
+                resolvedParams={searchParams}
+                matching_type={selectedStrategy}
+                onTestCaseClick={handleTestCaseClick}
+              />
             </div>
           </div>
         )}
@@ -755,7 +760,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     id="chat-edit-textarea"
                                     value={editContent}
                                     onChange={(e) => setEditContent(e.target.value)}
-                                    className="textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-[100px] resize-y text-base-content bg-base-100"
+                                    className="textarea textarea-bordered w-full min-h-[100px] resize-y text-base-content bg-base-100"
                                     placeholder="Edit message content..."
                                   />
                                   <div className="flex gap-2 mt-2">
@@ -837,6 +842,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       dangerouslySetInnerHTML={{ __html: message.content }}
                                     />
                                   )}
+
+                                  {/* Render message attachments (images, etc.) */}
+                                  {_renderMessageAttachments(message)}
                                 </div>
                               )}
                             </div>

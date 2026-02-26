@@ -9,7 +9,6 @@ import { useEffect, useRef, useState, use, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { setIsFocusReducer, setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
 import { updateTitle, generateRandomID, extractPromptVariables } from "@/utils/utility";
-import { extractVariablesFromPrompt } from "@/utils/promptUtils";
 import { useRouter } from "next/navigation";
 import Chatbot from "@/components/configuration/Chatbot";
 import AgentSetupGuide from "@/components/AgentSetupGuide";
@@ -110,6 +109,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const resolvedParams = use(params);
   const resolvedSearchParams = use(searchParams);
   const promptTextAreaRef = useRef(null);
+  const apiKeySectionRef = useRef(null);
   const router = useRouter();
   const mountRef = useRef(false);
   const dispatch = useDispatch();
@@ -136,6 +136,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   }));
 
   const [isGuideVisible, setIsGuideVisible] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState(false);
 
   // Ref for the main container to calculate percentage-based width
   const containerRef = useRef(null);
@@ -154,7 +155,6 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
     prompt: "",
     thread_id: bridge?.thread_id || generateRandomID(),
     messages: [],
-    hasUnsavedChanges: false,
     newContent: "",
   }));
 
@@ -322,6 +322,12 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
     }
   }, [uiState.isConfigCollapsed, uiState.isPromptHelperCollapsed, uiState.isPromptHelperOpen]);
 
+  const handleSwitchToModelTab = useCallback(() => {
+    const current = new URLSearchParams(window.location.search);
+    current.set("tab", "model");
+    router.push(`${window.location.pathname}?${current.toString()}`);
+  }, [router]);
+
   const [isAgentFlowView, setIsAgentFlowView] = useState(() => resolvedSearchParams?.view === "agent-flow");
   useEffect(() => {
     setIsAgentFlowView(resolvedSearchParams?.view === "agent-flow");
@@ -332,26 +338,12 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   }, []);
   const savePrompt = useCallback(
     (newPrompt) => {
-      // Handle both string and object formats
-      let newValue;
-      let promptVariables = [];
-
-      if (typeof newPrompt === "object" && newPrompt !== null) {
-        // Structured prompt format
-        newValue = newPrompt;
-        // Extract variables from all fields
-        promptVariables = extractVariablesFromPrompt(newPrompt);
-      } else if (typeof newPrompt === "string") {
-        // Legacy string format
-        newValue = newPrompt.trim();
-        promptVariables = extractPromptVariables(newValue);
-      } else {
-        // Fallback for undefined/null/other types
-        newValue = "";
-        promptVariables = [];
-      }
-
+      const isObject = newPrompt !== null && typeof newPrompt === "object";
+      const newValue = isObject ? newPrompt : (newPrompt || "").trim();
+      const promptForVars = isObject ? Object.values(newPrompt).join(" ") : newValue;
+      const promptVariables = extractPromptVariables(promptForVars);
       const variablesState = {};
+
       promptVariables.forEach((varName) => {
         variablesState[varName] = {
           status: "required",
@@ -359,22 +351,13 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
         };
       });
 
-      // Compare properly based on format
-      let hasChanges = false;
-      if (typeof reduxPrompt === "string" && typeof newValue === "string") {
-        hasChanges = newValue !== reduxPrompt.trim();
-      } else if (
-        typeof reduxPrompt === "object" &&
-        typeof newValue === "object" &&
-        reduxPrompt !== null &&
-        newValue !== null
-      ) {
-        hasChanges = JSON.stringify(newValue) !== JSON.stringify(reduxPrompt);
-      } else {
-        hasChanges = true; // Format changed
-      }
+      const reduxIsObject = reduxPrompt !== null && typeof reduxPrompt === "object";
+      const hasChanged =
+        isObject || reduxIsObject
+          ? JSON.stringify(newValue) !== JSON.stringify(reduxPrompt)
+          : newValue !== (reduxPrompt || "").trim();
 
-      if (hasChanges) {
+      if (hasChanged) {
         dispatch(
           updateBridgeVersionAction({
             versionId: resolvedSearchParams?.version,
@@ -624,6 +607,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               <ConfigurationPage
                 id="agent-flow-configuration-page"
                 promptTextAreaRef={promptTextAreaRef}
+                apiKeySectionRef={apiKeySectionRef}
                 params={resolvedParams}
                 searchParams={resolvedSearchParams}
                 isEmbedUser={isEmbedUser}
@@ -677,6 +661,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                   <ConfigurationPage
                     id="configuration-page"
                     promptTextAreaRef={promptTextAreaRef}
+                    apiKeySectionRef={apiKeySectionRef}
                     params={resolvedParams}
                     searchParams={resolvedSearchParams}
                     isEmbedUser={isEmbedUser}
@@ -691,6 +676,8 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                     bridgeName={bridgeName}
                     onViewChange={handleViewChange}
                     viewOverride={isAgentFlowView ? "agent-flow" : undefined}
+                    apiKeyError={apiKeyError}
+                    setApiKeyError={setApiKeyError}
                   />
                 </div>
               </div>
@@ -737,12 +724,16 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                         <AgentSetupGuide
                           id="agent-setup-guide"
                           promptTextAreaRef={promptTextAreaRef}
+                          apiKeySectionRef={apiKeySectionRef}
                           params={resolvedParams}
                           searchParams={resolvedSearchParams}
+                          draftPrompt={promptState.newContent}
                           onVisibilityChange={setIsGuideVisible}
+                          onSwitchToModelTab={handleSwitchToModelTab}
+                          setApiKeyError={setApiKeyError}
                         />
                         {/* Only show experimental Chat for non-chatbot types */}
-                        {bridgeType !== "chatbot" && (
+                        {bridgeType !== "chatbot" && !isGuideVisible && (
                           <>
                             {!sessionStorage.getItem("orchestralUser") ? (
                               <div id="chat-content-container" className="flex-1 min-h-0">
@@ -809,6 +800,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                       searchParams={resolvedSearchParams}
                       onClose={handleCloseTextAreaFocus}
                       savePrompt={savePrompt}
+                      isEmbedUser={isEmbedUser}
                       setPrompt={(value) => {
                         // Update prompt state for diff/summary
                         setPromptState((prev) => ({ ...prev, newContent: value }));
@@ -844,13 +836,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                             })
                           );
                       }}
-                      prompt={promptState.prompt}
-                      hasUnsavedChanges={promptState.hasUnsavedChanges}
-                      setHasUnsavedChanges={(value) =>
-                        setPromptState((prev) => ({ ...prev, hasUnsavedChanges: value }))
-                      }
                       setNewContent={(value) => setPromptState((prev) => ({ ...prev, newContent: value }))}
-                      isEmbedUser={isEmbedUser}
                     />
                   )}
                 </Panel>
@@ -912,6 +898,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               <ConfigurationPage
                 id="mobile-agent-flow-configuration-page"
                 promptTextAreaRef={promptTextAreaRef}
+                apiKeySectionRef={apiKeySectionRef}
                 params={resolvedParams}
                 searchParams={resolvedSearchParams}
                 isEmbedUser={isEmbedUser}
@@ -939,6 +926,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               <ConfigurationPage
                 id="mobile-configuration-page"
                 promptTextAreaRef={promptTextAreaRef}
+                apiKeySectionRef={apiKeySectionRef}
                 params={resolvedParams}
                 searchParams={resolvedSearchParams}
                 isEmbedUser={isEmbedUser}
@@ -963,12 +951,16 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               <AgentSetupGuide
                 id="mobile-agent-setup-guide"
                 promptTextAreaRef={promptTextAreaRef}
+                apiKeySectionRef={apiKeySectionRef}
                 params={resolvedParams}
                 searchParams={resolvedSearchParams}
+                draftPrompt={promptState.newContent}
+                onSwitchToModelTab={handleSwitchToModelTab}
+                setApiKeyError={setApiKeyError}
               />
 
               {/* Only show experimental Chat for non-chatbot types */}
-              {bridgeType !== "chatbot" && (
+              {bridgeType !== "chatbot" && !isGuideVisible && (
                 <>
                   {!sessionStorage.getItem("orchestralUser") ? (
                     <div id="mobile-chat-content-container" className="flex-1 min-h-0">

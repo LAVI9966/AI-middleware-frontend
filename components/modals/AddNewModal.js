@@ -811,7 +811,7 @@ export default function AddNewModelModal() {
                             value={config.validationConfig.specification.description}
                             onChange={(e) => handleSpecificationChange("description", e.target.value)}
                             onBlur={(e) => handleSpecificationChange("description", e.target.value.trim())}
-                            className="textarea bg-white dark:bg-black/15 textarea-bordered w-full"
+                            className="textarea bg-base-100 textarea-bordered w-full"
                             rows={3}
                             placeholder={PLACEHOLDERS[config.service]?.description}
                           ></textarea>
@@ -843,7 +843,7 @@ export default function AddNewModelModal() {
                               handleSpecificationChange("usecase", e.target.value.split("\n").filter(Boolean))
                             }
                             onBlur={(e) => handleSpecificationChange("usecase", e.target.value.trim().split("\n"))}
-                            className="textarea bg-white dark:bg-black/15 textarea-bordered w-full"
+                            className="textarea bg-base-100 textarea-bordered w-full"
                             rows={3}
                             placeholder={PLACEHOLDERS[config.service]?.usecase}
                           />

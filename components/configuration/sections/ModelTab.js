@@ -8,6 +8,9 @@ import { useConfigurationContext } from "../ConfigurationContext";
 import RecommendedModal from "../configurationComponent/RecommendedModal";
 import AdvancedParameters from "../configurationComponent/AdvancedParamenter";
 import FallbackModel from "../configurationComponent/FallbackModel";
+import { useCustomSelector } from "@/customHooks/customSelector";
+import InfoTooltip from "@/components/InfoTooltip";
+import { CircleAlert } from "lucide-react";
 
 const ModelTab = () => {
   const {
@@ -25,11 +28,27 @@ const ModelTab = () => {
     bridgeType,
     isPublished,
     isEditor,
+    apiKeyError,
+    modelType,
   } = useConfigurationContext();
   const shouldRenderApiKey = useMemo(
     () => (!showDefaultApikeys && isEmbedUser) || !isEmbedUser,
     [isEmbedUser, showDefaultApikeys]
   );
+  const { fallbackModel, DefaultModel } = useCustomSelector((state) => {
+    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
+    const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
+    const activeData = isPublished ? bridgeDataFromState : versionData;
+
+    return {
+      fallbackModel: activeData?.fall_back,
+      DefaultModel: state?.serviceReducer?.default_model || [],
+    };
+  });
+  const isFallbackEnabled = !!fallbackModel?.is_enable;
+  const fallbackServiceName = fallbackModel?.service || service || "Not set";
+
+  const fallbackModelName = fallbackModel?.model || DefaultModel?.[fallbackServiceName]?.model || "Not set";
 
   return (
     <div data-testid="model-tab-container" id="model-tab-container" className="flex flex-col mt-4 w-full">
@@ -71,7 +90,51 @@ const ModelTab = () => {
 
           <div className="space-y-2">
             <label className="block text-base-content/70 text-sm font-medium">Model</label>
-            <ModelDropdown params={params} searchParams={searchParams} isPublished={isPublished} isEditor={isEditor} />
+
+            <div className="flex items-center gap-2">
+              {/* main dropdown takes full width */}
+              <div className="flex-1">
+                <ModelDropdown
+                  params={params}
+                  searchParams={searchParams}
+                  isPublished={isPublished}
+                  isEditor={isEditor}
+                />
+              </div>
+
+              {/* fallback badge icon */}
+              <InfoTooltip
+                tooltipContent={
+                  !isFallbackEnabled ? (
+                    <div className="text-xs max-w-[220px]">
+                      <div className="font-semibold text-warning">Fallback Model</div>
+                      <div className="mt-1 opacity-80">You can select a fallback model below.</div>
+                    </div>
+                  ) : (
+                    <div className="text-xs space-y-1">
+                      <div className="font-semibold text-warning">Fallback Model</div>
+                      <div>
+                        <span className="opacity-70">Service:</span>{" "}
+                        <span className="font-medium capitalize">{fallbackServiceName}</span>
+                      </div>
+                      <div>
+                        <span className="opacity-70">Model:</span>{" "}
+                        <span className="font-medium">{fallbackModelName}</span>
+                      </div>
+                    </div>
+                  )
+                }
+              >
+                <button
+                  type="button"
+                  className={`btn btn-sm btn-ghost border rounded border-base-200 px-2 ${
+                    isFallbackEnabled ? "" : "opacity-70"
+                  }`}
+                >
+                  <CircleAlert size={16} className={isFallbackEnabled ? "text-warning" : "text-gray-400"} />
+                </button>
+              </InfoTooltip>
+            </div>
           </div>
         </div>
 
@@ -87,6 +150,7 @@ const ModelTab = () => {
               hideAdvancedParameters={hideAdvancedParameters}
               isPublished={isPublished}
               isEditor={isEditor}
+              hasError={apiKeyError}
             />
             <p className="text-xs text-base-content/50 mt-2">Your API key is encrypted and stored securely</p>
           </div>
@@ -120,7 +184,7 @@ const ModelTab = () => {
           </div>
         )}
         {/* Fallback Model Section */}
-        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
+        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && modelType !== "image" && (
           <div className="space-y-2">
             <FallbackModel
               params={params}

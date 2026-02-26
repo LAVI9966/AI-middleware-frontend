@@ -16,8 +16,6 @@ const Layout = ({ children, isEmbedUser }) => {
   const router = useRouter();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(true);
-  const [currentAgentName, setCurrentAgentName] = useState(null);
-  const [processedAgentName, setProcessedAgentName] = useState(null);
   const [openGtwyReceived, setOpenGtwyReceived] = useState(false);
 
   // Memoize URL params parsing to avoid unnecessary re-parsing
@@ -46,13 +44,12 @@ const Layout = ({ children, isEmbedUser }) => {
   const resetEmbedThemeConfig = useCallback(() => {
     dispatch(clearEmbedThemeDetailsAction());
   }, [dispatch]);
+
   useEffect(() => {
     if (!embedThemeConfig || embedThemeConfig.length === 0) {
       dispatch(setEmbedUserDetailsAction({ theme_config: defaultUserTheme }));
     }
   }, [dispatch, embedThemeConfig]);
-
-  // Reset theme config when component mounts
 
   // Listen for openGtwy event from parent
   useEffect(() => {
@@ -68,7 +65,7 @@ const Layout = ({ children, isEmbedUser }) => {
       try {
         setIsLoading(true);
 
-        const result = await dispatch(
+        dispatch(
           createEmbedAgentAction({
             purpose: agent_purpose,
             agent_name: agent_name,
@@ -79,10 +76,6 @@ const Layout = ({ children, isEmbedUser }) => {
             meta: meta,
           })
         );
-
-        if (result?.success) {
-          setProcessedAgentName(agent_name || result.agent?.name);
-        }
       } catch (error) {
         console.error("Error creating agent:", error);
       } finally {
@@ -95,12 +88,10 @@ const Layout = ({ children, isEmbedUser }) => {
   const navigateToExistingAgent = useCallback(
     (agent, orgId) => {
       // Reset theme config when navigating to a different agent
-      const version = agent?.published_version_id || agent?.versions?.[0];
-      if (agent?._id && orgId && version) {
-        router.push(`/org/${orgId}/agents/configure/${agent._id}?version=${version}`);
+      if (agent?._id && orgId) {
+        router.push(`/org/${orgId}/agents/configure/${agent._id}`);
       }
       setIsLoading(false);
-      setProcessedAgentName(agent.name);
     },
     [router]
   );
@@ -141,56 +132,58 @@ const Layout = ({ children, isEmbedUser }) => {
         console.error("Error fetching bridges, falling back to create a new agent:", error);
       }
     },
-    [processedAgentName, dispatch, createNewAgent, navigateToExistingAgent, allBridges, openGtwyReceived]
+    [dispatch, navigateToExistingAgent, allBridges, openGtwyReceived]
   );
 
   // Initialize tokens and setup immediately (without waiting for openGtwy)
   useEffect(() => {
     const initializeTokens = () => {
-      // Reset theme config on initialization
-      if (urlParamsObj.org_id && urlParamsObj.token && (urlParamsObj.folder_id || urlParamsObj.gtwy_user)) {
-        // Clear previous embed user details to prevent theme persistence
-        dispatch(clearEmbedThemeDetailsAction());
+      // Early return if required params are missing
+      if (!urlParamsObj.org_id || !urlParamsObj.token || (!urlParamsObj.folder_id && !urlParamsObj.gtwy_user)) {
+        return;
+      }
 
-        if (urlParamsObj.token) {
-          dispatch(setEmbedUserDetailsAction({ isEmbedUser: true }));
-          sessionStorage.setItem("local_token", urlParamsObj.token);
-          sessionStorage.setItem("gtwy_org_id", urlParamsObj?.org_id);
-          sessionStorage.setItem("gtwy_folder_id", urlParamsObj?.folder_id);
-          urlParamsObj?.folder_id && sessionStorage.setItem("embedUser", true);
-        }
+      // Clear previous embed user details to prevent theme persistence
+      dispatch(clearEmbedThemeDetailsAction());
 
-        if (urlParamsObj.config) {
-          Object.entries(urlParamsObj.config).forEach(([key, value]) => {
-            if (value === undefined) return;
-            if (key === "apikey_object_id") {
-              dispatch(setEmbedUserDetailsAction({ [key]: value }));
-              return;
-            }
-            if (key === "theme_config") {
-              let parsedTheme = value;
-              if (typeof value === "string") {
-                try {
-                  parsedTheme = JSON.parse(value);
-                } catch (err) {
-                  console.error("Invalid theme_config JSON in embed params", err);
-                }
+      // Set session storage and embed user flag
+      dispatch(setEmbedUserDetailsAction({ isEmbedUser: true }));
+      sessionStorage.setItem("local_token", urlParamsObj.token);
+      sessionStorage.setItem("gtwy_org_id", urlParamsObj.org_id);
+      sessionStorage.setItem("gtwy_folder_id", urlParamsObj.folder_id);
+      if (urlParamsObj.folder_id) {
+        sessionStorage.setItem("embedUser", true);
+      }
+
+      // Process config parameters
+      if (urlParamsObj.config) {
+        const configUpdates = {};
+
+        Object.entries(urlParamsObj.config).forEach(([key, value]) => {
+          if (value === undefined) return;
+
+          // Handle special cases
+          if (key === "prompt") {
+            dispatch(setEmbedUserDetailsAction({ [key]: value }));
+          } else if (key === "theme_config") {
+            let parsedTheme = value;
+            if (typeof value === "string") {
+              try {
+                parsedTheme = JSON.parse(value);
+              } catch (err) {
+                console.error("Invalid theme_config JSON in embed params", err);
+                return;
               }
-              dispatch(setEmbedUserDetailsAction({ theme_config: parsedTheme }));
-              return;
             }
-            if (key === "themeMode") {
-              dispatch(setEmbedUserDetailsAction({ themeMode: value }));
-              return;
-            }
-
-            dispatch(setEmbedUserDetailsAction({ [key]: toBoolean(value) }));
-          });
-        }
-
-        // Set agent name but don't navigate yet
-        if (urlParamsObj?.agent_name) {
-          setCurrentAgentName(urlParamsObj.agent_name);
+            configUpdates[key] = parsedTheme;
+          } else if (key === "apikey_object_id" || key === "models" || key === "themeMode" || key === "prompt") {
+            configUpdates[key] = value;
+          } else {
+            configUpdates[key] = toBoolean(value);
+          }
+        });
+        if (Object.keys(configUpdates).length > 0) {
+          dispatch(setEmbedUserDetailsAction(configUpdates));
         }
       }
     };
@@ -205,26 +198,17 @@ const Layout = ({ children, isEmbedUser }) => {
 
       if (hasAgentParams && urlParamsObj.org_id) {
         setIsLoading(true);
-
-        if (urlParamsObj?.agent_name) {
-          if (currentAgentName) {
-            handleAgentNavigation(currentAgentName, urlParamsObj.org_id);
-          }
-        } else if (urlParamsObj?.agent_id) {
+        if (urlParamsObj?.agent_id) {
           router.push(`/org/${urlParamsObj.org_id}/agents/configure/${urlParamsObj.agent_id}?isEmbedUser=true`);
-        } else if (urlParamsObj?.agent_purpose) {
-          createNewAgent("", urlParamsObj.org_id, urlParamsObj.agent_purpose);
         }
         return;
       }
-
       if (!openGtwyReceived) {
         return;
       }
 
       if (urlParamsObj.org_id && urlParamsObj.token && (urlParamsObj.folder_id || urlParamsObj.gtwy_user)) {
         setIsLoading(true);
-        // No agent parameters, go to agents list
         router.push(`/org/${urlParamsObj.org_id}/agents?isEmbedUser=true`);
       } else {
         setIsLoading(false);
@@ -232,7 +216,7 @@ const Layout = ({ children, isEmbedUser }) => {
     };
 
     handleNavigation();
-  }, [openGtwyReceived, urlParamsObj, currentAgentName, handleAgentNavigation, router, createNewAgent, allBridges]);
+  }, [openGtwyReceived, urlParamsObj, handleAgentNavigation, router, allBridges]);
 
   useEffect(() => {
     const handleMessage = async (event) => {
@@ -295,6 +279,7 @@ const Layout = ({ children, isEmbedUser }) => {
       } else if (messageData?.agent_purpose) {
         setIsLoading(true);
         createNewAgent("", orgId, messageData.agent_purpose);
+        return;
       }
 
       const uiUpdates = {};
@@ -323,7 +308,7 @@ const Layout = ({ children, isEmbedUser }) => {
     return () => {
       // window.removeEventListener('message', handleMessage);
     };
-  }, [allBridges]);
+  }, []);
 
   // Memoize loading component to avoid unnecessary re-renders
   const LoadingComponent = useMemo(

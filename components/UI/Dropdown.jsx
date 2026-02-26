@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getApiKeyStatusClass } from "@/utils/utility";
 import { ChevronDown } from "lucide-react";
 const Dropdown = ({
   options = [],
@@ -24,6 +25,7 @@ const Dropdown = ({
   renderTriggerContent,
   children,
   testId = "dropdown",
+  hasError = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -131,9 +133,18 @@ const Dropdown = ({
 
     return (
       <span
-        className={cx("text-left flex-1 text-base-content/70 text-xs", !selectedOption ? "text-base-content/60" : "")}
+        className={cx(
+          "text-left flex-1 text-base-content/70 text-xs flex items-center gap-1",
+          !selectedOption ? "text-base-content/60" : ""
+        )}
         title={titleText}
       >
+        {(() => {
+          const StatusIcon = selectedOption?.status ? getApiKeyStatusClass(selectedOption.status, "icon") : null;
+          return StatusIcon ? (
+            <StatusIcon size={12} className={getApiKeyStatusClass(selectedOption.status, "iconClass")} />
+          ) : null;
+        })()}
         {content}
       </span>
     );
@@ -182,7 +193,22 @@ const Dropdown = ({
   const placementCls = placement === "bottom-end" ? "dropdown-end" : "";
 
   return (
-    <div className={cx("dropdown rounded-md border-base-content/10 w-full", placementCls, open ? "dropdown-open" : "")}>
+    <div
+      className={cx(
+        "dropdown rounded-md border-base-content/10 w-full",
+        placementCls,
+        open ? "dropdown-open" : "",
+        hasError ? "ring-2 ring-red-500 ring-offset-2" : ""
+      )}
+      style={
+        hasError
+          ? {
+              border: "2px solid red",
+              boxShadow: "0 0 0 3px rgba(255, 0, 0, 0.2)",
+            }
+          : {}
+      }
+    >
       {TriggerWrapper}
 
       <div
@@ -219,7 +245,7 @@ const Dropdown = ({
                     const Icon = opt.icon;
                     const isActive = String(opt.value) === String(value);
                     return (
-                      <li key={String(opt.value)} className="whitespace-nowrap">
+                      <li key={String(opt.value)} className="whitespace-nowrap group">
                         <a
                           data-testid={`${testId}-option-${opt.value}`}
                           id={`dropdown-option-${opt.value}`}
@@ -236,7 +262,7 @@ const Dropdown = ({
                           aria-selected={isActive}
                         >
                           {Icon && <Icon className="h-4 w-4 mt-0.5 opacity-80" />}
-                          <div className="flex flex-col min-w-0">
+                          <div className="flex flex-col min-w-0 w-full">
                             {(() => {
                               let titleText = "";
                               let content = opt.label;
@@ -247,9 +273,35 @@ const Dropdown = ({
                                     ? opt.label.slice(0, maxItemLabelLength) + "..."
                                     : opt.label;
                               }
+                              const StatusIcon = opt.status ? getApiKeyStatusClass(opt?.status, "icon") : null;
                               return (
-                                <span className="" title={titleText}>
-                                  {content}
+                                <span
+                                  className="flex flex-row justify-between items-center w-full"
+                                  title={titleText + `${opt.status ? `\nStatus: ${opt.status.toUpperCase()}` : ""}`}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    {opt.status && opt.status !== "working" && (
+                                      <span
+                                        className={`group-hover:hidden w-1.5 h-1.5 rounded-full shrink-0 mr-1.5 ${getApiKeyStatusClass(opt?.status, "dot")}`}
+                                      />
+                                    )}
+                                    {StatusIcon && opt.status && opt.status !== "working" && (
+                                      <span className="hidden group-hover:inline-flex items-center gap-1">
+                                        <StatusIcon
+                                          size={12}
+                                          className={getApiKeyStatusClass(opt?.status, "iconClass")}
+                                        />
+                                      </span>
+                                    )}
+                                    <span>{content}</span>
+                                  </div>
+                                  {opt.status && opt.status !== "working" && (
+                                    <span
+                                      className={`hidden group-hover:inline-block text-xs shrink-0 ${getApiKeyStatusClass(opt?.status, "text")}`}
+                                    >
+                                      {opt.status}
+                                    </span>
+                                  )}
                                 </span>
                               );
                             })()}

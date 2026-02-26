@@ -4,7 +4,7 @@ import { closeModal } from "@/utils/utility";
 import React, { useCallback, useEffect, useRef, useState, useMemo, memo } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
-import { convertStructuredPromptToString } from "@/utils/promptUtils";
+import { promptObjectToString } from "@/utils/promptUtils";
 
 // Optimized Textarea Component
 const OptimizedTextarea = memo(({ value, onChange, className, disabled, placeholder }) => {
@@ -118,7 +118,7 @@ export const AgentSummaryContent = memo(
     }, [autoGenerateSummary, setAutoGenerateSummary]);
     const handleGenerateSummary = useCallback(async () => {
       // Convert prompt to string safely (handles both string and object formats)
-      const promptText = typeof prompt === "string" ? prompt : convertStructuredPromptToString(prompt);
+      const promptText = typeof prompt === "string" ? prompt : promptObjectToString(prompt);
       if (!promptText || promptText.trim() === "") {
         setErrorMessage("Prompt is required");
         return;
@@ -151,7 +151,7 @@ export const AgentSummaryContent = memo(
       return {
         hasValidationError: showValidationError && isEmpty,
         isDisabled: isGeneratingSummary || bridge_summary === displayValue,
-        textareaClassName: `textarea bg-white dark:bg-black/15 textarea-bordered w-full min-h-32 resize-y focus:border-primary caret-base-content p-2 ${
+        textareaClassName: `textarea bg-base-100 textarea-bordered w-full min-h-32 resize-y focus:border-primary caret-base-content p-2 ${
           showValidationError && isEmpty ? "border-red-500 focus:border-red-500" : ""
         }`,
       };

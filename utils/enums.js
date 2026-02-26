@@ -1,6 +1,6 @@
 import { BookIcon, BotIcon, KeyIcon, SettingsIcon, TestTubeDiagonalIcon, WrenchIcon } from "@/components/Icons";
 export const PAUTH_KEY_COLUMNS = ["name", "authkey", "created_at"];
-export const API_KEY_COLUMNS = ["name", "apikey", "comment", "apikey_usage", "last_used"];
+export const API_KEY_COLUMNS = ["name", "apikey", "comment", "apikey_usage", "last_used", "last_used_status"];
 export const WEBHOOKALERT_COLUMNS = ["name", "url", "headers", "alertType", "bridges"];
 export const ALERT_TYPE = ["Error", "Variable"];
 
@@ -57,6 +57,7 @@ export const MODAL_TYPE = {
   USAGE_DETAILS_MODAL: "USAGE_DETAILS_MODAL",
   CONNECTED_AGENTS_MODAL: "CONNECTED_AGENTS_MODAL",
   DIFF_PROMPT: "DIFF_PROMPT",
+  MIGRATE_PROMPT_MODAL: "MIGRATE_PROMPT_MODAL",
   ORCHESTRAL_AGENT_PARAMETER_MODAL: "ORCHESTRAL_AGENT_PARAMETER_MODAL",
   CREATE_ORCHESTRAL_FLOW_MODAL: "CREATE_ORCHESTRAL_FLOW_MODAL",
   API_KEY_LIMIT_MODAL: "API_KEY_LIMIT_MODAL",
@@ -77,6 +78,7 @@ export const MODAL_TYPE = {
   TEMPLATE_MODAL: "TEMPLATE_MODAL",
   TEMPLATE_PLAYGROUND: "TEMPLATE_PLAYGROUND",
   SAVE_WIDGET_MODAL: "SAVE_WIDGET_MODAL",
+  MIGRATE_PROMPT_WARNING_MODAL: "MIGRATE_PROMPT_WARNING_MODAL",
 };
 
 export const API_KEY_MODAL_INPUT = ["name", "apikey", "comment", "apikey_limit"];
@@ -107,6 +109,27 @@ export const KNOWLEDGE_BASE_CUSTOM_SECTION = [
   { value: "recursive", label: "Recursive Chunking" },
 ];
 export const PROMPT_SUPPORTED_REASIONING_MODELS = ["o1", "o3-mini", "o4-mini"];
+
+export const PROMPT_SECTIONS = {
+  ROLE: "role",
+  GOAL: "goal",
+  INSTRUCTION: "instruction",
+};
+
+export const PROMPT_SECTION_CONFIG = {
+  role: { label: "Role", type: "input", placeholder: "e.g. You are a helpful customer support agent" },
+  goal: { label: "Goal", type: "input", placeholder: "e.g. Help users resolve billing issues" },
+  instruction: {
+    label: "Instruction",
+    type: "textarea",
+    placeholder: "e.g. Always be polite. Never reveal internal data. Ask clarifying questions when needed.",
+  },
+};
+
+export const PROMPT_VIEW_MODE = {
+  SIMPLE: "simple",
+  ADVANCED: "advanced",
+};
 
 export const AUTH_COLUMNS = ["name", "redirection_url", "client_id"];
 

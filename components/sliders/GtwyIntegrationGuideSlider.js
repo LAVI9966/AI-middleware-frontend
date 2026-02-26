@@ -16,7 +16,6 @@ import EmbedPromptBuilder from "../gtwy_embed/EmbedPromptBuilder";
 import ThemePaletteEditor from "../gtwy_embed/ThemePaletteEditor";
 import ApiKeysInput from "./ApiKeysInput";
 import ToolsConfiguration from "../gtwy_embed/ToolsConfiguration";
-import { hexToOklchString } from "@/utils/colorUtils";
 import {
   CONFIG_SCHEMA,
   cloneTheme,
@@ -28,6 +27,108 @@ import {
 } from "@/utils/integrationSliderUtils";
 
 // Configuration and theme utilities imported from integrationSliderUtils
+
+// Model Customization Component
+// ---------------------------------------------
+const ModelCustomization = ({ value = {}, onChange }) => {
+  const { serviceModels, SERVICES } = useCustomSelector((state) => ({
+    serviceModels: state?.modelReducer?.serviceModels || {},
+    SERVICES: state?.serviceReducer?.services || [],
+  }));
+  const [expandedServices, setExpandedServices] = useState({});
+
+  const toggleService = (service) => {
+    setExpandedServices((prev) => ({ ...prev, [service]: !prev[service] }));
+  };
+
+  const handleModelChange = (service, modelName, field, fieldValue) => {
+    const updatedModels = { ...value };
+    updatedModels[service] = updatedModels[service] ? { ...updatedModels[service] } : {};
+
+    updatedModels[service][modelName] = updatedModels[service][modelName]
+      ? { ...updatedModels[service][modelName] }
+      : { hide: false, value: undefined };
+
+    updatedModels[service][modelName][field] = fieldValue;
+
+    onChange("models", updatedModels);
+  };
+
+  // Filter to only show services that are present in SERVICES
+  const availableServiceValues = Array.isArray(SERVICES) ? SERVICES.map((svc) => svc?.value).filter(Boolean) : [];
+
+  const filteredServiceModels = Object.entries(serviceModels).filter(([service]) =>
+    availableServiceValues.includes(service)
+  );
+
+  return (
+    <div className="space-y-2 bg-base-200 rounded-md">
+      {filteredServiceModels.length === 0 ? (
+        <div className="text-sm text-base-content/60 p-4 bg-base-200 rounded">
+          No services available. Please configure services first.
+        </div>
+      ) : (
+        filteredServiceModels.map(([service, types]) => {
+          const allModels = [];
+          Object.entries(types || {}).forEach(([type, models]) => {
+            Object.keys(models || {}).forEach((modelName) => {
+              if (!allModels.includes(modelName)) {
+                allModels.push(modelName);
+              }
+            });
+          });
+
+          if (allModels.length === 0) return null;
+
+          return (
+            <div key={service} className="border bg-base-200 border-base-300 rounded-lg overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleService(service)}
+                className="w-full flex items-center justify-between p-3 bg-base-200 transition-colors"
+              >
+                <span className="font-medium text-sm capitalize">{service}</span>
+                <span className="text-xs text-base-content/60">
+                  {expandedServices[service] ? "▼" : "▶"} {allModels.length} models
+                </span>
+              </button>
+
+              {expandedServices[service] && (
+                <div className="p-3 space-y-2 bg-base-200">
+                  {allModels.map((modelName) => {
+                    const modelConfig = value[service]?.[modelName] || { hide: false, value: undefined };
+                    return (
+                      <div
+                        key={modelName}
+                        className="grid grid-cols-[auto_200px_1fr] items-center gap-3 p-2 bg-base-100 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-sm"
+                          checked={!modelConfig.hide}
+                          onChange={(e) => handleModelChange(service, modelName, "hide", !e.target.checked)}
+                          title="Show/Hide model"
+                        />
+                        <span className="text-xs text-base-content/60 truncate">{modelName}</span>
+                        <input
+                          type="text"
+                          className="input input-bordered input-sm w-full bg-base-200"
+                          value={modelConfig.value !== undefined ? modelConfig.value : modelName}
+                          onChange={(e) => handleModelChange(service, modelName, "value", e.target.value)}
+                          placeholder={modelName}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+};
 
 // Generic Input Component
 // ---------------------------------------------
@@ -62,19 +163,39 @@ const ConfigInput = ({ config, value, onChange }) => {
             ))}
           </select>
         );
+
+      case "nested":
+        if (key === "models") {
+          return <ModelCustomization value={value} onChange={onChange} />;
+        }
+        return null;
+
       default:
         return null;
     }
   };
 
   return (
-    <div className="form-control bg-base-200 rounded p-2">
-      <label className={`label ${type === "toggle" ? "cursor-pointer" : ""} py-1`}>
-        <span className="label-text text-sm">{label}</span>
-        {type === "toggle" && renderInput()}
-      </label>
-      {type !== "toggle" && <div className="mt-1">{renderInput()}</div>}
-      <p className="text-xs text-base-content/70 mt-1 pl-2">{description}</p>
+    <div
+      className={`form-control rounded p-2 ${type === "nested" ? "bg-base-100 border border-base-300" : "bg-base-200"}`}
+    >
+      {type === "toggle" ? (
+        <label className="label cursor-pointer py-1">
+          <div className="flex flex-col gap-1">
+            <span className="label-text text-sm font-medium">{label}</span>
+            {description && <p className="text-xs text-base-content/70">{description}</p>}
+          </div>
+          {renderInput()}
+        </label>
+      ) : (
+        <>
+          <div className="mb-1">
+            <span className="label-text text-sm font-medium">{label}</span>
+            {description && <p className="text-xs text-base-content/70 mt-1">{description}</p>}
+          </div>
+          <div className={type === "nested" ? "mt-2" : "mt-1"}>{renderInput()}</div>
+        </>
+      )}
     </div>
   );
 };
@@ -345,8 +466,7 @@ function GtwyIntegrationGuideSlider({ data, handleCloseSlider }) {
     }));
   };
 
-  const handlePaletteColorChange = (mode, token, hexColor) => {
-    const oklchColor = hexToOklchString(hexColor, configuration?.theme_config?.[mode]?.[token]);
+  const handlePaletteColorChange = (mode, token, oklchColor) => {
     setConfiguration((prev) => {
       const updatedTheme = cloneTheme(prev.theme_config);
       if (!updatedTheme[mode]) {
@@ -468,6 +588,15 @@ function GtwyIntegrationGuideSlider({ data, handleCloseSlider }) {
       } else if (currentValue === value) {
         // For other keys, simple comparison
         return prev; // No change, don't update
+      }
+
+      // If hidePreTool is being set to false, set pre_tool_id to empty string
+      if (key === "hidePreTool" && value === false) {
+        return {
+          ...prev,
+          [key]: value,
+          pre_tool_id: "",
+        };
       }
 
       return {
@@ -630,7 +759,6 @@ window.openGtwy({
                   <p className="text-xs text-base-content/70">
                     Customize how GTWY appears and behaves in your application
                   </p>
-
                   <div className="space-y-4 mt-2">
                     {/* Dynamically render sections */}
                     {Object.entries(groupedConfigs).map(([sectionName, configs]) => (
@@ -663,6 +791,7 @@ window.openGtwy({
                       handleConfigChange("prompt", promptValue);
                     }}
                     onValidate={setIsPromptValid}
+                    onConfigChange={handleConfigChange}
                   />
                 </div>
               </div>

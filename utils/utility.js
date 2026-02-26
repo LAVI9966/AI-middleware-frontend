@@ -1,4 +1,12 @@
-import { BuildingIcon, CheckCircleIcon, LinkIcon } from "@/components/Icons";
+import {
+  BuildingIcon,
+  CheckCircleIcon,
+  LinkIcon,
+  CircleAlertIcon,
+  TriangleWarningIcon,
+  ShieldIcon,
+  CircleMinusIcon,
+} from "@/components/Icons";
 import AIMLIcon from "@/icons/AIMLIcon";
 import AnthropicIcon from "@/icons/AnthropicIcon";
 import CsvIcon from "@/icons/CsvIcon";
@@ -1008,4 +1016,45 @@ export const trimPropertyNames = (properties) => {
   });
 
   return trimmedProperties;
+};
+
+export const getApiKeyStatusClass = (status, type) => {
+  const config = {
+    working: {
+      badge: "border border-green-500 bg-green-500/20 text-green-600",
+      text: "text-green-600",
+      dot: "bg-green-500",
+      icon: CheckCircleIcon,
+      iconClass: "text-green-500",
+    },
+    invalid: {
+      badge: "border border-red-500 bg-red-500/20 text-red-600",
+      text: "text-red-600",
+      dot: "bg-red-500",
+      icon: CircleAlertIcon,
+      iconClass: "text-red-500",
+    },
+    unauthorized: {
+      badge: "border border-orange-500 bg-orange-500/20 text-orange-600",
+      text: "text-orange-600",
+      dot: "bg-orange-500",
+      icon: ShieldIcon,
+      iconClass: "text-orange-500",
+    },
+    exhausted: {
+      badge: "border border-yellow-500 bg-yellow-500/20 text-yellow-600",
+      text: "text-yellow-600",
+      dot: "bg-yellow-500",
+      icon: TriangleWarningIcon,
+      iconClass: "text-yellow-500",
+    },
+    service_down: {
+      badge: "border border-gray-500 bg-gray-500/20 text-gray-600",
+      text: "text-gray-600",
+      dot: "bg-gray-500",
+      icon: CircleMinusIcon,
+      iconClass: "text-gray-500",
+    },
+  };
+  return config[status]?.[type] ?? "";
 };

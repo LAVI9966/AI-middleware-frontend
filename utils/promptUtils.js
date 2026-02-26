@@ -1,190 +1,109 @@
-//Utility functions for handling prompt formats (string vs structured object)
+import { PROMPT_SECTIONS } from "./enums";
 
-// Normalize prompt to structured format If string: convert to  role: "", goal: "", instruction: string  If object: ensure it has role, goal, instruction fields
+// Check if a prompt is a structured object with role/goal/instruction keys
+// Accepts both plain objects and JSON strings
+export const isValidJsonPrompt = (prompt) => {
+  if (!prompt) return false;
 
-export const normalizePromptToStructured = (prompt) => {
-  if (!prompt) {
-    return { role: "", goal: "", instruction: "" };
+  // Direct object check
+  if (typeof prompt === "object" && !Array.isArray(prompt)) {
+    return PROMPT_SECTIONS.ROLE in prompt || PROMPT_SECTIONS.GOAL in prompt || PROMPT_SECTIONS.INSTRUCTION in prompt;
   }
 
-  // If it's a string (legacy format), put it in instruction field
+  // JSON string fallback (legacy data)
   if (typeof prompt === "string") {
+    try {
+      const parsed = JSON.parse(prompt);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return false;
+      return PROMPT_SECTIONS.ROLE in parsed || PROMPT_SECTIONS.GOAL in parsed || PROMPT_SECTIONS.INSTRUCTION in parsed;
+    } catch {
+      return false;
+    }
+  }
+
+  return false;
+};
+
+// Parse a JSON prompt string into a structured object { role, goal, instruction }
+export const parsePromptObject = (prompt) => {
+  if (!prompt) return { role: "", goal: "", instruction: "" };
+
+  if (typeof prompt === "object" && prompt !== null) {
     return {
-      role: "",
-      goal: "",
-      instruction: prompt,
+      role: prompt[PROMPT_SECTIONS.ROLE] || "",
+      goal: prompt[PROMPT_SECTIONS.GOAL] || "",
+      instruction: prompt[PROMPT_SECTIONS.INSTRUCTION] || "",
     };
   }
 
-  // If it's already an object, ensure it has the required fields
-  if (typeof prompt === "object") {
-    const structuredPrompt = {
-      role: prompt.role || "",
-      goal: prompt.goal || "",
-      instruction: prompt.instruction || "",
-    };
-
-    // Only add embed fields if they already exist in the prompt object
-    if (prompt.customPrompt !== undefined) structuredPrompt.customPrompt = prompt.customPrompt;
-    if (prompt.embedFields !== undefined) structuredPrompt.embedFields = prompt.embedFields;
-    if (prompt.useDefaultPrompt !== undefined) structuredPrompt.useDefaultPrompt = prompt.useDefaultPrompt;
-
-    return structuredPrompt;
+  if (typeof prompt === "string") {
+    try {
+      const parsed = JSON.parse(prompt);
+      return {
+        role: parsed[PROMPT_SECTIONS.ROLE] || "",
+        goal: parsed[PROMPT_SECTIONS.GOAL] || "",
+        instruction: parsed[PROMPT_SECTIONS.INSTRUCTION] || "",
+      };
+    } catch {
+      return { role: "", goal: "", instruction: "" };
+    }
   }
 
   return { role: "", goal: "", instruction: "" };
 };
 
-// Convert structured prompt to string for backward compatibility
-export const convertStructuredPromptToString = (promptObj) => {
-  if (!promptObj || typeof promptObj !== "object") {
-    return "";
-  }
-
-  // For embed users with custom prompt
-  if (promptObj.customPrompt && !promptObj.useDefaultPrompt) {
-    return promptObj.customPrompt;
-  }
-
-  // For main users: combine role, goal, instruction
-  const parts = [];
-  if (promptObj.role) {
-    parts.push(`Role: ${promptObj.role}`);
-  }
-  if (promptObj.goal) {
-    parts.push(`Goal: ${promptObj.goal}`);
-  }
-  if (promptObj.instruction) {
-    parts.push(promptObj.instruction);
-  }
-
-  return parts.join("\n\n");
-};
-
-// Extract text from prompt for variable extraction (works with both string and structured formats)
-const extractTextFromPrompt = (prompt) => {
+// Convert a structured prompt object to a plain string for DB storage
+// Format: "Role: ...\n\nGoal: ...\n\nInstruction: ..."
+// If already a string, return as-is
+export const promptObjectToString = (prompt) => {
   if (!prompt) return "";
 
-  if (typeof prompt === "string") {
-    return prompt;
+  if (typeof prompt === "string") return prompt;
+
+  if (typeof prompt === "object" && prompt !== null) {
+    const parts = [];
+    if (prompt[PROMPT_SECTIONS.ROLE]) parts.push(`Role: ${prompt[PROMPT_SECTIONS.ROLE]}`);
+    if (prompt[PROMPT_SECTIONS.GOAL]) parts.push(`Goal: ${prompt[PROMPT_SECTIONS.GOAL]}`);
+    if (prompt[PROMPT_SECTIONS.INSTRUCTION]) parts.push(prompt[PROMPT_SECTIONS.INSTRUCTION]);
+    return parts.join("\n\n");
   }
 
-  if (typeof prompt === "object") {
-    let textToSearch = "";
-    // Extract from all text fields
-    if (prompt.role) textToSearch += prompt.role + " ";
-    if (prompt.goal) textToSearch += prompt.goal + " ";
-    if (prompt.instruction) textToSearch += prompt.instruction + " ";
-    if (prompt.customPrompt) textToSearch += prompt.customPrompt + " ";
-    // Extract from embed fields
-    if (Array.isArray(prompt.embedFields)) {
-      prompt.embedFields.forEach((field) => {
-        if (field.value) textToSearch += field.value + " ";
-      });
-    }
-    return textToSearch;
-  }
-
-  return "";
-};
-
-// Extract variables from prompt (works with both string and structured formats)
-export const extractVariablesFromPrompt = (prompt) => {
-  if (!prompt) return [];
-
-  const textToSearch = extractTextFromPrompt(prompt);
-  if (!textToSearch) return [];
-
-  // Extract {{variable}} patterns
-  const matches = textToSearch.matchAll(/\{\{([^}]+)\}\}/g);
-  const variables = [];
-  for (const match of matches) {
-    if (match[1]) {
-      variables.push(match[1].trim());
-    }
-  }
-
-  return [...new Set(variables)];
+  return String(prompt);
 };
 
 // Preprocess content into granular fields so it can be compared consistently.
 export const preprocessPrompt = (content) => {
+  if (!content) return {};
   let obj = content;
-
-  // 1. Normalize String to Object
   if (typeof content === "string") {
     try {
       obj = JSON.parse(content);
     } catch {
-      // Fallback: Treat as instruction
       return { instruction: content };
     }
-  } else if (!content) {
-    return {};
   }
-
-  // 2. Clone to avoid mutation
-  const processed = JSON.parse(JSON.stringify(obj));
-
-  // 3. Explode embedFields array to object
-  if (Array.isArray(processed.embedFields)) {
-    const fieldsObj = {};
-    processed.embedFields.forEach((field) => {
-      if (!field.hidden && field.name) {
-        fieldsObj[field.name] = field.value || "";
-      }
-    });
-    processed.embedFields = fieldsObj;
-
-    // If we have embed fields, remove the customPrompt template from comparison
-    // as per user request to only compare the fields
-    delete processed.customPrompt;
-    delete processed.useDefaultPrompt;
-  }
-
-  return processed;
+  return obj;
 };
 
-// Convert prompt to advanced view format (single string with values filled in)
-// For main users: "Role: [value]\nGoal: [value]\nInstruction: [value]"
-// For embed users: "Label: [value]\nLabel: [value]" (visible fields only)
-export const convertPromptToAdvancedView = (prompt) => {
-  if (!prompt) return "";
+// Extract {{variable}} names from a prompt (string or object)
+export const extractVariablesFromPrompt = (prompt) => {
+  if (!prompt) return [];
 
-  // For string prompts (simple case)
+  let text = "";
   if (typeof prompt === "string") {
-    return prompt;
+    text = prompt;
+  } else if (typeof prompt === "object" && prompt !== null) {
+    text = [
+      prompt[PROMPT_SECTIONS.ROLE] || "",
+      prompt[PROMPT_SECTIONS.GOAL] || "",
+      prompt[PROMPT_SECTIONS.INSTRUCTION] || "",
+    ].join(" ");
   }
 
-  // For object prompts
-  if (typeof prompt === "object" && prompt !== null) {
-    // Embed user with custom fields - show Label: Value format
-    if (prompt.customPrompt && prompt.embedFields) {
-      const parts = [];
-
-      // Add visible embed fields in Label: Value format
-      const fields = Array.isArray(prompt.embedFields) ? prompt.embedFields : [];
-      fields.forEach((field) => {
-        if (!field.hidden && field.value) {
-          const label = field.label || field.name;
-          if (label) {
-            parts.push(`${label}: ${field.value}`);
-          }
-        }
-      });
-
-      return parts.join("\n");
-    }
-
-    // Main user structured format (role, goal, instruction)
-    if (prompt.role !== undefined || prompt.goal !== undefined || prompt.instruction !== undefined) {
-      const parts = [];
-      if (prompt.role) parts.push(`Role: ${prompt.role}`);
-      if (prompt.goal) parts.push(`Goal: ${prompt.goal}`);
-      if (prompt.instruction) parts.push(`Instruction: ${prompt.instruction}`);
-      return parts.join("\n");
-    }
+  const matches = text.matchAll(/\{\{([^}]+)\}\}/g);
+  const variables = [];
+  for (const match of matches) {
+    if (match[1]) variables.push(match[1].trim());
   }
-
-  return String(prompt);
+  return [...new Set(variables)];
 };

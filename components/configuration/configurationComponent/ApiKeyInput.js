@@ -15,6 +15,7 @@ const ApiKeyInput = ({
   hideAdvancedParameters = false,
   isPublished,
   isEditor = true,
+  hasError = false,
 }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
@@ -103,7 +104,7 @@ const ApiKeyInput = ({
 
     if (filteredApiKeys.length > 0) {
       filteredApiKeys.forEach((apiKey) => {
-        opts.push({ value: apiKey._id, label: apiKey.name });
+        opts.push({ value: apiKey._id, label: apiKey.name, status: apiKey?.status });
       });
     } else {
       // Disabled informational option pattern can be represented by not adding an option here; placeholder will handle it
@@ -135,6 +136,7 @@ const ApiKeyInput = ({
         style={{ backgroundColor: "color-mix(in oklab, var(--color-white) 3%, transparent)" }}
         maxLabelLength={20}
         menuClassName="w-full min-w-[200px]"
+        hasError={hasError}
       />
 
       <ApiKeyModal

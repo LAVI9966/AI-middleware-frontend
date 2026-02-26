@@ -167,7 +167,7 @@ const ResponseFormatSelector = ({ params, searchParams, isPublished, isEditor = 
               data-testid="webhook-headers-textarea"
               id="headers"
               disabled={isReadOnly}
-              className="textarea bg-white dark:bg-black/15 textarea-bordered h-24 w-full textarea-sm"
+              className="textarea bg-base-100 textarea-bordered h-24 w-full textarea-sm"
               defaultValue={
                 typeof webhookData?.headers === "object"
                   ? JSON.stringify(webhookData?.headers, null, 2)

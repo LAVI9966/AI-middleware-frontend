@@ -25,7 +25,7 @@ function ConnectedAgentListSuggestion({
     () =>
       Object.values(bridges)
         .filter((bridge) => {
-          const isActive = bridge?.status === 1 && (bridge?.bridge_status === 1 || bridge?.bridge_status === undefined);
+          const isActive = bridge?.bridge_status === 1 || bridge?.bridge_status === undefined;
           const matchesSearch = bridge?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase());
           const isNotConnected =
             connect_agents && Object.values(connect_agents).some((agent) => agent?.bridge_id === bridge?._id);
@@ -65,8 +65,7 @@ function ConnectedAgentListSuggestion({
                     </span>
                   ) : (
                     (() => {
-                      const statusLabel =
-                        bridge?.bridge_status === 0 ? "paused" : bridge?.status === 0 ? "archived" : "active";
+                      const statusLabel = bridge?.bridge_status === 0 ? "paused" : "active";
                       return (
                         <span
                           className={`rounded-full capitalize bg-base-200 px-3 py-1 text-[10px] sm:text-xs font-semibold text-black ${getStatusClass(statusLabel)}`}

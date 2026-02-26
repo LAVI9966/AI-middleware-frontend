@@ -25,7 +25,6 @@ const TemplatePlayground = ({ template, setTemplate = () => {} }) => {
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-base-300">
           <div className="flex items-center justify-between mb-4">
             <label className="label-text text-lg font-medium">Template Preview</label>
-            <span className="text-sm text-base-content/50">How your template will look</span>
           </div>
           <button onClick={handleClose} className="btn btn-circle btn-ghost btn-sm">
             ✕

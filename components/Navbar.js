@@ -499,7 +499,7 @@ const Navbar = ({ isEmbedUser, params }) => {
               )}
 
               {/* Saving Status Indicator */}
-              {savingStatus?.status && (
+              {activeTab === "configure" && (
                 <div className="flex-shrink-0 ml-2 mr-2">
                   <div className="px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 text-base-content">
                     {savingStatus.status === "saving" && (
