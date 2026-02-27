@@ -22,7 +22,7 @@ export default function ReferAndEarnPage() {
     (async () => {
       try {
         const json = await generateAffiliateEmbedTokenApi({
-          organization: orgName,
+          organization: "GTWY AI",
           expires_in_hours: 720,
           label: "Dashboard Widget",
         });
