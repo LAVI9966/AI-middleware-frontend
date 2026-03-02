@@ -83,6 +83,7 @@ const EmbedPreview = ({
         const scriptElement = document.getElementById(scriptConfig.id);
         if (scriptElement) {
           scriptElement.remove();
+          sessionStorage.removeItem("local_token");
         }
 
         // Remove embed container if it exists
