@@ -135,7 +135,7 @@ export const AgentMenuItems = ({
         className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2 cursor-pointer"
       >
         <Settings2 size={14} />
-        Usage &​amp; Limits
+        Usage &​ Limits
       </button>
 
       <button
