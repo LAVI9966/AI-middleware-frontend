@@ -8,7 +8,7 @@ function FeedbackPage() {
           <div className="w-full h-full bg-base-100 rounded-lg shadow-lg overflow-hidden">
             <iframe
               title="Feedback Widget"
-              src={process.env.NEXT_PUBLIC_FrillUrl}
+              src={process.env.NEXT_PUBLIC_FRILLURL}
               sandbox="allow-same-origin allow-scripts allow-top-navigation allow-popups allow-forms allow-popups-to-escape-sandbox"
               style={{ border: "0px", outline: "0px", width: "100%", height: "100%" }}
             />
