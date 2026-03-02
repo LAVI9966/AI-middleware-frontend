@@ -40,7 +40,7 @@ const PromptHeader = memo(
         <div
           data-testid="prompt-header-helper-open"
           id="prompt-header-helper-open"
-          className={`flex items-center justify-end px-4 py-2.5 border-b border-base-300 bg-base-100 ${!isEditor ? "mt-8" : ""}`}
+          className={`flex items-center justify-end px-4 py-2.5 border-b border-base-300  ${!isEditor ? "mt-8" : ""}`}
         >
           <div className="flex justify-end gap-2">
             {prompt && showDiffButton && (
