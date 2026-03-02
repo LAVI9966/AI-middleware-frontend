@@ -328,6 +328,18 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
     router.push(`${window.location.pathname}?${current.toString()}`);
   }, [router]);
 
+  const handleSwitchToPromptTab = useCallback(() => {
+    const current = new URLSearchParams(window.location.search);
+    current.set("tab", "prompt");
+    router.push(`${window.location.pathname}?${current.toString()}`);
+  }, [router]);
+
+  const handleSwitchToConnectorsTab = useCallback(() => {
+    const current = new URLSearchParams(window.location.search);
+    current.set("tab", "connectors");
+    router.push(`${window.location.pathname}?${current.toString()}`);
+  }, [router]);
+
   const [isAgentFlowView, setIsAgentFlowView] = useState(() => resolvedSearchParams?.view === "agent-flow");
   useEffect(() => {
     setIsAgentFlowView(resolvedSearchParams?.view === "agent-flow");
@@ -730,6 +742,8 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                           draftPrompt={promptState.newContent}
                           onVisibilityChange={setIsGuideVisible}
                           onSwitchToModelTab={handleSwitchToModelTab}
+                          onSwitchToPromptTab={handleSwitchToPromptTab}
+                          onSwitchToConnectorsTab={handleSwitchToConnectorsTab}
                           setApiKeyError={setApiKeyError}
                         />
                         {/* Only show experimental Chat for non-chatbot types */}
@@ -956,6 +970,8 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                 searchParams={resolvedSearchParams}
                 draftPrompt={promptState.newContent}
                 onSwitchToModelTab={handleSwitchToModelTab}
+                onSwitchToPromptTab={handleSwitchToPromptTab}
+                onSwitchToConnectorsTab={handleSwitchToConnectorsTab}
                 setApiKeyError={setApiKeyError}
               />
 

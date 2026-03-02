@@ -8,6 +8,7 @@ import ResponseStyleDropdown from "../configurationComponent/ResponseStyleDropdo
 import AdvancedConfiguration from "../configurationComponent/AdvancedConfiguration";
 import BridgeTypeToggle from "../configurationComponent/BridgeTypeToggle";
 import ChatbotConfigSection from "../ChatbotConfigSection";
+import UnsupportedFeatureOverlay from "../UnsupportedFeatureOverlay";
 
 const SettingsTab = () => {
   const {
@@ -32,6 +33,14 @@ const SettingsTab = () => {
   );
 
   const isReadOnly = isPublished || !isEditor;
+
+  if (isEmbedUser && hideAdvancedConfigurations && modelType === "image") {
+    return (
+      <div className="relative min-h-[300px]">
+        <UnsupportedFeatureOverlay featureName="Settings" />
+      </div>
+    );
+  }
 
   return (
     <div data-testid="settings-tab-container" id="settings-tab-container" className="flex flex-col mt-4 gap-6 w-full">

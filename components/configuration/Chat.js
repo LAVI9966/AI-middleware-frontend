@@ -270,14 +270,14 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
         })
       );
       const updatedMessages = [...messages];
-      updatedMessages[index + 1] = {
-        ...updatedMessages[index + 1],
+      const nextMessage = updatedMessages[index + 1];
+      const nextMessageId = nextMessage.id;
+      const updatedNextMessage = {
+        ...nextMessage,
         testCaseResult: data?.results?.[0],
       };
-
       // Automatically show the test case results card after running the test
-      const nextMessageId = updatedMessages[index + 1].id;
-      dispatch(editChatMessage(channelIdentifier, index + 1, updatedMessages[index + 1]));
+      dispatch(editChatMessage(channelIdentifier, nextMessageId, updatedNextMessage));
       setShowTestCaseResults((prev) => ({
         ...prev,
         [nextMessageId]: true,

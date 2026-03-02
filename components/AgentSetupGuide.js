@@ -12,6 +12,8 @@ const AgentSetupGuide = ({
   searchParams,
   onVisibilityChange = () => {},
   onSwitchToModelTab = () => {},
+  onSwitchToPromptTab = () => {},
+  onSwitchToConnectorsTab = () => {},
   setApiKeyError = () => {},
 }) => {
   const { bridgeApiKey, prompt, shouldPromptShow, service, showDefaultApikeys, modelName, bridgeType } =
@@ -78,20 +80,6 @@ const AgentSetupGuide = ({
         return false;
     }
   };
-  const setErrorBorder = (ref, selector, scrollToView = false) => {
-    if (ref?.current) {
-      if (scrollToView) {
-        ref.current.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-      setTimeout(() => {
-        const element = ref.current.querySelector(selector);
-        if (element) {
-          element.focus();
-          element.style.borderColor = "red";
-        }
-      }, 300);
-    }
-  };
 
   useEffect(() => {
     // Embed user with default API keys: hide only when prompt has content
@@ -110,6 +98,11 @@ const AgentSetupGuide = ({
     if (hasPrompt || !shouldPromptShow) {
       setShowError(false);
       setErrorType("");
+      if (promptTextAreaRef?.current) {
+        promptTextAreaRef.current.querySelectorAll("input, textarea").forEach((el) => {
+          el.style.borderColor = "";
+        });
+      }
     }
     if (hasApiKey) {
       setShowError(false);
@@ -164,7 +157,24 @@ const AgentSetupGuide = ({
     if (shouldPromptShow && !hasPromptContent(prompt)) {
       setShowError(true);
       setErrorType("prompt");
-      setErrorBorder(promptTextAreaRef, "textarea", true);
+      const applyPromptFieldErrors = () => {
+        if (!promptTextAreaRef?.current) return;
+        const fields = promptTextAreaRef.current.querySelectorAll("input, textarea");
+        fields.forEach((el) => {
+          el.style.borderColor = "red";
+        });
+        const firstEl = fields[0];
+        if (firstEl) {
+          firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          firstEl.focus();
+        }
+      };
+      if (!promptTextAreaRef?.current) {
+        onSwitchToPromptTab();
+        setTimeout(applyPromptFieldErrors, 400);
+      } else {
+        applyPromptFieldErrors();
+      }
       return;
     }
     if (!bridgeApiKey && !(modelName === "gpt-5-nano" && bridgeType === "chatbot")) {
@@ -214,12 +224,20 @@ const AgentSetupGuide = ({
 
                 const isCompleted = getStepCompletion(step);
 
+                const handleStepClick = () => {
+                  if (step === "1") onSwitchToPromptTab();
+                  else if (step === "2") onSwitchToModelTab();
+                  else if (step === "3") onSwitchToConnectorsTab();
+                  else if (step === "4" || step === "5") onSwitchToModelTab();
+                };
+
                 return (
                   <div
                     data-testid={`agent-setup-step-${step}`}
                     id={`agent-setup-step-${step}`}
                     key={step}
-                    className={`card shadow-sm transition-all duration-300 hover:shadow-md ${
+                    onClick={handleStepClick}
+                    className={`card shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer ${
                       isCompleted ? "bg-success/10 border border-success/20" : "bg-base-200 border border-base-300"
                     }`}
                   >
