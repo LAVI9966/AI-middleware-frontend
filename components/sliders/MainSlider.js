@@ -131,7 +131,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
   /** Logout handler */
   const handleLogout = useCallback(async () => {
     try {
-      if (token) {
+      if (getFromCookies("local_token")) {
         await logoutUser(getFromCookies("local_token")); // Blacklist token
       }
       await logoutUserFromMsg91({
