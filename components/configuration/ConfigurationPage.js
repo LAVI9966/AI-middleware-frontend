@@ -102,7 +102,7 @@ const ConfigurationPage = ({
                 <button
                   data-testid="speak-to-us-button"
                   data-cal-namespace="30min"
-                  data-cal-link="team/gtwy.ai/ai-consultation"
+                  data-cal-link="human-gtwy-ai/book-a-demo-with-gtwy"
                   data-cal-origin="https://cal.id"
                   data-cal-config='{"layout":"month_view"}'
                   className="flex items-center gap-1 text-sm text-base-content/50 hover:text-base-content font-bold transition-colors cursor-pointer"
