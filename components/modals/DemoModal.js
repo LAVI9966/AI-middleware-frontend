@@ -104,7 +104,7 @@ const DemoModal = ({ speakToUs }) => {
             data-testid="demo-modal-schedule-button"
             id="demo-modal-schedule-button"
             data-cal-namespace="30min"
-            data-cal-link={speakToUs ? "team/gtwy.ai/ai-consultation" : "team/gtwy.ai/30min"}
+            data-cal-link={speakToUs ? "human-gtwy-ai/book-a-demo-with-gtwy" : "team/gtwy.ai/30min"}
             data-cal-origin="https://cal.id"
             data-cal-config='{"layout":"month_view"}'
             onClick={() => handleClose()}

@@ -3,17 +3,15 @@ import { openModal } from "@/utils/utility";
 import { MessageCircleMoreIcon } from "./Icons";
 import PageHeader from "./Pageheader";
 import CreateNewBridge from "./CreateNewBridge";
-import { useCustomSelector } from "@/customHooks/customSelector";
 import Protected from "./Protected";
+import useTutorialVideos from "@/hooks/useTutorialVideos";
 
 const AgentEmptyState = ({ orgid, isEmbedUser, defaultBridgeType = "api", title, description, docLink }) => {
-  const { tutorialData } = useCustomSelector((state) => ({
-    tutorialData: state.flowDataReducer?.flowData?.tutorialData || [],
-  }));
-  const agentCreationTutorial = tutorialData?.find((item) => item.title === "Agent Creation");
-  const embedAgentCreationTutorial = tutorialData?.find((item) => item.title === "Agent Creation Video: Embed");
-  const agentCreationvideoUrl = agentCreationTutorial?.videoUrl || "";
-  const embedAgentCreationvideoUrl = embedAgentCreationTutorial?.videoUrl || "";
+  const { getApiAgentCreationVideo, getChatbotAgentCreationVideo } = useTutorialVideos();
+
+  const agentCreationvideoUrl =
+    defaultBridgeType === "chatbot" ? getChatbotAgentCreationVideo() : getApiAgentCreationVideo();
+  const embedAgentCreationvideoUrl = getChatbotAgentCreationVideo();
   return (
     <div data-testid="agent-empty-state-container" id="agent-empty-state-container" className=" mt-8 px-4">
       <div className=" mx-2 ">
@@ -60,7 +58,7 @@ const AgentEmptyState = ({ orgid, isEmbedUser, defaultBridgeType = "api", title,
                   data-testid="agent-empty-speak-to-us-button"
                   id="agent-empty-speak-to-us-button"
                   data-cal-namespace="30min"
-                  data-cal-link="team/gtwy.ai/ai-consultation"
+                  data-cal-link="human-gtwy-ai/book-a-demo-with-gtwy"
                   data-cal-origin="https://cal.id"
                   data-cal-config='{"layout":"month_view"}'
                   className="btn btn-primary btn-sm gap-1"
@@ -88,7 +86,7 @@ const AgentEmptyState = ({ orgid, isEmbedUser, defaultBridgeType = "api", title,
                 src={
                   isEmbedUser
                     ? embedAgentCreationvideoUrl
-                    : agentCreationvideoUrl || "https://app.supademo.com/embed/cm9shc2ek0gt6dtm7tmez2orj?embed_v=2"
+                    : agentCreationvideoUrl || "https://app.supademo.com/embed/cmlv69nq54egsd2ntb6wxihti?embed_v"
                 }
                 height={!isEmbedUser ? "100%" : "80%"}
                 width={!isEmbedUser ? "70%" : "100%"}
