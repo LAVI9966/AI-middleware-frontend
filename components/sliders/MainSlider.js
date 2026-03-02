@@ -797,7 +797,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                               {showSidebarContent && (
                                 <div className="flex items-center gap-2 justify-center">
                                   <span className="text-sm capitalize truncate">{DISPLAY_NAMES(key)}</span>
-                                  <span>{key === "orchestratal_model" && <BetaBadge />}</span>
+                                  <span>{(key === "orchestratal_model" || key === "widgets") && <BetaBadge />}</span>
                                 </div>
                               )}
                             </button>
