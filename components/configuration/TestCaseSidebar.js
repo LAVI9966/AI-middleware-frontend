@@ -8,8 +8,11 @@ import {
   runTestCaseAction,
   generateAdditionalTestCasesAction,
 } from "@/store/action/testCasesAction";
-import { toggleSidebar } from "@/utils/utility";
+import { toggleSidebar, openModal } from "@/utils/utility";
 import { validatePromptVariables, buildVariablesObject } from "@/utils/variableValidation";
+import { improvePrompt } from "@/config/utilityApi";
+import { MODAL_TYPE } from "@/utils/enums";
+import HistoryPagePromptUpdateModal from "../modals/HistoryPagePromptUpdateModal";
 
 const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClick }) => {
   const [runningTests, setRunningTests] = useState(new Set());
@@ -19,20 +22,26 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
   const [generatingTestCases, setGeneratingTestCases] = useState(false);
   const [pendingTestId, setPendingTestId] = useState(null);
   const [pendingRunAll, setPendingRunAll] = useState(false);
+  const [improvingPrompts, setImprovingPrompts] = useState(new Set());
+  const [promptToUpdate, setPromptToUpdate] = useState("");
   const dispatch = useDispatch();
 
-  const { testCases, versions, prompt, variablesKeyValue, isEmbedUser, showVariables } = useCustomSelector((state) => {
-    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[resolvedParams?.version];
-    return {
-      testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
-      versions: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions || [],
-      prompt: versionData?.configuration?.prompt,
-      variablesKeyValue:
-        state?.variableReducer?.VariableMapping?.[params?.id]?.[resolvedParams?.version]?.variables || [],
-      isEmbedUser: state?.appInfoReducer?.embedUserDetails?.isEmbedUser || false,
-      showVariables: state?.appInfoReducer?.embedUserDetails?.showVariables || false,
-    };
-  });
+  const { testCases, versions, prompt, variablesKeyValue, isEmbedUser, showVariables, currentPrompt } =
+    useCustomSelector((state) => {
+      const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[resolvedParams?.version];
+      return {
+        testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
+        versions: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions || [],
+        prompt: versionData?.configuration?.prompt,
+        variablesKeyValue:
+          state?.variableReducer?.VariableMapping?.[params?.id]?.[resolvedParams?.version]?.variables || [],
+        isEmbedUser: state?.appInfoReducer?.embedUserDetails?.isEmbedUser || false,
+        showVariables: state?.appInfoReducer?.embedUserDetails?.showVariables || false,
+        currentProßßßßßßmpt:
+          state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[resolvedParams?.version]?.configuration?.prompt ||
+          "",
+      };
+    });
 
   useEffect(() => {
     dispatch(getAllTestCasesOfBridgeAction({ bridgeId: params?.id }));
@@ -217,6 +226,40 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
 
     const latestRun = versionHistory[versionHistory.length - 1];
     return latestRun?.score !== undefined ? latestRun.score : null;
+  };
+
+  const handleBetterPrompt = async (testCase, versionId) => {
+    const promptKey = `${testCase._id}-${versionId}`;
+    setImprovingPrompts((prev) => new Set([...prev, promptKey]));
+
+    try {
+      const variables = {};
+
+      // Get the conversation from test case
+      const conversation = testCase.conversation || [];
+
+      variables["prompt"] = currentPrompt;
+      // Add the model output as assistant response
+
+      variables["conversation_history"] = conversation;
+      variables["updated_response"] = testCase.expected?.response || "";
+
+      const data = await improvePrompt(variables);
+
+      if (data?.updated_prompt) {
+        setPromptToUpdate(data.updated_prompt);
+        openModal(MODAL_TYPE.HISTORY_PAGE_PROMPT_UPDATE_MODAL);
+      }
+    } catch (error) {
+      console.error("Error improving prompt:", error);
+      alert("Failed to improve prompt. Please try again.");
+    } finally {
+      setImprovingPrompts((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(promptKey);
+        return newSet;
+      });
+    }
   };
 
   const getStatusIcon = (testId) => {
@@ -509,6 +552,7 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
                                       <th className="p-2 text-left">Model</th>
                                       <th className="p-2 text-left">Score</th>
                                       <th className="p-2 text-left">Last Run</th>
+                                      <th className="p-2 text-left w-24">Action</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -529,6 +573,29 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
                                               ? new Date(latestRun.created_at).toLocaleString()
                                               : "N/A"}
                                           </td>
+                                          <td className="p-2 w-24">
+                                            {latestRun?.score !== undefined && latestRun.score < 0.7 ? (
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleBetterPrompt(testCase, versionId);
+                                                }}
+                                                disabled={improvingPrompts.has(`${testCase._id}-${versionId}`)}
+                                                className="btn btn-xs btn-primary text-white hover:btn-primary-focus disabled:opacity-50 whitespace-nowrap"
+                                                title="Improve prompt for better results"
+                                              >
+                                                {improvingPrompts.has(`${testCase._id}-${versionId}`) ? (
+                                                  <>
+                                                    <span className="loading loading-spinner loading-xs"></span>
+                                                  </>
+                                                ) : (
+                                                  "Better Prompt"
+                                                )}
+                                              </button>
+                                            ) : (
+                                              <span className="text-xs text-base-content/50">-</span>
+                                            )}
+                                          </td>
                                         </tr>
                                       );
                                     })}
@@ -546,6 +613,12 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
             })
         )}
       </div>
+      {/* Prompt Update Modal */}
+      <HistoryPagePromptUpdateModal
+        searchParams={resolvedParams}
+        previousPrompt={currentPrompt}
+        promotToUpdate={promptToUpdate}
+      />
     </div>
   );
 };
