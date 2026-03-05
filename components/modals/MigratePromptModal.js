@@ -102,8 +102,8 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                 ))
             ) : (
               /* Default role / goal / instruction fields */
-              <>
-                <div className="form-control gap-1">
+              <div className="p-2">
+                <div className="form-control gap-1 ">
                   <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.ROLE}</span>
                   <input
                     type="text"
@@ -135,7 +135,7 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                     onChange={(e) => handleChange(PROMPT_SECTIONS.INSTRUCTION, e.target.value)}
                   />
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>

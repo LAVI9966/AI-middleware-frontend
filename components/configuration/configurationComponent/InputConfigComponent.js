@@ -102,15 +102,25 @@ const InputConfigComponent = memo(
         typeof reduxPrompt === "object" && reduxPrompt !== null && !Array.isArray(reduxPrompt) ? reduxPrompt : {};
 
       const hidden = embedPromptConfig.embedFields.filter((f) => f.hidden);
-      const appInfoNames = new Set(embedPromptConfig.embedFields.filter((f) => !f.hidden).map((f) => f.name));
       const oldFormat =
         typeof reduxPrompt === "object" && reduxPrompt !== null && Array.isArray(reduxPrompt.embedFields);
       const dbKeys = oldFormat ? new Set() : new Set(Object.keys(dbValues));
 
       const fields = embedPromptConfig.embedFields.filter((f) => !f.hidden).map((f) => ({ ...f, deprecated: false }));
       dbKeys.forEach((key) => {
-        if (!appInfoNames.has(key)) {
-          fields.push({ name: key, type: "textarea", hidden: false, deprecated: true });
+        const fieldInConfig = embedPromptConfig.embedFields.find((f) => f.name === key);
+
+        // If field exists AND is hidden → ignore completely
+        if (fieldInConfig?.hidden) return;
+
+        // If field does NOT exist in config at all → deprecated
+        if (!fieldInConfig) {
+          fields.push({
+            name: key,
+            type: "textarea",
+            hidden: false,
+            deprecated: true,
+          });
         }
       });
 
@@ -317,7 +327,7 @@ const InputConfigComponent = memo(
                   <div className="relative">
                     {field.type === "textarea" ? (
                       <textarea
-                        className={`textarea textarea-bordered w-full text-sm leading-relaxed resize-y min-h-72 ${
+                        className={`textarea textarea-bordered w-full text-sm leading-relaxed resize-y min-h-32 ${
                           field.deprecated ? "opacity-60 pr-8" : ""
                         }`}
                         value={activeEmbedFieldValues[field.name] || ""}
