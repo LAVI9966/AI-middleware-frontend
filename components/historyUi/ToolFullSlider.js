@@ -50,7 +50,6 @@ const formatTimestamp = (value) => {
 
 export function ToolFullSlider({ tool, onClose, onBack }) {
   const handleBack = () => {
-    onBack?.();
     onClose();
   };
 

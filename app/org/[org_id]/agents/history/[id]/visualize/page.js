@@ -94,12 +94,16 @@ export default function Page({ params, searchParams }) {
 
   const recursiveMessage = recursiveHistory?.data || null;
 
-  const responsePreview = useMemo(() => {
-    const content =
-      recursiveMessage?.updated_llm_message || recursiveMessage?.llm_message || recursiveMessage?.chatbot_message || "";
-    if (!content) return "";
-    return content.length > 120 ? `${content.slice(0, 120)}...` : content;
+  const finalResponseText = useMemo(() => {
+    return (
+      recursiveMessage?.updated_llm_message || recursiveMessage?.llm_message || recursiveMessage?.chatbot_message || ""
+    );
   }, [recursiveMessage]);
+
+  const responsePreview = useMemo(() => {
+    if (!finalResponseText) return "";
+    return finalResponseText.length > 120 ? `${finalResponseText.slice(0, 120)}...` : finalResponseText;
+  }, [finalResponseText]);
 
   // Fetch recursive history using data from URL
   useEffect(() => {
@@ -404,7 +408,15 @@ export default function Page({ params, searchParams }) {
           ui: {
             width: 260,
             containerClass: "p-4 border border-base-300 ",
-            render: () => <UserPromptUI text={recursiveMessage?.user || ""} />,
+            render: () => (
+              <UserPromptUI
+                text={recursiveMessage?.user || ""}
+                onClick={() => {
+                  setSelectedResponse({ user: recursiveMessage?.user || "" });
+                  toggleSidebar("response-full-slider", "right");
+                }}
+              />
+            ),
           },
         },
       },

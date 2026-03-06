@@ -2,12 +2,34 @@ import { ArrowLeft } from "lucide-react";
 
 export function ResponseFullSlider({ response, onClose, onBack }) {
   const handleBack = () => {
-    onBack?.();
     onClose();
   };
 
+  const hasFinalResponse = Boolean(response?.updated_llm_message || response?.llm_message || response?.chatbot_message);
+  const viewType = response?.viewType || (hasFinalResponse ? "response" : "user_prompt");
+
+  const defaultConfig =
+    viewType === "user_prompt"
+      ? {
+          sectionLabel: "USER PROMPT",
+          title: "User Prompt",
+          emptyText: "No prompt available",
+        }
+      : {
+          sectionLabel: "RESPONSE",
+          title: "Final Response",
+          emptyText: "No response available",
+        };
+
+  const sectionLabel = response?.meta?.sectionLabel || defaultConfig.sectionLabel;
+  const title = response?.meta?.title || defaultConfig.title;
+  const emptyText = response?.meta?.emptyText || defaultConfig.emptyText;
+
   const content =
-    response?.updated_llm_message || response?.llm_message || response?.chatbot_message || response?.user || "";
+    response?.meta?.content ??
+    (viewType === "user_prompt"
+      ? response?.user || ""
+      : response?.updated_llm_message || response?.llm_message || response?.chatbot_message || "");
 
   return (
     <aside
@@ -29,12 +51,12 @@ export function ResponseFullSlider({ response, onClose, onBack }) {
           <ArrowLeft size={16} className="mr-1" />
           GO BACK TO FLOW EDITOR
         </button>
-        <div className="text-xs text-base-content/60">RESPONSE</div>
+        <div className="text-xs text-base-content/60">{sectionLabel}</div>
       </div>
 
       {/* Title */}
       <div className="px-6 py-4 border-b border-base-300">
-        <h2 className="text-xl font-semibold text-base-content">Final Response</h2>
+        <h2 className="text-xl font-semibold text-base-content">{title}</h2>
       </div>
 
       {/* Content */}
@@ -42,7 +64,7 @@ export function ResponseFullSlider({ response, onClose, onBack }) {
         {content ? (
           <div className="whitespace-pre-wrap text-sm text-base-content">{content}</div>
         ) : (
-          <div className="text-sm text-base-content/60">No response available</div>
+          <div className="text-sm text-base-content/60">{emptyText}</div>
         )}
       </div>
 
