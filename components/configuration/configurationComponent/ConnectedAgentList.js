@@ -111,7 +111,7 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
   };
   const handleOpenDeleteModal = (name, item) => {
     setSelectedBridge({ name: name, ...item });
-    openModal(MODAL_TYPE?.DELETE_AGENT_MODAL);
+    openModal(MODAL_TYPE?.REMOVE_AGENT_MODAL);
   };
   const handleOpenAgentVariable = useCallback(
     (name, item) => {
@@ -165,6 +165,7 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
       setCurrentVariable(null);
       setSelectedBridge(null);
       toast.success("Agent removed successfully");
+      closeModal(MODAL_TYPE?.REMOVE_AGENT_MODAL);
     });
   };
 
@@ -428,7 +429,7 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
         title="Are you sure?"
         description={"This action Remove the selected Agent from the Agent."}
         buttonTitle="Remove Agent"
-        modalType={`${MODAL_TYPE.DELETE_AGENT_MODAL}`}
+        modalType={`${MODAL_TYPE.REMOVE_AGENT_MODAL}`}
         loading={isDeleting}
         isAsync={true}
       />
