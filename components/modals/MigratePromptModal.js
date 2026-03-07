@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
 import Modal from "../UI/Modal";
-import { MODAL_TYPE, PROMPT_SECTIONS } from "@/utils/enums";
+import { MODAL_TYPE, PROMPT_FIELDS } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { isValidJsonPrompt, parsePromptObject } from "@/utils/promptUtils";
+
+const ROLE_KEY = PROMPT_FIELDS.ROLE.key;
+const GOAL_KEY = PROMPT_FIELDS.GOAL.key;
+const INSTRUCTION_KEY = PROMPT_FIELDS.INSTRUCTION.key;
 
 const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null }) => {
   const isEmbedMode = Array.isArray(embedFields) && embedFields.length > 0;
@@ -15,15 +19,15 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
     if (isValidJsonPrompt(prompt)) {
       const parsed = parsePromptObject(prompt);
       return {
-        [PROMPT_SECTIONS.ROLE]: parsed.role || "",
-        [PROMPT_SECTIONS.GOAL]: parsed.goal || "",
-        [PROMPT_SECTIONS.INSTRUCTION]: parsed.instruction || "",
+        [ROLE_KEY]: parsed.role || "",
+        [GOAL_KEY]: parsed.goal || "",
+        [INSTRUCTION_KEY]: parsed.instruction || "",
       };
     }
     return {
-      [PROMPT_SECTIONS.ROLE]: "",
-      [PROMPT_SECTIONS.GOAL]: "",
-      [PROMPT_SECTIONS.INSTRUCTION]: "",
+      [ROLE_KEY]: "",
+      [GOAL_KEY]: "",
+      [INSTRUCTION_KEY]: "",
     };
   };
 
@@ -104,35 +108,35 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
               /* Default role / goal / instruction fields */
               <div className="p-2">
                 <div className="form-control gap-1 ">
-                  <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.ROLE}</span>
+                  <span className="label-text font-medium capitalize">{ROLE_KEY}</span>
                   <input
                     type="text"
                     className="input input-bordered w-full text-sm input-sm"
                     placeholder="e.g. You are a helpful customer support assistant"
-                    value={fields[PROMPT_SECTIONS.ROLE]}
-                    onChange={(e) => handleChange(PROMPT_SECTIONS.ROLE, e.target.value)}
+                    value={fields[ROLE_KEY]}
+                    onChange={(e) => handleChange(ROLE_KEY, e.target.value)}
                   />
                 </div>
 
                 <div className="form-control gap-1">
-                  <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.GOAL}</span>
+                  <span className="label-text font-medium capitalize">{GOAL_KEY}</span>
                   <input
                     type="text"
                     className="input input-bordered w-full text-sm input-sm"
                     placeholder="e.g. Help users resolve their issues quickly and accurately"
-                    value={fields[PROMPT_SECTIONS.GOAL]}
-                    onChange={(e) => handleChange(PROMPT_SECTIONS.GOAL, e.target.value)}
+                    value={fields[GOAL_KEY]}
+                    onChange={(e) => handleChange(GOAL_KEY, e.target.value)}
                   />
                 </div>
 
                 <div className="form-control gap-1 flex-1 flex flex-col">
-                  <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.INSTRUCTION}</span>
+                  <span className="label-text font-medium capitalize">{INSTRUCTION_KEY}</span>
                   <textarea
                     className="textarea textarea-bordered w-full flex-1 text-sm leading-relaxed"
                     style={{ minHeight: "260px" }}
                     placeholder="e.g. Always be polite. Ask clarifying questions if needed..."
-                    value={fields[PROMPT_SECTIONS.INSTRUCTION]}
-                    onChange={(e) => handleChange(PROMPT_SECTIONS.INSTRUCTION, e.target.value)}
+                    value={fields[INSTRUCTION_KEY]}
+                    onChange={(e) => handleChange(INSTRUCTION_KEY, e.target.value)}
                   />
                 </div>
               </div>

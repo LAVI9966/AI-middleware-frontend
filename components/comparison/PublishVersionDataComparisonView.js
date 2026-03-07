@@ -5,7 +5,16 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { DIFFERNCE_DATA_DISPLAY_NAME, CONFIGURATION_KEYS_TO_EXCLUDE } from "@/jsonFiles/bridgeParameter";
 import ComparisonCheck from "@/utils/comparisonCheck";
 import { preprocessPrompt } from "@/utils/promptUtils";
-import { PROMPT_SECTION_CONFIG } from "@/utils/enums";
+import { PROMPT_FIELDS } from "@/utils/enums";
+
+const PROMPT_SECTION_CONFIG = Object.values(PROMPT_FIELDS).reduce((acc, field) => {
+  acc[field.key] = {
+    label: field.label,
+    type: field.type,
+    placeholder: field.placeholder,
+  };
+  return acc;
+}, {});
 
 const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
   const { apikeyData, functionData, knowledgeBaseData } = useCustomSelector((state) => ({

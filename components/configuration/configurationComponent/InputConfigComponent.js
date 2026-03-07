@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePromptSelector } from "@/customHooks/useOptimizedSelector";
-import { MODAL_TYPE, PROMPT_SECTION_CONFIG, PROMPT_VIEW_MODE } from "@/utils/enums";
+import { MODAL_TYPE, PROMPT_FIELDS, PROMPT_VIEW_MODE } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
 import PromptSummaryModal from "../../modals/PromptSummaryModal";
 import Diff_Modal from "@/components/modals/DiffModal";
@@ -42,6 +42,19 @@ const InputConfigComponent = memo(
 
     const [isTextareaFocused, setIsTextareaFocused] = useState(false);
     const [embedFieldValues, setEmbedFieldValues] = useState(null);
+
+    const promptSectionConfig = useMemo(
+      () =>
+        Object.values(PROMPT_FIELDS).reduce((acc, field) => {
+          acc[field.key] = {
+            label: field.label,
+            type: field.type,
+            placeholder: field.placeholder,
+          };
+          return acc;
+        }, {}),
+      []
+    );
 
     const isStructuredPrompt = typeof reduxPrompt === "object" && reduxPrompt !== null;
 
@@ -381,7 +394,7 @@ const InputConfigComponent = memo(
             </div>
           ) : viewMode === PROMPT_VIEW_MODE.SIMPLE ? (
             <div className="flex flex-col gap-3 pb-2">
-              {Object.entries(PROMPT_SECTION_CONFIG).map(([key, fieldConfig]) => (
+              {Object.entries(promptSectionConfig).map(([key, fieldConfig]) => (
                 <div key={key} className="form-control">
                   <label className="label py-0">
                     <span className="label-text text-xs font-medium capitalize text-base-content/70 mb-1">

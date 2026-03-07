@@ -111,16 +111,21 @@ export const KNOWLEDGE_BASE_CUSTOM_SECTION = [
 ];
 export const PROMPT_SUPPORTED_REASIONING_MODELS = ["o1", "o3-mini", "o4-mini"];
 
-export const PROMPT_SECTIONS = {
-  ROLE: "role",
-  GOAL: "goal",
-  INSTRUCTION: "instruction",
-};
-
-export const PROMPT_SECTION_CONFIG = {
-  role: { label: "Role", type: "input", placeholder: "e.g. You are a helpful customer support agent" },
-  goal: { label: "Goal", type: "input", placeholder: "e.g. Help users resolve billing issues" },
-  instruction: {
+export const PROMPT_FIELDS = {
+  ROLE: {
+    key: "role",
+    label: "Role",
+    type: "input",
+    placeholder: "e.g. You are a helpful customer support agent",
+  },
+  GOAL: {
+    key: "goal",
+    label: "Goal",
+    type: "input",
+    placeholder: "e.g. Help users resolve billing issues",
+  },
+  INSTRUCTION: {
+    key: "instruction",
     label: "Instruction",
     type: "textarea",
     placeholder: "e.g. Always be polite. Never reveal internal data. Ask clarifying questions when needed.",

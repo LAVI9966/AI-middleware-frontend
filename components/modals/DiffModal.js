@@ -1,10 +1,19 @@
 import React from "react";
 import Modal from "../UI/Modal";
 import ComparisonCheck from "@/utils/comparisonCheck";
-import { MODAL_TYPE, PROMPT_SECTION_CONFIG } from "@/utils/enums";
+import { MODAL_TYPE, PROMPT_FIELDS } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { preprocessPrompt } from "@/utils/promptUtils";
 import { CloseIcon } from "@/components/Icons";
+
+const promptSectionConfig = Object.values(PROMPT_FIELDS).reduce((acc, field) => {
+  acc[field.key] = {
+    label: field.label,
+    type: field.type,
+    placeholder: field.placeholder,
+  };
+  return acc;
+}, {});
 
 const Diff_Modal = ({ oldContent, newContent, isEmbedCustomPrompt = false }) => {
   const oldIsObject = oldContent !== null && typeof oldContent === "object" && !Array.isArray(oldContent);
@@ -19,13 +28,13 @@ const Diff_Modal = ({ oldContent, newContent, isEmbedCustomPrompt = false }) => 
   const allKeys = new Set([...Object.keys(oldProcessed || {}), ...Object.keys(newProcessed || {})]);
 
   const getLabel = (key) => {
-    if (!isEmbedCustomPrompt && PROMPT_SECTION_CONFIG[key]?.label) {
-      return PROMPT_SECTION_CONFIG[key].label;
+    if (!isEmbedCustomPrompt && promptSectionConfig[key]?.label) {
+      return promptSectionConfig[key].label;
     }
     return key.charAt(0).toUpperCase() + key.slice(1);
   };
 
-  const configKeys = Object.keys(PROMPT_SECTION_CONFIG);
+  const configKeys = Object.keys(promptSectionConfig);
   const sortedKeys = Array.from(allKeys).sort((a, b) => {
     if (!isEmbedCustomPrompt) {
       const aIdx = configKeys.indexOf(a);
