@@ -19,11 +19,11 @@ import { MODAL_TYPE } from "@/utils/enums";
 // Configuration Schema
 const CONFIG_SCHEMA = [
   {
-    key: "hideHomeButton",
+    key: "showHomeButton",
     type: "toggle",
-    label: "Hide Home Button",
-    description: "Removes the home navigation button",
-    defaultValue: false,
+    label: "Show Home Button",
+    description: "Displays the home navigation button",
+    defaultValue: true,
     section: "Interface Options",
   },
   {
@@ -51,35 +51,35 @@ const CONFIG_SCHEMA = [
     section: "Interface Options",
   },
   {
-    key: "hideAdvancedParameters",
+    key: "showAdvancedParameters",
     type: "toggle",
-    label: "Hide Advanced Parameters",
+    label: "Show Advanced Parameters",
     description: "Display advanced parameters",
+    defaultValue: false,
+    section: "Interface Options",
+  },
+  {
+    key: "showCreateManuallyButton",
+    type: "toggle",
+    label: "Show Create Agent Manually Button",
+    description: "Display create agent manually button",
     defaultValue: true,
     section: "Interface Options",
   },
   {
-    key: "hideCreateManuallyButton",
+    key: "showAdvancedConfigurations",
     type: "toggle",
-    label: "Hide Create Agent Manually Button",
-    description: "Display create agent manually button",
-    defaultValue: false,
-    section: "Interface Options",
-  },
-  {
-    key: "hideAdvancedConfigurations",
-    type: "toggle",
-    label: "Hide Advanced Configurations",
+    label: "Show Advanced Configurations",
     description: "Display advanced configurations",
-    defaultValue: false,
+    defaultValue: true,
     section: "Interface Options",
   },
   {
-    key: "hidePreTool",
+    key: "showPreTool",
     type: "toggle",
-    label: "Hide Pre Tool",
+    label: "Show Pre Tool",
     description: "Display pre tool",
-    defaultValue: false,
+    defaultValue: true,
     section: "Interface Options",
   },
   {
@@ -128,27 +128,27 @@ const CONFIG_SCHEMA = [
     section: "Display Settings",
   },
   {
-    key: "hideFullScreenButton",
+    key: "showFullScreenButton",
     type: "toggle",
-    label: "Hide Full Screen",
-    description: "Remove the full screen toggle button",
-    defaultValue: false,
+    label: "Show Full Screen",
+    description: "Display the full screen toggle button",
+    defaultValue: true,
     section: "Display Settings",
   },
   {
-    key: "hideCloseButton",
+    key: "showCloseButton",
     type: "toggle",
-    label: "Hide Close Button",
-    description: "Remove the close button",
-    defaultValue: false,
+    label: "Show Close Button",
+    description: "Display the close button",
+    defaultValue: true,
     section: "Display Settings",
   },
   {
-    key: "hideHeader",
+    key: "showHeader",
     type: "toggle",
-    label: "Hide Header",
-    description: "Hide the header section completely",
-    defaultValue: false,
+    label: "Show Header",
+    description: "Show the header section completely",
+    defaultValue: true,
     section: "Display Settings",
   },
   {
@@ -278,11 +278,106 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
   );
 
   const config = integrationData?.config || {};
+
   const generateInitialConfig = () => {
     const initial = {};
+
     CONFIG_SCHEMA.forEach((cfg) => {
-      initial[cfg.key] = config[cfg.key] ?? cfg.defaultValue;
+      const key = cfg.key;
+
+      // Handle legacy hide* keys for backward compatibility
+      if (key === "showHomeButton") {
+        if (config.showHomeButton !== undefined) {
+          initial.showHomeButton = config.showHomeButton;
+        } else if (config.hideHomeButton !== undefined) {
+          initial.showHomeButton = !config.hideHomeButton;
+        } else {
+          initial.showHomeButton = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showAdvancedParameters") {
+        if (config.showAdvancedParameters !== undefined) {
+          initial.showAdvancedParameters = config.showAdvancedParameters;
+        } else if (config.hideAdvancedParameters !== undefined) {
+          initial.showAdvancedParameters = !config.hideAdvancedParameters;
+        } else {
+          initial.showAdvancedParameters = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showCreateManuallyButton") {
+        if (config.showCreateManuallyButton !== undefined) {
+          initial.showCreateManuallyButton = config.showCreateManuallyButton;
+        } else if (config.hideCreateManuallyButton !== undefined) {
+          initial.showCreateManuallyButton = !config.hideCreateManuallyButton;
+        } else {
+          initial.showCreateManuallyButton = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showAdvancedConfigurations") {
+        if (config.showAdvancedConfigurations !== undefined) {
+          initial.showAdvancedConfigurations = config.showAdvancedConfigurations;
+        } else if (config.hideAdvancedConfigurations !== undefined) {
+          initial.showAdvancedConfigurations = !config.hideAdvancedConfigurations;
+        } else {
+          initial.showAdvancedConfigurations = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showPreTool") {
+        if (config.showPreTool !== undefined) {
+          initial.showPreTool = config.showPreTool;
+        } else if (config.hidePreTool !== undefined) {
+          initial.showPreTool = !config.hidePreTool;
+        } else {
+          initial.showPreTool = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showFullScreenButton") {
+        if (config.showFullScreenButton !== undefined) {
+          initial.showFullScreenButton = config.showFullScreenButton;
+        } else if (config.hideFullScreenButton !== undefined) {
+          initial.showFullScreenButton = !config.hideFullScreenButton;
+        } else {
+          initial.showFullScreenButton = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showCloseButton") {
+        if (config.showCloseButton !== undefined) {
+          initial.showCloseButton = config.showCloseButton;
+        } else if (config.hideCloseButton !== undefined) {
+          initial.showCloseButton = !config.hideCloseButton;
+        } else {
+          initial.showCloseButton = cfg.defaultValue;
+        }
+        return;
+      }
+
+      if (key === "showHeader") {
+        if (config.showHeader !== undefined) {
+          initial.showHeader = config.showHeader;
+        } else if (config.hideHeader !== undefined) {
+          initial.showHeader = !config.hideHeader;
+        } else {
+          initial.showHeader = cfg.defaultValue;
+        }
+        return;
+      }
+
+      // Default behaviour for non-visibility keys
+      initial[key] = config[key] ?? cfg.defaultValue;
     });
+
     return initial;
   };
 
@@ -503,8 +598,8 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           </select>
                         )}
                       </div>
-                      {/* Pre-Tool config inline after hidePreTool toggle */}
-                      {config.key === "hidePreTool" && configuration.hidePreTool && (
+                      {/* Pre-Tool config inline when pre-tool is enabled but hidden from embed UI */}
+                      {config.key === "showPreTool" && configuration.showPreTool === false && (
                         <div className="p-2 bg-base-200 rounded-lg border border-base-300">
                           <ToolsConfiguration
                             singleToolMode={true}

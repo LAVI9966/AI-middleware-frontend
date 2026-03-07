@@ -72,7 +72,7 @@ const Navbar = ({ isEmbedUser, params }) => {
     isUpdatingBridge,
     activeTab,
     isArchived,
-    hideHomeButton,
+    showHomeButton,
     showHistory,
     bridgeName,
     savingStatus,
@@ -102,7 +102,10 @@ const Navbar = ({ isEmbedUser, params }) => {
           : pathname.includes("testcase")
             ? "testcase"
             : "configure",
-      hideHomeButton: state.appInfoReducer?.embedUserDetails?.hideHomeButton || false,
+      showHomeButton:
+        state.appInfoReducer?.embedUserDetails?.showHomeButton !== undefined
+          ? state.appInfoReducer?.embedUserDetails?.showHomeButton
+          : !state.appInfoReducer?.embedUserDetails?.hideHomeButton,
       showHistory: state.appInfoReducer?.embedUserDetails?.showHistory,
       bridgeName: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.name || "",
       publishedVersionId: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.published_version_id || null,
@@ -393,17 +396,16 @@ const Navbar = ({ isEmbedUser, params }) => {
     <div className="bg-base-100 z-medium">
       {/* Main navigation header */}
       <div
-        className={`sticky top-0 z-high transition-all duration-300 ${
-          isScrolled
-            ? "bg-base-100/95 backdrop-blur-sm shadow-md border-b border-base-300"
-            : "bg-base-100 border-b border-base-200 "
-        }`}
+        className={`sticky top-0 z-high transition-all duration-300 ${isScrolled
+          ? "bg-base-100/95 backdrop-blur-sm shadow-md border-b border-base-300"
+          : "bg-base-100 border-b border-base-200 "
+          }`}
       >
         {/* Top bar with breadcrumb/home and actions */}
         <div className="flex w-full items-center justify-between px-2 sm:px-4 lg:px-6 h-10 min-w-0">
           {/* Left: Agent Name and Versions */}
           <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0 flex-1">
-            {isEmbedUser && !hideHomeButton && (
+            {isEmbedUser && showHomeButton && (
               <button
                 onClick={handleHomeClick}
                 className="btn btn-xs sm:btn-sm gap-1 sm:gap-2 hover:bg-base-200 px-2 sm:px-3"
@@ -461,11 +463,10 @@ const Navbar = ({ isEmbedUser, params }) => {
                       data-testid="navbar-published-button"
                       id="navbar-published-button"
                       onClick={handlePublishedClick}
-                      className={`btn btn-xs flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 whitespace-nowrap min-w-fit ${
-                        isPublished
-                          ? "bg-green-100 text-green-800 border border-green-300 hover:bg-green-200"
-                          : "bg-base-100 text-base-content border border-base-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
-                      }`}
+                      className={`btn btn-xs flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 whitespace-nowrap min-w-fit ${isPublished
+                        ? "bg-green-100 text-green-800 border border-green-300 hover:bg-green-200"
+                        : "bg-base-100 text-base-content border border-base-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
+                        }`}
                       title={isPublished ? "Currently viewing published version" : "Switch to published version"}
                     >
                       <span className="hidden sm:inline">Published</span>
@@ -708,11 +709,10 @@ const Navbar = ({ isEmbedUser, params }) => {
                   data-testid="navbar-mobile-published-button"
                   id="navbar-mobile-published-button"
                   onClick={handlePublishedClick}
-                  className={`btn btn-xs flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 whitespace-nowrap ${
-                    isPublished
-                      ? "bg-green-100 text-green-800 border border-green-300 hover:bg-green-200"
-                      : "bg-base-100 text-base-content border border-base-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
-                  }`}
+                  className={`btn btn-xs flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 whitespace-nowrap ${isPublished
+                    ? "bg-green-100 text-green-800 border border-green-300 hover:bg-green-200"
+                    : "bg-base-100 text-base-content border border-base-300 hover:bg-green-50 hover:text-green-700 hover:border-green-300"
+                    }`}
                   title={isPublished ? "Currently viewing published version" : "Switch to published version"}
                 >
                   <span>Pub</span>

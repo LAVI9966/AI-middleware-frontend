@@ -11,7 +11,10 @@ import UnsupportedFeatureOverlay from "../UnsupportedFeatureOverlay";
 const PromptTab = ({ isPublished, isEmbedUser }) => {
   const { params, searchParams, isEditor, validationConfig } = useConfigurationContext();
   const { hideAdvancedParameters } = useCustomSelector((state) => ({
-    hideAdvancedParameters: state.appInfoReducer.embedUserDetails.hideAdvancedParameters,
+    hideAdvancedParameters:
+      state.appInfoReducer.embedUserDetails.showAdvancedParameters !== undefined
+        ? !state.appInfoReducer.embedUserDetails.showAdvancedParameters
+        : state.appInfoReducer.embedUserDetails.hideAdvancedParameters,
   }));
 
   // Check if system_prompt is supported by the current model
