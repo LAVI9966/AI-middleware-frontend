@@ -22,7 +22,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { formatRelativeTime, openModal } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
 import { PdfIcon } from "@/icons/pdfIcon";
-import { ExternalLink } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, ExternalLink } from "lucide-react";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 
 // Resolve any possible url shape (string, object with permanent_url, etc.)
@@ -177,6 +177,22 @@ const ThreadItem = ({
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
+  const batchStatus = item?.batch_data?.status;
+  const isBatchResponse = Boolean(item?.batch_data?.batch_id);
+
+  const getBatchStatusMeta = () => {
+    const status = (batchStatus || "").toLowerCase();
+    if (status === "completed") {
+      return { icon: CheckCircle2, className: "badge-success", label: "Completed" };
+    }
+    if (["in_progress", "processing", "queued", "pending", "validating", "finalizing"].includes(status)) {
+      return { icon: Clock3, className: "badge-warning", label: batchStatus };
+    }
+    return { icon: AlertTriangle, className: "badge-error", label: batchStatus || "Unknown" };
+  };
+
+  const batchStatusMeta = getBatchStatusMeta();
+  const BatchStatusIcon = batchStatusMeta.icon;
   const handleVisualizeClick = () => {
     if (!params?.org_id || !params?.id) return;
     const searchParams = new URLSearchParams();
@@ -733,18 +749,9 @@ const ThreadItem = ({
                   {isDropupOpen && (
                     <div
                       ref={dropupRef}
-                      className="absolute bg-red-500 text-white rounded-md shadow-lg border-2 border-black min-w-[150px] min-h-[100px]"
-                      style={{
-                        zIndex: 9999,
-                        top: "-120px",
-                        left: "-75px",
-                        backgroundColor: "red",
-                        border: "2px solid black",
-                        padding: "10px",
-                      }}
+                      className="absolute z-[9999] -top-[120px] -left-[75px] rounded-md shadow-lg border border-base-300 min-w-[150px] min-h-[100px] bg-base-100 text-base-content p-2"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <div style={{ color: "white", fontSize: "14px" }}>TEST DROPDOWN VISIBLE</div>
                       <ul className="flex justify-center flex-col items-center gap-2 p-2">
                         {item.chatbot_message && (
                           <li>
@@ -818,6 +825,12 @@ const ThreadItem = ({
             <div className="chat-header flex gap-4 items-center mb-1">
               {messageType === "updated_llm_message" && (
                 <p className="text-xs opacity-50 badge badge-sm badge-outline">Edited</p>
+              )}
+              {isBatchResponse && (
+                <span className={`badge badge-sm gap-1 text-white ${batchStatusMeta.className}`}>
+                  <BatchStatusIcon size={12} />
+                  Batch: {batchStatusMeta.label}
+                </span>
               )}
             </div>
             <div

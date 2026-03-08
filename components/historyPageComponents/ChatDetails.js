@@ -18,6 +18,10 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
           : selectedItem["AiConfig"]?.system;
   }
   const variablesKeyValue = selectedItem && selectedItem["variables"] ? selectedItem["variables"] : {};
+  const batchData =
+    selectedItem && typeof selectedItem["batch_data"] === "object" && selectedItem["batch_data"] !== null
+      ? selectedItem["batch_data"]
+      : null;
   const [modalContent, setModalContent] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const sidebarRef = useRef(null);
@@ -246,6 +250,90 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
                         </div>
                       );
                     })}
+
+                  {batchData && (
+                    <div className="border-b border-base-300 bg-base-100 transition-colors duration-150">
+                      <div className="pt-4 px-4 text-sm font-semibold capitalize">Batch Details</div>
+                      <div className="py-4 px-4">
+                        <div className="relative">
+                          <pre
+                            id="chat-details-batch-data-value"
+                            className={`bg-base-200 p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap border border-base-200 ${
+                              JSON.stringify(batchData).length > 200
+                                ? "cursor-pointer hover:border-primary transition-colors duration-200"
+                                : ""
+                            }`}
+                            onClick={() => handleObjectClick("batch_data", batchData)}
+                          >
+                            {truncate(JSON.stringify(batchData, null, 2), 210)}
+                          </pre>
+                          <div className="absolute top-2 right-2">
+                            <div className="dropdown dropdown-end">
+                              <div
+                                data-testid="chat-details-batch-copy-dropdown"
+                                id="chat-details-batch-copy-dropdown"
+                                tabIndex={0}
+                                role="button"
+                                className="btn btn-sm btn-ghost tooltip tooltip-primary tooltip-left hover:bg-base-300 transition-colors duration-200"
+                                data-tip="Copy options"
+                              >
+                                <CopyIcon size={16} className="text-base-content" />
+                                <ChevronDown size={12} className="text-base-content" />
+                              </div>
+                              <ul
+                                tabIndex={0}
+                                className="dropdown-content menu rounded-box z-high w-64 p-2 shadow bg-base-100 border border-base-300"
+                              >
+                                <li>
+                                  <a
+                                    data-testid="chat-details-copy-batch-current-values"
+                                    id="chat-details-copy-batch-current-values"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      copyToClipboard(
+                                        batchData,
+                                        "Batch data copied to clipboard",
+                                        "current-batch-data"
+                                      );
+                                    }}
+                                    className="flex items-center gap-2 text-sm"
+                                  >
+                                    <CopyIcon size={14} />
+                                    <div>
+                                      <div className="font-medium">Copy Current Values</div>
+                                      <div className="text-xs opacity-70">Copy actual batch response values</div>
+                                    </div>
+                                  </a>
+                                </li>
+                                <li>
+                                  <a
+                                    data-testid="chat-details-copy-batch-key-value-pairs"
+                                    id="chat-details-copy-batch-key-value-pairs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const keyValuePairs = generateKeyValuePairs(batchData);
+                                      copyToClipboard(
+                                        JSON.stringify(keyValuePairs, null, 2),
+                                        "Batch key-value pairs copied to clipboard",
+                                        "keyvalue-batch-data"
+                                      );
+                                    }}
+                                    className="flex items-center gap-2 text-sm"
+                                  >
+                                    <CopyIcon size={14} />
+                                    <div>
+                                      <div className="font-medium">Copy Key-Value Pairs</div>
+                                      <div className="text-xs opacity-70">Copy structure with data types</div>
+                                    </div>
+                                  </a>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="bg-base-200">
                     <div className="py-2 px-6 text-sm font-semibold text-base-content border-b border-base-300">
