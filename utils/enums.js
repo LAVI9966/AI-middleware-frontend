@@ -86,6 +86,8 @@ export const API_KEY_MODAL_INPUT = ["name", "apikey", "comment", "apikey_limit"]
 
 export const USER_FEEDBACK_FILTER_OPTIONS = ["all", "1", "2"];
 
+export const BATCH_PROCESSING_STATUSES = ["in_progress", "processing", "queued", "pending", "validating", "finalizing"];
+
 export const TIME_RANGE_OPTIONS = [
   "1 hour",
   "3 hours",

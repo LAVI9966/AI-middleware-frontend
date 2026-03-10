@@ -20,7 +20,7 @@ import { truncate } from "./AssistFile";
 import ToolsDataModal from "./ToolsDataModal";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { formatRelativeTime, openModal } from "@/utils/utility";
-import { MODAL_TYPE } from "@/utils/enums";
+import { BATCH_PROCESSING_STATUSES, MODAL_TYPE } from "@/utils/enums";
 import { PdfIcon } from "@/icons/pdfIcon";
 import { AlertTriangle, CheckCircle2, Clock3, ExternalLink } from "lucide-react";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
@@ -179,19 +179,18 @@ const ThreadItem = ({
   const router = useRouter();
   const batchStatus = item?.batch_data?.status;
   const isBatchResponse = Boolean(item?.batch_data?.batch_id);
-
-  const getBatchStatusMeta = () => {
-    const status = (batchStatus || "").toLowerCase();
-    if (status === "completed") {
+  const getBatchStatusMeta = (status) => {
+    const statusLower = (status || "").toLowerCase();
+    if (statusLower === "completed") {
       return { icon: CheckCircle2, className: "badge-success", label: "Completed" };
     }
-    if (["in_progress", "processing", "queued", "pending", "validating", "finalizing"].includes(status)) {
-      return { icon: Clock3, className: "badge-warning", label: batchStatus };
+    if (BATCH_PROCESSING_STATUSES.includes(statusLower)) {
+      return { icon: Clock3, className: "badge-warning", label: status || "Unknown" };
     }
-    return { icon: AlertTriangle, className: "badge-error", label: batchStatus || "Unknown" };
+    return { icon: AlertTriangle, className: "badge-error", label: status || "Unknown" };
   };
 
-  const batchStatusMeta = getBatchStatusMeta();
+  const batchStatusMeta = getBatchStatusMeta(batchStatus);
   const BatchStatusIcon = batchStatusMeta.icon;
   const handleVisualizeClick = () => {
     if (!params?.org_id || !params?.id) return;
