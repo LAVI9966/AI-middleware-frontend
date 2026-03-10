@@ -33,6 +33,7 @@ export const MODAL_TYPE = {
   CHAT_DETAILS_VIEW_MODAL: "chat_details_view",
   JSON_SCHEMA: "JSON_SCHEMA",
   JSON_SCHEMA_BUILDER: "JSON_SCHEMA_BUILDER",
+  BUTTON_SCHEMA_BUILDER: "BUTTON_SCHEMA_BUILDER",
   KNOWLEDGE_BASE_MODAL: "KNOWLEDGE_BASE_MODAL",
   PROMPT_SUMMARY: "PROMPT_SUMMARY",
   TESTCASE_MODAL: "TESTCASE_MODAL",
@@ -244,3 +245,5 @@ export const EMBED_SKIP_KEYS = new Set([
   "configureGtwyRedirection",
   "variables_path",
 ]);
+
+export const ON_CLICK_ACTION_TYPES = ["reply", "sendDataToFrontend"];
