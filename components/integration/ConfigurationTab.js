@@ -285,7 +285,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
     pre_tool_id: config?.pre_tool_id || null,
     variables_path: config?.variables_path || {},
     models: config?.models || {},
-    apikey_object_id: config?.apikey_object_id || {},
+    apikey_object_id: integrationData?.apikey_object_id || {},
   }));
   const [theme, setTheme] = useState(config?.theme_config || defaultUserTheme);
 
@@ -307,11 +307,13 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
     async (configToSave, themeToSave) => {
       try {
         setIsSaving(true);
+        const { apikey_object_id, ...restConfig } = configToSave;
         const dataToSend = {
           folder_id: data?.folder_id,
           orgId: data?.org_id,
+          ...(apikey_object_id !== undefined && { apikey_object_id }),
           config: {
-            ...configToSave,
+            ...restConfig,
             theme_config: themeToSave,
           },
         };
