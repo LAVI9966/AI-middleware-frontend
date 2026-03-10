@@ -1,6 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 
-export function ResponseFullSlider({ response, onClose, onBack }) {
+export function ResponseFullSlider({ response, onClose }) {
   const handleBack = () => {
     onClose();
   };
@@ -42,7 +42,10 @@ export function ResponseFullSlider({ response, onClose, onBack }) {
       aria-label="Response Details Slider"
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-base-300">
+      <div
+        data-testid="response-full-slider-header"
+        className="flex items-center justify-between p-4 border-b border-base-300"
+      >
         <button
           data-testid="response-full-slider-back"
           onClick={handleBack}
@@ -51,25 +54,39 @@ export function ResponseFullSlider({ response, onClose, onBack }) {
           <ArrowLeft size={16} className="mr-1" />
           GO BACK TO FLOW EDITOR
         </button>
-        <div className="text-xs text-base-content/60">{sectionLabel}</div>
+        <div data-testid="response-full-slider-section-label" className="text-xs text-base-content/60">
+          {sectionLabel}
+        </div>
       </div>
 
       {/* Title */}
-      <div className="px-6 py-4 border-b border-base-300">
-        <h2 className="text-xl font-semibold text-base-content">{title}</h2>
+      <div data-testid="response-full-slider-title-section" className="px-6 py-4 border-b border-base-300">
+        <h2 data-testid="response-full-slider-title" className="text-xl font-semibold text-base-content">
+          {title}
+        </h2>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div data-testid="response-full-slider-content" className="flex-1 overflow-y-auto p-6">
         {content ? (
-          <div className="whitespace-pre-wrap text-sm text-base-content">{content}</div>
+          <div
+            data-testid="response-full-slider-content-text"
+            className="whitespace-pre-wrap text-sm text-base-content"
+          >
+            {content}
+          </div>
         ) : (
-          <div className="text-sm text-base-content/60">{emptyText}</div>
+          <div data-testid="response-full-slider-content-empty" className="text-sm text-base-content/60">
+            {emptyText}
+          </div>
         )}
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end p-4 border-t border-base-300 bg-base-200">
+      <div
+        data-testid="response-full-slider-footer"
+        className="flex justify-end p-4 border-t border-base-300 bg-base-200"
+      >
         <button
           data-testid="response-full-slider-close"
           onClick={onClose}

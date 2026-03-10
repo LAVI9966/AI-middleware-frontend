@@ -23,15 +23,22 @@ export function UserPromptUI({ text, onClick }) {
           : undefined
       }
     >
-      <div className="w-10 h-10 flex items-center justify-center border border-primary bg-base-200 ">
+      <div
+        data-testid="user-prompt-icon"
+        className="w-10 h-10 flex items-center justify-center border border-primary bg-base-200 "
+      >
         <User size={18} className="text-base-content" />
       </div>
-      <div className="text-xs text-base-content/60 font-semibold">USER PROMPT</div>
+      <div data-testid="user-prompt-label" className="text-xs text-base-content/60 font-semibold">
+        USER PROMPT
+      </div>
       <div
         data-testid="userprompt-preview"
         className="border border-base-300 hover:border-success p-3 hover:bg-success/10 cursor-pointer transition-all"
       >
-        <p className="text-sm text-base-content/80 line-clamp-3">{text}</p>
+        <p data-testid="userprompt-preview-text" className="text-sm text-base-content/80 line-clamp-3">
+          {text}
+        </p>
       </div>
     </div>
   );
