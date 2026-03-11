@@ -15,7 +15,7 @@ const CommonConfigComponents = ({
   service,
   showDefaultApikeys,
   isEmbedUser,
-  hideAdvancedParameters = false,
+  showAdvancedParameters = true,
   isPublished = false,
   isEditor = true,
 }) => {
@@ -82,7 +82,7 @@ const CommonConfigComponents = ({
               params={params}
               searchParams={searchParams}
               isEmbedUser={isEmbedUser}
-              hideAdvancedParameters={hideAdvancedParameters}
+              showAdvancedParameters={showAdvancedParameters}
               isPublished={isPublished}
               isEditor={isEditor}
             />
@@ -91,7 +91,7 @@ const CommonConfigComponents = ({
         )}
 
         {/* Parameters Section with Border */}
-        {((!hideAdvancedParameters && isEmbedUser) || !isEmbedUser) && (
+        {(!isEmbedUser || (isEmbedUser && showAdvancedParameters)) && (
           <div data-testid="parameters-section" id="parameters-section" className="border-t border-base-200 pt-6">
             <div className="mb-4">
               <h2 className="text-base-content text-md font-medium">Parameters</h2>
@@ -101,7 +101,7 @@ const CommonConfigComponents = ({
                 params={params}
                 searchParams={searchParams}
                 isEmbedUser={isEmbedUser}
-                hideAdvancedParameters={hideAdvancedParameters}
+                showAdvancedParameters={showAdvancedParameters}
                 level={1}
                 className="mt-0"
                 defaultExpanded

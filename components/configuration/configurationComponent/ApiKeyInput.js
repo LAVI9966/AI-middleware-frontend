@@ -12,7 +12,7 @@ const ApiKeyInput = ({
   searchParams,
   apiKeySectionRef,
   isEmbedUser,
-  hideAdvancedParameters = false,
+  showAdvancedParameters = true,
   isPublished,
   isEditor = true,
   hasError = false,

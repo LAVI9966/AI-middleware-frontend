@@ -14,6 +14,8 @@ const EmbedPreview = ({
   useEffect(() => {
     if (!embedToken) return;
 
+    const normalizedEnv = (process.env.NEXT_PUBLIC_ENV || "").replace(/['"]/g, "").trim().toUpperCase();
+
     // Determine script configuration based on embed type
     const scriptConfig =
       embedType === "rag"
@@ -25,14 +27,10 @@ const EmbedPreview = ({
           }
         : {
             id: "gtwy-main-script",
-            src:
-              process.env.NEXT_PUBLIC_ENV === "LOCAL"
-                ? `${process.env.NEXT_PUBLIC_FRONTEND_URL}/gtwy_embed_local.js`
-                : process.env.NEXT_PUBLIC_ENV !== "PROD"
-                  ? `${process.env.NEXT_PUBLIC_FRONTEND_URL}/gtwy_dev.js`
-                  : `${process.env.NEXT_PUBLIC_FRONTEND_URL}/gtwy.js`,
+            src: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/gtwy_embed_local.js`,
             appendTo: "head",
           };
+    console.log("[EmbedPreview] Loading script URL:", scriptConfig.src, "ENV:", normalizedEnv);
     // Clear container and remove existing script before loading (important for theme changes)
     const container = document.getElementById(parentId);
     if (container) {

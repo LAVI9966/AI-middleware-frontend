@@ -15,7 +15,7 @@ const SettingsTab = () => {
     params,
     searchParams,
     isEmbedUser,
-    hideAdvancedConfigurations,
+    showAdvancedConfigurations,
     bridgeType,
     modelType,
     currentView,
@@ -34,7 +34,7 @@ const SettingsTab = () => {
 
   const isReadOnly = isPublished || !isEditor;
 
-  if (isEmbedUser && hideAdvancedConfigurations && modelType === "image") {
+  if (isEmbedUser && !showAdvancedConfigurations && modelType === "image") {
     return (
       <div className="relative min-h-[300px]">
         <UnsupportedFeatureOverlay featureName="Settings" />
@@ -114,7 +114,7 @@ const SettingsTab = () => {
             </div>
           </>
         )}
-        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && (
+        {(!isEmbedUser || (isEmbedUser && showAdvancedConfigurations)) && (
           <div className="">
             <AdvancedConfiguration
               params={params}

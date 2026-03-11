@@ -28,9 +28,10 @@ const PromptHeader = memo(
       onOpenDiff?.();
     }, [onOpenDiff]);
 
-    const hidePromptHelper = useCustomSelector(
-      (state) => state.appInfoReducer?.embedUserDetails?.hidePromptHelper || false
-    );
+    const showPromptHelper = useCustomSelector((state) => {
+      const eu = state.appInfoReducer?.embedUserDetails;
+      return eu?.showPromptHelper ?? !(eu?.hidePromptHelper || false);
+    });
 
     const isStructuredPrompt = typeof prompt === "object" && prompt !== null;
     const canEdit = !isPublished && isEditor;
@@ -115,7 +116,7 @@ const PromptHeader = memo(
             </button>
           )}
 
-          {!isPromptHelperOpen && ((isEmbedUser && !hidePromptHelper) || !isEmbedUser) && (
+          {!isPromptHelperOpen && ((isEmbedUser && showPromptHelper) || !isEmbedUser) && (
             <button
               type="button"
               data-testid="prompt-header-open-helper-button"

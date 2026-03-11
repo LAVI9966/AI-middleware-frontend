@@ -25,19 +25,20 @@ const IntegrationModal = ({ params, type = "embed" }) => {
     // Only add config if type is not "rag_embed"
     if (type !== "rag_embed") {
       payload.config = {
-        hideHomeButton: false,
+        showHomeButton: true,
+        showAgentTypeOnCreateAgent: true,
         showGuide: true,
         showHistory: false,
         showConfigType: false,
+        showAdvancedParameters: false,
+        showAdvancedConfigurations: true,
+        showPreTool: true,
+        showCreateManuallyButton: true,
         slide: "right",
         defaultOpen: true,
-        hideFullScreenButton: false,
-        hideCloseButton: false,
-        hideHeader: false,
-        hideAdvancedParameters: false,
-        hideAdvancedConfigurations: false,
-        hidePreTool: false,
-        hideCreateManuallyButton: false,
+        showFullScreenButton: true,
+        showCloseButton: true,
+        showHeader: true,
         prompt: {
           useDefaultPrompt: true,
           customPrompt: "",

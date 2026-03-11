@@ -20,8 +20,8 @@ const ModelTab = () => {
     service,
     showDefaultApikeys,
     isEmbedUser,
-    hideAdvancedParameters,
-    hideAdvancedConfigurations,
+    showAdvancedParameters,
+    showAdvancedConfigurations,
     bridgeType,
     isPublished,
     isEditor,
@@ -84,7 +84,7 @@ const ModelTab = () => {
               params={params}
               searchParams={searchParams}
               isEmbedUser={isEmbedUser}
-              hideAdvancedParameters={hideAdvancedParameters}
+              showAdvancedParameters={showAdvancedParameters}
               isPublished={isPublished}
               isEditor={isEditor}
               hasError={apiKeyError}
@@ -94,7 +94,7 @@ const ModelTab = () => {
         )}
 
         {/* Parameters Section with Border */}
-        {((!hideAdvancedParameters && isEmbedUser) || !isEmbedUser) && (
+        {(!isEmbedUser || (isEmbedUser && showAdvancedParameters)) && (
           <div
             data-testid="model-tab-parameters-section"
             id="model-tab-parameters-section"
@@ -108,7 +108,7 @@ const ModelTab = () => {
                 params={params}
                 searchParams={searchParams}
                 isEmbedUser={isEmbedUser}
-                hideAdvancedParameters={hideAdvancedParameters}
+                showAdvancedParameters={showAdvancedParameters}
                 level={1}
                 className="mt-0"
                 defaultExpanded
@@ -121,7 +121,7 @@ const ModelTab = () => {
           </div>
         )}
         {/* Fallback Model Section */}
-        {((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && modelType !== "image" && (
+        {(!isEmbedUser || (isEmbedUser && showAdvancedConfigurations)) && modelType !== "image" && (
           <div className="space-y-2">
             <FallbackModel
               params={params}
