@@ -32,7 +32,15 @@ export const updateIntegrationData = async (dataToSend) => {
     throw error;
   }
 };
-
+export const generateAffiliateEmbedTokenApi = async (data) => {
+  try {
+    const response = await axios.post(`${URL}/api/utils/affiliate/embed-token`, data);
+    return response?.data;
+  } catch (error) {
+    console.error(error);
+    return error;
+  }
+};
 export const generateGtwyAccessTokenApi = async () => {
   try {
     const response = await axios.post(`${URL}/api/utils/token`, {
