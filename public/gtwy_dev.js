@@ -12,8 +12,8 @@
                 hideFullScreenButton: 'false', hideHeader: 'false', skipLoadGtwy: false
             };
             this.urls = {
-                gtwyUrl: 'https://dev-embed.gtwy.ai/embed',
-                login: 'https://dev-db.gtwy.ai/api/embed/login'
+                gtwyUrl: 'http://localhost:3000/embed',
+                login: 'http://localhost:7072/api/embed/login'
             };
             this.state = {
                 bodyLoaded: false, fullscreen: false, isInitialized: false, hasParentContainer: false,
