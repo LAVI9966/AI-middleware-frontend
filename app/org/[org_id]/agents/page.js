@@ -296,8 +296,7 @@ const PoweredByFooter = () => {
 
 function Home({ params, searchParams, isEmbedUser }) {
   // Use the tutorial videos hook
-  const { getBridgeCreationVideo } = useTutorialVideos();
-
+  const { getApiAgentCreationVideo, getChatbotAgentCreationVideo } = useTutorialVideos();
   const resolvedParams = use(params);
   const resolvedSearchParams = use(searchParams);
   const dispatch = useDispatch();
@@ -1192,7 +1191,7 @@ function Home({ params, searchParams, isEmbedUser }) {
         {tutorialState?.showTutorial && (
           <OnBoarding
             setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
-            video={getBridgeCreationVideo()}
+            video={bridgeTypeFilter === "chatbot" ? getChatbotAgentCreationVideo() : getApiAgentCreationVideo()}
             flagKey={"bridgeCreation"}
           />
         )}

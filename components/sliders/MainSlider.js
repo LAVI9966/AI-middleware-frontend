@@ -882,7 +882,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                 <button
                   id="main-slider-speak-to-us-button"
                   data-cal-namespace="30min"
-                  data-cal-link="team/gtwy.ai/ai-consultation"
+                  data-cal-link="human-gtwy-ai/book-a-demo-with-gtwy"
                   data-cal-origin="https://cal.id"
                   data-cal-config='{"layout":"month_view"}'
                   onMouseEnter={(e) => onItemEnter("speak-to-us", e)}
@@ -893,19 +893,21 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                   {showSidebarContent && <span className="text-xs truncate">Speak To Us</span>}
                 </button>
 
-                <a
-                  id="main-slider-feedback-link"
-                  href="https://gtwy.featurebase.app/"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  id="main-slider-feedback-button"
+                  type="button"
+                  onClick={() => {
+                    // Navigate to feedback page
+                    router.push(`/org/${orgId}/feedback`);
+                    if (isMobile) setIsMobileVisible(false);
+                  }}
                   onMouseEnter={(e) => onItemEnter("feedback", e)}
                   onMouseLeave={onItemLeave}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-lg hover:bg-base-200 transition-colors ${!showSidebarContent ? "justify-center" : ""}`}
-                  onClick={() => isMobile && setIsMobileVisible(false)}
                 >
                   {ITEM_ICONS.feedbackAdmin}
                   {showSidebarContent && <span className="text-xs truncate">Feedback</span>}
-                </a>
+                </button>
               </div>
             </div>
 
