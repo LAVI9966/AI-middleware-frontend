@@ -4,8 +4,8 @@ function FeedbackPage() {
   return (
     <div className="w-full h-screen">
       <div className="w-full h-full flex flex-col">
-        <div className="flex-1 w-full p-4">
-          <div className="w-full h-full bg-base-100 rounded-lg shadow-lg overflow-hidden">
+        <div className="flex-1 w-full h-full">
+          <div className="w-full h-full bg-base-100 shadow-lg overflow-hidden">
             <iframe
               title="Feedback Widget"
               src={process.env.NEXT_PUBLIC_FRILLURL}
