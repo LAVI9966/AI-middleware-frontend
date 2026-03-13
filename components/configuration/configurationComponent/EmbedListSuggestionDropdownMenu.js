@@ -6,6 +6,7 @@ import { GetPreBuiltToolTypeIcon, getStatusClass } from "@/utils/utility";
 import { AddIcon } from "@/components/Icons";
 import React, { useMemo, useState } from "react";
 import { truncate } from "@/components/historyPageComponents/AssistFile";
+import { PRE_TOOL_TYPES, PRE_TOOL_LABELS } from "@/utils/enums";
 
 function EmbedListSuggestionDropdownMenu({
   params,
@@ -24,6 +25,8 @@ function EmbedListSuggestionDropdownMenu({
   setTutorialState,
   isPublished = false,
   isEditor = true,
+  onSelectBuiltInPreTool = () => {},   // new
+connectedPreToolTypes = [], 
 }) {
   // Determine if content is read-only (either published or user is not an editor)
   // Use the tutorial videos hook
@@ -157,6 +160,7 @@ function EmbedListSuggestionDropdownMenu({
         >
           <div className="flex flex-col gap-2 w-full">
             {name === "preFunction" ? (
+              
               <li className="text-sm font-semibold disabled">Available Pre Functions</li>
             ) : (
               <li className="text-sm font-semibold disabled">Available Tools</li>
@@ -175,6 +179,24 @@ function EmbedListSuggestionDropdownMenu({
             ) : (
               <li className="text-center mt-2">No tools found</li>
             )}
+            {name === "preFunction" && (
+  <>
+    <li className="text-sm font-semibold disabled mt-2">Built-in Pre Tools</li>
+      {Object.keys(PRE_TOOL_TYPES)
+      .filter((k) => k !== "custom_function")
+      .map((k) => ({ type: k, label: PRE_TOOL_LABELS[k] }))
+      .filter((t) => !connectedPreToolTypes.includes(t.type))
+      .map((t) => (
+        <li key={t.type} onClick={() => onSelectBuiltInPreTool(t.type)}>
+          <div className="flex justify-between items-center w-full">
+            <span className="text-sm">{t.label}</span>
+            <span className="ml-auto text-xs text-base-content/40 bg-base-200 px-2 py-0.5 rounded">built-in</span>
+          </div>
+        </li>
+      ))
+    }
+  </>
+)}
             {name != "preFunction" && (
               <>
                 <li className="text-sm font-semibold disabled mt-2">Prebuilt Tools</li>

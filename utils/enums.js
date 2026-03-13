@@ -67,6 +67,7 @@ export const MODAL_TYPE = {
   PROMPT_SUMMARY_PUBLISH: "PROMPT_SUMMARY_PUBLISH",
   DELETE_VERSION_MODAL: "DELETE_VERSION_MODAL",
   PREBUILT_TOOLS_CONFIG_MODAL: "PREBUILT_TOOLS_CONFIG_MODAL",
+  PREBUILT_PRE_TOOL_CONFIG_MODAL: "prebuilt-pre-tool-config-modal",
   INVITE_USER: "INVITE_USER",
   ORCHESTRAL_DELETE_MODAL: "ORCHESTRAL_DELETE_MODAL",
   ACCESS_MANAGEMENT_MODAL: "ACCESS_MANAGEMENT_MODAL",
@@ -249,5 +250,19 @@ export const EMBED_SKIP_KEYS = new Set([
   "configureGtwyRedirection",
   "variables_path",
 ]);
+
+export const PRE_TOOL_TYPES = {
+  custom_function: "custom_function",
+  query_refiner: "query_refiner",
+  rag_knowledgebase: "rag_knowledgebase",
+  gtwy_web_search: "gtwy_web_search",
+};
+
+export const PRE_TOOL_LABELS = {
+  custom_function: "Custom Function",
+  query_refiner: "Query Refiner",
+  rag_knowledgebase: "RAG Knowledgebase",
+  gtwy_web_search: "Gtwy Web Search",
+};
 
 export const ON_CLICK_ACTION_TYPES = ["reply", "sendDataToFrontend"];
