@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CircleAlertIcon, RocketIcon, SparklesIcon, CheckIcon } from "@/components/Icons";
 import { AGENT_SETUP_GUIDE_STEPS } from "@/utils/enums";
 import { useCustomSelector } from "@/customHooks/customSelector";
@@ -221,26 +221,27 @@ const AgentSetupGuide = ({
     hasDraftPromptChanges,
   ]);
 
-  // Function to handle chatbot open/close with delay
-  const checkConfigToOpenChatbot = () => {
-    const hasPrompt = hasPromptContent(effectivePrompt) || !shouldPromptShow;
-    const hasApiKey = bridgeApiKey;
-    if (
-      bridgeType === "chatbot" &&
-      hasPrompt &&
-      (hasApiKey || (modelName === "gpt-5-nano" && bridgeType === "chatbot"))
-    ) {
-      window?.openChatbot();
-    } else {
-      window?.closeChatbot();
-    }
-  };
+  const chatbotTimerRef = useRef(null);
 
   useEffect(() => {
-    setTimeout(() => {
-      checkConfigToOpenChatbot();
+    if (chatbotTimerRef.current) clearTimeout(chatbotTimerRef.current);
+
+    const hasPrompt = hasPromptContent(prompt) || !shouldPromptShow;
+    const hasApiKey = bridgeApiKey;
+    const shouldOpen = bridgeType === "chatbot" && hasPrompt && (hasApiKey || modelName === "gpt-5-nano");
+
+    chatbotTimerRef.current = setTimeout(() => {
+      const iframeContainer = document.getElementById("iframe-parent-container");
+      const isChatbotOpen = iframeContainer?.style?.display === "block";
+      if (shouldOpen) {
+        if (!isChatbotOpen) window?.openChatbot();
+      } else {
+        if (isChatbotOpen) window?.closeChatbot();
+      }
     }, 2000);
-  }, [bridgeApiKey, effectivePrompt, shouldPromptShow, modelName, bridgeType, draftPrompt, hasDraftPromptChanges]);
+
+    return () => clearTimeout(chatbotTimerRef.current);
+  }, [bridgeApiKey, prompt, shouldPromptShow, modelName, bridgeType]);
 
   useEffect(() => {
     if (typeof onVisibilityChange === "function") {
