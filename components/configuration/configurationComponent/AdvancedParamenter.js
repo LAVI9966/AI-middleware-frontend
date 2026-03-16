@@ -638,6 +638,20 @@ const AdvancedParameters = ({
                         // Handle default case
                         setSliderValue("default", key, isDeafaultObject);
                         return;
+                      } else {
+                        // Plain type (e.g. "text") — save as plain string, clear is_template
+                        dispatch(
+                          updateBridgeVersionAction({
+                            bridgeId: params?.id,
+                            versionId: searchParams?.version,
+                            dataToSend: {
+                              configuration: {
+                                [key]: selectedValue,
+                              },
+                            },
+                          })
+                        );
+                        return;
                       }
                     }
                     // Fallback for other keys or normal types

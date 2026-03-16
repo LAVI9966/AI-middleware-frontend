@@ -269,6 +269,9 @@ const SchemaPropertyCard = ({
   );
 };
 
+// Stable empty array to avoid triggering effects on every render when no widgetButtons are passed
+const EMPTY_ARRAY = [];
+
 function JsonSchemaBuilderModal({
   params,
   searchParams,
@@ -278,7 +281,7 @@ function JsonSchemaBuilderModal({
   title = "Build JSON Schema",
   hideName = false,
   // When provided, shows a button dropdown and filters schema to only the selected button's vars
-  widgetButtons = [],
+  widgetButtons = EMPTY_ARRAY,
 }) {
   const dispatch = useDispatch();
 
@@ -301,6 +304,7 @@ function JsonSchemaBuilderModal({
   const [selectedButtonKey, setSelectedButtonKey] = useState(null);
   const [buttonOnClickTypes, setButtonOnClickTypes] = useState({});
   const schemaCacheRef = useRef({});
+  const prevSelectedButtonKeyRef = useRef(null);
 
   // Reset button selection when widgetButtons changes
   useEffect(() => {
@@ -353,8 +357,16 @@ function JsonSchemaBuilderModal({
     setButtonOnClickTypes(types);
   }, [widgetButtons]); // intentionally excludes json_schema & getOnClickTypeNode to avoid resetting on schema changes
 
+  const prevJsonSchemaRef = useRef(null);
+
   useEffect(() => {
+    // Only reset schemaData when json_schema actually changes (by reference or when selectedButtonKey changes)
+    // This prevents the effect from wiping out locally-added properties on every parent re-render
+    const jsonSchemaChanged = prevJsonSchemaRef.current !== json_schema;
+    prevJsonSchemaRef.current = json_schema;
+
     if (!json_schema || typeof json_schema !== "object") return;
+    if (!jsonSchemaChanged && prevSelectedButtonKeyRef.current === selectedButtonKey) return;
 
     if (widgetButtons.length > 0) {
       // Resolve the active button from the primitive key — avoids stale derived-ref issues
@@ -394,6 +406,7 @@ function JsonSchemaBuilderModal({
               : false,
       });
     }
+    prevSelectedButtonKeyRef.current = selectedButtonKey;
   }, [json_schema, selectedButtonKey, widgetButtons, getActionDataNode]);
 
   const updateProperty = useCallback((properties, keyParts, updateFn) => {
