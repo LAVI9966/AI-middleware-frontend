@@ -622,7 +622,7 @@ const AdvancedParameters = ({
                             [key]: {
                               type: "json_schema",
                               is_template: false,
-                              json_schema: configuration?.[key]?.json_schema || {},
+                              json_schema: {},
                             },
                           },
                         };

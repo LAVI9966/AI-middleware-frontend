@@ -745,7 +745,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                             >
                               {/* Show loader overlay if this is the message being tested */}
                               {isRunningTestCase && currentRunIndex !== null && index === currentRunIndex + 1 && (
-                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
                                   <div className="flex items-center gap-2">
                                     <span className="loading loading-spinner loading-sm"></span>
                                     <span className="text-sm font-medium">Running Test Case...</span>

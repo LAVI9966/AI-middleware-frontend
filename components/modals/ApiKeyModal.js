@@ -237,7 +237,7 @@ const ApiKeyModal = ({
             </div>
           );
         })}
-        {isEditing && (
+        {
           <div id="apikey-modal-reset-period-field" className="flex flex-col gap-2">
             <label htmlFor="apikey_limit_reset_period" className="label-text">
               Limit Reset Period
@@ -255,7 +255,7 @@ const ApiKeyModal = ({
               <option value="monthly">Monthly</option>
             </select>
           </div>
-        )}
+        }
         <div id="apikey-modal-service-field" className="flex flex-col gap-2">
           <label htmlFor="service" className="label-text">
             Service{RequiredItem()}

@@ -24,7 +24,7 @@ import { getAllKnowBaseDataAction } from "@/store/action/knowledgeBaseAction";
 import { updateUserMetaOnboarding, updateOrgMetaAction, getUsersAction } from "@/store/action/orgAction";
 import { getServiceAction } from "@/store/action/serviceAction";
 import { getFromCookies, removeCookie, setInCookies } from "@/utils/utility";
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, use } from "react";
 import { useDispatch } from "react-redux";
 import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
@@ -56,6 +56,7 @@ const KeyboardShortcutsModal = dynamic(() => import("@/components/modals/Keyboar
 function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus }) {
   const dispatch = useDispatch();
   const pathName = usePathname();
+  const router = useRouter();
   const urlParams = useParams();
   const path = pathName.split("?")[0].split("/");
   const [selectedItem, setSelectedItem] = useState(null);
@@ -65,6 +66,14 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
 
   const resolvedParams = use(params);
   const resolvedSearchParams = useSearchParams();
+
+  // Redirect to org list when org_id is missing or literal "undefined"
+  useEffect(() => {
+    const orgId = resolvedParams?.org_id;
+    if (!orgId || orgId === "undefined") {
+      router.replace("/org");
+    }
+  }, [resolvedParams?.org_id, router]);
 
   const {
     embedToken,
@@ -524,6 +533,10 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
         console.error("Failed to fetch single message:", error);
       }
     }
+  }
+
+  if (!resolvedParams?.org_id || resolvedParams.org_id === "undefined") {
+    return <LoadingSpinner />;
   }
 
   if (!isValidOrg && !isEmbedUser) {
