@@ -358,7 +358,6 @@ export const getFinishReasons = async () => {
 export const getLinks = async () => {
   try {
     const response = await axios.get("https://flow.sokt.io/func/scriiS7RkdxI");
-    console.log("Response from getlinks ", response);
     return response;
   } catch (error) {
     console.error(error);
