@@ -494,7 +494,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       >
         {/* Overlay Test Cases Sidebar */}
         {showTestCases && (
-          <div id="chat-testcase-sidebar-overlay" className="absolute inset-0 z-low flex">
+          <div id="chat-testcase-sidebar-overlay" className="absolute inset-0 z-very-high flex">
             {/* Optional backdrop */}
             <div className="absolute inset-0 bg-black/30" onClick={() => setShowTestCases(false)}></div>
 
@@ -502,7 +502,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             <div
               data-testid="chat-testcase-sidebar"
               id="chat-testcase-sidebar"
-              className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-30 animate-slideIn"
+              className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-very-high animate-slideIn"
             >
               <TestCaseSidebar
                 params={params}
@@ -745,7 +745,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                             >
                               {/* Show loader overlay if this is the message being tested */}
                               {isRunningTestCase && currentRunIndex !== null && index === currentRunIndex + 1 && (
-                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10 pointer-events-none">
                                   <div className="flex items-center gap-2">
                                     <span className="loading loading-spinner loading-sm"></span>
                                     <span className="text-sm font-medium">Running Test Case...</span>

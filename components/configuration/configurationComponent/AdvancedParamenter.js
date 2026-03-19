@@ -244,11 +244,13 @@ const AdvancedParameters = ({
       toast.error("Invalid JSON provided");
       return;
     }
+    const existingValue =
+      typeof configuration?.[key] === "object" && configuration?.[key] !== null ? configuration?.[key] : {};
     let updatedDataToSend = isDeafaultObject
       ? {
           configuration: {
             [key]: {
-              ...configuration?.[key],
+              ...existingValue,
               [defaultValue?.key]: e.target.value,
             },
           },
@@ -262,7 +264,7 @@ const AdvancedParameters = ({
       updatedDataToSend = {
         configuration: {
           [key]: {
-            ...configuration?.[key],
+            ...existingValue,
             [defaultValue?.key]: e.target.value,
             [e.target.value]: typeof newValue === "string" ? JSON.parse(newValue) : newValue,
           },
@@ -622,7 +624,7 @@ const AdvancedParameters = ({
                             [key]: {
                               type: "json_schema",
                               is_template: false,
-                              json_schema: configuration?.[key]?.json_schema || {},
+                              json_schema: {},
                             },
                           },
                         };
@@ -637,6 +639,20 @@ const AdvancedParameters = ({
                       } else if (selectedValue === "default") {
                         // Handle default case
                         setSliderValue("default", key, isDeafaultObject);
+                        return;
+                      } else {
+                        // Plain type (e.g. "text") — save as plain string, clear is_template
+                        dispatch(
+                          updateBridgeVersionAction({
+                            bridgeId: params?.id,
+                            versionId: searchParams?.version,
+                            dataToSend: {
+                              configuration: {
+                                [key]: selectedValue,
+                              },
+                            },
+                          })
+                        );
                         return;
                       }
                     }
