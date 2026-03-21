@@ -15,8 +15,6 @@ const useThemeVariables = (userType = "default", customThemePath = null, customT
     };
 
     loadTheme();
-
-    return () => {};
   }, [userType, customThemePath, customTheme]);
 };
 

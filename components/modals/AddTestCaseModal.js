@@ -263,7 +263,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                             <textarea
                               id={`add-testcase-tool-textarea-${index}-${idx}`}
                               defaultValue={JSON.stringify(item, null, 2)}
-                              className="textarea bg-white dark:bg-black/15 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
+                              className="textarea bg-base-100 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
                               onInput={handleTextareaInput}
                               onBlur={(e) => handleChange(e.target.value, index, idx)}
                               rows={4}
@@ -284,7 +284,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                       <textarea
                         id={`add-testcase-content-textarea-${index}`}
                         defaultValue={message.content}
-                        className="textarea bg-white dark:bg-black/15 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
+                        className="textarea bg-base-100 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
                         onInput={handleTextareaInput}
                         onBlur={(e) => handleChange(e.target.value, index, null)}
                         rows={3}
@@ -316,7 +316,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                               <textarea
                                 id={`add-testcase-second-last-tool-textarea-${idx}`}
                                 defaultValue={JSON.stringify(item, null, 2)}
-                                className="textarea bg-white dark:bg-black/15 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
+                                className="textarea bg-base-100 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
                                 onInput={handleTextareaInput}
                                 onBlur={(e) => handleChange(e.target.value, secondLastIndex, idx)}
                                 rows={4}
@@ -337,7 +337,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                         <textarea
                           id={`add-testcase-second-last-remove-tool`}
                           defaultValue={secondLastMessage.content}
-                          className="textarea bg-white dark:bg-black/15 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
+                          className="textarea bg-base-100 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
                           onInput={handleTextareaInput}
                           onBlur={(e) => handleChange(e.target.value, secondLastIndex, null)}
                           rows={3}
@@ -370,7 +370,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                               <textarea
                                 id={`add-testcase-expected-tool-textarea-${idx}`}
                                 defaultValue={JSON.stringify(item, null, 2)}
-                                className="textarea bg-white dark:bg-black/15 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
+                                className="textarea bg-base-100 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
                                 onInput={handleTextareaInput}
                                 onBlur={(e) => handleChange(e.target.value, lastIndex, idx)}
                                 rows={4}
@@ -391,7 +391,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                         <textarea
                           id="add-testcase-expected-content-textarea"
                           defaultValue={lastMessage.content}
-                          className="textarea bg-white dark:bg-black/15 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
+                          className="textarea bg-base-100 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
                           onInput={handleTextareaInput}
                           onBlur={(e) => handleChange(e.target.value, lastIndex, null)}
                           rows={3}
