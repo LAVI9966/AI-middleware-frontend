@@ -32,7 +32,6 @@ const ModelTab = () => {
     () => (!showDefaultApikeys && isEmbedUser) || !isEmbedUser,
     [isEmbedUser, showDefaultApikeys]
   );
-
   return (
     <div data-testid="model-tab-container" id="model-tab-container" className="flex flex-col mt-4 w-full">
       {/* LLM Configuration Header */}
@@ -72,7 +71,6 @@ const ModelTab = () => {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-base-content/70 text-sm font-medium">Model</label>
             <ModelDropdown params={params} searchParams={searchParams} isPublished={isPublished} isEditor={isEditor} />
           </div>
         </div>
@@ -129,6 +127,7 @@ const ModelTab = () => {
               params={params}
               searchParams={searchParams}
               bridgeType={bridgeType}
+              shouldRenderApiKey={shouldRenderApiKey}
               isPublished={isPublished}
               isEditor={isEditor}
             />

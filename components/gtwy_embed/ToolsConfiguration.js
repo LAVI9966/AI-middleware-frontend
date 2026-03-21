@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch } from "react-redux";
-import { Wrench, Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { getAllFunctions, updateFuntionApiAction } from "@/store/action/bridgeAction";
 import { isEqual } from "lodash";
@@ -163,7 +163,6 @@ const ToolsConfiguration = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Wrench size={16} className="text-primary" />
           <h5 className="text-sm font-semibold">{title}</h5>
         </div>
         <div className="dropdown dropdown-end flex-shrink-0">

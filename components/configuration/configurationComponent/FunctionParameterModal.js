@@ -693,6 +693,7 @@ function FunctionParameterModal({
         let current = newFields;
         for (let i = 0; i < keyParts.length - 1; i++) {
           const key = keyParts[i];
+          if (!current[key]) break;
           if (current[key].type === "array") {
             current = current[key].items;
           } else {
@@ -1102,7 +1103,12 @@ function FunctionParameterModal({
           example_json: reqJson,
         },
       });
-      setObjectFieldValue(JSON.stringify(result?.result, undefined, 4));
+
+      // API may return string or object
+      const parsed = typeof result?.result === "string" ? JSON.parse(result.result) : result?.result || {};
+
+      // Convert object → formatted JSON string for textarea
+      setObjectFieldValue(JSON.stringify(parsed, null, 4));
     } catch (error) {
       console.error("Optimization Error:", error);
     } finally {
@@ -1131,14 +1137,14 @@ function FunctionParameterModal({
                 ...dataToSend,
                 description: flowResponse?.metadata?.description,
                 title: flowResponse?.title,
-                title: flowResponse?.title,
               },
+              embedToken: embedToken,
             })
           );
+
           setToolData((prev) => ({
             ...prev,
             description: flowResponse.metadata.description,
-            title: flowResponse.title,
             title: flowResponse.title,
           }));
           toast.success("Description updated successfully");
@@ -1192,12 +1198,17 @@ function FunctionParameterModal({
               <div className="flex flex-row gap-1">
                 <InfoIcon id="function-param-info-icon" size={14} />
                 <div id="function-param-info-text" className="label-text-alt">
-                  Function used in {(function_details?.bridge_ids || [])?.length} bridges, changes may affect all
-                  bridges.
+                  Function used in {(function_details?.bridge_ids || [])?.length} versions, changes may affect all
+                  versions.
                 </div>
               </div>
             )}
           </div>
+          <p className="text-xs text-base-content/50 mt-1">
+            Parameters define the inputs passed to this tool. Toggle <strong>Fill with AI</strong> to let AI generate
+            the value, or turn it off and set a <strong>Value Path</strong> using a variable name — the parameter will
+            be replaced with that variable&apos;s value at runtime.
+          </p>
         </div>
         <div className="flex flex-row mb-1">
           <div id="function-param-options-wrapper" className="flex gap-2">

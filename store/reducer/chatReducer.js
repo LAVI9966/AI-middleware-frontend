@@ -133,10 +133,10 @@ export const chatReducer = createSlice({
       if (state.messagesByChannel[channelId]) {
         const messageIndex = state.messagesByChannel[channelId].findIndex((msg) => msg.id === messageId);
         if (messageIndex !== -1) {
+          const isObjectUpdate = newContent && typeof newContent === "object" && !Array.isArray(newContent);
           state.messagesByChannel[channelId][messageIndex] = {
             ...state.messagesByChannel[channelId][messageIndex],
-            content: newContent,
-            isEdited: true,
+            ...(isObjectUpdate ? newContent : { content: newContent, isEdited: true }),
           };
 
           // Update conversation array - rebuild from all user/assistant messages

@@ -271,14 +271,14 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
         })
       );
       const updatedMessages = [...messages];
-      updatedMessages[index + 1] = {
-        ...updatedMessages[index + 1],
+      const nextMessage = updatedMessages[index + 1];
+      const nextMessageId = nextMessage.id;
+      const updatedNextMessage = {
+        ...nextMessage,
         testCaseResult: data?.results?.[0],
       };
-
       // Automatically show the test case results card after running the test
-      const nextMessageId = updatedMessages[index + 1].id;
-      dispatch(editChatMessage(channelIdentifier, index + 1, updatedMessages[index + 1]));
+      dispatch(editChatMessage(channelIdentifier, nextMessageId, updatedNextMessage));
       setShowTestCaseResults((prev) => ({
         ...prev,
         [nextMessageId]: true,
@@ -457,7 +457,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             {showTestCases ? <CloseCircleIcon /> : <Menu />}
           </div>
         </button>
-        <span className="label-text">Experiments</span>
+        <span className="label-text">New Test Case</span>
         <div className="flex items-center gap-2">
           {messages?.length > 0 && (
             <div className="flex items-center gap-2 justify-center">
@@ -494,7 +494,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       >
         {/* Overlay Test Cases Sidebar */}
         {showTestCases && (
-          <div id="chat-testcase-sidebar-overlay" className="absolute inset-0 z-low flex">
+          <div id="chat-testcase-sidebar-overlay" className="absolute inset-0 z-very-high flex">
             {/* Optional backdrop */}
             <div className="absolute inset-0 bg-black/30" onClick={() => setShowTestCases(false)}></div>
 
@@ -502,9 +502,14 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             <div
               data-testid="chat-testcase-sidebar"
               id="chat-testcase-sidebar"
-              className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-30 animate-slideIn"
+              className="relative w-[70%] h-full border border-base-content/30 rounded-md bg-base-100 shadow-lg z-very-high animate-slideIn"
             >
-              <TestCaseSidebar params={params} resolvedParams={searchParams} onTestCaseClick={handleTestCaseClick} />
+              <TestCaseSidebar
+                params={params}
+                resolvedParams={searchParams}
+                matching_type={selectedStrategy}
+                onTestCaseClick={handleTestCaseClick}
+              />
             </div>
           </div>
         )}
@@ -740,7 +745,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                             >
                               {/* Show loader overlay if this is the message being tested */}
                               {isRunningTestCase && currentRunIndex !== null && index === currentRunIndex + 1 && (
-                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
+                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10 pointer-events-none">
                                   <div className="flex items-center gap-2">
                                     <span className="loading loading-spinner loading-sm"></span>
                                     <span className="text-sm font-medium">Running Test Case...</span>
@@ -868,6 +873,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       })()}
                                     </div>
                                   )}
+
+                                  {/* Render message attachments (images, etc.) */}
+                                  {_renderMessageAttachments(message)}
                                 </div>
                               )}
                             </div>

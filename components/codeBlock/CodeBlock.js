@@ -7,6 +7,9 @@ import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typesc
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
 import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import csharp from "react-syntax-highlighter/dist/esm/languages/prism/csharp";
+import java from "react-syntax-highlighter/dist/esm/languages/prism/java";
+import go from "react-syntax-highlighter/dist/esm/languages/prism/go";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 SyntaxHighlighter.registerLanguage("javascript", js);
@@ -17,6 +20,9 @@ SyntaxHighlighter.registerLanguage("python", python);
 SyntaxHighlighter.registerLanguage("css", css);
 SyntaxHighlighter.registerLanguage("bash", bash);
 SyntaxHighlighter.registerLanguage("shell", bash);
+SyntaxHighlighter.registerLanguage("csharp", csharp);
+SyntaxHighlighter.registerLanguage("java", java);
+SyntaxHighlighter.registerLanguage("go", go);
 
 function CodeBlock({ inline, className, children, ...props }) {
   const match = /language-(\w+)/.exec(className || "");
@@ -40,6 +46,9 @@ function CodeBlock({ inline, className, children, ...props }) {
     css: "CSS",
     bash: "Bash",
     shell: "Shell",
+    csharp: "C#",
+    java: "Java",
+    go: "Go",
   };
 
   const languageLabel = match

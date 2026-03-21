@@ -9,11 +9,11 @@ import Protected from "@/components/Protected";
 import TutorialSuggestionToast from "@/components/TutorialSuggestoinToast";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import OpenAiIcon from "@/icons/OpenAiIcon";
+import { AgentMenuItems } from "@/components/agents/AgentActionMenu";
 import {
   clearBridgeUsageMetricsAction,
   deleteBridgeAction,
   fetchBridgeUsageMetricsAction,
-  updateBridgeAction,
 } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
@@ -28,17 +28,12 @@ import { toast } from "react-toastify";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 import SearchItems from "@/components/UI/SearchItems";
 import AgentEmptyState from "@/components/AgentEmptyState";
-import { Funnel, Pause, Play, Settings2, Trash2, Undo2, Users, Infinity } from "lucide-react";
+import { Funnel, Undo2, Infinity } from "lucide-react";
 import DeleteModal from "@/components/UI/DeleteModal";
 import AccessManagementModal from "@/components/modals/AccessManagementModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 
 export const runtime = "edge";
-const BRIDGE_STATUS = {
-  ACTIVE: 1,
-  PAUSED: 0,
-};
-
 const ModelBadge = ({ model, service, modelsConfig }) => {
   if (!model) return null;
 
@@ -62,16 +57,6 @@ const formatUsageNumber = (value, maximumFractionDigits = 2) => {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits }).format(numericValue);
 };
 
-const getUsageStatsForRow = (row) => {
-  const limitValue = Number(row?.agent_limit_original ?? 0);
-  const usageValue = Number(row?.agent_usage ?? 0);
-  const totalTokens = Number(row?.totalTokens ?? 0);
-  const hasLimit = Number.isFinite(limitValue) && limitValue > 0;
-  const usagePercent = hasLimit ? Math.min(100, Math.max(0, (usageValue / limitValue) * 100)) : 0;
-  const remaining = hasLimit ? Math.max(limitValue - usageValue, 0) : null;
-  return { limitValue, usageValue, totalTokens, hasLimit, usagePercent, remaining };
-};
-
 const UsageProgressDonut = ({ percent, label }) => (
   <div className="relative h-16 w-16">
     <div
@@ -86,16 +71,23 @@ const UsageProgressDonut = ({ percent, label }) => (
   </div>
 );
 
-const UsageSummaryPopover = ({ stats, item, isEmbedUser, onSetLimit, onResetUsage }) => {
+export const UsageSummaryPopover = ({ stats, item, isEmbedUser, onSetLimit, onResetUsage }) => {
   const { hasLimit, usagePercent, usageValue, limitValue, remaining } = stats;
   const [limit, setLimit] = useState(limitValue ?? "");
+  const [resetPeriod, setResetPeriod] = useState(item?.bridge_limit_reset_period ?? "");
   const [isLimitDirty, setIsLimitDirty] = useState(false);
 
   const handleLimitChange = (e) => {
     const value = e.target.value;
     setLimit(value);
     const original = limitValue ?? "";
-    setIsLimitDirty(String(value) !== String(original));
+    setIsLimitDirty(String(value) !== String(original) || resetPeriod !== (item?.bridge_limit_reset_period ?? ""));
+  };
+
+  const handleResetPeriodChange = (e) => {
+    const value = e.target.value;
+    setResetPeriod(value);
+    setIsLimitDirty(String(limit) !== String(limitValue ?? "") || value !== (item?.bridge_limit_reset_period ?? ""));
   };
 
   return (
@@ -137,10 +129,22 @@ const UsageSummaryPopover = ({ stats, item, isEmbedUser, onSetLimit, onResetUsag
 
       {!isEmbedUser && (
         <div className="flex flex-col gap-2">
+          <div className="flex gap-1 items-center justify-between text-sm">
+            <span className="text-base-content/60">Reset Period</span>
+            <select
+              className="select select-bordered select-sm w-36"
+              value={resetPeriod}
+              onChange={handleResetPeriodChange}
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
           <button
             className="btn btn-primary btn-sm"
             onClick={() => {
-              onSetLimit(item, limit);
+              onSetLimit(item, limit, resetPeriod);
             }}
             disabled={!isLimitDirty}
           >
@@ -704,6 +708,7 @@ function Home({ params, searchParams, isEmbedUser }) {
           <EmptyCell />
         ),
         updated_at_original: updatedAt,
+        bridge_limit_reset_period: item?.bridge_limit_reset_period || null,
       };
     });
 
@@ -817,37 +822,6 @@ function Home({ params, searchParams, isEmbedUser }) {
     setLoadingAgentId(id);
     // Include the type parameter to maintain sidebar selection
     router.push(`/org/${resolvedParams.org_id}/agents/configure/${id}?version=${versionId}&type=${bridgeTypeFilter}`);
-  };
-  const handlePauseBridge = async (bridgeId) => {
-    const newStatus =
-      bridgeStatus[bridgeId]?.bridge_status === BRIDGE_STATUS.PAUSED ? BRIDGE_STATUS.ACTIVE : BRIDGE_STATUS.PAUSED;
-
-    try {
-      await dispatch(
-        updateBridgeAction({
-          bridgeId,
-          dataToSend: { bridge_status: newStatus },
-        })
-      );
-      toast.success(`Agent ${newStatus === BRIDGE_STATUS.ACTIVE ? "resumed" : "paused"} successfully`);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update agent status");
-    }
-  };
-
-  const handleUpdateBridgeLimit = async (bridge, limit) => {
-    const dataToSend = {
-      bridge_limit: limit,
-    };
-    const res = await dispatch(updateBridgeAction({ bridgeId: bridge._id, dataToSend }));
-    if (res?.success) toast.success("Agent Usage Limit Updated Successfully");
-  };
-
-  const resetUsage = async (bridge) => {
-    const dataToSend = { bridge_usage: 0 };
-    const res = await dispatch(updateBridgeAction({ bridgeId: bridge._id, dataToSend }));
-    if (res?.success) toast.success("Agent Usage Reset Successfully");
   };
 
   const closeUsageFilterPopover = () => {
@@ -988,110 +962,35 @@ function Home({ params, searchParams, isEmbedUser }) {
       (currentOrgRole === "Viewer" && row.users?.some((user) => user.id === currentUser.id)) ||
       currentOrgRole === "Creator" ||
       isAdminOrOwner;
-    const usageStats = getUsageStatsForRow(row);
-    const handleUsageSummaryClick = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const usageContent = (
-        <UsageSummaryPopover
-          stats={usageStats}
-          item={row}
-          isEmbedUser={isEmbedUser}
-          onSetLimit={(bridge, limit) => {
-            handlePortalCloseImmediate();
-            handleUpdateBridgeLimit(bridge, limit);
-          }}
-          onResetUsage={() => {
-            handlePortalCloseImmediate();
-            resetUsage(row);
-          }}
-        />
-      );
-
-      handlePortalOpen(e.currentTarget, usageContent);
-    };
 
     const handleDropdownClick = (e) => {
       e.preventDefault();
       e.stopPropagation();
 
       const dropdownContent = (
-        <ul className="menu bg-base-100 rounded-box w-52 p-2 shadow">
-          {/* Only show Manage Access button for Admin or Owner roles */}
-          {!isEmbedUser && isAdminOrOwner && (
-            <li>
-              <a
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handlePortalCloseImmediate();
-                  setSelectedAgentForAccess(row);
-                  setTimeout(() => {
-                    openModal(MODAL_TYPE.ACCESS_MANAGEMENT_MODAL);
-                  }, 10);
-                }}
-              >
-                <Users size={16} />
-                Manage Access
-              </a>
-            </li>
-          )}
-          <li>
-            <button
-              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2"
-              onClick={handleUsageSummaryClick}
-            >
-              <Settings2 size={14} />
-              Usage &amp; Limits
-            </button>
-          </li>
-
-          <li>
-            {" "}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handlePortalCloseImmediate();
-                handlePauseBridge(row._id);
-              }}
-              className={`w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center gap-2`}
-            >
-              {bridgeStatus[row._id]?.bridge_status === BRIDGE_STATUS.PAUSED ? (
-                <>
-                  <Play size={14} className="text-green-600" />
-                  Resume Agent
-                </>
-              ) : (
-                <>
-                  <Pause size={14} className="text-red-600" />
-                  Pause Agent
-                </>
-              )}
-            </button>
-          </li>
-          {/* Only show Delete button for Admin or Owner roles */}
-          {isAdminOrOwner && (
-            <li>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handlePortalCloseImmediate();
-                  setItemToDelete(row);
-                  // Small delay to ensure state is set before opening modal
-                  setTimeout(() => {
-                    openModal(MODAL_TYPE.DELETE_MODAL);
-                  }, 10);
-                }}
-              >
-                <Trash2 size={14} className="text-red-600" />
-                Delete Agent
-              </button>
-            </li>
-          )}
-        </ul>
+        <div className="bg-base-100 rounded-box w-52 shadow p-1">
+          <AgentMenuItems
+            bridge={row}
+            bridgeData={row}
+            bridgeStatus={bridgeStatus[row._id]?.bridge_status}
+            isArchived={row?.status === 0}
+            isUpdatingBridge={false}
+            isEmbedUser={isEmbedUser}
+            isAdminOrOwner={isAdminOrOwner}
+            orgId={resolvedParams.org_id}
+            onClose={handlePortalCloseImmediate}
+            onSetSelectedAgent={(agent) => {
+              setSelectedAgentForAccess(agent);
+            }}
+            handlePortalOpen={handlePortalOpen}
+            handlePortalCloseImmediate={handlePortalCloseImmediate}
+            onDelete={() => {
+              handlePortalCloseImmediate();
+              setItemToDelete(row);
+              setTimeout(() => openModal(MODAL_TYPE.DELETE_MODAL), 10);
+            }}
+          />
+        </div>
       );
 
       handlePortalOpen(e.currentTarget, dropdownContent);

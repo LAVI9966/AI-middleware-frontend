@@ -165,6 +165,7 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
         updateFuntionApiAction({
           function_id: functionId,
           dataToSend: dataToSend,
+          embedToken: embedToken,
         })
       );
       setToolData("");
@@ -384,10 +385,11 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center">
                                 <span className="flex-1 min-w-0 text-sm font-normal text-base-content truncate">
-                                  <div className="tooltip" data-tip={item?.name?.length > 24 ? item?.name : ""}>
-                                    <span className="truncate block w-[300px] flex justify-left">
-                                      {item?.name?.length > 24 ? `${item?.name.slice(0, 24)}...` : item?.name}
-                                    </span>
+                                  <div
+                                    className="tooltip min-w-0 flex-1 overflow-hidden"
+                                    data-tip={item?.name?.length > 24 ? item?.name : ""}
+                                  >
+                                    <span className="block truncate">{item?.name}</span>
                                   </div>
                                 </span>
                               </div>

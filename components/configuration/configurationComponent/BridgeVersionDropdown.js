@@ -212,12 +212,6 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
     // create new version
     const version_description_input = versionDescriptionRef?.current?.value;
 
-    // Validate inputs
-    if (!version_description_input || version_description_input.trim() === "") {
-      alert("Please enter a version description");
-      return;
-    }
-
     if (!params.id || !params.org_id) {
       console.error("Missing required parameters:", { bridgeId: params.id, orgId: params.org_id });
       alert("Missing required parameters. Please refresh the page and try again.");

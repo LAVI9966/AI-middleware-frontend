@@ -7,8 +7,10 @@ import { getSingleMessage, switchOrg, switchUser } from "@/config/index";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { ThemeManager, useThemeManager } from "@/customHooks/useThemeManager";
 import { getAllApikeyAction } from "@/store/action/apiKeyAction";
+import { toast } from "react-toastify";
 import {
   createApiAction,
+  createBridgeAction,
   deleteFunctionAction,
   getAllBridgesAction,
   getAllFunctions,
@@ -23,7 +25,6 @@ import { getAllKnowBaseDataAction } from "@/store/action/knowledgeBaseAction";
 import { updateUserMetaOnboarding, updateOrgMetaAction, getUsersAction } from "@/store/action/orgAction";
 import { getServiceAction } from "@/store/action/serviceAction";
 import { getFromCookies, removeCookie, setInCookies } from "@/utils/utility";
-
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, use } from "react";
 import { useDispatch } from "react-redux";
@@ -99,10 +100,12 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       dispatch(getFinishReasonsAction());
     }
     if (pathName.endsWith("agents") && !isEmbedUser) {
-      dispatch(getGuardrailsTemplatesAction());
       dispatch(userDetails());
-      dispatch(getDescriptionsAction());
     }
+    dispatch(getDescriptionsAction());
+    dispatch(getGuardrailsTemplatesAction());
+    dispatch(getDescriptionsAction());
+    dispatch(getGuardrailsTemplatesAction());
     dispatch(getLinksAction());
 
     if (pathName.endsWith("apikeys") && !isEmbedUser) {
@@ -146,6 +149,14 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       try {
         // If UTM params exist, store marketing ref first
         if (!currentUser?.meta) {
+          if (typeof window !== "undefined" && window.Tracker?.identify) {
+            window.Tracker.identify({
+              customer_id: currentUser.id,
+              email: currentUser.email,
+              fullName: currentUser.name,
+            });
+          }
+
           await dispatch(
             storeMarketingRefUserAction({
               ...utmParams,
@@ -253,11 +264,27 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       dispatch(
         getAllBridgesAction((data) => {
           setLoading(false);
+          const hasChatbotPreview = data?.some((bridge) => bridge?.slugName === "chatbot preview");
+          if (!hasChatbotPreview && !isEmbedUser) {
+            dispatch(
+              createBridgeAction(
+                {
+                  dataToSend: {
+                    name: "chatbot preview",
+                    slugName: "chatbot preview",
+                    bridgeType: "chatbot",
+                  },
+                  orgid: resolvedParams?.org_id,
+                },
+                () => {}
+              )
+            );
+          }
         })
       );
       dispatch(getAllFunctions());
     }
-  }, [isValidOrg, !isEmbedUser ? currentUser?.meta?.onboarding?.bridgeCreation : true]);
+  }, [isValidOrg, isEmbedUser]);
 
   useEffect(() => {
     if (isValidOrg && resolvedParams?.org_id) {
@@ -278,7 +305,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
   const scriptSrc = process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC;
 
   useEffect(() => {
-    if (isValidOrg && !isEmbedUser) {
+    if (isValidOrg && !isEmbedUser && !pathName.includes("/chatbotConfig")) {
       const updateScript = (token) => {
         const existingScript = document.getElementById(scriptId);
         if (existingScript) {
@@ -309,7 +336,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
         }
       };
     }
-  }, [isValidOrg]);
+  }, [isValidOrg, pathName]);
 
   useEffect(() => {
     const onFocus = async () => {
@@ -348,6 +375,48 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       document.head.appendChild(script);
     }
   }, [doctstar_embed_token, isEmbedUser]);
+
+  const PROXY_AUTH_TOKEN = getFromCookies("proxy_token");
+  // Initialize MSG91 proxy auth configuration
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Configuration for MSG91 Proxy Auth
+      const configuration = {
+        authToken: PROXY_AUTH_TOKEN,
+        pass: true,
+        type: "user-management",
+        exclude_role_ids: [process.env.NEXT_PUBLIC_PROXY_USER_ROLE_ID],
+        success: (data) => {
+          // get verified token in response
+          console.log("MSG91 Auth success response", data);
+          toast.success("Authentication verified successfully!");
+        },
+        failure: (error) => {
+          // handle error
+          console.log("MSG91 Auth failure reason", error);
+          toast.error("Authentication failed. Please try again.");
+        },
+      };
+
+      // Load MSG91 Proxy Auth Script
+      const script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
+      script.onload = function () {
+        if (typeof initVerification === "function") {
+          initVerification(configuration);
+        }
+      };
+      document.head.appendChild(script);
+
+      // Cleanup function to remove script on unmount
+      return () => {
+        if (script && script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      };
+    }
+  }, []);
 
   useEffect(() => {
     if (isValidOrg) {
@@ -415,11 +484,11 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       ) {
         const dataFromEmbed = {
           url: e?.data?.webhookurl,
-          payload: e?.data?.payload,
           desc: e?.data?.description || e?.data?.title,
           id: e?.data?.id,
           status: e?.data?.action,
           title: e?.data?.title,
+          openaiToolJson: e?.data?.openaiToolJson,
         };
         dispatch(createApiAction(resolvedParams.org_id, dataFromEmbed)).then((data) => {
           if (
@@ -431,7 +500,14 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
               e?.data?.metadata?.createFrom && e.data.metadata.createFrom === "preFunction"
                 ? dispatch(
                     updateApiAction(path[5], {
-                      pre_tools: data?._id,
+                      pre_tools: {
+                        type: "custom_function",
+                        config: {
+                          function_id: data?._id,
+                          script_id: data?.script_id,
+                          required_params: data?.required_params || [],
+                        },
+                      },
                       status: "1",
                       version_id: resolvedSearchParams?.get("version"),
                     })

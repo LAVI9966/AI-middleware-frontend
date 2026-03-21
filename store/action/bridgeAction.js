@@ -1,6 +1,7 @@
 import {
   addorRemoveResponseIdInBridge,
   archiveBridgeApi,
+  createAgentFromTemplateApi,
   createBridge,
   createBridgeVersionApi,
   createDuplicateBridge,
@@ -58,6 +59,7 @@ import {
 } from "../reducer/bridgeReducer";
 import { getAllResponseTypeSuccess } from "../reducer/responseTypeReducer";
 import { markUpdateInitiatedByCurrentTab } from "@/utils/utility";
+import { callViasocketCreateFullFlow } from "@/config/utilityApi";
 //   ---------------------------------------------------- ADMIN ROUTES ---------------------------------------- //
 export const getSingleBridgesAction =
   ({ id, version }) =>
@@ -91,6 +93,35 @@ export const getBridgeVersionAction =
       console.error(error);
     }
   };
+
+export const createAgentFromTemplateAction = (templateId, onSuccess) => async (dispatch) => {
+  try {
+    dispatch(clearPreviousBridgeDataReducer());
+    const response = await createAgentFromTemplateApi(templateId);
+    const serializableData = {
+      data: response.data,
+      status: response.status,
+      statusText: response.statusText,
+    };
+    onSuccess(serializableData);
+    dispatch(createBridgeReducer({ data: serializableData, orgId: response.data.orgid }));
+    if (response?.data?._id) {
+      trackAgentEvent("created", {
+        agent_id: response.data._id,
+        name: response.data.name,
+        org_id: response.data.orgid,
+      });
+    }
+  } catch (error) {
+    if (error?.response?.data?.message?.includes("duplicate key")) {
+      toast.error("Agent Name can't be duplicate");
+    } else {
+      toast.error(error?.response?.data?.message || "Something went wrong");
+    }
+    console.error(error);
+    throw error;
+  }
+};
 
 export const createBridgeAction = (dataToSend, onSuccess) => async (dispatch, getState) => {
   try {
@@ -362,11 +393,19 @@ export const getAllFunctions = () => async (dispatch) => {
 };
 
 export const updateFuntionApiAction =
-  ({ function_id, dataToSend }) =>
+  ({ function_id, dataToSend, embedToken = null }) =>
   async (dispatch) => {
     try {
+      const description = dataToSend?.description || "";
       const response = await updateFunctionApi({ function_id, dataToSend });
       dispatch(updateFunctionReducer({ org_id: response.data.org_id, data: response.data }));
+
+      if (embedToken && description) {
+        const regenerateResult = await callViasocketCreateFullFlow(embedToken, description);
+        if (!regenerateResult.success) {
+          console.warn("Failed to regenerate ViaSocket flow:", regenerateResult.error);
+        }
+      }
     } catch (error) {
       dispatch(isError());
       console.error(error);

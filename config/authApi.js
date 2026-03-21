@@ -5,9 +5,11 @@ const URL = process.env.NEXT_PUBLIC_SERVER_URL;
 const PROXY_URL = process.env.NEXT_PUBLIC_PROXY_URL;
 
 // User Authentication APIs
-export const userdetails = async () => {
+export const userdetails = async ({ exclude_role_ids = process.env.NEXT_PUBLIC_PROXY_USER_ROLE_ID, role_ids } = {}) => {
   try {
-    const details = await axios.get(`${PROXY_URL}/api/c/getDetails`);
+    const details = await axios.get(`${PROXY_URL}/api/c/getDetails`, {
+      params: { exclude_role_ids, role_ids },
+    });
     return details;
   } catch (error) {
     console.error(error);

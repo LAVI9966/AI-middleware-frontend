@@ -1,57 +1,39 @@
 import React from "react";
 import Modal from "../UI/Modal";
 import ComparisonCheck from "@/utils/comparisonCheck";
-import { MODAL_TYPE } from "@/utils/enums";
+import { MODAL_TYPE, PROMPT_SECTION_CONFIG } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { preprocessPrompt } from "@/utils/promptUtils";
 import { CloseIcon } from "@/components/Icons";
 
-const Diff_Modal = ({ oldContent, newContent }) => {
-  const oldProcessed = preprocessPrompt(oldContent);
-  const newProcessed = preprocessPrompt(newContent);
+const Diff_Modal = ({ oldContent, newContent, isEmbedCustomPrompt = false }) => {
+  const oldIsObject = oldContent !== null && typeof oldContent === "object" && !Array.isArray(oldContent);
+  const newIsObject = newContent !== null && typeof newContent === "object" && !Array.isArray(newContent);
 
-  // Collect all unique keys from both objects
-  // We want to flatten the structure slightly:
-  // - Top level keys (role, goal, instruction, customPrompt)
-  // - Nested embedFields keys (if they exist)
+  const oldProcessed = isEmbedCustomPrompt ? (oldIsObject ? oldContent : {}) : preprocessPrompt(oldContent);
+  const newProcessed = isEmbedCustomPrompt ? (newIsObject ? newContent : {}) : preprocessPrompt(newContent);
 
-  const getAllKeys = (obj) => {
-    const keys = [];
-    if (!obj) return keys;
+  // Detect type mismatch: one side is plain string, other is object
+  const typeMismatch = isEmbedCustomPrompt && oldIsObject !== newIsObject;
 
-    Object.keys(obj).forEach((key) => {
-      if (key === "embedFields" && typeof obj[key] === "object" && !Array.isArray(obj[key])) {
-        // Add nested embed fields
-        Object.keys(obj[key]).forEach((subKey) => keys.push(`embedFields.${subKey}`));
-      } else {
-        keys.push(key);
-      }
-    });
-    return keys;
-  };
+  const allKeys = new Set([...Object.keys(oldProcessed || {}), ...Object.keys(newProcessed || {})]);
 
-  const allKeys = new Set([...getAllKeys(oldProcessed), ...getAllKeys(newProcessed)]);
-
-  // Helper to access nested values
-  const getValue = (obj, path) => {
-    if (!obj) return "";
-    if (path.startsWith("embedFields.")) {
-      const fieldName = path.split(".")[1];
-      return obj.embedFields?.[fieldName] || "";
+  const getLabel = (key) => {
+    if (!isEmbedCustomPrompt && PROMPT_SECTION_CONFIG[key]?.label) {
+      return PROMPT_SECTION_CONFIG[key].label;
     }
-    return obj[path];
+    return key.charAt(0).toUpperCase() + key.slice(1);
   };
 
-  // Filter keys we explicitly care about or all if generic
-  // Prioritize standard fields
-  const standardFields = ["role", "goal", "instruction", "customPrompt"];
+  const configKeys = Object.keys(PROMPT_SECTION_CONFIG);
   const sortedKeys = Array.from(allKeys).sort((a, b) => {
-    // Custom sort: standard fields first
-    const aIdx = standardFields.indexOf(a);
-    const bIdx = standardFields.indexOf(b);
-    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-    if (aIdx !== -1) return -1;
-    if (bIdx !== -1) return 1;
+    if (!isEmbedCustomPrompt) {
+      const aIdx = configKeys.indexOf(a);
+      const bIdx = configKeys.indexOf(b);
+      if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+      if (aIdx !== -1) return -1;
+      if (bIdx !== -1) return 1;
+    }
     return a.localeCompare(b);
   });
 
@@ -71,31 +53,49 @@ const Diff_Modal = ({ oldContent, newContent }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {sortedKeys.map((key) => {
-            // Exclude internal keys or empty objects if needed, but ComparisonCheck handles empties efficiently usually.
-            // We skip 'embedFields' top key because we processed its children
-            if (key === "embedFields") return null;
-
-            const oldVal = getValue(oldProcessed, key);
-            const newVal = getValue(newProcessed, key);
-
-            // Skip if both are empty/null to reduce noise
-            if (!oldVal && !newVal) return null;
-
-            let displayName = key;
-            if (key.startsWith("embedFields.")) displayName = key.split(".")[1];
-
-            return (
-              <div key={key} className="mb-6 card bg-base-200 shadow-sm">
+          {typeMismatch ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="card bg-base-200 shadow-sm">
                 <div className="card-body p-4">
-                  <h4 className="font-semibold text-sm mb-2 capitalize">{displayName}</h4>
-                  <ComparisonCheck oldContent={oldVal} newContent={newVal} />
+                  <h4 className="font-semibold text-sm mb-2 text-base-content/60">Previous (string)</h4>
+                  <pre className="text-sm whitespace-pre-wrap break-words">
+                    {typeof oldContent === "string" ? oldContent : JSON.stringify(oldContent, null, 2)}
+                  </pre>
                 </div>
               </div>
-            );
-          })}
+              <div className="card bg-base-200 shadow-sm">
+                <div className="card-body p-4">
+                  <h4 className="font-semibold text-sm mb-2 text-base-content/60">Current (structured)</h4>
+                  {Object.entries(newIsObject ? newContent : oldContent).map(([key, val]) => (
+                    <div key={key} className="mb-2">
+                      <span className="text-xs font-medium text-base-content/60 capitalize">{key}: </span>
+                      <span className="text-sm">{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {sortedKeys.map((key) => {
+                const oldVal = oldProcessed?.[key] ?? "";
+                const newVal = newProcessed?.[key] ?? "";
 
-          {sortedKeys.length === 0 && <div className="alert alert-info">No comparison data available.</div>}
+                if (!oldVal && !newVal) return null;
+
+                return (
+                  <div key={key} className="mb-6 card bg-base-200 shadow-sm">
+                    <div className="card-body p-4">
+                      <h4 className="font-semibold text-sm mb-2">{getLabel(key)}</h4>
+                      <ComparisonCheck oldContent={oldVal} newContent={newVal} />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {sortedKeys.length === 0 && <div className="alert alert-info">No comparison data available.</div>}
+            </>
+          )}
         </div>
       </div>
     </Modal>

@@ -14,7 +14,7 @@ import { getAllKnowBaseDataAction } from "@/store/action/knowledgeBaseAction";
 import DeleteModal from "@/components/UI/DeleteModal";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
-import { CircleQuestionMark } from "lucide-react";
+import { CircleQuestionMark, SquarePenIcon } from "lucide-react";
 
 const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true }) => {
   // Determine if content is read-only (either published or user is not an editor)
@@ -41,6 +41,7 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
   });
 
   const [selectedKnowledgebase, setSelectedKnowledgebase] = useState(null);
+  const [selectedResource, setSelectedResource] = useState(null);
   const { isDeleting, executeDelete } = useDeleteOperation(MODAL_TYPE?.DELETE_KNOWLEDGE_BASE_MODAL);
   const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +68,7 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
       collection_id: knowledgeBaseItem.collectionId,
       resource_id: id,
       description: knowledgeBaseItem.description,
+      name: knowledgeBaseItem.title,
     };
 
     dispatch(
@@ -104,6 +106,11 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
   const handleOpenDeleteModal = (item) => {
     setSelectedKnowledgebase(item);
     openModal(MODAL_TYPE?.DELETE_KNOWLEDGE_BASE_MODAL);
+  };
+
+  const handleEditKnowledgebase = (item) => {
+    setSelectedResource(item);
+    openModal(MODAL_TYPE?.KNOWLEDGE_BASE_MODAL);
   };
 
   useEffect(() => {
@@ -239,6 +246,19 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
             {/* Remove button that appears on hover */}
             <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 pr-2 flex-shrink-0">
               <button
+                data-testid={`knowledgebase-edit-button-${item._id}`}
+                id={`knowledgebase-edit-button-${item._id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleEditKnowledgebase(item);
+                }}
+                className="btn btn-ghost btn-sm p-1 hover:bg-blue-100 hover:text-primary"
+                title="Edit"
+                disabled={isReadOnly}
+              >
+                <SquarePenIcon size={16} />
+              </button>
+              <button
                 data-testid={`knowledgebase-delete-button-${item._id}`}
                 id={`knowledgebase-delete-button-${item._id}`}
                 onClick={(e) => {
@@ -340,6 +360,8 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
         searchParams={searchParams}
         knowbaseVersionData={knowbaseVersionData}
         addToVersion={true}
+        selectedResource={selectedResource}
+        setSelectedResource={setSelectedResource}
       />
     </div>
   );

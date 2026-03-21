@@ -104,7 +104,7 @@ const ApiKeyInput = ({
 
     if (filteredApiKeys.length > 0) {
       filteredApiKeys.forEach((apiKey) => {
-        opts.push({ value: apiKey._id, label: apiKey.name });
+        opts.push({ value: apiKey._id, label: apiKey.name, status: apiKey?.status });
       });
     } else {
       // Disabled informational option pattern can be represented by not adding an option here; placeholder will handle it

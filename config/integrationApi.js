@@ -32,6 +32,7 @@ export const updateIntegrationData = async (dataToSend) => {
     throw error;
   }
 };
+
 export const generateAffiliateEmbedTokenApi = async (data) => {
   try {
     const response = await axios.post(`${URL}/api/utils/affiliate/embed-token`, data);
@@ -41,10 +42,50 @@ export const generateAffiliateEmbedTokenApi = async (data) => {
     return error;
   }
 };
+
 export const generateGtwyAccessTokenApi = async () => {
   try {
     const response = await axios.post(`${URL}/api/utils/token`, {
       type: "embed",
+    });
+    return response;
+  } catch (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const generateEmbedTokenApi = async (data) => {
+  try {
+    const response = await axios.post(`${URL}/api/utils/token`, {
+      type: "embed_preview",
+      ...data,
+    });
+    return response;
+  } catch (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const generateRagEmbedTokenApi = async (data) => {
+  try {
+    const response = await axios.post(`${URL}/api/utils/token`, {
+      type: "rag_embed_preview",
+      ...data,
+    });
+    return response;
+  } catch (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const generateChatbotTokenApi = async (data) => {
+  try {
+    const response = await axios.post(`${URL}/api/utils/token`, {
+      type: "chatbot_embed_preview",
+      ...data,
     });
     return response;
   } catch (error) {
