@@ -381,7 +381,7 @@ const Navbar = ({ isEmbedUser, params }) => {
       bridge={bridge}
       bridgeData={bridgeData}
       bridgeStatus={bridgeStatus}
-      isArchived={isArchived}
+      isArchived={isArchived === 0}
       isUpdatingBridge={isUpdatingBridge}
       isEmbedUser={isEmbedUser}
       isAdminOrOwner={isAdminOrOwner}
