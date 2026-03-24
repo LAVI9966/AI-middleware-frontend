@@ -7,7 +7,7 @@ import Modal from "../UI/Modal";
 import { promptObjectToString } from "@/utils/promptUtils";
 
 // Optimized Textarea Component
-const OptimizedTextarea = memo(({ value, onChange, className, disabled, placeholder }) => {
+const OptimizedTextarea = memo(({ value, onChange, onBlur, className, disabled, placeholder }) => {
   const divRef = useRef(null);
   const contentRef = useRef(null);
 
@@ -40,6 +40,7 @@ const OptimizedTextarea = memo(({ value, onChange, className, disabled, placehol
         disabled={disabled}
         onInput={handleInput}
         onPaste={handlePaste}
+        onBlur={onBlur}
         className={className}
         placeholder={placeholder}
         style={{
@@ -68,6 +69,7 @@ export const AgentSummaryContent = memo(
     params,
     autoGenerateSummary = false,
     setAutoGenerateSummary = () => {},
+    triggerAutoGenerate = false,
     showTitle = true,
     showButtons = true,
     onSave = () => {},
@@ -85,6 +87,7 @@ export const AgentSummaryContent = memo(
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const debounceTimerRef = useRef(null);
+    const autoGenerateCalledRef = useRef(false);
 
     useEffect(() => {
       setDisplayValue(bridge_summary || "");
@@ -116,6 +119,20 @@ export const AgentSummaryContent = memo(
         handleGenerateSummary();
       }
     }, [autoGenerateSummary, setAutoGenerateSummary]);
+    const handleSaveSummary = useCallback(
+      (valueToSave) => {
+        // Ensure we save the latest value from displayValue or passed value
+        const newValue = valueToSave !== undefined ? valueToSave : displayValue || "";
+        const dataToSend = { bridge_summary: newValue };
+        dispatch(updateBridgeAction({ bridgeId: params.id, dataToSend })).then((data) => {
+          if (data.success) {
+            onSave(newValue); // Call the callback for external handling
+          }
+        });
+      },
+      [dispatch, params.id, displayValue, onSave]
+    );
+
     const handleGenerateSummary = useCallback(async () => {
       // Convert prompt to string safely (handles both string and object formats)
       const promptText = typeof prompt === "string" ? prompt : promptObjectToString(prompt);
@@ -129,28 +146,34 @@ export const AgentSummaryContent = memo(
         if (result) {
           setDisplayValue(result); // Update display value immediately
           setAutoGenerateSummary(false); // Reset the flag
+          // Auto-save the generated summary
+          handleSaveSummary(result);
         }
       } finally {
         setIsGeneratingSummary(false);
       }
-    }, [dispatch, params, prompt, versionId]);
-    const handleSaveSummary = useCallback(() => {
-      // Ensure we save the latest value from displayValue
-      const newValue = displayValue || "";
-      const dataToSend = { bridge_summary: newValue };
-      dispatch(updateBridgeAction({ bridgeId: params.id, dataToSend })).then((data) => {
-        if (data.success) {
-          onSave(newValue); // Call the callback for external handling
-        }
-      });
-    }, [dispatch, params.id, displayValue, onSave]);
+    }, [dispatch, params, prompt, versionId, handleSaveSummary]);
+
+    // Reset guard ref when trigger turns on (new modal open cycle)
+    useEffect(() => {
+      if (triggerAutoGenerate) {
+        autoGenerateCalledRef.current = false;
+      }
+    }, [triggerAutoGenerate]);
+
+    // Auto-generate summary when triggerAutoGenerate is true and no summary exists
+    useEffect(() => {
+      if (triggerAutoGenerate && !bridge_summary && !autoGenerateCalledRef.current) {
+        autoGenerateCalledRef.current = true;
+        handleGenerateSummary();
+      }
+    }, [triggerAutoGenerate, bridge_summary, handleGenerateSummary]);
 
     // Memoized validation values with reduced computation
     const validationProps = useMemo(() => {
       const isEmpty = !displayValue || displayValue.trim() === "";
       return {
         hasValidationError: showValidationError && isEmpty,
-        isDisabled: isGeneratingSummary || bridge_summary === displayValue,
         textareaClassName: `textarea bg-base-100 textarea-bordered w-full min-h-32 resize-y focus:border-primary caret-base-content p-2 ${
           showValidationError && isEmpty ? "border-red-500 focus:border-red-500" : ""
         }`,
@@ -191,24 +214,21 @@ export const AgentSummaryContent = memo(
         )}
 
         <div className="space-y-2">
-          <OptimizedTextarea
-            value={displayValue}
-            onChange={handleTextareaChange}
-            className={validationProps.textareaClassName}
-            placeholder="Enter agent summary..."
-            disabled={isGeneratingSummary}
-          />
-          <div className="flex gap-2">
-            <button
-              data-testid="agent-summary-save-button"
-              id="agent-summary-save-button"
-              className="btn btn-primary btn-sm"
-              onClick={handleSaveSummary}
-              disabled={validationProps.isDisabled || !isEditor}
-            >
-              Save
-            </button>
-          </div>
+          {isGeneratingSummary ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3 rounded-lg border border-base-300 bg-base-100">
+              <span className="loading loading-spinner loading-md text-primary"></span>
+              <p className="text-sm text-base-content/70">Generating summary using AI...</p>
+            </div>
+          ) : (
+            <OptimizedTextarea
+              value={displayValue}
+              onChange={handleTextareaChange}
+              onBlur={() => isEditor && handleSaveSummary()}
+              className={validationProps.textareaClassName}
+              placeholder="Enter agent summary..."
+              disabled={isGeneratingSummary}
+            />
+          )}
         </div>
       </div>
     );

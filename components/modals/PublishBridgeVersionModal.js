@@ -31,6 +31,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const [showSummaryValidation, setShowSummaryValidation] = useState(false);
   const [summaryAccordionOpen, setSummaryAccordionOpen] = useState(false);
   const [convertToTemplate, setConvertToTemplate] = useState(false);
+  const [triggerAutoGenerate, setTriggerAutoGenerate] = useState(false);
 
   const { bridge, versionData, bridgeData, agentList, bridge_summary, allBridgesMap, prompt, isEditor } =
     useCustomSelector((state) => {
@@ -290,6 +291,17 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           if (isOpen) {
             // Modal just opened, fetch connected agents
             fetchConnectedAgents();
+            // If no summary exists, trigger auto-generation and open the accordion
+            if (!bridge_summary || (typeof bridge_summary === "string" && bridge_summary.trim() === "")) {
+              setTriggerAutoGenerate(true);
+              setSummaryAccordionOpen(true);
+            } else {
+              // Summary already exists — don't auto-generate
+              setTriggerAutoGenerate(false);
+            }
+          } else {
+            // Modal closed — reset trigger so it fires again next time if needed
+            setTriggerAutoGenerate(false);
           }
         }
       });
@@ -303,7 +315,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
 
     // Cleanup observer on unmount
     return () => observer.disconnect();
-  }, [fetchConnectedAgents]);
+  }, [fetchConnectedAgents, bridge_summary]);
 
   const { filteredBridgeData, filteredVersionData } = useMemo(() => {
     const filterData = (data, keys) => {
@@ -800,6 +812,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                 isMandatory={showSummaryValidation}
                 showValidationError={showSummaryValidation}
                 isEditor={isEditor}
+                triggerAutoGenerate={triggerAutoGenerate}
               />
             </div>
           </div>
