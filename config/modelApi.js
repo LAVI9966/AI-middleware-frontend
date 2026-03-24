@@ -109,7 +109,15 @@ export const dryRun = async ({ localDataToSend, bridge_id }) => {
         },
         body: JSON.stringify(localDataToSend),
       });
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      if (!response.ok) {
+        let body = "";
+        try {
+          body = await response.text();
+        } catch {
+          /* ignore */
+        }
+        throw new Error(`API error: ${response.status}${body ? ` — ${body}` : ""}`);
+      }
       return { success: true, stream: true, response };
     }
 
@@ -126,10 +134,10 @@ export const dryRun = async ({ localDataToSend, bridge_id }) => {
     }
     return { success: true, data: dryRun.data };
   } catch (error) {
-    console.error("dry run error", error, error.response.data.error);
+    console.error("dry run error", error, error?.response?.data?.error);
 
     const errorMessage =
-      error?.response?.data?.error || error?.response?.data?.detail?.error || "Something went wrong.";
+      error?.response?.data?.error || error?.response?.data?.detail?.error || error?.message || "Something went wrong.";
 
     const hasBothErrors = errorMessage.includes("Initial Error:") && errorMessage.includes("Fallback Error:");
 

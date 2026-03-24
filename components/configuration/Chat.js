@@ -159,15 +159,18 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     () => validatePromptVariables(prompt, variablesKeyValue),
     [prompt, variablesKeyValue]
   );
+  const SCROLL_NEAR_BOTTOM_THRESHOLD = 50;
+
   useEffect(() => {
     const el = messagesContainerRef.current;
     if (!el) return;
     const onScroll = () => {
-      isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+      isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_NEAR_BOTTOM_THRESHOLD;
     };
     el.addEventListener("scroll", onScroll);
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesContainerRef.current]);
 
   useEffect(() => {
     const el = messagesContainerRef.current;

@@ -355,6 +355,7 @@ export const sendMessageWithApiStreaming =
     let userMessage = null;
     let loadingMessage = null;
     const streamingState = { messageId: null, content: "" };
+    let rafId = null;
 
     try {
       dispatch(setChatLoading(channelId, true));
@@ -373,7 +374,6 @@ export const sendMessageWithApiStreaming =
       const reader = result.response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let rafId = null;
 
       // Flush accumulated content to Redux on the next animation frame
       const scheduleFlush = () => {
@@ -466,8 +466,8 @@ export const sendMessageWithApiStreaming =
               }
               dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true));
             }
-          } catch {
-            // Not valid JSON, skip
+          } catch (parseErr) {
+            console.debug("[SSE] Skipping non-JSON line:", jsonStr, parseErr);
           }
         }
       }
@@ -483,13 +483,18 @@ export const sendMessageWithApiStreaming =
             }
             dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true));
           }
-        } catch {
-          // Not valid JSON, skip
+        } catch (parseErr) {
+          console.debug("[SSE] Skipping non-JSON buffer remainder:", buffer, parseErr);
         }
       }
 
       return { userMessage, loadingMessage, response: { success: true } };
     } catch (error) {
+      // Cancel any pending animation frame to prevent stale flush after error
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
       if (userMessage) dispatch(removeMessage({ channelId, messageId: userMessage.id }));
       if (loadingMessage) dispatch(removeMessage({ channelId, messageId: loadingMessage.id }));
       dispatch(setChatError(channelId, error.message || "Something went wrong. Please try again."));
