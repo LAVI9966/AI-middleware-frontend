@@ -1,5 +1,5 @@
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { ADVANCED_BRIDGE_PARAMETERS, KEYS_NOT_TO_DISPLAY } from "@/jsonFiles/bridgeParameter";
+import { ADVANCED_BRIDGE_PARAMETERS } from "@/jsonFiles/bridgeParameter";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
@@ -126,9 +126,6 @@ const AdvancedParameters = ({
     if (!modelInfoData) return [];
 
     return Object.entries(modelInfoData || {}).filter(([key, paramConfig]) => {
-      // Skip keys that shouldn't be displayed
-      if (KEYS_NOT_TO_DISPLAY?.includes(key)) return false;
-
       // Get level from ADVANCED_BRIDGE_PARAMETERS or default to 1
       const paramLevel = paramConfig?.level ?? 1;
       return paramLevel === level;
@@ -445,7 +442,6 @@ const AdvancedParameters = ({
   // Helper function to render parameter fields
   const renderParameterField = (key, { field, min = 0, max, step, default: defaultValue, options }) => {
     const isDeafaultObject = typeof modelInfoData?.[key]?.default === "object";
-    if (KEYS_NOT_TO_DISPLAY?.includes(key)) return null;
     if (key === "response_type" && isEmbedUser && !showResponseType) {
       return null;
     }
