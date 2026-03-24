@@ -90,6 +90,15 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
 
 function Chat({ params, userMessage, isOrchestralModel = false, searchParams, isEmbedUser }) {
   const messagesContainerRef = useRef(null);
+  const attachScrollListener = useCallback((el) => {
+    if (!el) return;
+    messagesContainerRef.current = el;
+    const onScroll = () => {
+      isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_NEAR_BOTTOM_THRESHOLD;
+    };
+    el.addEventListener("scroll", onScroll);
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
   const isAtBottomRef = useRef(true);
   const dispatch = useDispatch();
   const inputRef = useRef(null);
@@ -159,15 +168,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     () => validatePromptVariables(prompt, variablesKeyValue),
     [prompt, variablesKeyValue]
   );
-  useEffect(() => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const onScroll = () => {
-      isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-    };
-    el.addEventListener("scroll", onScroll);
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  const SCROLL_NEAR_BOTTOM_THRESHOLD = 50;
 
   useEffect(() => {
     const el = messagesContainerRef.current;
@@ -598,7 +599,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             <div
               data-testid="chat-messages-container"
               id="chat-messages-container"
-              ref={messagesContainerRef}
+              ref={attachScrollListener}
               className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 mb-4 pr-2"
               onClick={handleRichUIActions}
             >
