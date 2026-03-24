@@ -14,9 +14,9 @@ import {
   setEmbedToken,
 } from "../reducer/integrationReducer";
 
-export const createIntegrationAction = (data) => async (dispatch) => {
+export const createIntegrationAction = (data, type) => async (dispatch) => {
   try {
-    const response = await createIntegrationApi(data);
+    const response = await createIntegrationApi(data, type);
     if (response.data) {
       dispatch(
         addIntegrationDataReducer({

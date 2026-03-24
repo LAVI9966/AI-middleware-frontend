@@ -14,6 +14,7 @@ export const saveApiKeysAction = (data, orgId) => async (dispatch) => {
   try {
     const response = await saveApiKeys(data);
     if (response.data?.success) {
+      toast.success(response.data?.message || "API key created successfully");
       dispatch(createApiKeyReducer({ org_id: orgId, data: response?.data?.api }));
       trackUserAction("api_key_created", {
         org_id: orgId,
@@ -22,6 +23,7 @@ export const saveApiKeysAction = (data, orgId) => async (dispatch) => {
     }
     return response.data.api;
   } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to create API key");
     console.error(error);
   }
 };
@@ -48,6 +50,7 @@ export const updateApikeyAction = (dataToSend) => async (dispatch) => {
     // Step 3: Make the actual API call
     const response = await updateApikey(dataToSend);
     if (response.data?.success) {
+      toast.success(response.data?.message || "API key updated successfully");
       dispatch(
         apikeyUpdateReducer({
           org_id: dataToSend.org_id,
@@ -67,10 +70,12 @@ export const updateApikeyAction = (dataToSend) => async (dispatch) => {
       });
       return response.data.success;
     } else {
+      toast.error(response.data?.message || "Failed to update API key");
       dispatch(apikeyRollBackReducer({ org_id: dataToSend.org_id }));
     }
   } catch (error) {
     // API call failed with exception
+    toast.error(error?.response?.data?.message || "Failed to update API key");
     console.error(error);
     // Roll back to the original state
     dispatch(apikeyRollBackReducer({ org_id: dataToSend.org_id }));
@@ -88,6 +93,7 @@ export const deleteApikeyAction =
       // Step 3: Make the API call in the background
       const response = await deleteApikey(id);
       if (response.data?.success) {
+        toast.success(response.data?.message || "API key deleted successfully");
         dispatch(apikeyDeleteReducer({ org_id, name }));
         trackUserAction("api_key_deleted", {
           org_id: org_id,
@@ -95,10 +101,12 @@ export const deleteApikeyAction =
           api_key_name: name,
         });
       } else {
+        toast.error(response.data?.message || "Failed to delete API key");
         dispatch(apikeyRollBackReducer({ org_id }));
       }
     } catch (error) {
       // API call failed with exception
+      toast.error(error?.response?.data?.message || "Failed to delete API key");
       console.error(error);
       // Roll back to original state
       dispatch(apikeyRollBackReducer({ org_id }));
@@ -111,6 +119,6 @@ export const getAllApikeyAction = (org_id) => async (dispatch) => {
     if (response.data.success) dispatch(apikeyDataReducer({ org_id, data: response.data.result }));
   } catch (error) {
     console.error(error);
-    toast.error(error);
+    toast.error(error?.response?.data?.message || "Failed to fetch API keys");
   }
 };

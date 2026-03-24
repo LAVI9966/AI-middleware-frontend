@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { SettingsIcon, TrashIcon, RefreshIcon, SquareFunctionIcon } from "@/components/Icons";
 import useExpandableList from "@/customHooks/useExpandableList";
+import InfoTooltip from "@/components/InfoTooltip";
 
 const RenderEmbed = ({
   bridgeFunctions,
@@ -86,11 +87,15 @@ const RenderEmbed = ({
                 <SquareFunctionIcon size={16} className="shrink-0" />
               )}
               {title?.length > 24 ? (
-                <div className="tooltip tooltip-top min-w-0 flex-1 overflow-hidden" data-tip={title}>
-                  <span className="block text-sm font-normal truncate">{title}</span>
-                </div>
+                <InfoTooltip tooltipContent={title}>
+                  <span className="min-w-0 text-sm truncate text-left">
+                    <span className="truncate block w-[300px] flex justify-left">{title}</span>
+                  </span>
+                </InfoTooltip>
               ) : (
-                <span className="block text-sm font-normal truncate flex-1 min-w-0">{title}</span>
+                <span className="min-w-0 text-sm truncate text-left">
+                  <span className="truncate text-sm font-normal block w-[300px] flex justify-left">{title}</span>
+                </span>
               )}
             </div>
           </div>

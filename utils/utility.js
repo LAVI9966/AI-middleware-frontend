@@ -960,10 +960,8 @@ export const useOutsideClick = (elementRef, triggerRef, onOutsideClick, isActive
     }
   };
 
-  const handleScroll = () => {
-    if (isActive) {
-      onOutsideClick();
-    }
+  const handleScroll = (e) => {
+    if (isActive && !elementRef.current?.contains(e.target)) onOutsideClick();
   };
 
   return { handleClickOutside, handleKeyDown, handleScroll };

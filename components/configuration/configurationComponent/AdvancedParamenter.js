@@ -833,6 +833,18 @@ const AdvancedParameters = ({
                         id={`advanced-param-json-schema-header-${key}`}
                         className="flex justify-between items-center"
                       >
+                        {(() => {
+                          const currentValue =
+                            objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2);
+                          const isEmpty = currentValue === "{}" || !currentValue?.trim();
+                          return (
+                            isEmpty && (
+                              <div className="flex items-center gap-1.5 text-error mt-4">
+                                <span className="text-xs font-semibold tracking-wider">Empty Schema Not Supported</span>
+                              </div>
+                            )
+                          );
+                        })()}
                         <div className="flex gap-2 mt-4 ml-auto">
                           <span
                             className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
@@ -860,9 +872,13 @@ const AdvancedParameters = ({
                         type="input"
                         defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
                         onBlur={(e) => {
-                          try {
-                            const parsedValue = JSON.parse(e.target.value);
+                          const inputValue = e.target.value.trim();
+                          if (inputValue === "{}" || !inputValue) {
+                            return; // Stop processing if schema is empty
+                          }
 
+                          try {
+                            const parsedValue = JSON.parse(inputValue);
                             // Trim schema name and all property names
                             const trimmedValue = {
                               ...parsedValue,

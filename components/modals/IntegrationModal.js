@@ -50,7 +50,7 @@ const IntegrationModal = ({ params, type = "embed" }) => {
       };
     }
 
-    dispatch(createIntegrationAction(payload));
+    dispatch(createIntegrationAction(payload, type));
     closeModal(MODAL_TYPE.INTEGRATION_MODAL);
     integrationNameRef.current.value = "";
   };

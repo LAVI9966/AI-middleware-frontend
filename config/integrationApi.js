@@ -1,13 +1,19 @@
 import axios from "@/utils/interceptor";
-
+import { toast } from "react-toastify";
 const URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
 // Integration Management APIs
-export const createIntegrationApi = async (data) => {
+export const createIntegrationApi = async (data, type) => {
   try {
     const response = await axios.post(`${URL}/api/embed/`, data);
+    if (type == "rag_embed") {
+      toast.success("Rag Embed created successfully");
+    } else {
+      toast.success("GTWY Embed created successfully");
+    }
     return response?.data;
   } catch (error) {
+    toast.error(error?.response?.data?.message);
     console.error(error);
     return error;
   }

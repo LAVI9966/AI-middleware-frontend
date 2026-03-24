@@ -694,10 +694,10 @@ function ChatTextInput({
         <div
           data-testid="chat-validation-error"
           id="chat-validation-error"
-          className="absolute bottom-16 left-0 w-full p-3 bg-error/10 border border-error/20 rounded-lg"
+          className="absolute bottom-16 left-0 w-full p-3 bg-error text-base-content border border-error rounded-lg shadow-md"
         >
-          <p className="text-sm text-error">{validationError}</p>
-          <p className="text-xs text-error/70 mt-1">Please fill in the missing variables in the Variables panel.</p>
+          <p className="text-sm font-medium">{validationError}</p>
+          <p className="text-xs mt-1">Please fill in the missing variables in the Variables panel.</p>
         </div>
       )}
 

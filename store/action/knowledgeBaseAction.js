@@ -42,6 +42,7 @@ export const createKnowledgeBaseEntryAction = (data, orgId) => async (dispatch) 
       return response?.data;
     }
   } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to create knowledge base entry");
     console.error(error);
   }
 };
@@ -63,7 +64,7 @@ export const getAllKnowBaseDataAction = (orgId) => async (dispatch) => {
       dispatch(fetchAllKnowlegdeBaseData({ data: response, orgId }));
     }
   } catch (error) {
-    toast.error("something went wrong");
+    toast.error(error?.response?.data?.message || "something went wrong");
     console.error(error);
   }
 };
@@ -77,7 +78,7 @@ export const deleteKnowBaseDataAction =
       dispatch(deleteKnowledgeBaseReducer({ id: data?.id, orgId: data?.orgId }));
       const response = await deleteKnowBaseData(data);
       if (response) {
-        toast.success(response.message);
+        toast.success(response.message || "Knowledge base entry deleted successfully");
 
         trackKnowledgeBaseEvent("deleted", {
           id: data?.id,
@@ -85,6 +86,7 @@ export const deleteKnowBaseDataAction =
         });
       }
     } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to delete knowledge base entry");
       dispatch(knowledgeBaseRollBackReducer({ orgId: data?.orgId }));
       console.error(error);
     }
@@ -118,6 +120,7 @@ export const updateKnowledgeBaseAction = (data, orgId) => async (dispatch) => {
       });
     }
   } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to update knowledge base entry");
     dispatch(knowledgeBaseRollBackReducer({ orgId }));
     console.error(error);
   }
@@ -127,7 +130,7 @@ export const createResourceAction = (data, orgId) => async (dispatch) => {
   try {
     const response = await createResource(data);
     if (response.data) {
-      toast.success(response?.data?.message);
+      toast.success(response?.data?.message || "Resource created successfully");
       dispatch(
         addKnowbaseDataReducer({
           orgId,
@@ -138,6 +141,7 @@ export const createResourceAction = (data, orgId) => async (dispatch) => {
     }
     return response?.data;
   } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to create resource");
     console.error(error);
   }
 };
@@ -146,6 +150,7 @@ export const updateResourceAction = (resourceId, payload, orgId) => async (dispa
   try {
     const response = await updateResource(resourceId, payload);
     if (response?.success) {
+      toast.success(response?.message || "Resource updated successfully");
       dispatch(
         updateKnowledgeBaseReducer({
           orgId,
@@ -157,6 +162,7 @@ export const updateResourceAction = (resourceId, payload, orgId) => async (dispa
     }
     return { success: false };
   } catch (error) {
+    toast.error(error?.response?.data?.message || "Failed to update resource");
     console.error("Error updating resource:", error);
     return { success: false };
   }
@@ -168,6 +174,7 @@ export const deleteResourceAction =
     try {
       const response = await deleteResource(data?.id);
       if (response?.success) {
+        toast.success(response?.message || "Resource deleted successfully");
         dispatch(
           deleteKnowledgeBaseReducer({
             orgId: data?.orgId,
@@ -178,6 +185,7 @@ export const deleteResourceAction =
       }
       return { success: false };
     } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to delete resource");
       console.error("Error deleting resource:", error);
       return { success: false };
     }

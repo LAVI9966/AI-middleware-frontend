@@ -289,7 +289,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                 id="pre-embed-header-wrapper"
                 className="flex items-center gap-2 group"
               >
-                <InfoTooltip tooltipContent="A prefunction prepares data before passing it to the main function for the GPT call.">
+                <InfoTooltip tooltipContent="Pre-functions prepare data before it's sent to the AI. To use a pre-function's result in your prompt, reference it like {{pre_function}}">
                   <div className="flex items-center gap-1 cursor-help">
                     <p className="text-sm whitespace-nowrap">Pre Functions</p>
                   </div>
@@ -305,7 +305,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                 className={`dropdown dropdown-end w-full max-w-md`}
               >
                 <div className="border-2 border-base-200 border-dashed text-center">
-                  <InfoTooltip tooltipContent="A prefunction prepares data before passing it to the main function for the GPT call.">
+                  <InfoTooltip tooltipContent="Pre-functions prepare data before it's sent to the AI. To use a pre-function's result in your prompt, reference it like {{pre_function}}">
                     <button
                       data-testid="pre-embed-add-button"
                       id="pre-embed-add-button"

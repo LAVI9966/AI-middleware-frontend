@@ -12,6 +12,7 @@ const InfoTooltip = ({ video = "", children, tooltipContent, docLink }) => {
 
   const { refs, floatingStyles, update } = useFloating({
     placement: "top",
+    strategy: "fixed",
     middleware: [offset(8), flip(), shift()],
     whileElementsMounted: autoUpdate,
   });
@@ -49,46 +50,49 @@ const InfoTooltip = ({ video = "", children, tooltipContent, docLink }) => {
       >
         {children}
 
-        {open && (
-          <div
-            data-testid="info-tooltip-content"
-            id="info-tooltip-content"
-            ref={refs.setFloating}
-            style={floatingStyles}
-            onMouseEnter={() => {
-              clearTimeout(delayTimeout.current);
-              setOpen(true);
-            }}
-            onMouseLeave={handleClose}
-            className="
-              z-low-medium w-64 p-3 ml-3 bg-base-300 text-base-content text-primary-foreground
+        {open &&
+          typeof window !== "undefined" &&
+          createPortal(
+            <div
+              data-testid="info-tooltip-content"
+              id="info-tooltip-content"
+              ref={refs.setFloating}
+              style={floatingStyles}
+              onMouseEnter={() => {
+                clearTimeout(delayTimeout.current);
+                setOpen(true);
+              }}
+              onMouseLeave={handleClose}
+              className="
+              z-high w-64 p-3 ml-3 bg-base-300 text-base-content text-primary-foreground
               rounded-md shadow-xl text-xs animate-in fade-in zoom-in
               border border-base-300 space-y-2 pointer-events-auto
             "
-          >
-            <p className="whitespace-pre-line">
-              {tooltipContent}
-              {docLink && (
-                <SmartLink href={docLink}>
-                  <span className="inline-flex  items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300  font-medium group">
-                    Learn more
-                  </span>
-                  <ExternalLinkIcon size={12} />
-                </SmartLink>
+            >
+              <p className="whitespace-pre-line break-words break-all">
+                {tooltipContent}
+                {docLink && (
+                  <SmartLink href={docLink}>
+                    <span className="inline-flex  items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300  font-medium group">
+                      Learn more
+                    </span>
+                    <ExternalLinkIcon size={12} />
+                  </SmartLink>
+                )}
+              </p>
+              {video !== "" && (
+                <button
+                  data-testid="info-tooltip-video-button"
+                  id="info-tooltip-video-button"
+                  onClick={() => setShowTutorial(true)}
+                  className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 pointer-events-auto"
+                >
+                  Watch Video <span aria-hidden>↗</span>
+                </button>
               )}
-            </p>
-            {video !== "" && (
-              <button
-                data-testid="info-tooltip-video-button"
-                id="info-tooltip-video-button"
-                onClick={() => setShowTutorial(true)}
-                className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 pointer-events-auto"
-              >
-                Watch Video <span aria-hidden>↗</span>
-              </button>
-            )}
-          </div>
-        )}
+            </div>,
+            document.body
+          )}
       </div>
 
       {showTutorial &&

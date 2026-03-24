@@ -266,14 +266,14 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
             <div className="flex items-center gap-2 w-full">
               <BotIcon size={16} className="shrink-0" />
               {name?.length > 24 ? (
-                <div className="tooltip tooltip-top min-w-0" data-tip={name}>
+                <InfoTooltip tooltipContent={name}>
                   <span className="min-w-0 text-sm truncate text-left">
-                    <span className="truncate text-sm font-normal block w-[300px]">{name}</span>
+                    <span className="truncate text-sm font-normal block w-[300px] flex justify-left">{name}</span>
                   </span>
-                </div>
+                </InfoTooltip>
               ) : (
                 <span className="min-w-0 text-sm truncate text-left">
-                  <span className="truncate text-sm font-normal block w-[300px]">{name}</span>
+                  <span className="truncate text-sm font-normal block w-[300px] flex justify-left">{name}</span>
                 </span>
               )}
             </div>

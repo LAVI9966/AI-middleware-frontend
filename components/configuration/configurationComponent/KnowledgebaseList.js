@@ -144,6 +144,13 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
           type="text"
           placeholder="Search Knowledge Base"
           value={searchQuery}
+          onBlur={(e) => {
+            // Only clear if the new focused element is outside this dropdown
+            const dropdown = e.currentTarget.closest("ul");
+            if (dropdown && !dropdown.contains(e.relatedTarget)) {
+              setSearchQuery("");
+            }
+          }}
           onChange={handleInputChange}
           className="input input-bordered w-full input-sm"
         />
@@ -230,14 +237,18 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
               {GetFileTypeIcon(item?.url?.includes(".pdf") ? "pdf" : "document", 16, 16)}
               <div className="flex items-center gap-2 w-full">
                 {item?.title?.length > 24 ? (
-                  <div className="tooltip tooltip-top min-w-0" data-tip={item?.title}>
+                  <InfoTooltip tooltipContent={item?.title}>
                     <span className="min-w-0 text-sm truncate text-left">
-                      <span className="truncate text-sm font-normal block w-[300px]">{item?.title}</span>
+                      <span className="truncate text-sm font-normal block w-[300px] flex justify-left">
+                        {item?.title}
+                      </span>
                     </span>
-                  </div>
+                  </InfoTooltip>
                 ) : (
                   <span className="min-w-0 text-sm truncate text-left">
-                    <span className="truncate text-sm font-normal block w-[300px]">{item?.title}</span>
+                    <span className="truncate text-sm font-normal block w-[300px] flex justify-left">
+                      {item?.title}
+                    </span>
                   </span>
                 )}
               </div>

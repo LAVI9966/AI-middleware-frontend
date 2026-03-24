@@ -98,6 +98,14 @@ function ConnectedAgentListSuggestion({
           type="text"
           placeholder="Search Agent"
           value={searchQuery}
+          onBlur={(e) => {
+            // Only clear if the new focused element is outside this dropdown
+            const dropdown = e.currentTarget.closest("ul");
+            console.log("dropdown ", dropdown);
+            if (dropdown && !dropdown.contains(e.relatedTarget)) {
+              setSearchQuery("");
+            }
+          }}
           onChange={handleInputChange}
           className="input input-bordered w-full input-sm"
         />

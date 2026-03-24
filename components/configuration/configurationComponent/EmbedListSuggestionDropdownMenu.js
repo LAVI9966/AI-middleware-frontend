@@ -171,6 +171,13 @@ function EmbedListSuggestionDropdownMenu({
               placeholder={`Search ${name == "preFunction" ? "Pre Function" : "Tool"}`}
               value={searchQuery}
               onChange={handleInputChange} // Update search query on input change
+              onBlur={(e) => {
+                // Only clear if the new focused element is outside this dropdown
+                const dropdown = e.currentTarget.closest("ul");
+                if (dropdown && !dropdown.contains(e.relatedTarget)) {
+                  setSearchQuery("");
+                }
+              }}
               className="input input-bordered w-full input-sm"
             />
             {Object.values(function_data || {})?.length > 0 ? (
