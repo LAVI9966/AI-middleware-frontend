@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { CloseIcon, FileTextIcon } from "@/components/Icons";
 import { toggleSidebar } from "@/utils/utility";
 import { getBridgeConfigHistory } from "@/config/index";
-import { CONFIG_HISTORY_FILTER_KEYS, CONFIG_HISTORY_FEATURE_OPTIONS } from "@/utils/enums";
+import { CONFIG_HISTORY_FILTER_KEYS, CONFIG_HISTORY_FEATURE_OPTIONS, CONFIG_HISTORY_HIDDEN_TYPES } from "@/utils/enums";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 function ConfigHistorySlider({ versionId }) {
@@ -27,7 +27,7 @@ function ConfigHistorySlider({ versionId }) {
   );
 
   const fetchHistory = useCallback(
-    async (targetPage = page) => {
+    async (targetPage = page, currentFilters = filters) => {
       // Check if slider is actually open before making API call
       const sliderElement = document.getElementById("default-config-history-slider");
       const isSliderOpen = sliderElement && !sliderElement.classList.contains("translate-x-full");
@@ -36,7 +36,7 @@ function ConfigHistorySlider({ versionId }) {
 
       setLoading(true);
       try {
-        const response = await getBridgeConfigHistory(versionId, targetPage, pageSize, filters);
+        const response = await getBridgeConfigHistory(versionId, targetPage, pageSize, currentFilters);
         const usersFromResponse = response?.userData?.users;
 
         if (Array.isArray(usersFromResponse) && usersFromResponse.length > 0) {
@@ -51,12 +51,9 @@ function ConfigHistorySlider({ versionId }) {
           return;
         }
 
-        if (response?.success) {
-          const newData = response?.userData?.updates ?? [];
-          setHistoryData((prev) => (targetPage === 1 ? newData : [...prev, ...newData]));
-
-          setHasMore(newData.length === pageSize);
-        }
+        const newData = response?.userData?.updates ?? [];
+        setHistoryData((prev) => (targetPage === 1 ? newData : [...prev, ...newData]));
+        setHasMore(newData.length === pageSize);
       } catch (error) {
         console.error("Error fetching agent history:", error);
       } finally {
@@ -103,8 +100,8 @@ function ConfigHistorySlider({ versionId }) {
   useEffect(() => {
     setPage(1);
     setHistoryData([]);
-    fetchHistory(1);
-  }, [filters]);
+    fetchHistory(1, filters);
+  }, [filters, fetchHistory]);
 
   const loadMore = () => {
     setPage((prev) => prev + 1);
@@ -142,7 +139,7 @@ function ConfigHistorySlider({ versionId }) {
     const groups = [];
     const seen = new Map();
     historyData
-      .filter((item) => item?.type !== "system_prompt_version_id" && item?.type !== "variables_state")
+      .filter((item) => !CONFIG_HISTORY_HIDDEN_TYPES.includes(item?.type))
       .forEach((item) => {
         const label = getDateLabel(item?.time);
         if (!seen.has(label)) {
@@ -223,7 +220,7 @@ function ConfigHistorySlider({ versionId }) {
           <div className="flex gap-2">
             <button
               onClick={clearFilters}
-              className="w-full px-3 py-1.5 text-xs bg-base-300 text-base-content rounded hover:bg-base-400 transition-colors"
+              className="w-full px-3 py-1.5 text-xs bg-base-300 text-base-content rounded hover:bg-base-200 transition-colors"
             >
               Clear
             </button>

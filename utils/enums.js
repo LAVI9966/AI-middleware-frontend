@@ -109,6 +109,8 @@ export const CONFIG_HISTORY_FEATURE_OPTIONS = [
   { value: "api_keys", label: "API Keys" },
 ];
 
+export const CONFIG_HISTORY_HIDDEN_TYPES = ["system_prompt_version_id", "variables_state"];
+
 export const BATCH_PROCESSING_STATUSES = ["in_progress", "processing", "queued", "pending", "validating", "finalizing"];
 
 export const TIME_RANGE_OPTIONS = [
