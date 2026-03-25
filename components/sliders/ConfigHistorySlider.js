@@ -60,7 +60,7 @@ function ConfigHistorySlider({ versionId }) {
         setLoading(false);
       }
     },
-    [versionId, page, pageSize, filters]
+    [versionId, pageSize]
   );
 
   // Listen for slider open/close events using MutationObserver
@@ -92,16 +92,18 @@ function ConfigHistorySlider({ versionId }) {
 
   useEffect(() => {
     if (page > 1) {
-      fetchHistory();
+      fetchHistory(page, filters);
     }
-  }, [page, fetchHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   // Refetch history immediately when filters change
   useEffect(() => {
     setPage(1);
     setHistoryData([]);
     fetchHistory(1, filters);
-  }, [filters, fetchHistory]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const loadMore = () => {
     setPage((prev) => prev + 1);
@@ -158,11 +160,11 @@ function ConfigHistorySlider({ versionId }) {
   return (
     <aside
       id="default-config-history-slider"
-      className="sidebar-container fixed z-very-high flex flex-col top-0 right-0 p-4 w-full md:w-1/3 lg:w-1/4 opacity-100 h-screen bg-base-200 transition-all duration-300 border-l border-base-300 overflow-y-auto translate-x-full "
+      className="sidebar-container fixed z-very-high flex flex-col top-0 right-0 p-4 w-full md:w-1/3 lg:w-1/4 opacity-100 h-screen bg-base-200 transition-all duration-300 border-l border-base-300 overflow-hidden translate-x-full "
       aria-label="Config History Slider"
     >
-      <div className="flex flex-col w-full gap-4">
-        <div className="flex justify-between items-center border-b border-base-300 pb-4">
+      <div className="flex flex-col w-full gap-4 h-full min-h-0">
+        <div className="flex justify-between items-center border-b border-base-300 pb-4 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <FileTextIcon className="w-4 h-4 text-primary" />
@@ -181,7 +183,7 @@ function ConfigHistorySlider({ versionId }) {
         </div>
 
         {/* Filters Section */}
-        <div className="bg-base-100 rounded-lg p-4 border border-base-300">
+        <div className="bg-base-100 rounded-lg p-4 border border-base-300 shrink-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-xs font-medium mb-1">Filter by User</label>
@@ -227,7 +229,7 @@ function ConfigHistorySlider({ versionId }) {
           </div>
         </div>
 
-        <div className="mt-2">
+        <div id="config-history-scroll-container" className="mt-2 flex-1 overflow-y-auto">
           {loading && page === 1 ? (
             <div className="flex justify-center items-center h-40">
               <div className="loading loading-spinner loading-md"></div>
@@ -247,7 +249,7 @@ function ConfigHistorySlider({ versionId }) {
                   <p className="text-center text-xs text-base-content/30 py-5">— All caught up —</p>
                 )
               }
-              scrollableTarget="default-config-history-slider"
+              scrollableTarget="config-history-scroll-container"
             >
               <div className="space-y-4 text-base-content">
                 {groupedHistory.length > 0 ? (
