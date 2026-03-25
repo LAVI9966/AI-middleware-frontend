@@ -375,7 +375,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     if (differences.service) {
       extracted.service = differences.service;
     }
-
     return extracted;
   }, [differences, filteredBridgeData, filteredVersionData]);
 
