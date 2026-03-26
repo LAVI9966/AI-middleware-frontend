@@ -149,7 +149,6 @@ const InputConfigComponent = memo(
       if (!isEmbedCustomPrompt) return;
       const valueToSave = {};
       visibleEmbedFields.forEach((f) => {
-        if (f.deprecated) return;
         valueToSave[f.name] = activeEmbedFieldValues[f.name] ?? "";
       });
       savePrompt(valueToSave);
@@ -157,17 +156,20 @@ const InputConfigComponent = memo(
       setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
     }, [isEmbedCustomPrompt, visibleEmbedFields, activeEmbedFieldValues, savePrompt, setPromptState]);
 
-    const handleClearDeprecatedField = useCallback(() => {
-      if (!isEmbedCustomPrompt) return;
-      const valueToSave = {};
-      visibleEmbedFields.forEach((f) => {
-        if (f.deprecated) return; // exclude all deprecated (including the one being cleared)
-        valueToSave[f.name] = activeEmbedFieldValues[f.name] ?? "";
-      });
-      savePrompt(valueToSave);
-      setEmbedFieldValues(null);
-      setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
-    }, [isEmbedCustomPrompt, visibleEmbedFields, activeEmbedFieldValues, savePrompt, setPromptState]);
+    const handleClearDeprecatedField = useCallback(
+      (fieldName) => {
+        if (!isEmbedCustomPrompt) return;
+        const valueToSave = {};
+        visibleEmbedFields.forEach((f) => {
+          if (f.name === fieldName) return; // exclude only the one being cleared
+          valueToSave[f.name] = activeEmbedFieldValues[f.name] ?? "";
+        });
+        savePrompt(valueToSave);
+        setEmbedFieldValues(null);
+        setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
+      },
+      [isEmbedCustomPrompt, visibleEmbedFields, activeEmbedFieldValues, savePrompt, setPromptState]
+    );
 
     const handlePromptChange = useCallback(
       (value) => {
