@@ -75,6 +75,14 @@ const CONFIG_SCHEMA = [
     section: "Interface Options",
   },
   {
+    key: "hidePromptHelper",
+    type: "toggle",
+    label: "Hide Prompt Helper",
+    description: "Hide prompt helper button",
+    defaultValue: false,
+    section: "Interface Options",
+  },
+  {
     key: "showResponseType",
     type: "toggle",
     label: "Show Response Type",
