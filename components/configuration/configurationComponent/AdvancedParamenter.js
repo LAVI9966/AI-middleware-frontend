@@ -18,6 +18,7 @@ import InfoTooltip from "@/components/InfoTooltip";
 import { setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
 import { Check, CircleQuestionMark, ExternalLink } from "lucide-react";
 import RenderNode from "@/components/richUI/RenderNode";
+import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/modals/FullscreenEditorModal";
 
 const AdvancedParameters = ({
   params,
@@ -44,6 +45,7 @@ const AdvancedParameters = ({
   });
   const [messages, setMessages] = useState([]);
   const [activeWidgetButtons, setActiveWidgetButtons] = useState([]);
+  const [jsonSchemaFullscreen, setJsonSchemaFullscreen] = useState(false);
   const dropdownContainerRef = useRef(null);
   const dispatch = useDispatch();
   const router = useRouter();
@@ -833,7 +835,7 @@ const AdvancedParameters = ({
                         id={`advanced-param-json-schema-header-${key}`}
                         className="flex justify-between items-center"
                       >
-                        <div className="flex gap-2 mt-4 ml-auto">
+                        <div className="flex gap-2 mt-4 ml-auto items-center">
                           <span
                             className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
                             onClick={() => {
@@ -854,16 +856,61 @@ const AdvancedParameters = ({
                         </div>
                       </div>
 
-                      <textarea
-                        id={`advanced-param-json-schema-textarea-${key}`}
-                        key={`${key}-${configuration?.[key]}-${objectFieldValue}-${configuration}`}
-                        type="input"
-                        defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
-                        onBlur={(e) => {
-                          try {
-                            const parsedValue = JSON.parse(e.target.value);
+                      <div className="relative">
+                        <textarea
+                          id={`advanced-param-json-schema-textarea-${key}`}
+                          key={`${key}-${configuration?.[key]}-${objectFieldValue}-${configuration}`}
+                          type="input"
+                          defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
+                          onBlur={(e) => {
+                            try {
+                              const parsedValue = JSON.parse(e.target.value);
 
-                            // Trim schema name and all property names
+                              // Trim schema name and all property names
+                              const trimmedValue = {
+                                ...parsedValue,
+                                name: parsedValue.name?.trim(),
+                                schema: parsedValue.schema
+                                  ? {
+                                      ...parsedValue.schema,
+                                      properties: trimPropertyNames(parsedValue.schema.properties),
+                                    }
+                                  : parsedValue.schema,
+                              };
+
+                              handleSelectChange(
+                                { target: { value: "json_schema" } },
+                                key,
+                                defaultValue,
+                                trimmedValue,
+                                true
+                              );
+                            } catch (error) {
+                              console.error(error);
+                              toast.error("Invalid JSON schema");
+                            }
+                          }}
+                          className="textarea textarea-bordered w-full h-32 font-mono text-xs pr-8"
+                          placeholder="Enter JSON schema..."
+                          disabled={isReadOnly}
+                        />
+                        <FullscreenEditorButton
+                          tooltip="Open JSON schema in fullscreen"
+                          className="absolute top-1 right-1 opacity-50 hover:opacity-100"
+                          onClick={() => {
+                            setJsonSchemaFullscreen(true);
+                          }}
+                        />
+                      </div>
+                      <FullscreenEditorModal
+                        modalId={MODAL_TYPE.FULLSCREEN_JSON_SCHEMA}
+                        title="JSON Schema"
+                        value={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
+                        isOpen={jsonSchemaFullscreen}
+                        onClose={() => setJsonSchemaFullscreen(false)}
+                        onSave={(finalVal) => {
+                          try {
+                            const parsedValue = JSON.parse(finalVal);
                             const trimmedValue = {
                               ...parsedValue,
                               name: parsedValue.name?.trim(),
@@ -874,7 +921,7 @@ const AdvancedParameters = ({
                                   }
                                 : parsedValue.schema,
                             };
-
+                            setObjectFieldValue(finalVal);
                             handleSelectChange(
                               { target: { value: "json_schema" } },
                               key,
@@ -887,9 +934,9 @@ const AdvancedParameters = ({
                             toast.error("Invalid JSON schema");
                           }
                         }}
-                        className="textarea textarea-bordered w-full h-32 font-mono text-xs"
                         placeholder="Enter JSON schema..."
                         disabled={isReadOnly}
+                        mono
                       />
                       <JsonSchemaBuilderModal params={params} searchParams={searchParams} isReadOnly={isReadOnly} />
                       <JsonSchemaModal
