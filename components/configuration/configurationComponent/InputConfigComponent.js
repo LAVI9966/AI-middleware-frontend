@@ -164,6 +164,11 @@ const InputConfigComponent = memo(
       setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
     }, [isEmbedCustomPrompt, visibleEmbedFields, activeEmbedFieldValues, savePrompt, setPromptState]);
 
+    const filteredEmbedFields = useMemo(
+      () => visibleEmbedFields.filter((field) => !(field.deprecated && !activeEmbedFieldValues[field.name])),
+      [visibleEmbedFields, activeEmbedFieldValues]
+    );
+
     const handleClearDeprecatedField = useCallback(
       (fieldName) => {
         if (!isEmbedCustomPrompt) return;
@@ -350,11 +355,11 @@ const InputConfigComponent = memo(
                   </button>
                 </div>
               )}
-              {visibleEmbedFields.map((field) => (
+              {filteredEmbedFields.map((field) => (
                 <div key={field.name} className="form-control">
                   <label className="label py-0 flex items-center gap-2">
                     <span className="label-text text-xs font-medium capitalize text-base-content/70 mb-2">
-                      {field.name}
+                      {field.displayValue || field.name}
                     </span>
                     {field.deprecated && <span className="badge badge-warning badge-xs text-xs">deprecated</span>}
                   </label>
@@ -374,7 +379,11 @@ const InputConfigComponent = memo(
                           if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
                         disabled={isPublished || !isEditor}
-                        placeholder={field.deprecated ? "(no longer used in prompt)" : `Enter ${field.name}...`}
+                        placeholder={
+                          field.deprecated
+                            ? "(no longer used in prompt)"
+                            : `Enter ${field.displayValue || field.name}...`
+                        }
                       />
                     ) : (
                       <input
@@ -392,7 +401,11 @@ const InputConfigComponent = memo(
                           if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
                         disabled={isPublished || !isEditor}
-                        placeholder={field.deprecated ? "(no longer used in prompt)" : `Enter ${field.name}...`}
+                        placeholder={
+                          field.deprecated
+                            ? "(no longer used in prompt)"
+                            : `Enter ${field.displayValue || field.name}...`
+                        }
                       />
                     )}
                     {!field.deprecated && (
