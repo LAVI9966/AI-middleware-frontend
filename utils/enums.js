@@ -91,6 +91,28 @@ export const API_KEY_MODAL_INPUT = ["name", "apikey", "comment", "apikey_limit"]
 
 export const USER_FEEDBACK_FILTER_OPTIONS = ["all", "1", "2"];
 
+export const CONFIG_HISTORY_FILTER_KEYS = {
+  USER_IDS: "user_ids",
+  TYPES: "types",
+};
+
+export const CONFIG_HISTORY_FEATURE_OPTIONS = [
+  { value: "name", label: "Agent Name" },
+  { value: "prompt", label: "Prompt" },
+  { value: "type", label: "Model Type" },
+  { value: "service", label: "Service" },
+  { value: "model", label: "Model" },
+  { value: "guardrails", label: "Guardrails" },
+  { value: "fall_back", label: "Fallback" },
+  { value: "starterQuestion", label: "Starter Questions" },
+  { value: "function_ids", label: "Functions" },
+  { value: "bridge_summary", label: "Bridge Summary" },
+  { value: "agents", label: "Connected Agents" },
+  { value: "api_keys", label: "API Keys" },
+];
+
+export const CONFIG_HISTORY_HIDDEN_TYPES = ["system_prompt_version_id", "variables_state"];
+
 export const BATCH_PROCESSING_STATUSES = ["in_progress", "processing", "queued", "pending", "validating", "finalizing"];
 
 export const TIME_RANGE_OPTIONS = [
