@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, useCallback, memo } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import CodeBlock from "../codeBlock/CodeBlock";
 import ChatTextInput from "./ChatTextInput";
 import { PdfIcon } from "@/icons/pdfIcon";
@@ -52,9 +52,36 @@ const mdComponents = {
   ),
 };
 
-const StreamingMessage = memo(function StreamingMessage({ content }) {
-  return <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>;
-});
+function StreamingMessage({ content, isStreaming }) {
+  const [chunks, setChunks] = useState([]);
+  const prevLenRef = useRef(0);
+  const chunkIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!content || content.length <= prevLenRef.current) return;
+    const newText = content.slice(prevLenRef.current);
+    prevLenRef.current = content.length;
+    const id = ++chunkIdRef.current;
+    const dur = Math.min(0.25 + newText.length * 0.006, 0.6);
+    setChunks((c) => [...c, { id, text: newText, dur }]);
+  }, [content]);
+
+  // When streaming ends, collapse all chunks into a single ReactMarkdown render
+  // to get proper syntax highlighting, links, etc.
+  if (!isStreaming && content) {
+    return <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>;
+  }
+
+  return (
+    <span style={{ whiteSpace: "pre-wrap" }}>
+      {chunks.map(({ id, text, dur }) => (
+        <span key={id} className="r-chunk" style={{ "--dur": `${dur}s` }}>
+          {text}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function ToolCallItem({ toolCall, isMessageComplete }) {
   const [open, setOpen] = useState(false);
@@ -928,7 +955,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       <span className="loading loading-dots loading-sm"></span>
                                     </div>
                                   ) : message.isStreaming && message.content ? (
-                                    <StreamingMessage content={message.content} />
+                                    <StreamingMessage content={message.content} isStreaming={message.isStreaming} />
                                   ) : message.sender === "expected" ? (
                                     /* Expected Response - Plain text display with label */
                                     <div className="whitespace-pre-wrap">{message.content}</div>

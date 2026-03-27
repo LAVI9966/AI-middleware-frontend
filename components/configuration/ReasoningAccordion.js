@@ -8,6 +8,7 @@ function ReasoningAccordion({ reasoning, isStreaming, messageContent }) {
   const chunkIdRef = useRef(0);
   const scrollRef = useRef(null);
   const prevStreamingRef = useRef(isStreaming);
+  const userScrolledRef = useRef(false);
   const deltaStarted = isStreaming && !!messageContent;
 
   // Diff reasoning string → extract only the new tail as a single chunk
@@ -18,15 +19,26 @@ function ReasoningAccordion({ reasoning, isStreaming, messageContent }) {
       const newText = reasoning.slice(prev.length);
       prevReasoningRef.current = reasoning;
       const id = ++chunkIdRef.current;
-      // Duration: 300ms base + 8ms per char, capped at 700ms — smooth for any size
       const dur = Math.min(0.3 + newText.length * 0.008, 0.7);
       setChunks((c) => [...c, { id, text: newText, dur }]);
     }
   }, [reasoning]);
 
-  // Auto-scroll while reasoning is live
+  // Track whether user has scrolled up inside the accordion
   useEffect(() => {
-    if (!deltaStarted && isStreaming && scrollRef.current) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
+      userScrolledRef.current = !atBottom;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Auto-scroll only while actively receiving reasoning chunks and user hasn't scrolled up
+  useEffect(() => {
+    if (isStreaming && !deltaStarted && !userScrolledRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chunks, isStreaming, deltaStarted]);
