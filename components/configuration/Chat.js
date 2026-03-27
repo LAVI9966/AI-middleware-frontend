@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from "react";
 import CodeBlock from "../codeBlock/CodeBlock";
 import ChatTextInput from "./ChatTextInput";
 import { PdfIcon } from "@/icons/pdfIcon";
@@ -44,43 +44,17 @@ import {
 import RenderNode from "../richUI/RenderNode";
 import ReasoningAccordion from "./ReasoningAccordion";
 
-function StreamingMessage({ content }) {
-  const [chunkId, setChunkId] = useState(0);
-  const [stableText, setStableText] = useState("");
-  const [latestChunk, setLatestChunk] = useState("");
-  const prevLenRef = useRef(0);
+const mdComponents = {
+  code: ({ node, inline, className, children, ...props }) => (
+    <CodeBlock inline={inline} className={className} isDark={true} {...props}>
+      {children}
+    </CodeBlock>
+  ),
+};
 
-  useEffect(() => {
-    if (!content || content.length <= prevLenRef.current) return;
-    const newText = content.slice(prevLenRef.current);
-    prevLenRef.current = content.length;
-    // Move previous latestChunk into stable
-    setStableText(content.slice(0, content.length - newText.length));
-    setLatestChunk(newText);
-    setChunkId((id) => id + 1);
-  }, [content]);
-
-  return (
-    <>
-      <ReactMarkdown
-        components={{
-          code: ({ node, inline, className, children, ...props }) => (
-            <CodeBlock inline={inline} className={className} isDark={true} {...props}>
-              {children}
-            </CodeBlock>
-          ),
-        }}
-      >
-        {stableText}
-      </ReactMarkdown>
-      {latestChunk && (
-        <span key={chunkId} className="sm-chunk" style={{ whiteSpace: "pre-wrap" }}>
-          {latestChunk}
-        </span>
-      )}
-    </>
-  );
-}
+const StreamingMessage = memo(function StreamingMessage({ content }) {
+  return <ReactMarkdown components={mdComponents}>{content}</ReactMarkdown>;
+});
 
 function ToolCallItem({ toolCall, isMessageComplete }) {
   const [open, setOpen] = useState(false);
