@@ -684,6 +684,10 @@ const AdvancedParameters = ({
                       }
                     }
                     // Fallback for other keys or normal types
+                    if (key === "reasoning" && selectedValue === "default") {
+                      setSliderValue("default", key);
+                      return;
+                    }
                     handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject);
                   }}
                   className={`select select-bordered ${selectSizeClass} w-full`}
