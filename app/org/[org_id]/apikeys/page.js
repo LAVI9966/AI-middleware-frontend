@@ -67,17 +67,19 @@ const Page = () => {
 
   const deleteApikey = useCallback(
     async (item) => {
+      const apiKeyDetails = apikeyData?.find((api) => api._id === item._id);
       await executeDelete(async () => {
         return dispatch(
           deleteApikeyAction({
             org_id: item.org_id,
             name: item.name,
             id: item._id,
+            service: apiKeyDetails?.service,
           })
         );
       });
     },
-    [dispatch, executeDelete]
+    [dispatch, executeDelete, apikeyData]
   );
 
   const showConnectedAgents = useCallback((item) => {
