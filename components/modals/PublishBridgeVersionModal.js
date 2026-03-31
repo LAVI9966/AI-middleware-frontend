@@ -9,7 +9,7 @@ import {
 } from "@/store/action/bridgeAction";
 import { convertAgentToTemplate } from "@/config/bridgeApi";
 import { MODAL_TYPE } from "@/utils/enums";
-import { closeModal, sendDataToParent } from "@/utils/utility";
+import { closeModal, openModal, sendDataToParent } from "@/utils/utility";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import Modal from "../UI/Modal";
@@ -18,6 +18,7 @@ import Protected from "../Protected";
 import PublishVersionDataComparisonView from "../comparison/PublishVersionDataComparisonView";
 import { DIFFERNCE_DATA_DISPLAY_NAME, KEYS_TO_COMPARE } from "@/jsonFiles/bridgeParameter";
 import { AgentSummaryContent } from "./PromptSummaryModal";
+import PostPublishFeedbackModal from "./PostPublishFeedbackModal";
 
 function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_description, isEmbedUser }) {
   const dispatch = useDispatch();
@@ -706,6 +707,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
         dispatch(getAllBridgesAction());
         setConvertToTemplate(false);
         closeModal(MODAL_TYPE.PUBLISH_BRIDGE_VERSION);
+        openModal(MODAL_TYPE.POST_PUBLISH_FEEDBACK_MODAL);
 
         if (shouldConvertToTemplate) {
           const templatePromise = convertAgentToTemplate(params?.id, agent_name?.trim());
@@ -1109,6 +1111,8 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       </div>
 
       <div className="modal-backdrop" onClick={handleCloseModal}></div>
+
+      <PostPublishFeedbackModal agentName={agent_name} orgId={params?.org_id} />
     </Modal>
   );
 }
