@@ -1067,9 +1067,9 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-4 border-t border-base-300">
+          <div className="flex items-center justify-end pt-4 border-t border-base-300">
             {!isEmbedUser && (
-              <label className="flex items-center gap-2 cursor-pointer select-none">
+              <label className="flex items-center gap-2 cursor-pointer select-none mr-auto">
                 <input
                   type="checkbox"
                   className="checkbox checkbox-xs checkbox-primary"

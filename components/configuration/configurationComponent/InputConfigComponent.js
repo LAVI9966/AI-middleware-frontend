@@ -511,7 +511,7 @@ const InputConfigComponent = memo(
               onTextAreaBlur={handleTextareaBlur}
               readOnly={isStructuredPrompt && viewMode === PROMPT_VIEW_MODE.ADVANCED}
               fullscreenButton={
-                !uiState.isPromptHelperOpen ? (
+                !uiState.isPromptHelperOpen && !(isStructuredPrompt && viewMode === PROMPT_VIEW_MODE.ADVANCED) ? (
                   <FullscreenEditorButton
                     tooltip="Open prompt in fullscreen"
                     className="opacity-50 hover:opacity-100"
