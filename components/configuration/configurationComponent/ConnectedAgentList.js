@@ -68,7 +68,7 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
           dataToSend: {
             agents: {
               connected_agents: {
-                [sb?._id || sb?.bridge_id]: {
+                [sb?.name]: {
                   bridge_id: sb?._id || sb?.bridge_id,
                 },
               },
@@ -255,7 +255,6 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
   const renderEmbed = useMemo(() => {
     const agentItems = displayItems.map(([name, item]) => {
       const bridge = bridgeData?.find((bd) => bd?._id === item?.bridge_id);
-      const displayName = bridge?.name || name;
       return (
         <div
           data-testid={`connected-agent-item-${item?.bridge_id}`}
@@ -266,15 +265,15 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
           <div className="p-2 flex-1 flex items-center" onClick={() => handleAgentClicked(item)}>
             <div className="flex items-center gap-2 w-full">
               <BotIcon size={16} className="shrink-0" />
-              {displayName?.length > 24 ? (
-                <div className="tooltip tooltip-top min-w-0" data-tip={displayName}>
+              {name?.length > 24 ? (
+                <div className="tooltip tooltip-top min-w-0" data-tip={name}>
                   <span className="min-w-0 text-sm truncate text-left">
-                    <span className="truncate text-sm font-normal block w-[300px]">{displayName}</span>
+                    <span className="truncate text-sm font-normal block w-[300px]">{name}</span>
                   </span>
                 </div>
               ) : (
                 <span className="min-w-0 text-sm truncate text-left">
-                  <span className="truncate text-sm font-normal block w-[300px]">{displayName}</span>
+                  <span className="truncate text-sm font-normal block w-[300px]">{name}</span>
                 </span>
               )}
             </div>
@@ -361,11 +360,6 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
                     tabIndex={0}
                     className="flex items-center justify-center gap-1 mt-3 text-base-content hover:text-base-content/80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full"
                     disabled={!shouldToolsShow || isReadOnly}
-                    onClick={() => {
-                      setTimeout(() => {
-                        document.getElementById("connect-agent-suggestion-search-input")?.focus();
-                      }, 50);
-                    }}
                   >
                     <AddIcon className="w-3 h-3" />
                     Add
@@ -399,11 +393,6 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
                         tabIndex={0}
                         className="flex items-center justify-center gap-1 p-2 text-base-content/50 hover:text-base-content/80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full"
                         disabled={isReadOnly}
-                        onClick={() => {
-                          setTimeout(() => {
-                            document.getElementById("connect-agent-suggestion-search-input")?.focus();
-                          }, 50);
-                        }}
                       >
                         <AddIcon className="w-3 h-3" />
                         Add Agent

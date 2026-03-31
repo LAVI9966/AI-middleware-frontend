@@ -78,7 +78,7 @@ export const updateApikeyAction = (dataToSend) => async (dispatch) => {
 };
 
 export const deleteApikeyAction =
-  ({ org_id, name, id, service }) =>
+  ({ org_id, name, id }) =>
   async (dispatch, getState) => {
     // Step 1: Create a backup of the current state
     dispatch(backupApiKeysReducer({ org_id }));
@@ -86,7 +86,7 @@ export const deleteApikeyAction =
     dispatch(apikeyDeleteReducer({ org_id, name }));
     try {
       // Step 3: Make the API call in the background
-      const response = await deleteApikey(id, service);
+      const response = await deleteApikey(id);
       if (response.data?.success) {
         dispatch(apikeyDeleteReducer({ org_id, name }));
         trackUserAction("api_key_deleted", {
@@ -96,7 +96,6 @@ export const deleteApikeyAction =
         });
       } else {
         dispatch(apikeyRollBackReducer({ org_id }));
-        toast.error(response.data?.message);
       }
     } catch (error) {
       // API call failed with exception

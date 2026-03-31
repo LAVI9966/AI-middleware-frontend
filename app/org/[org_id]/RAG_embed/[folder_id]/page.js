@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { collapseMainSlider } from "@/utils/utility";
 import { useDispatch } from "react-redux";
 import { getAllIntegrationDataAction, generateRagEmbedTokenAction } from "@/store/action/integrationAction";
-import { generateAccessKeyAction } from "@/store/action/orgAction";
 import { clearEmbedToken } from "@/store/reducer/integrationReducer";
 
 export const runtime = "edge";
@@ -22,11 +21,10 @@ const RAGEmbedDetailPage = ({ params }) => {
     collapseMainSlider();
   }, []);
 
-  const { integrationData, currentUser, embedToken, auth_token } = useCustomSelector((state) => ({
+  const { integrationData, currentUser, embedToken } = useCustomSelector((state) => ({
     integrationData: state?.integrationReducer?.integrationData?.[resolvedParams?.org_id] || [],
     currentUser: state.userDetailsReducer.userDetails,
     embedToken: state?.integrationReducer?.embedTokens?.[resolvedParams?.folder_id],
-    auth_token: state?.userDetailsReducer?.organizations?.[resolvedParams?.org_id]?.meta?.auth_token,
   }));
 
   // Find the RAG embed by folder_id from path params
@@ -47,15 +45,6 @@ const RAGEmbedDetailPage = ({ params }) => {
   // Generate embedToken once using GTWY embed token API
   useEffect(() => {
     const generateToken = async () => {
-      // Ensure auth_token exists on the backend before generating the RAG embed token
-      if (!auth_token && resolvedParams?.org_id) {
-        try {
-          await dispatch(generateAccessKeyAction(resolvedParams.org_id));
-        } catch (error) {
-          console.error("Error generating access key:", error);
-        }
-      }
-
       if (!embedToken && selectedRAGEmbed && currentUser?.id) {
         try {
           // Use same API as GTWY embed - pass userId as org_id parameter
@@ -67,7 +56,7 @@ const RAGEmbedDetailPage = ({ params }) => {
     };
 
     generateToken();
-  }, [embedToken, selectedRAGEmbed, currentUser?.id, dispatch, auth_token, resolvedParams?.org_id]);
+  }, [embedToken, selectedRAGEmbed, currentUser?.id, dispatch]);
 
   // Cleanup embedToken on unmount
   useEffect(() => {

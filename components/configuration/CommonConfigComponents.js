@@ -16,7 +16,6 @@ const CommonConfigComponents = ({
   showDefaultApikeys,
   isEmbedUser,
   hideAdvancedParameters = false,
-  hideAdvancedConfigurations = false,
   isPublished = false,
   isEditor = true,
 }) => {
@@ -70,7 +69,6 @@ const CommonConfigComponents = ({
               isPublished={isPublished}
               isEditor={isEditor}
               isEmbedUser={isEmbedUser}
-              hideAdvancedConfigurations={hideAdvancedConfigurations}
             />
           </div>
         </div>

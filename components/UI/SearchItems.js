@@ -22,7 +22,7 @@ const SearchItems = ({ data, setFilterItems, item, style = "", isEmbedUser }) =>
 
   const shortcutText = isMac ? "⌘K" : "Ctrl+K";
   useEffect(() => {
-    searchInputRef.current?.focus({ preventScroll: true });
+    searchInputRef.current?.focus();
   }, []);
   // Function to open command palette (disabled for workspace search to allow typing)
   const openCommandPalette = () => {

@@ -1,7 +1,7 @@
 import CopyButton from "@/components/copyButton/CopyButton";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { generateAccessKeyAction } from "@/store/action/orgAction";
-import React, { useEffect } from "react";
+import React from "react";
 import { useDispatch } from "react-redux";
 
 function RAGEmbedContent({ params, folderId, embedToken }) {
@@ -10,11 +10,9 @@ function RAGEmbedContent({ params, folderId, embedToken }) {
     (state) => state?.userDetailsReducer?.organizations?.[params.org_id]?.meta?.auth_token || ""
   );
 
-  useEffect(() => {
-    if (!access_key && params?.org_id) {
-      dispatch(generateAccessKeyAction(params.org_id));
-    }
-  }, [access_key, params?.org_id, dispatch]);
+  const handleGenerateAccessKey = () => {
+    dispatch(generateAccessKeyAction(params?.org_id));
+  };
 
   const Section = ({ title, caption, children }) => (
     <div className="flex items-start flex-col justify-center mb-4">
@@ -56,15 +54,25 @@ function RAGEmbedContent({ params, folderId, embedToken }) {
           <label className="label">
             <span className="label-text font-medium">JWT Access Key</span>
           </label>
-          <div className="relative">
-            <div id="rag-embed-access-key-display" className="mockup-code">
-              <pre data-prefix=">" className="text-error">
-                <code>Access Key: </code>
-                <code className="text-warning">{access_key || "Generating..."}</code>
-              </pre>
+          {access_key ? (
+            <div className="relative">
+              <div id="rag-embed-access-key-display" className="mockup-code">
+                <pre data-prefix=">" className="text-error">
+                  <code>Access Key: </code>
+                  <code className="text-warning">{access_key}</code>
+                </pre>
+              </div>
+              <CopyButton data={access_key} />
             </div>
-            {access_key && <CopyButton data={access_key} />}
-          </div>
+          ) : (
+            <button
+              id="rag-embed-generate-access-key-button"
+              onClick={handleGenerateAccessKey}
+              className="btn btn-primary btn-sm w-56"
+            >
+              Show Access Key
+            </button>
+          )}
         </div>
       </div>
     );

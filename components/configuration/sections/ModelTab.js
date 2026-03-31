@@ -71,14 +71,7 @@ const ModelTab = () => {
           </div>
 
           <div className="space-y-2">
-            <ModelDropdown
-              params={params}
-              searchParams={searchParams}
-              isPublished={isPublished}
-              isEditor={isEditor}
-              isEmbedUser={isEmbedUser}
-              hideAdvancedConfigurations={hideAdvancedConfigurations}
-            />
+            <ModelDropdown params={params} searchParams={searchParams} isPublished={isPublished} isEditor={isEditor} />
           </div>
         </div>
 

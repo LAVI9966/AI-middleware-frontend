@@ -320,11 +320,6 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                         tabIndex={0}
                         className="flex items-center justify-center gap-1 mt-3 text-base-content hover:text-base-content/80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full"
                         disabled={isReadOnly}
-                        onClick={() => {
-                          setTimeout(() => {
-                            document.getElementById("embed-suggestion-search-input")?.focus();
-                          }, 50);
-                        }}
                       >
                         <AddIcon className="w-3 h-3" />
                         Add
@@ -452,11 +447,6 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                             tabIndex={0}
                             className="flex items-center justify-center gap-1 p-2 text-base-content/50 hover:text-base-content/80 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full"
                             disabled={isReadOnly}
-                            onClick={() => {
-                              setTimeout(() => {
-                                document.getElementById("embed-suggestion-search-input")?.focus();
-                              }, 50);
-                            }}
                           >
                             <AddIcon className="w-3 h-3" />
                             Add Tool

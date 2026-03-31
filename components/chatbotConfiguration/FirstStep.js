@@ -48,7 +48,7 @@ export default function PrivateFormSection({ params, ChooseChatbot, setChatBotId
   const handleGetAccessKey = async () => {
     try {
       const response = await createOrgToken(params?.org_id);
-      setAccessKey(response?.data?.orgAccessToken);
+      setAccessKey(response?.data?.orgAcessToken);
       setShowInput(true);
     } catch (error) {
       console.error("Error fetching access key:", error);

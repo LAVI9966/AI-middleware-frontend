@@ -18,7 +18,6 @@ const PromptTextarea = memo(
     onSave,
     variablesSection,
     readOnly = false,
-    fullscreenButton = null,
   }) => {
     const isComposingRef = useRef(false);
     const lastExternalValueRef = useRef(initialValue);
@@ -163,7 +162,6 @@ const PromptTextarea = memo(
                   : ""
             }
           />
-          {fullscreenButton && <div className="absolute top-1 right-1 z-10">{fullscreenButton}</div>}
         </div>
         {variablesSection}
       </div>

@@ -38,7 +38,6 @@ const IntegrationModal = ({ params, type = "embed" }) => {
         hideAdvancedConfigurations: false,
         hidePreTool: false,
         hideCreateManuallyButton: false,
-        hidePromptHelper: false,
         prompt: {
           useDefaultPrompt: true,
           customPrompt: "",
