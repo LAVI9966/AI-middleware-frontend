@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { toast } from "react-toastify";
@@ -10,7 +10,6 @@ import { submitPostPublishFeedbackAction } from "@/store/action/bridgeAction";
 function PostPublishFeedbackModal({ agentName = "", orgId = "" }) {
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const confettiRef = useRef(null);
   const [feedbackData, setFeedbackData] = useState({
     feedback: "",
   });
@@ -33,24 +32,6 @@ function PostPublishFeedbackModal({ agentName = "", orgId = "" }) {
     resetForm();
   }, [resetForm]);
 
-  const triggerConfetti = useCallback(async () => {
-    if (typeof window === "undefined") return;
-
-    try {
-      const { default: JSConfetti } = await import("js-confetti");
-      if (!confettiRef.current) {
-        confettiRef.current = new JSConfetti();
-      }
-
-      await confettiRef.current.addConfetti({
-        confettiRadius: 4,
-        confettiNumber: 90,
-      });
-    } catch (error) {
-      console.error("Confetti failed:", error);
-    }
-  }, []);
-
   const handleSubmit = useCallback(async () => {
     if (!feedbackData.feedback.trim()) {
       toast.warn("Please add feedback before submitting.");
@@ -69,7 +50,6 @@ function PostPublishFeedbackModal({ agentName = "", orgId = "" }) {
 
       await dispatch(submitPostPublishFeedbackAction(payload));
 
-      triggerConfetti();
       toast.success("Thank you! Your feedback has been recorded.");
       handleClose();
     } catch (error) {
@@ -77,7 +57,7 @@ function PostPublishFeedbackModal({ agentName = "", orgId = "" }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [dispatch, feedbackData, handleClose, orgId, triggerConfetti, userdetails?.email, userdetails?.name]);
+  }, [dispatch, feedbackData, handleClose, orgId, userdetails?.email, userdetails?.name]);
 
   return (
     <Modal MODAL_ID={MODAL_TYPE.POST_PUBLISH_FEEDBACK_MODAL} onClose={handleClose}>
