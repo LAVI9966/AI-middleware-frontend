@@ -30,8 +30,13 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [showSummaryValidation, setShowSummaryValidation] = useState(false);
   const [summaryAccordionOpen, setSummaryAccordionOpen] = useState(false);
+  const [autoGenerateSummary, setAutoGenerateSummary] = useState(false);
+  const [publishAutoGenNonce, setPublishAutoGenNonce] = useState(0);
+  const publishAutoGenNonceRef = useRef(0);
   const [convertToTemplate, setConvertToTemplate] = useState(false);
   const publishDropdownRef = useRef(null);
+  const isPublishModalOpenRef = useRef(false);
+  const bridgeSummaryRef = useRef("");
 
   const { bridge, versionData, bridgeData, agentList, bridge_summary, allBridgesMap, prompt, isEditor } =
     useCustomSelector((state) => {
@@ -398,10 +403,55 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    bridgeSummaryRef.current = typeof bridge_summary === "string" ? bridge_summary : "";
+  }, [bridge_summary]);
+
+  useEffect(() => {
+    const modalElement = document.getElementById(MODAL_TYPE.PUBLISH_BRIDGE_VERSION);
+    if (!modalElement) return;
+
+    const handleModalOpenState = () => {
+      const isOpen = modalElement.hasAttribute("open");
+      if (isOpen && !isPublishModalOpenRef.current) {
+        const isSummaryEmpty = !bridgeSummaryRef.current || bridgeSummaryRef.current.trim() === "";
+        if (isSummaryEmpty) {
+          setSummaryAccordionOpen(true);
+          publishAutoGenNonceRef.current += 1;
+          setPublishAutoGenNonce(publishAutoGenNonceRef.current);
+          setAutoGenerateSummary(true);
+        } else {
+          setAutoGenerateSummary(false);
+        }
+      }
+
+      if (!isOpen) {
+        setAutoGenerateSummary(false);
+      }
+
+      isPublishModalOpenRef.current = isOpen;
+    };
+
+    handleModalOpenState();
+
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "attributes" && mutation.attributeName === "open") {
+          handleModalOpenState();
+        }
+      });
+    });
+
+    observer.observe(modalElement, { attributes: true, attributeFilter: ["open"] });
+
+    return () => observer.disconnect();
+  }, []);
+
   const handleCloseModal = useCallback((e) => {
     e?.preventDefault();
     closeModal(MODAL_TYPE.PUBLISH_BRIDGE_VERSION);
     setConvertToTemplate(false);
+    setAutoGenerateSummary(false);
   }, []);
 
   const handleChange = useCallback((e) => {
@@ -796,10 +846,15 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
             <div className="collapse-content">
               <AgentSummaryContent
                 params={params}
+                autoGenerateSummary={autoGenerateSummary}
+                publishAutoGenNonce={publishAutoGenNonce}
+                setAutoGenerateSummary={setAutoGenerateSummary}
+                autoSave={true}
                 prompt={prompt}
                 versionId={searchParams?.get("version")}
                 showTitle={false}
                 showButtons={true}
+                showSaveButton={false}
                 onSave={() => setShowSummaryValidation(false)}
                 isMandatory={showSummaryValidation}
                 showValidationError={showSummaryValidation}

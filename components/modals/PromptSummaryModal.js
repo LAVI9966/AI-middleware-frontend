@@ -1,7 +1,7 @@
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { genrateSummaryAction, updateBridgeAction } from "@/store/action/bridgeAction";
 import { closeModal } from "@/utils/utility";
-import React, { useCallback, useEffect, useRef, useState, useMemo, memo } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useMemo, memo } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
 import { promptObjectToString } from "@/utils/promptUtils";
@@ -62,14 +62,21 @@ const OptimizedTextarea = memo(({ value, onChange, className, disabled, placehol
 
 OptimizedTextarea.displayName = "OptimizedTextarea";
 
+// Deduplicate publish-modal auto-generate when React re-runs effects (e.g. Strict Mode); single primitive, not a collection.
+let lastHandledPublishAutoGenNonce = -1;
+
 // Reusable Agent Summary Content Component
 export const AgentSummaryContent = memo(
   ({
     params,
     autoGenerateSummary = false,
+    /** Incremented once per publish-modal open when summary is empty; omit for non-publish flows. */
+    publishAutoGenNonce = 0,
     setAutoGenerateSummary = () => {},
+    autoSave = false,
     showTitle = true,
     showButtons = true,
+    showSaveButton = true,
     onSave = () => {},
     isMandatory = false,
     showValidationError = false,
@@ -83,23 +90,59 @@ export const AgentSummaryContent = memo(
     }));
     const [displayValue, setDisplayValue] = useState(bridge_summary || ""); // Immediate display value
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+    const [isSavingSummary, setIsSavingSummary] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const debounceTimerRef = useRef(null);
+    const autoGenerateInFlightRef = useRef(false);
+    const autoGenerateConsumedRef = useRef(false);
+    const generateSummaryHandlerRef = useRef(null);
 
     useEffect(() => {
       setDisplayValue(bridge_summary || "");
     }, [bridge_summary, params, versionId]);
 
-    // Ultra-fast textarea change handler with minimal processing
-    const handleTextareaChange = useCallback((e) => {
-      const value = e.target.value || "";
-      setDisplayValue(value); // Only update display value immediately
+    const saveSummaryToServer = useCallback(
+      (value) => {
+        const newValue = value || "";
+        const existingValue = bridge_summary || "";
+        if (newValue === existingValue) return Promise.resolve(true);
 
-      // Clear existing timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    }, []);
+        setIsSavingSummary(true);
+        const dataToSend = { bridge_summary: newValue };
+
+        return dispatch(updateBridgeAction({ bridgeId: params.id, dataToSend }))
+          .then((data) => {
+            if (data?.success) {
+              onSave(newValue);
+              return true;
+            }
+            return false;
+          })
+          .finally(() => {
+            setIsSavingSummary(false);
+          });
+      },
+      [dispatch, params.id, bridge_summary, onSave]
+    );
+
+    // Ultra-fast textarea change handler with optional autosave
+    const handleTextareaChange = useCallback(
+      (e) => {
+        const value = e.target.value || "";
+        setDisplayValue(value);
+
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+
+        if (autoSave && isEditor) {
+          debounceTimerRef.current = setTimeout(() => {
+            saveSummaryToServer(value);
+          }, 600);
+        }
+      },
+      [autoSave, isEditor, saveSummaryToServer]
+    );
 
     // Cleanup debounce timer
     useEffect(() => {
@@ -110,12 +153,32 @@ export const AgentSummaryContent = memo(
       };
     }, []);
 
-    // Auto-generate summary when flag is true
+    // Auto-generate summary once when flag flips true (publish flow uses publishAutoGenNonce to survive effect re-runs)
     useEffect(() => {
-      if (autoGenerateSummary && setAutoGenerateSummary) {
-        handleGenerateSummary();
+      if (!autoGenerateSummary) {
+        autoGenerateConsumedRef.current = false;
+        return;
       }
-    }, [autoGenerateSummary, setAutoGenerateSummary]);
+
+      const useNonce = typeof publishAutoGenNonce === "number" && publishAutoGenNonce > 0;
+      if (useNonce) {
+        if (lastHandledPublishAutoGenNonce === publishAutoGenNonce) {
+          return;
+        }
+        lastHandledPublishAutoGenNonce = publishAutoGenNonce;
+      } else if (autoGenerateConsumedRef.current || autoGenerateInFlightRef.current) {
+        return;
+      } else {
+        autoGenerateConsumedRef.current = true;
+      }
+
+      autoGenerateInFlightRef.current = true;
+
+      Promise.resolve(generateSummaryHandlerRef.current?.()).finally(() => {
+        autoGenerateInFlightRef.current = false;
+      });
+    }, [autoGenerateSummary, publishAutoGenNonce]);
+
     const handleGenerateSummary = useCallback(async () => {
       // Convert prompt to string safely (handles both string and object formats)
       const promptText = typeof prompt === "string" ? prompt : promptObjectToString(prompt);
@@ -128,34 +191,36 @@ export const AgentSummaryContent = memo(
         const result = await dispatch(genrateSummaryAction({ versionId: versionId }));
         if (result) {
           setDisplayValue(result); // Update display value immediately
+          if (autoSave && isEditor) {
+            await saveSummaryToServer(result);
+          }
           setAutoGenerateSummary(false); // Reset the flag
         }
       } finally {
         setIsGeneratingSummary(false);
       }
-    }, [dispatch, params, prompt, versionId]);
+    }, [dispatch, prompt, versionId, autoSave, isEditor, saveSummaryToServer, setAutoGenerateSummary]);
+
     const handleSaveSummary = useCallback(() => {
-      // Ensure we save the latest value from displayValue
-      const newValue = displayValue || "";
-      const dataToSend = { bridge_summary: newValue };
-      dispatch(updateBridgeAction({ bridgeId: params.id, dataToSend })).then((data) => {
-        if (data.success) {
-          onSave(newValue); // Call the callback for external handling
-        }
-      });
-    }, [dispatch, params.id, displayValue, onSave]);
+      saveSummaryToServer(displayValue);
+    }, [saveSummaryToServer, displayValue]);
+
+    // Keep ref in sync before useEffect(auto-generate) runs so the first open never no-ops.
+    useLayoutEffect(() => {
+      generateSummaryHandlerRef.current = handleGenerateSummary;
+    }, [handleGenerateSummary]);
 
     // Memoized validation values with reduced computation
     const validationProps = useMemo(() => {
       const isEmpty = !displayValue || displayValue.trim() === "";
       return {
         hasValidationError: showValidationError && isEmpty,
-        isDisabled: isGeneratingSummary || bridge_summary === displayValue,
+        isDisabled: isGeneratingSummary || isSavingSummary || bridge_summary === displayValue,
         textareaClassName: `textarea bg-base-100 textarea-bordered w-full min-h-32 resize-y focus:border-primary caret-base-content p-2 ${
           showValidationError && isEmpty ? "border-red-500 focus:border-red-500" : ""
         }`,
       };
-    }, [showValidationError, displayValue, isGeneratingSummary, bridge_summary]);
+    }, [showValidationError, displayValue, isGeneratingSummary, isSavingSummary, bridge_summary]);
 
     return (
       <div id="agent-summary-content" data-testid="agent-summary-content" className="space-y-4">
@@ -174,7 +239,7 @@ export const AgentSummaryContent = memo(
                   id="agent-summary-generate-button"
                   className={`btn btn-ghost btn-sm ${isGeneratingSummary ? "opacity-50 cursor-not-allowed" : ""}`}
                   onClick={handleGenerateSummary}
-                  disabled={isGeneratingSummary}
+                  disabled={isGeneratingSummary || autoGenerateSummary}
                 >
                   <span className="capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text">
                     {isGeneratingSummary ? "Generating Summary..." : "Generate New Summary"}
@@ -191,24 +256,37 @@ export const AgentSummaryContent = memo(
         )}
 
         <div className="space-y-2">
-          <OptimizedTextarea
-            value={displayValue}
-            onChange={handleTextareaChange}
-            className={validationProps.textareaClassName}
-            placeholder="Enter agent summary..."
-            disabled={isGeneratingSummary}
-          />
-          <div className="flex gap-2">
-            <button
-              data-testid="agent-summary-save-button"
-              id="agent-summary-save-button"
-              className="btn btn-primary btn-sm"
-              onClick={handleSaveSummary}
-              disabled={validationProps.isDisabled || !isEditor}
-            >
-              Save
-            </button>
+          <div className="relative">
+            <OptimizedTextarea
+              value={displayValue}
+              onChange={handleTextareaChange}
+              className={validationProps.textareaClassName}
+              placeholder="Enter agent summary..."
+              disabled={isGeneratingSummary}
+            />
+            {isGeneratingSummary && (
+              <div className="absolute inset-0 bg-base-100/70 flex items-center justify-center pointer-events-none">
+                <div className="flex items-center gap-2 text-sm text-base-content">
+                  <span className="loading loading-spinner loading-sm"></span>
+                  Generating summary...
+                </div>
+              </div>
+            )}
           </div>
+
+          {showSaveButton && (
+            <div className="flex gap-2">
+              <button
+                data-testid="agent-summary-save-button"
+                id="agent-summary-save-button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSaveSummary}
+                disabled={validationProps.isDisabled || !isEditor}
+              >
+                Save
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

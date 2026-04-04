@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import TriggersList from "../configurationComponent/TriggersList";
 import { useConfigurationContext } from "../ConfigurationContext";
 import ToneDropdown from "../configurationComponent/ToneDropdown";
@@ -37,6 +37,13 @@ const SettingsTab = () => {
   );
 
   const isReadOnly = isPublished || !isEditor;
+  const [autoOpenTriggerToken, setAutoOpenTriggerToken] = useState(0);
+
+  const handleBridgeTypeChange = useCallback((nextType) => {
+    if (nextType?.toString()?.toLowerCase() === "trigger") {
+      setAutoOpenTriggerToken((prev) => prev + 1);
+    }
+  }, []);
 
   const handleCachedResponseToggle = () => {
     dispatch(
@@ -60,7 +67,13 @@ const SettingsTab = () => {
     <div data-testid="settings-tab-container" id="settings-tab-container" className="flex flex-col mt-4 gap-6 w-full">
       {shouldShowTriggers && (
         <div className="rounded-xl w-full">
-          <TriggersList params={params} searchParams={searchParams} isEmbedUser={isEmbedUser} isReadOnly={isReadOnly} />
+          <TriggersList
+            params={params}
+            searchParams={searchParams}
+            isEmbedUser={isEmbedUser}
+            isReadOnly={isReadOnly}
+            autoOpenTriggerToken={autoOpenTriggerToken}
+          />
         </div>
       )}
 
@@ -74,6 +87,7 @@ const SettingsTab = () => {
               isEmbedUser={isEmbedUser}
               isPublished={isPublished}
               isEditor={isEditor}
+              onBridgeTypeChange={handleBridgeTypeChange}
             />
           </div>
         )}

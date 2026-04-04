@@ -7,7 +7,7 @@ import Protected from "@/components/Protected";
 import InfoTooltip from "@/components/InfoTooltip";
 import { CircleQuestionMark } from "lucide-react";
 
-const BridgeTypeToggle = ({ params, searchParams, isEmbedUser, isPublished, isEditor = true }) => {
+const BridgeTypeToggle = ({ params, searchParams, isEmbedUser, isPublished, isEditor = true, onBridgeTypeChange }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
   const dispatch = useDispatch();
@@ -38,6 +38,8 @@ const BridgeTypeToggle = ({ params, searchParams, isEmbedUser, isPublished, isEd
         dataToSend: { ...updatedDataToSend },
       })
     );
+
+    onBridgeTypeChange?.(newCheckedValue);
   };
 
   useEffect(() => {

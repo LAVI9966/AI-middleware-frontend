@@ -25,7 +25,7 @@ function getStatusClass(status) {
   }
 }
 
-export default function TriggersList({ params, isEmbedUser, isReadOnly }) {
+export default function TriggersList({ params, isEmbedUser, isReadOnly, autoOpenTriggerToken = 0 }) {
   const dispatch = useDispatch();
   const { triggerEmbedToken, triggerData, isViewer } = useCustomSelector((state) => ({
     triggerEmbedToken: state?.bridgeReducer?.org?.[params?.org_id]?.triggerEmbedToken,
@@ -43,10 +43,17 @@ export default function TriggersList({ params, isEmbedUser, isReadOnly }) {
     if (triggerData) {
       const filteredTriggers = triggerData.filter((flow) => flow?.metadata?.bridge_id === params?.id) || [];
       setTriggers(filteredTriggers);
-      if (!filteredTriggers?.length && window?.openViasocket && authkey && !isReadOnly) openTrigger();
     }
     if (!isEmbedUser && !isViewer) getAndSetAuthKey();
   }, [params?.org_id, authkey, isEmbedUser, isViewer]);
+
+  useEffect(() => {
+    if (!autoOpenTriggerToken || isReadOnly) return;
+    if (!window?.openViasocket || !authkey) return;
+    if (triggers?.length > 0) return;
+
+    openTrigger();
+  }, [autoOpenTriggerToken, isReadOnly, authkey, triggers?.length]);
 
   function openTrigger(triggerId) {
     openViasocket(triggerId, {
