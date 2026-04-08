@@ -11,6 +11,8 @@ import InfoTooltip from "@/components/InfoTooltip";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { PlusCircleIcon, CircleQuestionMark } from "lucide-react";
 import { PARAMETER_TYPES } from "@/utils/enums";
+import CodeMirror from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
 
 // Parameter Card Component
 const ParameterCard = ({
@@ -500,6 +502,12 @@ function FunctionParameterModal({
 
   const [isModified, setIsModified] = useState(false);
   const [objectFieldValue, setObjectFieldValue] = useState("");
+  const [cmTheme, setCmTheme] = useState("light");
+
+  useEffect(() => {
+    const themeAttribute = document.documentElement.getAttribute("data-theme");
+    setCmTheme(themeAttribute === "light" ? "light" : "dark");
+  }, []);
   const [isTextareaVisible, setIsTextareaVisible] = useState(false);
   const [isOldFieldViewTrue, setIsOldFieldViewTrue] = useState(false);
   const [showNameDescription, setShowNameDescription] = useState(false);
@@ -1454,25 +1462,30 @@ function FunctionParameterModal({
               </div>
             </>
           ) : (
-            <div className={isOldFieldViewTrue ? "flex items-center gap-2" : ""}>
-              <textarea
-                id="function-param-json-textarea"
-                disabled={isReadOnly}
-                type="input"
-                value={objectFieldValue}
-                className="textarea bg-base-100 textarea-bordered border border-base-300 w-full min-h-96 resize-y"
-                onChange={(e) => setObjectFieldValue(e.target.value)}
-                onBlur={handleTextFieldChange}
-                placeholder="Enter valid JSON object here..."
-              />
-              {isOldFieldViewTrue && (
-                <textarea
-                  id="function-param-old-fields-textarea"
-                  disabled={isReadOnly}
-                  type="text"
-                  value={toolData?.old_fields ? JSON.stringify(toolData["old_fields"], undefined, 4) : ""}
-                  className="textarea bg-base-100 textarea-bordered border border-base-300 w-full min-h-96 resize-y"
+            <div className={isOldFieldViewTrue ? "flex items-start gap-2" : ""}>
+              <div className={isOldFieldViewTrue ? "w-1/2" : "w-full"}>
+                <CodeMirror
+                  value={objectFieldValue}
+                  height="400px"
+                  extensions={[json()]}
+                  theme={cmTheme}
+                  editable={!isReadOnly}
+                  onChange={(val) => setObjectFieldValue(val)}
+                  onBlur={handleTextFieldChange}
+                  className="border border-base-300 rounded overflow-hidden text-sm"
                 />
+              </div>
+              {isOldFieldViewTrue && (
+                <div className="w-1/2">
+                  <CodeMirror
+                    value={toolData?.old_fields ? JSON.stringify(toolData["old_fields"], undefined, 4) : ""}
+                    height="400px"
+                    extensions={[json()]}
+                    theme={cmTheme}
+                    editable={false}
+                    className="border border-base-300 rounded overflow-hidden text-sm opacity-80"
+                  />
+                </div>
               )}
             </div>
           )}
