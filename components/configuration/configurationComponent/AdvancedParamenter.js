@@ -1123,7 +1123,7 @@ const AdvancedParameters = ({
                         </div>
                         {Object.values(version_function_data)
                           .filter((func) => {
-                            const funcName = func?.script_id || func?.title || "";
+                            const funcName = integrationData?.[func?.script_id]?.title || func?.title || "";
                             return funcName.toLowerCase().includes(searchQuery.toLowerCase());
                           })
                           .map((func) => (
@@ -1166,7 +1166,10 @@ const AdvancedParameters = ({
                         </div>
                         {Object.entries(connected_agents)
                           .filter(([name, agent]) => {
-                            return name.toLowerCase().includes(searchQuery.toLowerCase());
+                            const agentName = getToolName(agent.bridge_id, allBridgesMap, orgBridges, integrationData);
+                            return String(agentName || name)
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase());
                           })
                           .map(([name, agent]) => (
                             <div
