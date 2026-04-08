@@ -2,7 +2,7 @@ import { getOrCreateNotificationAuthKey } from "@/config/index";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { updateTriggerDataReducer } from "@/store/reducer/bridgeReducer";
 import { AddIcon } from "@/components/Icons";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import InfoTooltip from "@/components/InfoTooltip";
 import { CircleQuestionMark, Zap } from "lucide-react";
@@ -45,7 +45,7 @@ export default function TriggersList({ params, isEmbedUser, isReadOnly, autoOpen
       setTriggers(filteredTriggers);
     }
     if (!isEmbedUser && !isViewer) getAndSetAuthKey();
-  }, [params?.org_id, authkey, isEmbedUser, isViewer]);
+  }, [params?.org_id, params?.id, authkey, isEmbedUser, isViewer, triggerData]);
 
   useEffect(() => {
     if (!autoOpenTriggerToken || isReadOnly) return;
@@ -53,34 +53,37 @@ export default function TriggersList({ params, isEmbedUser, isReadOnly, autoOpen
     if (triggers?.length > 0) return;
 
     openTrigger();
-  }, [autoOpenTriggerToken, isReadOnly, authkey, triggers?.length]);
+  }, [autoOpenTriggerToken, isReadOnly, authkey, triggers?.length, openTrigger]);
 
-  function openTrigger(triggerId) {
-    openViasocket(triggerId, {
-      embedToken: triggerEmbedToken,
-      meta: {
-        type: "trigger",
-        bridge_id: params?.id,
-      },
-      configurationJson: {
-        row4qwo5ot1l: {
-          key: "Talk_to_Bridge",
-          inputValues: {
-            bridge: params?.id,
-            _bridge: params?.id,
-            message: `\${JSON.stringify(context.req.body)}`,
-            _message: `\${JSON.stringify(context.req.body)}`,
-          },
-          authValues: {
-            pauth_key: authkey,
+  const openTrigger = useCallback(
+    (triggerId) => {
+      openViasocket(triggerId, {
+        embedToken: triggerEmbedToken,
+        meta: {
+          type: "trigger",
+          bridge_id: params?.id,
+        },
+        configurationJson: {
+          row4qwo5ot1l: {
+            key: "Talk_to_Bridge",
+            inputValues: {
+              bridge: params?.id,
+              _bridge: params?.id,
+              message: `\${JSON.stringify(context.req.body)}`,
+              _message: `\${JSON.stringify(context.req.body)}`,
+            },
+            authValues: {
+              pauth_key: authkey,
+            },
           },
         },
-      },
-      hiddenSteps: {
-        row4qwo5ot1l: true,
-      },
-    });
-  }
+        hiddenSteps: {
+          row4qwo5ot1l: true,
+        },
+      });
+    },
+    [triggerEmbedToken, params?.id, authkey]
+  );
 
   useEffect(() => {
     window.addEventListener("message", handleMessage);
