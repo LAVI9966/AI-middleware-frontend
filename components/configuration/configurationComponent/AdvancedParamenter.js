@@ -549,10 +549,13 @@ const AdvancedParameters = ({
                 data-testid={`advanced-param-text-${key}`}
                 id={`advanced-param-text-${key}`}
                 type="text"
-                value={isDefaultValue ? "default" : inputConfiguration?.[key] || ""}
+                value={inputConfiguration?.[key] === "default" ? "default" : inputConfiguration?.[key] || ""}
                 onFocus={(e) => {
-                  if (isDefaultValue) {
-                    setSliderValue("", key, isDeafaultObject);
+                  if (inputConfiguration?.[key] === "default") {
+                    setInputConfiguration((prev) => ({
+                      ...prev,
+                      [key]: "",
+                    }));
                   }
                 }}
                 onChange={(e) => {
