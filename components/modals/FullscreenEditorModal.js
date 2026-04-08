@@ -4,6 +4,7 @@ import Modal from "../UI/Modal";
 import { openModal, closeModal } from "@/utils/utility";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 
 /**
  * A reusable fullscreen editor modal for textareas (prompt, JSON schema, etc.)
@@ -23,7 +24,7 @@ function FullscreenEditorModal({
 }) {
   const textareaRef = useRef(null);
   const [localValue, setLocalValue] = useState(value);
-  const [cmTheme, setCmTheme] = useState("light");
+  const { actualTheme } = useThemeManager();
   const [errorMsg, setErrorMsg] = useState("");
 
   // Sync local copy when parent opens the modal with a new value
@@ -31,9 +32,6 @@ function FullscreenEditorModal({
     if (isOpen) {
       setLocalValue(value);
       setErrorMsg("");
-      // Grab current theme from doc
-      const themeAttribute = document.documentElement.getAttribute("data-theme");
-      setCmTheme(themeAttribute === "light" ? "light" : "dark");
     }
   }, [isOpen, value]);
 
@@ -115,7 +113,7 @@ function FullscreenEditorModal({
               value={localValue}
               height="100%"
               extensions={[json()]}
-              theme={cmTheme}
+              theme={actualTheme}
               editable={!disabled}
               onChange={(val) => {
                 setLocalValue(val);

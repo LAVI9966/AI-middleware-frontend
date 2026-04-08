@@ -21,6 +21,7 @@ import RenderNode from "@/components/richUI/RenderNode";
 import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/modals/FullscreenEditorModal";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 
 const AdvancedParameters = ({
   params,
@@ -51,14 +52,7 @@ const AdvancedParameters = ({
   const dropdownContainerRef = useRef(null);
   const dispatch = useDispatch();
   const router = useRouter();
-  const [cmTheme, setCmTheme] = useState("light");
-
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      const themeAttribute = document.documentElement.getAttribute("data-theme");
-      setCmTheme(themeAttribute === "light" ? "light" : "dark");
-    }
-  }, []);
+  const { actualTheme } = useThemeManager();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -887,7 +881,7 @@ const AdvancedParameters = ({
                             id={`advanced-param-json-schema-textarea-${key}`}
                             value={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
                             extensions={[json()]}
-                            theme={cmTheme}
+                            theme={actualTheme}
                             editable={!isReadOnly}
                             onChange={(val) => setObjectFieldValue(val)}
                             onBlur={() => {

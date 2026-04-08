@@ -13,6 +13,7 @@ import { PlusCircleIcon, CircleQuestionMark } from "lucide-react";
 import { PARAMETER_TYPES } from "@/utils/enums";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 
 // Parameter Card Component
 const ParameterCard = ({
@@ -502,12 +503,7 @@ function FunctionParameterModal({
 
   const [isModified, setIsModified] = useState(false);
   const [objectFieldValue, setObjectFieldValue] = useState("");
-  const [cmTheme, setCmTheme] = useState("light");
-
-  useEffect(() => {
-    const themeAttribute = document.documentElement.getAttribute("data-theme");
-    setCmTheme(themeAttribute === "light" ? "light" : "dark");
-  }, []);
+  const { actualTheme } = useThemeManager();
   const [isTextareaVisible, setIsTextareaVisible] = useState(false);
   const [isOldFieldViewTrue, setIsOldFieldViewTrue] = useState(false);
   const [showNameDescription, setShowNameDescription] = useState(false);
@@ -1468,7 +1464,7 @@ function FunctionParameterModal({
                   value={objectFieldValue}
                   height="400px"
                   extensions={[json()]}
-                  theme={cmTheme}
+                  theme={actualTheme}
                   editable={!isReadOnly}
                   onChange={(val) => setObjectFieldValue(val)}
                   onBlur={handleTextFieldChange}
@@ -1481,7 +1477,7 @@ function FunctionParameterModal({
                     value={toolData?.old_fields ? JSON.stringify(toolData["old_fields"], undefined, 4) : ""}
                     height="400px"
                     extensions={[json()]}
-                    theme={cmTheme}
+                    theme={actualTheme}
                     editable={false}
                     className="border border-base-300 rounded overflow-hidden text-sm opacity-80"
                   />
