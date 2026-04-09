@@ -1,7 +1,11 @@
 import { useCustomSelector } from "@/customHooks/customSelector.js";
-import { getHistoryAction, getSubThreadsAction } from "@/store/action/historyAction.js";
+import {
+  getHistoryAction,
+  getSubThreadsAction,
+  getBatchConversationLogsCountAction,
+} from "@/store/action/historyAction.js";
 import { clearSubThreadData, clearThreadData, setSelectedVersion } from "@/store/reducer/historyReducer.js";
-import { USER_FEEDBACK_FILTER_OPTIONS, HISTORY_FILTER_BY_FIELDS } from "@/utils/enums.js";
+import { USER_FEEDBACK_FILTER_OPTIONS, HISTORY_FILTER_BY_FIELDS, BATCH_FILTER_TABS } from "@/utils/enums.js";
 import { formatDate, formatRelativeTime } from "@/utils/utility.js";
 import {
   ThumbsDownIcon,
@@ -39,13 +43,18 @@ const Sidebar = memo(
     selectedVersion,
     setIsErrorTrue,
     isErrorTrue,
+    isBatchMode,
+    setIsBatchMode,
+    batchFilter,
+    setBatchFilter,
   }) => {
-    const { subThreads, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
+    const { subThreads, userFeedbackCount, bridgeVersionsArray, reduxBatchCounts } = useCustomSelector((state) => ({
       subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
       userFeedbackCount: state?.historyReducer?.userFeedbackCount,
       bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
         ? state.bridgeReducer.allBridgesMap[params.id].versions
         : [],
+      reduxBatchCounts: state?.historyReducer?.batchConversationLogsCount,
     }));
 
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
@@ -53,10 +62,20 @@ const Sidebar = memo(
     const [loadingSubThreads, setLoadingSubThreads] = useState(true);
     const [searchLoading, setSearchLoading] = useState(false);
     const [filterByText, setFilterByText] = useState(JSON.stringify(HISTORY_FILTER_BY_FIELDS, null, 2));
+
+    // Fallback if not initialized yet
+    const batchCounts = reduxBatchCounts || { completed: 0, processing: 0, queued: 0 };
+
     const searchQuery = (searchRef?.current && searchRef.current.value) || searchParams?.message_id || "";
     const dispatch = useDispatch();
     const pathName = usePathname();
     const router = useRouter();
+
+    useEffect(() => {
+      if (isBatchMode && params?.id) {
+        dispatch(getBatchConversationLogsCountAction({ agent_id: params.id }));
+      }
+    }, [isBatchMode, params?.id, dispatch]);
 
     useEffect(() => {
       if (
@@ -201,7 +220,8 @@ const Sidebar = memo(
             searchValue,
             startDate,
             endDate,
-            Object.keys(activeFilterBy || {}).length > 0 ? activeFilterBy : undefined
+            Object.keys(activeFilterBy || {}).length > 0 ? activeFilterBy : undefined,
+            isBatchMode ? "batch" : undefined
           )
         );
 
@@ -274,7 +294,9 @@ const Sidebar = memo(
             selectedVersion,
             "", // empty keyword
             startDate,
-            endDate
+            endDate,
+            undefined,
+            isBatchMode ? "batch" : undefined
           )
         );
         setThreadPage(1);
@@ -366,7 +388,20 @@ const Sidebar = memo(
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.set("error", "true");
         const queryString = newSearchParams.toString();
-        await dispatch(getHistoryAction(params.id, 1, filterOption, true, selectedVersion));
+        await dispatch(
+          getHistoryAction(
+            params.id,
+            1,
+            filterOption,
+            true,
+            selectedVersion,
+            "",
+            undefined,
+            undefined,
+            undefined,
+            isBatchMode ? "batch" : undefined
+          )
+        );
         setThreadPage(1);
         setIsErrorTrue(true);
         setHasMore(true);
@@ -377,11 +412,45 @@ const Sidebar = memo(
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.delete("error");
         const queryString = newSearchParams.toString();
-        await dispatch(getHistoryAction(params.id, 1, filterOption, false, selectedVersion));
+        await dispatch(
+          getHistoryAction(
+            params.id,
+            1,
+            filterOption,
+            false,
+            selectedVersion,
+            "",
+            undefined,
+            undefined,
+            undefined,
+            isBatchMode ? "batch" : undefined
+          )
+        );
         setThreadPage(1);
         setHasMore(true);
         window.history.replaceState(null, "", `?${queryString}`);
       }
+    };
+
+    const handleBatchModeChange = async () => {
+      const next = !isBatchMode;
+      setIsBatchMode(next);
+      await dispatch(
+        getHistoryAction(
+          params.id,
+          1,
+          filterOption,
+          isErrorTrue,
+          selectedVersion,
+          searchRef?.current?.value || "",
+          searchParams?.start,
+          searchParams?.end,
+          undefined,
+          next ? "batch" : undefined
+        )
+      );
+      setPage(1);
+      setHasMore(true);
     };
 
     return (
@@ -455,6 +524,17 @@ const Sidebar = memo(
                       className="toggle toggle-xs"
                       checked={isErrorTrue}
                       onChange={() => handleCheckError(!isErrorTrue)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <span className="text-xs">Show Batch History</span>
+                    <input
+                      data-testid="history-sidebar-batch-toggle"
+                      id="history-sidebar-batch-toggle"
+                      type="checkbox"
+                      className="toggle toggle-xs toggle-primary"
+                      checked={!!isBatchMode}
+                      onChange={handleBatchModeChange}
                     />
                   </div>
                 </div>
@@ -555,8 +635,35 @@ const Sidebar = memo(
         <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay"></label>
 
         {/* Fixed: Render search loader at the top level, not inside InfiniteScroll */}
-        <div className="flex-1 overflow-hidden">
-          {loading || searchLoading ? (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Batch filter rows - visible only in batch mode */}
+          {isBatchMode && (
+            <div className="flex flex-col gap-2 px-3 py-2 shrink-0">
+              {BATCH_FILTER_TABS.map((tab) => (
+                <button
+                  key={tab.key}
+                  data-testid={`history-sidebar-batch-filter-${tab.key}`}
+                  className={`w-full btn btn-ghost btn-sm justify-between normal-case ${
+                    batchFilter === tab.key
+                      ? "bg-base-300 text-base-content"
+                      : "text-base-content/70 hover:text-base-content"
+                  }`}
+                  onClick={() => {
+                    setBatchFilter(tab.key);
+                  }}
+                >
+                  <span>{tab.label}</span>
+                  <span>({batchCounts?.[tab.countKey] ?? 0})</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Batch mode: no thread list in sidebar */}
+          {isBatchMode ? (
+            <div className="flex-1 overflow-y-auto" id="sidebar" />
+          ) : /* Normal (non-batch) thread list */
+          loading || searchLoading ? (
             <div className="flex justify-center items-center bg-base-200 h-full">
               <span className="loading loading-spinner loading-md"></span>
             </div>
@@ -595,10 +702,69 @@ const Sidebar = memo(
                             }
                           }}
                         >
-                          <a className="w-full h-full flex items-center justify-between relative">
-                            <span className="truncate flex-1 mr-1.5 text-xs">{truncate(item?.thread_id, 30)}</span>
-                            <span className="group-hover:hidden">{formatRelativeTime(item?.updated_at)}</span>
-                            <span className="hidden group-hover:inline">{formatDate(item?.updated_at)}</span>
+                          <a className="w-full h-full flex flex-col gap-0.5 relative">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="truncate flex-1 mr-1.5 text-xs">{truncate(item?.thread_id, 30)}</span>
+                              <span className="text-[10px] shrink-0 group-hover:hidden">
+                                {formatRelativeTime(item?.updated_at)}
+                              </span>
+                              <span className="text-[10px] shrink-0 hidden group-hover:inline">
+                                {formatDate(item?.updated_at)}
+                              </span>
+                            </div>
+                            {isBatchMode &&
+                              item?.batch_status_counts &&
+                              (() => {
+                                const q = item.batch_status_counts.queued ?? 0;
+                                const p = item.batch_status_counts.processing ?? 0;
+                                const c = item.batch_status_counts.completed ?? 0;
+                                const total = q + p + c || 1;
+                                const isSelected = decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
+                                const labelCls = isSelected ? "text-primary-content/70" : "text-base-content/60";
+                                return (
+                                  <div className="flex flex-col gap-1 w-full mt-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-12 text-[10px] ${labelCls}`}>Done</span>
+                                      <progress
+                                        className={`progress progress-success flex-1 h-1.5 ${isSelected ? "bg-base-100/20" : ""}`}
+                                        value={c}
+                                        max={total}
+                                      ></progress>
+                                      <span
+                                        className={`text-[10px] font-semibold w-5 text-right ${isSelected ? "text-primary-content" : "text-success"}`}
+                                      >
+                                        {c}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-12 text-[10px] ${labelCls}`}>Processing</span>
+                                      <progress
+                                        className={`progress progress-info flex-1 h-1.5 ${isSelected ? "bg-base-100/20" : ""}`}
+                                        value={p}
+                                        max={total}
+                                      ></progress>
+                                      <span
+                                        className={`text-[10px] font-semibold w-5 text-right ${isSelected ? "text-primary-content" : "text-info"}`}
+                                      >
+                                        {p}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-12 text-[10px] ${labelCls}`}>Queued</span>
+                                      <progress
+                                        className={`progress flex-1 h-1.5 ${isSelected ? "progress-warning bg-base-100/20" : "progress-warning"}`}
+                                        value={q}
+                                        max={total}
+                                      ></progress>
+                                      <span
+                                        className={`text-[10px] font-semibold w-5 text-right ${isSelected ? "text-primary-content" : "text-warning"}`}
+                                      >
+                                        {q}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             {/* Tooltip for full thread ID on hover */}
                             {item?.thread_id?.length > 35 && (
                               <div className="absolute left-0 top-full mt-1 bg-gray-800 text-white text-xs rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-low max-w-[260px] break-words shadow-lg pointer-events-none">
