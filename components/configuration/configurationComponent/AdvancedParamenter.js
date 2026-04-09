@@ -549,12 +549,7 @@ const AdvancedParameters = ({
                 data-testid={`advanced-param-text-${key}`}
                 id={`advanced-param-text-${key}`}
                 type="text"
-                value={isDefaultValue ? "default" : inputConfiguration?.[key] || ""}
-                onFocus={(e) => {
-                  if (isDefaultValue) {
-                    setSliderValue("", key, isDeafaultObject);
-                  }
-                }}
+                value={inputConfiguration?.[key] === "default" ? "" : inputConfiguration?.[key] || ""}
                 onChange={(e) => {
                   setInputConfiguration((prev) => ({
                     ...prev,
@@ -562,12 +557,16 @@ const AdvancedParameters = ({
                   }));
                 }}
                 onBlur={(e) => {
-                  handleInputChange(e, key);
+                  if (e.target.value === "") {
+                    setSliderValue("default", key, isDeafaultObject);
+                  } else {
+                    handleInputChange(e, key);
+                  }
                 }}
                 className={`input border-base-200 ${inputSizeClass} w-full bg-base-300 text-base-content/70 text-sm`}
                 name={key}
                 disabled={isReadOnly}
-                placeholder=""
+                placeholder="default"
               />
             )}
 
@@ -580,7 +579,7 @@ const AdvancedParameters = ({
                 min={min}
                 max={max}
                 step={step}
-                value={isDefaultValue ? "default" : inputConfiguration?.[key] || 0}
+                value={isDefaultValue ? "" : inputConfiguration?.[key] || 0}
                 onChange={(e) => {
                   setInputConfiguration((prev) => ({
                     ...prev,
@@ -588,11 +587,16 @@ const AdvancedParameters = ({
                   }));
                 }}
                 onBlur={(e) => {
-                  handleInputChange(e, key);
+                  if (e.target.value === "") {
+                    setSliderValue("default", key, isDeafaultObject);
+                  } else {
+                    handleInputChange(e, key);
+                  }
                 }}
                 className={`input border-base-200 ${inputSizeClass} w-full bg-base-300 text-base-content/70 text-sm`}
                 name={key}
                 disabled={isReadOnly}
+                placeholder="default"
               />
             )}
 
