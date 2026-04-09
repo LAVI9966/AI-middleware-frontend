@@ -18,6 +18,7 @@ import { ChatLoadingSkeleton } from "./ChatLayoutLoader";
 import { clearThreadData } from "@/store/reducer/historyReducer";
 import EditMessageModal from "../modals/EditMessageModal";
 import { improvePrompt } from "@/config/utilityApi";
+import { getBatchConversationLogs } from "@/config/historyApi";
 
 // ------------------------------------
 // Constants
@@ -28,6 +29,7 @@ const SCROLL_BOTTOM_THRESHOLD = 16; // px
 const ThreadContainer = ({
   thread,
   filterOption,
+  batchFeed,
   isFetchingMore,
   setIsFetchingMore,
   searchMessageId,
@@ -79,6 +81,9 @@ const ThreadContainer = ({
   const [modalInput, setModalInput] = useState(null);
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [generatedPrompts, setGeneratedPrompts] = useState({}); // Store generated prompts by message ID
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchPage, setBatchPage] = useState(1);
+  const [batchHasMore, setBatchHasMore] = useState(true);
 
   const formatDateAndTime = useCallback((created_at) => {
     const date = new Date(created_at);
@@ -232,7 +237,7 @@ const ThreadContainer = ({
 
   useEffect(() => {
     calcFlexDirection();
-  }, [thread, calcFlexDirection]);
+  }, [thread, batchItems, calcFlexDirection]);
 
   // Attach scroll listener via onScroll prop in JSX, but ensure first bottom snap
   useEffect(() => {
@@ -244,7 +249,7 @@ const ThreadContainer = ({
   // Keep auto-scroll on new messages when already near bottom
   useEffect(() => {
     if (!showScrollToBottom) scrollToBottom(historyRef);
-  }, [thread, showScrollToBottom]);
+  }, [thread, batchItems, showScrollToBottom]);
 
   // ------------------------------------
   // Fetch logic (debounced + stale guard)
@@ -274,6 +279,24 @@ const ThreadContainer = ({
     [dispatch, bridgeId, orgId, filterOption, selectedVersion, isErrorTrue]
   );
 
+  const fetchBatchPage = useCallback(
+    async ({ page = 1, append = false }) => {
+      if (!batchFeed?.agent_id) return [];
+      const resp = await getBatchConversationLogs({
+        agent_id: batchFeed.agent_id,
+        filter: batchFeed.filter || "completed",
+        page,
+        limit: 40,
+      });
+      const rows = resp?.data || resp?.result || resp || [];
+      setBatchItems((prev) => (append ? [...rows, ...prev] : rows));
+      setBatchPage(page);
+      setBatchHasMore(Array.isArray(rows) ? rows.length >= 40 : false);
+      return rows;
+    },
+    [batchFeed?.agent_id, batchFeed?.filter]
+  );
+
   // Initial load + handle URL thread_id changes
   useEffect(() => {
     let cancelled = false;
@@ -281,6 +304,18 @@ const ThreadContainer = ({
     const run = async () => {
       dispatch(clearThreadData());
       setLoadingData(true);
+
+      // Batch feed mode: ignore URL thread selection and just stream rows by status
+      if (batchFeed?.enabled) {
+        try {
+          await fetchBatchPage({ page: 1, append: false });
+        } finally {
+          if (cancelled || !isMountedRef.current) return;
+          setLoading(false);
+          setLoadingData(false);
+        }
+        return;
+      }
 
       const thread_id = threadIdFromURL;
       const subThreadId = subThreadIdFromURL || thread_id;
@@ -339,13 +374,29 @@ const ThreadContainer = ({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [threadIdFromURL, filterOption, availableThreads, errorFromURL, subThreadIdFromURL]);
+  }, [
+    threadIdFromURL,
+    filterOption,
+    availableThreads,
+    errorFromURL,
+    subThreadIdFromURL,
+    batchFeed?.enabled,
+    batchFeed?.filter,
+    fetchBatchPage,
+  ]);
 
   // Fetch more (pagination)
   const fetchMoreThreadData = useCallback(async () => {
     if (isFetchingMore) return;
     setIsFetchingMore(true);
     previousScrollHeightRef.current = historyRef.current?.scrollHeight || 0;
+
+    if (batchFeed?.enabled) {
+      const next = (batchPage || 1) + 1;
+      await fetchBatchPage({ page: next, append: true });
+      setIsFetchingMore(false);
+      return;
+    }
 
     const nextPage = (threadPage || 1) + 1;
     const res = await fetchThread({
@@ -363,6 +414,9 @@ const ThreadContainer = ({
     setIsFetchingMore(false);
   }, [
     isFetchingMore,
+    batchFeed?.enabled,
+    batchPage,
+    fetchBatchPage,
     threadPage,
     fetchThread,
     threadIdFromURL,
@@ -378,12 +432,13 @@ const ThreadContainer = ({
 
   // Maintain scroll position when more items prepended in column-reverse mode
   useLayoutEffect(() => {
-    if (isFetchingMore && historyRef.current && hasMoreThreadData) {
+    // Both batch and normal threads should maintain scroll position correctly when items are prepended
+    if (isFetchingMore && historyRef.current && (batchFeed?.enabled ? batchHasMore : hasMoreThreadData)) {
       const diff = (historyRef.current.scrollHeight || 0) - previousScrollHeightRef.current;
       historyRef.current.scrollTop += diff;
     }
-    // re-run when thread changes because new messages appended
-  }, [thread, isFetchingMore, hasMoreThreadData]);
+    // re-run when thread/batchItems changes because new messages appended
+  }, [thread, batchItems, isFetchingMore, hasMoreThreadData, batchHasMore, batchFeed?.enabled]);
 
   // Show/hide "scroll to bottom" button
   const onScroll = handleScroll; // stable
@@ -459,29 +514,37 @@ const ThreadContainer = ({
             </div>
           )}
 
-          {!loadingData && (!thread || thread.length === 0) ? (
+          {!loadingData &&
+          ((batchFeed?.enabled && batchItems.length === 0) ||
+            (!batchFeed?.enabled && (!thread || thread.length === 0))) ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-gray-500 text-lg">No history present</p>
             </div>
           ) : (
             <InfiniteScroll
-              dataLength={thread?.length || 0}
+              dataLength={batchFeed?.enabled ? batchItems.length : thread?.length || 0}
               next={fetchMoreThreadData}
-              hasMore={!!hasMoreThreadData}
-              loader={<p />}
+              hasMore={batchFeed?.enabled ? !!batchHasMore : !!hasMoreThreadData}
+              loader={<div style={{ display: "none" }} />}
               scrollThreshold="250px"
               inverse={flexDirection === "column-reverse"}
               scrollableTarget="scrollableDiv"
             >
               <div ref={contentRef} className="pb-16 px-3 pt-4" style={{ width: "100%" }}>
-                {Array.isArray(thread) &&
-                  thread.map((item, index) => (
+                {isFetchingMore && (
+                  <div className="w-full flex justify-center py-4">
+                    <span className="loading loading-spinner loading-sm" />
+                    <span className="ml-2 text-xs text-base-content/60">Loading more…</span>
+                  </div>
+                )}
+                {Array.isArray(batchFeed?.enabled ? batchItems : thread) &&
+                  (batchFeed?.enabled ? batchItems : thread).map((item, index) => (
                     <ThreadItem
-                      key={index}
+                      key={item?.message_id || item?.id || item?.Id || `${item?.thread_id || "row"}-${index}`}
                       params={{ org_id: orgId, id: bridgeId }}
                       index={index}
                       item={item}
-                      thread={thread}
+                      thread={batchFeed?.enabled ? batchItems : thread}
                       threadHandler={threadHandler}
                       formatDateAndTime={formatDateAndTime}
                       integrationData={integrationData}
