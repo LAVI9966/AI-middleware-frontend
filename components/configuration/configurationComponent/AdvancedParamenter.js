@@ -19,6 +19,9 @@ import { setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
 import { Check, CircleQuestionMark, ExternalLink } from "lucide-react";
 import RenderNode from "@/components/richUI/RenderNode";
 import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/modals/FullscreenEditorModal";
+import CodeMirror from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 
 const AdvancedParameters = ({
   params,
@@ -49,6 +52,7 @@ const AdvancedParameters = ({
   const dropdownContainerRef = useRef(null);
   const dispatch = useDispatch();
   const router = useRouter();
+  const { actualTheme } = useThemeManager();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -863,54 +867,60 @@ const AdvancedParameters = ({
                           >
                             Build with AI
                           </span>
+                          <span className="text-xs text-base-content/50">|</span>
+                          <FullscreenEditorButton
+                            tooltip="Open JSON schema in fullscreen"
+                            className=""
+                            onClick={() => {
+                              setJsonSchemaFullscreen(true);
+                            }}
+                          />
                         </div>
                       </div>
 
                       <div className="relative">
-                        <textarea
-                          id={`advanced-param-json-schema-textarea-${key}`}
-                          key={`${key}-${configuration?.[key]}-${objectFieldValue}-${configuration}`}
-                          type="input"
-                          defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
-                          onBlur={(e) => {
-                            try {
-                              const parsedValue = JSON.parse(e.target.value);
+                        <div className="w-full text-xs font-mono">
+                          <CodeMirror
+                            id={`advanced-param-json-schema-textarea-${key}`}
+                            value={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
+                            extensions={[json()]}
+                            theme={actualTheme}
+                            editable={!isReadOnly}
+                            onChange={(val) => setObjectFieldValue(val)}
+                            onBlur={() => {
+                              try {
+                                const currentValueToParse =
+                                  objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2);
+                                const parsedValue = JSON.parse(currentValueToParse);
 
-                              // Trim schema name and all property names
-                              const trimmedValue = {
-                                ...parsedValue,
-                                name: parsedValue.name?.trim(),
-                                schema: parsedValue.schema
-                                  ? {
-                                      ...parsedValue.schema,
-                                      properties: trimPropertyNames(parsedValue.schema.properties),
-                                    }
-                                  : parsedValue.schema,
-                              };
+                                // Trim schema name and all property names
+                                const trimmedValue = {
+                                  ...parsedValue,
+                                  name: parsedValue.name?.trim(),
+                                  schema: parsedValue.schema
+                                    ? {
+                                        ...parsedValue.schema,
+                                        properties: trimPropertyNames(parsedValue.schema.properties),
+                                      }
+                                    : parsedValue.schema,
+                                };
 
-                              handleSelectChange(
-                                { target: { value: "json_schema" } },
-                                key,
-                                defaultValue,
-                                trimmedValue,
-                                true
-                              );
-                            } catch (error) {
-                              console.error(error);
-                              toast.error("Invalid JSON schema");
-                            }
-                          }}
-                          className="textarea textarea-bordered w-full h-32 font-mono text-xs pr-8"
-                          placeholder="Enter JSON schema..."
-                          disabled={isReadOnly}
-                        />
-                        <FullscreenEditorButton
-                          tooltip="Open JSON schema in fullscreen"
-                          className="absolute top-1 right-1 opacity-50 hover:opacity-100"
-                          onClick={() => {
-                            setJsonSchemaFullscreen(true);
-                          }}
-                        />
+                                handleSelectChange(
+                                  { target: { value: "json_schema" } },
+                                  key,
+                                  defaultValue,
+                                  trimmedValue,
+                                  true
+                                );
+                              } catch (error) {
+                                console.error(error);
+                                toast.error("Invalid JSON schema");
+                              }
+                            }}
+                            className="border border-base-300 rounded overflow-hidden"
+                            minHeight="128px"
+                          />
+                        </div>
                       </div>
                       <FullscreenEditorModal
                         modalId={MODAL_TYPE.FULLSCREEN_JSON_SCHEMA}
@@ -939,14 +949,17 @@ const AdvancedParameters = ({
                               trimmedValue,
                               true
                             );
+                            return true;
                           } catch (error) {
                             console.error(error);
                             toast.error("Invalid JSON schema");
+                            return false;
                           }
                         }}
                         placeholder="Enter JSON schema..."
                         disabled={isReadOnly}
                         mono
+                        isJson
                       />
                       <JsonSchemaBuilderModal params={params} searchParams={searchParams} isReadOnly={isReadOnly} />
                       <JsonSchemaModal
