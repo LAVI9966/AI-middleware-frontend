@@ -643,7 +643,6 @@ const AdvancedParameters = ({
                             dataToSend: updatedDataToSend,
                           })
                         );
-                        toast.success("Applied default schema with anyOf field");
                         return;
                       } else if (selectedValue === "json_schema") {
                         // Set type to json_schema AND is_template to false
