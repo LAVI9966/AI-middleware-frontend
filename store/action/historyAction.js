@@ -5,6 +5,7 @@ import {
   updateHistoryMessage,
   userFeedbackCount,
   getRecursiveHistory,
+  getBatchConversationLogsCount,
 } from "@/config";
 import {
   fetchAllHistoryReducer,
@@ -14,6 +15,7 @@ import {
   userFeedbackCountReducer,
   fetchRecursiveHistoryStart,
   fetchRecursiveHistorySuccess,
+  fetchBatchConversationLogsCountReducer,
 } from "../reducer/historyReducer";
 
 export const getHistoryAction =
@@ -109,5 +111,18 @@ export const getRecursiveHistoryAction =
       return data;
     } catch (error) {
       console.error("Error in getRecursiveHistoryAction:", error);
+    }
+  };
+
+export const getBatchConversationLogsCountAction =
+  ({ agent_id }) =>
+  async (dispatch) => {
+    try {
+      const resp = await getBatchConversationLogsCount({ agent_id });
+      const data = resp?.data || resp?.result || resp;
+      dispatch(fetchBatchConversationLogsCountReducer({ data }));
+      return data;
+    } catch (error) {
+      console.error(error);
     }
   };

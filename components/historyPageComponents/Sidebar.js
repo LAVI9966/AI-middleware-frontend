@@ -1,9 +1,12 @@
 import { useCustomSelector } from "@/customHooks/customSelector.js";
-import { getHistoryAction, getSubThreadsAction } from "@/store/action/historyAction.js";
+import {
+  getHistoryAction,
+  getSubThreadsAction,
+  getBatchConversationLogsCountAction,
+} from "@/store/action/historyAction.js";
 import { clearSubThreadData, clearThreadData, setSelectedVersion } from "@/store/reducer/historyReducer.js";
-import { USER_FEEDBACK_FILTER_OPTIONS, HISTORY_FILTER_BY_FIELDS } from "@/utils/enums.js";
+import { USER_FEEDBACK_FILTER_OPTIONS, HISTORY_FILTER_BY_FIELDS, BATCH_FILTER_TABS } from "@/utils/enums.js";
 import { formatDate, formatRelativeTime } from "@/utils/utility.js";
-import { getBatchConversationLogsCount } from "@/config/historyApi.js";
 import {
   ThumbsDownIcon,
   ThumbsUpIcon,
@@ -45,12 +48,13 @@ const Sidebar = memo(
     batchFilter,
     setBatchFilter,
   }) => {
-    const { subThreads, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
+    const { subThreads, userFeedbackCount, bridgeVersionsArray, reduxBatchCounts } = useCustomSelector((state) => ({
       subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
       userFeedbackCount: state?.historyReducer?.userFeedbackCount,
       bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
         ? state.bridgeReducer.allBridgesMap[params.id].versions
         : [],
+      reduxBatchCounts: state?.historyReducer?.batchConversationLogsCount,
     }));
 
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
@@ -58,33 +62,20 @@ const Sidebar = memo(
     const [loadingSubThreads, setLoadingSubThreads] = useState(true);
     const [searchLoading, setSearchLoading] = useState(false);
     const [filterByText, setFilterByText] = useState(JSON.stringify(HISTORY_FILTER_BY_FIELDS, null, 2));
-    const [batchCounts, setBatchCounts] = useState({ completed: 0, processing: 0, queued: 0 });
+
+    // Fallback if not initialized yet
+    const batchCounts = reduxBatchCounts || { completed: 0, processing: 0, queued: 0 };
+
     const searchQuery = (searchRef?.current && searchRef.current.value) || searchParams?.message_id || "";
     const dispatch = useDispatch();
     const pathName = usePathname();
     const router = useRouter();
 
-    const fetchBatchCounts = useCallback(async () => {
-      if (!params?.id) return;
-      try {
-        const resp = await getBatchConversationLogsCount({ agent_id: params.id });
-        const data = resp?.data || resp?.result || resp;
-        setBatchCounts({
-          completed: data?.completed ?? 0,
-          processing: data?.processing ?? 0,
-          queued: data?.queued ?? 0,
-        });
-      } catch (error) {
-        console.error("Error fetching batch counts:", error);
-        setBatchCounts({ completed: 0, processing: 0, queued: 0 });
-      }
-    }, [params?.id]);
-
     useEffect(() => {
-      if (isBatchMode) {
-        fetchBatchCounts();
+      if (isBatchMode && params?.id) {
+        dispatch(getBatchConversationLogsCountAction({ agent_id: params.id }));
       }
-    }, [isBatchMode, fetchBatchCounts]);
+    }, [isBatchMode, params?.id, dispatch]);
 
     useEffect(() => {
       if (
@@ -441,6 +432,27 @@ const Sidebar = memo(
       }
     };
 
+    const handleBatchModeChange = async () => {
+      const next = !isBatchMode;
+      setIsBatchMode(next);
+      await dispatch(
+        getHistoryAction(
+          params.id,
+          1,
+          filterOption,
+          isErrorTrue,
+          selectedVersion,
+          searchRef?.current?.value || "",
+          searchParams?.start,
+          searchParams?.end,
+          undefined,
+          next ? "batch" : undefined
+        )
+      );
+      setPage(1);
+      setHasMore(true);
+    };
+
     return (
       <div
         className="drawer-side justify-items-stretch text-xs bg-base-200 min-w-[290px] max-w-[290px] border-r border-base-300 relative"
@@ -522,26 +534,7 @@ const Sidebar = memo(
                       type="checkbox"
                       className="toggle toggle-xs toggle-primary"
                       checked={!!isBatchMode}
-                      onChange={async () => {
-                        const next = !isBatchMode;
-                        setIsBatchMode(next);
-                        await dispatch(
-                          getHistoryAction(
-                            params.id,
-                            1,
-                            filterOption,
-                            isErrorTrue,
-                            selectedVersion,
-                            searchRef?.current?.value || "",
-                            searchParams?.start,
-                            searchParams?.end,
-                            undefined,
-                            next ? "batch" : undefined
-                          )
-                        );
-                        setPage(1);
-                        setHasMore(true);
-                      }}
+                      onChange={handleBatchModeChange}
                     />
                   </div>
                 </div>
@@ -646,11 +639,7 @@ const Sidebar = memo(
           {/* Batch filter rows - visible only in batch mode */}
           {isBatchMode && (
             <div className="flex flex-col gap-2 px-3 py-2 shrink-0">
-              {[
-                { key: "completed", label: "Done", countKey: "completed" },
-                { key: "processing", label: "Processing", countKey: "processing" },
-                { key: "queued", label: "Queued", countKey: "queued" },
-              ].map((tab) => (
+              {BATCH_FILTER_TABS.map((tab) => (
                 <button
                   key={tab.key}
                   data-testid={`history-sidebar-batch-filter-${tab.key}`}
@@ -731,116 +720,47 @@ const Sidebar = memo(
                                 const c = item.batch_status_counts.completed ?? 0;
                                 const total = q + p + c || 1;
                                 const isSelected = decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
-                                // SVG donut chart constants
-                                const r = 14;
-                                const cx = 18;
-                                const cy = 18;
-                                const circumference = 2 * Math.PI * r;
-                                const cDash = (c / total) * circumference;
-                                const pDash = (p / total) * circumference;
-                                const qDash = (q / total) * circumference;
-                                const cOffset = 0;
-                                const pOffset = cDash;
-                                const qOffset = cDash + pDash;
-                                const trackColor = isSelected ? "rgba(255,255,255,0.2)" : undefined;
                                 const labelCls = isSelected ? "text-primary-content/70" : "text-base-content/60";
-                                const totalCls = isSelected ? "text-primary-content" : "text-base-content";
                                 return (
-                                  <div className="flex items-center gap-2 w-full mt-1">
-                                    {/* Donut chart */}
-                                    <div className="relative flex-shrink-0">
-                                      <svg
-                                        width="36"
-                                        height="36"
-                                        viewBox="0 0 36 36"
-                                        style={{ transform: "rotate(-90deg)" }}
-                                      >
-                                        <circle
-                                          cx={cx}
-                                          cy={cy}
-                                          r={r}
-                                          fill="none"
-                                          stroke={trackColor || "#e5e7eb"}
-                                          strokeWidth="4"
-                                        />
-                                        {c > 0 && (
-                                          <circle
-                                            cx={cx}
-                                            cy={cy}
-                                            r={r}
-                                            fill="none"
-                                            stroke="#22c55e"
-                                            strokeWidth="4"
-                                            strokeDasharray={`${cDash} ${circumference - cDash}`}
-                                            strokeDashoffset={-cOffset}
-                                          />
-                                        )}
-                                        {p > 0 && (
-                                          <circle
-                                            cx={cx}
-                                            cy={cy}
-                                            r={r}
-                                            fill="none"
-                                            stroke="#38bdf8"
-                                            strokeWidth="4"
-                                            strokeDasharray={`${pDash} ${circumference - pDash}`}
-                                            strokeDashoffset={-pOffset}
-                                          />
-                                        )}
-                                        {q > 0 && (
-                                          <circle
-                                            cx={cx}
-                                            cy={cy}
-                                            r={r}
-                                            fill="none"
-                                            stroke="#facc15"
-                                            strokeWidth="4"
-                                            strokeDasharray={`${qDash} ${circumference - qDash}`}
-                                            strokeDashoffset={-qOffset}
-                                          />
-                                        )}
-                                      </svg>
+                                  <div className="flex flex-col gap-1 w-full mt-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-12 text-[10px] ${labelCls}`}>Done</span>
+                                      <progress
+                                        className={`progress progress-success flex-1 h-1.5 ${isSelected ? "bg-base-100/20" : ""}`}
+                                        value={c}
+                                        max={total}
+                                      ></progress>
                                       <span
-                                        className={`absolute inset-0 flex items-center justify-center text-[8px] font-bold ${totalCls}`}
+                                        className={`text-[10px] font-semibold w-5 text-right ${isSelected ? "text-primary-content" : "text-success"}`}
                                       >
-                                        {total}
+                                        {c}
                                       </span>
                                     </div>
-                                    {/* Legend */}
-                                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                                      <div className="flex items-center justify-between">
-                                        <span className={`flex items-center gap-1 text-[9px] ${labelCls}`}>
-                                          <span className="w-1.5 h-1.5 rounded-full bg-success inline-block flex-shrink-0"></span>
-                                          Done
-                                        </span>
-                                        <span
-                                          className={`text-[10px] font-semibold ${isSelected ? "text-primary-content" : "text-success"}`}
-                                        >
-                                          {c}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <span className={`flex items-center gap-1 text-[9px] ${labelCls}`}>
-                                          <span className="w-1.5 h-1.5 rounded-full bg-info inline-block flex-shrink-0"></span>
-                                          Processing
-                                        </span>
-                                        <span
-                                          className={`text-[10px] font-semibold ${isSelected ? "text-primary-content" : "text-info"}`}
-                                        >
-                                          {p}
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center justify-between">
-                                        <span className={`flex items-center gap-1 text-[9px] ${labelCls}`}>
-                                          <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block flex-shrink-0"></span>
-                                          Queued
-                                        </span>
-                                        <span
-                                          className={`text-[10px] font-semibold ${isSelected ? "text-primary-content" : "text-warning"}`}
-                                        >
-                                          {q}
-                                        </span>
-                                      </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-12 text-[10px] ${labelCls}`}>Processing</span>
+                                      <progress
+                                        className={`progress progress-info flex-1 h-1.5 ${isSelected ? "bg-base-100/20" : ""}`}
+                                        value={p}
+                                        max={total}
+                                      ></progress>
+                                      <span
+                                        className={`text-[10px] font-semibold w-5 text-right ${isSelected ? "text-primary-content" : "text-info"}`}
+                                      >
+                                        {p}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-12 text-[10px] ${labelCls}`}>Queued</span>
+                                      <progress
+                                        className={`progress flex-1 h-1.5 ${isSelected ? "progress-warning bg-base-100/20" : "progress-warning"}`}
+                                        value={q}
+                                        max={total}
+                                      ></progress>
+                                      <span
+                                        className={`text-[10px] font-semibold w-5 text-right ${isSelected ? "text-primary-content" : "text-warning"}`}
+                                      >
+                                        {q}
+                                      </span>
                                     </div>
                                   </div>
                                 );
