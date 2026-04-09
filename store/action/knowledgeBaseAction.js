@@ -135,17 +135,6 @@ export const createResourceAction = (data, orgId) => async (dispatch) => {
           _id: response?.data?._id,
         })
       );
-    } else if (response?.data) {
-      toast.success(response?.message || response?.data?.message || "Knowledge base added successfully");
-      dispatch(
-        addKnowbaseDataReducer({
-          orgId,
-          data: response?.data,
-          _id: response?.data?._id,
-        })
-      );
-    } else {
-      toast.success("Knowledge base added successfully");
     }
 
     return response?.data || response;
