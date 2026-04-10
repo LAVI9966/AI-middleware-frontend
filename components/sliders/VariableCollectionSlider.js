@@ -1077,6 +1077,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
   return (
     <aside
       id={SLIDER_ID}
+      data-testid="variable-collection-slider"
       className="sidebar-container fixed z-very-high flex flex-col top-0 right-0 p-6 w-full md:w-[50%] lg:w-[50%] opacity-100 h-screen bg-base-200 transition-all duration-300 border-l border-base-300 overflow-y-auto translate-x-full"
       aria-label="Variable collection slider"
       onClick={(event) => event.stopPropagation()}
