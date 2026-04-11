@@ -250,24 +250,6 @@ export const toggleSidebar = (sidebarId, direction = "left") => {
   }
 };
 
-export const closeSidebar = (sidebarId, direction = "left") => {
-  const sidebar = document.getElementById(sidebarId);
-  if (!sidebar) return;
-
-  const translateClass = direction === "left" ? "-translate-x-full" : "translate-x-full";
-
-  // Only close if it's currently visible (open)
-  if (!sidebar.classList.contains(translateClass)) {
-    sidebar.classList.add(translateClass);
-
-    // Clean up listeners
-    document.removeEventListener("click", sidebar._clickHandler, true);
-    document.removeEventListener("keyup", sidebar._keyHandler, true);
-    sidebar._clickHandler = null;
-    sidebar._keyHandler = null;
-  }
-};
-
 export const getIconOfService = (service, height, width) => {
   switch (service) {
     case "openai":
