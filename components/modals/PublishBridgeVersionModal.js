@@ -46,7 +46,9 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     activeService,
     hasApiKeyForActiveService,
     activeServiceDisplayName,
-    embedUserApiKey,
+    showDefaultApikeys,
+    bridgeType,
+    modelName,
   } = useCustomSelector((state) => {
     const isPublished = searchParams?.get("isPublished") === "true";
     const bridgeDataFromState = state.bridgeReducer.allBridgesMap?.[params?.id];
@@ -54,7 +56,8 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     const activeData = isPublished ? bridgeDataFromState : versionDataFromState;
     const rawService = activeData?.service || bridgeDataFromState?.service || "";
     const serviceKey = typeof rawService === "string" ? rawService.toLowerCase() : "";
-    const serviceApiKeyMap = activeData?.apikey_object_id || {};
+    const serviceApiKeyMap = activeData?.apikey_object_id || bridgeDataFromState?.apikey_object_id || {};
+    const hasApiKey = !!(serviceKey && serviceApiKeyMap?.[serviceKey]);
     const services = state?.serviceReducer?.services || [];
     const serviceLabel =
       (Array.isArray(services) ? services.find((s) => s?.value === serviceKey)?.displayName : "") || serviceKey;
@@ -77,8 +80,9 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       currentOrgRole === "Creator" ||
       isAdminOrOwner;
 
-    // Get embed user API key if available
+    // Get embed user API key and default API keys flag if available
     const embedApiKey = state?.appInfoReducer?.embedUserDetails?.apikey_object_id;
+    const defaultApiKeysEnabled = state?.appInfoReducer?.embedUserDetails?.addDefaultApiKeys;
 
     return {
       bridge: state.bridgeReducer.allBridgesMap?.[params?.id]?.page_config,
@@ -92,16 +96,26 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
         : versionDataFromState?.configuration?.prompt || "",
       isEditor: isEmbedUser ? true : canEdit,
       activeService: serviceKey,
-      hasApiKeyForActiveService: !!(serviceKey && serviceApiKeyMap?.[serviceKey]),
+      hasApiKeyForActiveService: hasApiKey,
       activeServiceDisplayName: serviceLabel,
       embedUserApiKey: embedApiKey,
+      showDefaultApikeys: defaultApiKeysEnabled,
+      bridgeType: bridgeDataFromState?.bridgeType,
+      modelName: activeData?.configuration?.model,
     };
   });
 
   // Flag to determine if the UI should be in read-only mode
   const isReadOnly = !isEditor;
-  const shouldShowApiKeyWarning =
-    Boolean(activeService) && !hasApiKeyForActiveService && !(isEmbedUser && embedUserApiKey);
+
+  const isChatbotWithGpt5Nano = bridgeType === "chatbot" && modelName === "gpt-5-nano";
+
+  const showApiKeyWarning =
+    Boolean(activeService) &&
+    !hasApiKeyForActiveService &&
+    !(isEmbedUser && showDefaultApikeys) &&
+    !isChatbotWithGpt5Nano;
+
   // Memoized form data initialization
   const [formData, setFormData] = useState(() => ({
     url_slugname: "",
@@ -782,7 +796,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           className="bg-base-100 mb-auto mt-auto rounded-lg shadow-2xl max-w-6xl w-[90vw] my-8 flex flex-col p-6 md:p-10 transition-all duration-300 ease-in-out animate-fadeIn"
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Publish Bridge Version</h2>
+            <h2 className="text-xl font-semibold">Publish Agent Version</h2>
             <div className="flex gap-2">
               <button
                 id="publish-toggle-comparison-button"
@@ -861,7 +875,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                 </div>
               </div>
 
-              {shouldShowApiKeyWarning && (
+              {showApiKeyWarning && (
                 <div
                   data-testid="publish-apikey-missing-warning"
                   id="publish-apikey-missing-warning"
