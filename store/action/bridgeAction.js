@@ -128,6 +128,10 @@ export const createBridgeAction = (dataToSend, onSuccess) => async (dispatch, ge
   try {
     dispatch(clearPreviousBridgeDataReducer());
     const response = await createBridge(dataToSend.dataToSend);
+    // If no agent returned (e.g. "chatbot preview" already exists), skip storing and don't toast
+    if (!response?.data?.agent) {
+      return;
+    }
     // Extract only the necessary serializable data from the response
     const serializableData = {
       data: response.data,
