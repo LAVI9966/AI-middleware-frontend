@@ -46,6 +46,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     activeService,
     hasApiKeyForActiveService,
     activeServiceDisplayName,
+    embedUserApiKey,
   } = useCustomSelector((state) => {
     const isPublished = searchParams?.get("isPublished") === "true";
     const bridgeDataFromState = state.bridgeReducer.allBridgesMap?.[params?.id];
@@ -76,6 +77,9 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       currentOrgRole === "Creator" ||
       isAdminOrOwner;
 
+    // Get embed user API key if available
+    const embedApiKey = state?.appInfoReducer?.embedUserDetails?.apikey_object_id;
+
     return {
       bridge: state.bridgeReducer.allBridgesMap?.[params?.id]?.page_config,
       versionData: versionDataFromState,
@@ -90,12 +94,14 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       activeService: serviceKey,
       hasApiKeyForActiveService: !!(serviceKey && serviceApiKeyMap?.[serviceKey]),
       activeServiceDisplayName: serviceLabel,
+      embedUserApiKey: embedApiKey,
     };
   });
 
   // Flag to determine if the UI should be in read-only mode
   const isReadOnly = !isEditor;
-  const shouldShowApiKeyWarning = Boolean(activeService) && !hasApiKeyForActiveService;
+  const shouldShowApiKeyWarning =
+    Boolean(activeService) && !hasApiKeyForActiveService && !(isEmbedUser && embedUserApiKey);
   // Memoized form data initialization
   const [formData, setFormData] = useState(() => ({
     url_slugname: "",
