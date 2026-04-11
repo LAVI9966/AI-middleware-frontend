@@ -772,6 +772,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-low-medium overflow-auto h-auto bg-base-100">
         <div
           id="publish-bridge-modal-container"
+          data-testid="publish-version-modal"
           className="bg-base-100 mb-auto mt-auto rounded-lg shadow-2xl max-w-6xl w-[90vw] my-8 flex flex-col p-6 md:p-10 transition-all duration-300 ease-in-out animate-fadeIn"
         >
           <div className="flex items-center justify-between mb-4">
@@ -779,6 +780,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
             <div className="flex gap-2">
               <button
                 id="publish-toggle-comparison-button"
+                data-testid="publish-version-comparison-toggle"
                 onClick={toggleComparison}
                 className={`btn btn-sm btn-outline flex gap-1 ${!showComparison ? "hidden" : "block"}`}
                 title="Compare Version Changes"
@@ -1001,6 +1003,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                     </label>
                     <input
                       id="publish-slug-name-input"
+                      data-testid="publish-version-slug-input"
                       type="text"
                       name="url_slugname"
                       placeholder="Enter a unique slug name"
@@ -1023,6 +1026,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                     </label>
                     <textarea
                       id="publish-description-textarea"
+                      data-testid="publish-version-description-textarea"
                       name="description"
                       placeholder="Enter a description"
                       className="textarea bg-base-100 textarea-bordered w-full h-20"
@@ -1038,6 +1042,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                     </label>
                     <select
                       id="publish-visibility-select"
+                      data-testid="publish-version-availability-select"
                       className="select select-bordered w-full"
                       name="availability"
                       value={formData.availability}
@@ -1133,6 +1138,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               </button>
               <button
                 id="publish-confirm-button"
+                data-testid="publish-version-publish-button"
                 className="btn btn-primary btn-sm"
                 onClick={() => handlePublishBridge(convertToTemplate)}
                 disabled={isLoading || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly}

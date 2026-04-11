@@ -677,6 +677,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         {/*                              SIDE BAR                              */}
         {/* ------------------------------------------------------------------ */}
         <div
+          data-testid="main-sidebar"
           className={`${sidebarPositioning} sidebar bg-base-100 border ${isMobile ? "overflow-hidden" : ""} border-base-200 left-0 top-0 h-[100dvh] bg-base-100 my-0 ${isMobile ? "mx-1" : "mx-3"} flex flex-col pb-2 ${sidebarZIndex}`}
           style={{
             width: isMobile ? (isMobileVisible ? "56px" : "0px") : isOpen ? "220px" : "50px",

@@ -165,6 +165,7 @@ function ConfigHistorySlider({ versionId }) {
   return (
     <aside
       id="default-config-history-slider"
+      data-testid="config-history-sidebar"
       className="sidebar-container fixed z-very-high flex flex-col top-0 right-0 p-4 w-full md:w-1/3 lg:w-1/4 opacity-100 h-screen bg-base-200 transition-all duration-300 border-l border-base-300 overflow-hidden translate-x-full "
       aria-label="Config History Slider"
     >

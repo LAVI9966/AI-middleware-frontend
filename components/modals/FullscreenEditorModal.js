@@ -85,17 +85,30 @@ function FullscreenEditorModal({
 
   return (
     <Modal MODAL_ID={modalId} onClose={handleClose}>
-      <div className="modal-box max-w-screen-lg h-[calc(100%-10rem)] w-[calc(100%-20rem)] bg-base-100 overflow-hidden flex flex-col p-6">
+      <div
+        data-testid="fullscreen-editor-modal"
+        className="modal-box max-w-screen-lg h-[calc(100%-10rem)] w-[calc(100%-20rem)] bg-base-100 overflow-hidden flex flex-col p-6"
+      >
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-lg flex items-center gap-2">
             <Maximize2 size={18} className="text-primary" />
             {title}
           </h3>
           <div className="flex gap-2">
-            <button onClick={handleClose} className="btn btn-sm" type="button">
+            <button
+              data-testid="fullscreen-editor-close-button"
+              onClick={handleClose}
+              className="btn btn-sm"
+              type="button"
+            >
               Close
             </button>
-            <button onClick={handleSave} className="btn btn-primary btn-sm" type="button">
+            <button
+              data-testid="fullscreen-editor-save-button"
+              onClick={handleSave}
+              className="btn btn-primary btn-sm"
+              type="button"
+            >
               Save & Close
             </button>
           </div>
@@ -109,20 +122,23 @@ function FullscreenEditorModal({
 
         <div className="flex-1 overflow-hidden overflow-y-auto">
           {isJson ? (
-            <CodeMirror
-              value={localValue}
-              height="100%"
-              extensions={[json()]}
-              theme={actualTheme}
-              editable={!disabled}
-              onChange={(val) => {
-                setLocalValue(val);
-                if (errorMsg) setErrorMsg("");
-              }}
-              className="h-full border border-base-300 rounded overflow-hidden text-sm"
-            />
+            <div data-testid="fullscreen-editor-codemirror-wrapper" className="h-full">
+              <CodeMirror
+                value={localValue}
+                height="100%"
+                extensions={[json()]}
+                theme={actualTheme}
+                editable={!disabled}
+                onChange={(val) => {
+                  setLocalValue(val);
+                  if (errorMsg) setErrorMsg("");
+                }}
+                className="h-full border border-base-300 rounded overflow-hidden text-sm"
+              />
+            </div>
           ) : (
             <textarea
+              data-testid="fullscreen-editor-textarea"
               ref={textareaRef}
               value={localValue}
               onChange={(e) => {
