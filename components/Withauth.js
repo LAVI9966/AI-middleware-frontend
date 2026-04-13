@@ -100,6 +100,7 @@ const WithAuth = (Children) => {
         }
         const configuration = {
           referenceId: process.env.NEXT_PUBLIC_REFERENCEID,
+          type: "authorization",
           addInfo: {
             redirect_path: "/login",
           },
