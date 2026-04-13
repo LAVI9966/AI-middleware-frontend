@@ -1117,7 +1117,8 @@ const AdvancedParameters = ({
                       />
                     </div>
                     {/* Static options (auto, none, required) */}
-                    {options &&
+                    {!searchQuery &&
+                      options &&
                       options.map((option) => (
                         <div
                           id={`advanced-param-dropdown-option-${key}-${option}`}
