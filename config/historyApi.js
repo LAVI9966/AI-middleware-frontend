@@ -54,8 +54,7 @@ export const getThreads = async (
   keyword,
   startDate,
   endDate,
-  filterBy,
-  type
+  filterBy
 ) => {
   try {
     const params = {
@@ -65,10 +64,6 @@ export const getThreads = async (
       version_id: versionId === "all" || versionId === "undefined" ? null : versionId,
       error: isErrorTrue ? "true" : "false",
     };
-
-    if (type) {
-      params.type = type;
-    }
 
     if (keyword) {
       params.keyword = keyword;
@@ -130,34 +125,6 @@ export const getRecursiveHistory = async ({ agent_id, thread_id, message_id }) =
     return response.data;
   } catch (error) {
     console.error("Error fetching recursive history:", error);
-    throw error;
-  }
-};
-
-export const getBatchConversationLogs = async ({ agent_id, filter = "completed", page = 1, limit = 30 }) => {
-  try {
-    const encodedAgentId = encodeURIComponent(agent_id);
-    const response = await axios.get(`${URL}/api/batch/history/${encodedAgentId}`, {
-      params: {
-        filter,
-        page,
-        limit,
-      },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching batch conversation logs:", error);
-    throw error;
-  }
-};
-
-export const getBatchConversationLogsCount = async ({ agent_id }) => {
-  try {
-    const encodedAgentId = encodeURIComponent(agent_id);
-    const response = await axios.get(`${URL}/api/batch/history/count/${encodedAgentId}`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching batch conversation logs count:", error);
     throw error;
   }
 };

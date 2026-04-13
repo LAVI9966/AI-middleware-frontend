@@ -113,12 +113,6 @@ export const CONFIG_HISTORY_FEATURE_OPTIONS = [
 
 export const CONFIG_HISTORY_HIDDEN_TYPES = ["system_prompt_version_id", "variables_state"];
 
-export const BATCH_FILTER_TABS = [
-  { key: "completed", label: "Done", countKey: "completed" },
-  { key: "processing", label: "Processing", countKey: "processing" },
-  { key: "queued", label: "Queued", countKey: "queued" },
-];
-
 export const BATCH_PROCESSING_STATUSES = ["in_progress", "processing", "queued", "pending", "validating", "finalizing"];
 
 export const TIME_RANGE_OPTIONS = [

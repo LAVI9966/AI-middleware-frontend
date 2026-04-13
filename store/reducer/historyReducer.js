@@ -10,7 +10,6 @@ const initialState = {
   selectedVersion: "all",
   loading: false,
   success: false,
-  batchConversationLogsCount: { completed: 0, processing: 0, queued: 0 },
 };
 
 export const historyReducer = createSlice({
@@ -85,14 +84,6 @@ export const historyReducer = createSlice({
       state.recursiveHistoryLoading = false;
       state.recursiveHistoryError = null;
     },
-    fetchBatchConversationLogsCountReducer: (state, action) => {
-      const { data } = action.payload;
-      state.batchConversationLogsCount = {
-        completed: data?.completed ?? 0,
-        processing: data?.processing ?? 0,
-        queued: data?.queued ?? 0,
-      };
-    },
   },
 });
 
@@ -110,6 +101,5 @@ export const {
   addThreadNMessageUsingRtLayer,
   fetchRecursiveHistoryStart,
   fetchRecursiveHistorySuccess,
-  fetchBatchConversationLogsCountReducer,
 } = historyReducer.actions;
 export default historyReducer.reducer;
