@@ -75,7 +75,7 @@ const Sidebar = memo(
     const router = useRouter();
 
     useEffect(() => {
-      if (isBatchMode && params?.id) {
+      if (params?.id) {
         dispatch(getBatchConversationLogsCountAction({ agent_id: params.id }));
       }
     }, [isBatchMode, params?.id, dispatch]);
@@ -619,19 +619,20 @@ const Sidebar = memo(
               />
             )}
           </form>
-          {bridgeType !== "chatbot" && (
-            <div className="flex items-center justify-between pl-3 pr-2 h-8 border border-base-300  bg-base-100">
-              <span className="text-xs">Show Batch History By Status</span>
-              <input
-                data-testid="history-sidebar-batch-toggle"
-                id="history-sidebar-batch-toggle"
-                type="checkbox"
-                className="toggle toggle-xs toggle-primary"
-                checked={!!isBatchMode}
-                onChange={handleBatchModeChange}
-              />
-            </div>
-          )}
+          {bridgeType !== "chatbot" &&
+            (batchCounts.completed > 0 || batchCounts.processing > 0 || batchCounts.queued > 0) && (
+              <div className="flex items-center justify-between pl-3 pr-2 h-8 border border-base-300  bg-base-100">
+                <span className="text-xs">Show Batch History By Status</span>
+                <input
+                  data-testid="history-sidebar-batch-toggle"
+                  id="history-sidebar-batch-toggle"
+                  type="checkbox"
+                  className="toggle toggle-xs toggle-primary"
+                  checked={!!isBatchMode}
+                  onChange={handleBatchModeChange}
+                />
+              </div>
+            )}
         </div>
         <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay"></label>
 
