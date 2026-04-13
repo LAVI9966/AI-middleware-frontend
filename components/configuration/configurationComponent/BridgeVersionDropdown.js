@@ -11,7 +11,7 @@ import {
   getBridgeVersionAction,
 } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
-import { openModal, sendDataToParent, closeSidebar } from "@/utils/utility";
+import { openModal, sendDataToParent, toggleSidebar } from "@/utils/utility";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 
@@ -203,7 +203,10 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
     (version) => {
       if (currentVersion === version) return;
       // Close ConfigHistorySlider when version changes (only if it's open)
-      closeSidebar("default-config-history-slider", "right");
+      const sidebar = document.getElementById("default-config-history-slider");
+      if (sidebar && !sidebar.classList.contains("translate-x-full")) {
+        toggleSidebar("default-config-history-slider", "right");
+      }
       router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${version}`);
       fetchVersionData(version);
     },
