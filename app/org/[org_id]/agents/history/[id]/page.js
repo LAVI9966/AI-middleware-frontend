@@ -43,8 +43,6 @@ function Page({ params, searchParams }) {
   const [threadPage, setThreadPage] = useState(1);
   const [hasMoreThreadData, setHasMoreThreadData] = useState(true);
   const [isErrorTrue, setIsErrorTrue] = useState(false);
-  const [isBatchMode, setIsBatchMode] = useState(false);
-  const [batchFilter, setBatchFilter] = useState("completed"); // completed | processing | queued
 
   const closeSliderOnEsc = useCallback((event) => {
     if (event.key === "Escape") setIsSliderOpen(false);
@@ -92,18 +90,7 @@ function Page({ params, searchParams }) {
       const endDate = resolvedSearchParams?.end;
       const keyword = searchRef.current?.value || "";
       const result = await dispatch(
-        getHistoryAction(
-          resolvedParams.id,
-          1,
-          filterOption,
-          isErrorTrue,
-          selectedVersion,
-          keyword,
-          startDate,
-          endDate,
-          undefined,
-          isBatchMode ? "batch" : undefined
-        )
+        getHistoryAction(resolvedParams.id, 1, filterOption, isErrorTrue, selectedVersion, keyword, startDate, endDate)
       );
       const version = search.get("version") || selectedVersion;
       const type = search.get("type") || resolvedSearchParams?.type || "";
@@ -188,13 +175,11 @@ function Page({ params, searchParams }) {
         selectedVersion,
         keyword,
         startDate,
-        endDate,
-        undefined,
-        isBatchMode ? "batch" : undefined
+        endDate
       )
     );
     if (result?.length < 40) setHasMore(false);
-  }, [page, resolvedParams.id, isBatchMode]);
+  }, [page, resolvedParams.id]);
 
   if (loading || !historyData)
     return (
@@ -216,11 +201,6 @@ function Page({ params, searchParams }) {
                 key={`thread-container-${resolvedParams.id}-${resolvedParams.version}`}
                 thread={thread}
                 filterOption={filterOption}
-                batchFeed={{
-                  enabled: !!isBatchMode,
-                  filter: batchFilter,
-                  agent_id: resolvedParams?.id,
-                }}
                 setFilterOption={setFilterOption}
                 isFetchingMore={isFetchingMore}
                 setIsFetchingMore={setIsFetchingMore}
@@ -267,10 +247,6 @@ function Page({ params, searchParams }) {
             selectedVersion={selectedVersion}
             setIsErrorTrue={setIsErrorTrue}
             isErrorTrue={isErrorTrue}
-            isBatchMode={isBatchMode}
-            setIsBatchMode={setIsBatchMode}
-            batchFilter={batchFilter}
-            setBatchFilter={setBatchFilter}
           />
         </React.Suspense>
       </div>
