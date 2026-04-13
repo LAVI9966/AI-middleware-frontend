@@ -9,7 +9,6 @@ import { ThemeManager, useThemeManager } from "@/customHooks/useThemeManager";
 import { getAllApikeyAction } from "@/store/action/apiKeyAction";
 import {
   createApiAction,
-  createBridgeAction,
   deleteFunctionAction,
   getAllBridgesAction,
   getAllFunctions,
@@ -265,24 +264,8 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
   useEffect(() => {
     if (isValidOrg) {
       dispatch(
-        getAllBridgesAction((data) => {
+        getAllBridgesAction(() => {
           setLoading(false);
-          const hasChatbotPreview = data?.some((bridge) => bridge?.slugName === "chatbot preview");
-          if (!hasChatbotPreview && !isEmbedUser) {
-            dispatch(
-              createBridgeAction(
-                {
-                  dataToSend: {
-                    name: "chatbot preview",
-                    slugName: "chatbot preview",
-                    bridgeType: "chatbot",
-                  },
-                  orgid: resolvedParams?.org_id,
-                },
-                () => {}
-              )
-            );
-          }
         })
       );
       dispatch(getAllFunctions());
