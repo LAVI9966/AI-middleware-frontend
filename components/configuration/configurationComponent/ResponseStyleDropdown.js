@@ -37,7 +37,7 @@ const ResponseStyleDropdown = ({ params, searchParams, isPublished, isEditor = t
   const isReadOnly = isPublished || !isEditor;
   const { reduxResponseStyle } = useCustomSelector((state) => ({
     reduxResponseStyle:
-      state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version]?.configuration?.responseStyle ||
+      state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version]?.settings?.responseStyle ||
       null,
   }));
   const dispatch = useDispatch();
@@ -59,7 +59,7 @@ const ResponseStyleDropdown = ({ params, searchParams, isPublished, isEditor = t
           updateBridgeVersionAction({
             versionId: searchParams?.version,
             dataToSend: {
-              configuration: {
+              settings: {
                 responseStyle: "",
               },
             },
@@ -72,7 +72,7 @@ const ResponseStyleDropdown = ({ params, searchParams, isPublished, isEditor = t
             updateBridgeVersionAction({
               versionId: searchParams?.version,
               dataToSend: {
-                configuration: {
+                settings: {
                   responseStyle: {
                     value: style.value,
                     prompt: style.prompt,
@@ -108,7 +108,7 @@ const ResponseStyleDropdown = ({ params, searchParams, isPublished, isEditor = t
         <option value="" disabled>
           Select a Response Style
         </option>
-        <option value="">None</option>
+        <option value="{}">None</option>
         {RESPONSE_STYLES.map((style) => (
           <option key={style.value} value={style.value}>
             {style.value}

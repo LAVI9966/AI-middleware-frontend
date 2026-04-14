@@ -23,7 +23,6 @@ import DeleteModal from "@/components/UI/DeleteModal";
 import SearchItems from "@/components/UI/SearchItems";
 import ApiKeyGuideSlider from "@/components/configuration/configurationComponent/ApiKeyGuide";
 import ConnectedAgentsModal from "@/components/modals/ConnectedAgentsModal";
-import { toast } from "react-toastify";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 
 export const runtime = "edge";
@@ -39,6 +38,7 @@ const Page = () => {
     linksData: state.flowDataReducer.flowData.linksData || [],
     SERVICES: state?.serviceReducer?.services || [],
   }));
+  // Filter API keys to only show keys for services that exist in current services
   const [filterApiKeys, setFilterApiKeys] = useState(apikeyData);
 
   useEffect(() => {
@@ -89,7 +89,13 @@ const Page = () => {
     openModal(MODAL_TYPE.CONNECTED_AGENTS_MODAL);
   }, []);
 
-  const dataWithIcons = filterApiKeys.map((item) => ({
+  // Only show API keys for services that currently exist
+  const validApiKeys = filterApiKeys.filter((apiKey) => {
+    const serviceExists = SERVICES.some((service) => service.value === apiKey?.service);
+    return serviceExists;
+  });
+
+  const dataWithIcons = validApiKeys.map((item) => ({
     ...item,
     actualName: item.name,
     serviceKey: item.service,
@@ -142,15 +148,11 @@ const Page = () => {
         name: item.name,
         apikey_object_id: item._id,
         service: apikeyData?.find((api) => api._id === item._id)?.service,
-        comment: item.comment,
         apikey_limit: item?.apikey_limit || 1,
         apikey_usage: 0,
         org_id: item.org_id,
       };
-      const response = await dispatch(updateApikeyAction(dataToSend));
-      if (response) {
-        toast.success("API key reset successfully");
-      }
+      await dispatch(updateApikeyAction(dataToSend));
     },
     [apikeyData, dispatch]
   );
@@ -247,7 +249,7 @@ const Page = () => {
               columnsToShow={API_KEY_COLUMNS}
               sorting
               sortingColumns={["name", "last_used", "apikey_usage"]}
-              keysToWrap={["apikey", "comment"]}
+              keysToWrap={["apikey"]}
               endComponent={EndComponent}
               handleRowClick={(data) => showConnectedAgents(data)}
               keysToExtractOnRowClick={["_id", "name", "version_ids"]}

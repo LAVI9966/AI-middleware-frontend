@@ -19,6 +19,9 @@ import { setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
 import { Check, CircleQuestionMark, ExternalLink } from "lucide-react";
 import RenderNode from "@/components/richUI/RenderNode";
 import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/modals/FullscreenEditorModal";
+import CodeMirror from "@uiw/react-codemirror";
+import { json } from "@codemirror/lang-json";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 
 const AdvancedParameters = ({
   params,
@@ -49,6 +52,7 @@ const AdvancedParameters = ({
   const dropdownContainerRef = useRef(null);
   const dispatch = useDispatch();
   const router = useRouter();
+  const { actualTheme } = useThemeManager();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -251,6 +255,7 @@ const AdvancedParameters = ({
     }
     const existingValue =
       typeof configuration?.[key] === "object" && configuration?.[key] !== null ? configuration?.[key] : {};
+
     let updatedDataToSend = isDeafaultObject
       ? {
           configuration: {
@@ -265,12 +270,12 @@ const AdvancedParameters = ({
             [key]: e.target.value,
           },
         };
-    if (Object.entries(newValue).length > 0) {
+    if (Object.entries(newValue).length > 0 || e.target.value === "json_schema") {
       updatedDataToSend = {
         configuration: {
           [key]: {
             ...existingValue,
-            [defaultValue?.key]: e.target.value,
+            [defaultValue?.key || "type"]: e.target.value,
             [e.target.value]: typeof newValue === "string" ? JSON.parse(newValue) : newValue,
           },
         },
@@ -549,12 +554,7 @@ const AdvancedParameters = ({
                 data-testid={`advanced-param-text-${key}`}
                 id={`advanced-param-text-${key}`}
                 type="text"
-                value={isDefaultValue ? "default" : inputConfiguration?.[key] || ""}
-                onFocus={(e) => {
-                  if (isDefaultValue) {
-                    setSliderValue("", key, isDeafaultObject);
-                  }
-                }}
+                value={inputConfiguration?.[key] === "default" ? "" : inputConfiguration?.[key] || ""}
                 onChange={(e) => {
                   setInputConfiguration((prev) => ({
                     ...prev,
@@ -562,12 +562,16 @@ const AdvancedParameters = ({
                   }));
                 }}
                 onBlur={(e) => {
-                  handleInputChange(e, key);
+                  if (e.target.value === "") {
+                    setSliderValue("default", key, isDeafaultObject);
+                  } else {
+                    handleInputChange(e, key);
+                  }
                 }}
                 className={`input border-base-200 ${inputSizeClass} w-full bg-base-300 text-base-content/70 text-sm`}
                 name={key}
                 disabled={isReadOnly}
-                placeholder=""
+                placeholder="default"
               />
             )}
 
@@ -580,7 +584,7 @@ const AdvancedParameters = ({
                 min={min}
                 max={max}
                 step={step}
-                value={isDefaultValue ? "default" : inputConfiguration?.[key] || 0}
+                value={isDefaultValue ? "" : inputConfiguration?.[key] || 0}
                 onChange={(e) => {
                   setInputConfiguration((prev) => ({
                     ...prev,
@@ -588,11 +592,16 @@ const AdvancedParameters = ({
                   }));
                 }}
                 onBlur={(e) => {
-                  handleInputChange(e, key);
+                  if (e.target.value === "") {
+                    setSliderValue("default", key, isDeafaultObject);
+                  } else {
+                    handleInputChange(e, key);
+                  }
                 }}
                 className={`input border-base-200 ${inputSizeClass} w-full bg-base-300 text-base-content/70 text-sm`}
                 name={key}
                 disabled={isReadOnly}
+                placeholder="default"
               />
             )}
 
@@ -643,7 +652,6 @@ const AdvancedParameters = ({
                             dataToSend: updatedDataToSend,
                           })
                         );
-                        toast.success("Applied default schema with anyOf field");
                         return;
                       } else if (selectedValue === "json_schema") {
                         // Set type to json_schema AND is_template to false
@@ -860,64 +868,88 @@ const AdvancedParameters = ({
                           >
                             Build with AI
                           </span>
+                          <span className="text-xs text-base-content/50">|</span>
+                          <FullscreenEditorButton
+                            tooltip="Open JSON schema in fullscreen"
+                            className=""
+                            onClick={() => {
+                              setJsonSchemaFullscreen(true);
+                            }}
+                          />
                         </div>
                       </div>
 
                       <div className="relative">
-                        <textarea
-                          id={`advanced-param-json-schema-textarea-${key}`}
-                          key={`${key}-${configuration?.[key]}-${objectFieldValue}-${configuration}`}
-                          type="input"
-                          defaultValue={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
-                          onBlur={(e) => {
-                            try {
-                              const parsedValue = JSON.parse(e.target.value);
-
-                              // Trim schema name and all property names
-                              const trimmedValue = {
-                                ...parsedValue,
-                                name: parsedValue.name?.trim(),
-                                schema: parsedValue.schema
-                                  ? {
-                                      ...parsedValue.schema,
-                                      properties: trimPropertyNames(parsedValue.schema.properties),
-                                    }
-                                  : parsedValue.schema,
-                              };
-
-                              handleSelectChange(
-                                { target: { value: "json_schema" } },
-                                key,
-                                defaultValue,
-                                trimmedValue,
-                                true
-                              );
-                            } catch (error) {
-                              console.error(error);
-                              toast.error("Invalid JSON schema");
+                        <div className="w-full text-xs font-mono">
+                          <CodeMirror
+                            id={`advanced-param-json-schema-textarea-${key}`}
+                            value={
+                              objectFieldValue ??
+                              JSON.stringify(
+                                configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
+                                null,
+                                2
+                              )
                             }
-                          }}
-                          className="textarea textarea-bordered w-full h-32 font-mono text-xs pr-8"
-                          placeholder="Enter JSON schema..."
-                          disabled={isReadOnly}
-                        />
-                        <FullscreenEditorButton
-                          tooltip="Open JSON schema in fullscreen"
-                          className="absolute top-1 right-1 opacity-50 hover:opacity-100"
-                          onClick={() => {
-                            setJsonSchemaFullscreen(true);
-                          }}
-                        />
+                            extensions={[json()]}
+                            theme={actualTheme}
+                            editable={!isReadOnly}
+                            onChange={(val) => setObjectFieldValue(val)}
+                            onBlur={() => {
+                              try {
+                                const currentValueToParse =
+                                  objectFieldValue ??
+                                  JSON.stringify(
+                                    configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
+                                    null,
+                                    2
+                                  );
+                                const parsedValue = JSON.parse(currentValueToParse.trim());
+
+                                const trimmedValue = {
+                                  ...parsedValue,
+                                  name: parsedValue.name?.trim(),
+                                  schema: parsedValue.schema
+                                    ? {
+                                        ...parsedValue.schema,
+                                        properties: trimPropertyNames(parsedValue.schema.properties),
+                                      }
+                                    : parsedValue.schema,
+                                };
+
+                                handleSelectChange(
+                                  { target: { value: "json_schema" } },
+                                  key,
+                                  defaultValue,
+                                  trimmedValue,
+                                  true
+                                );
+                              } catch (error) {
+                                console.error(error);
+                                toast.error("Invalid JSON schema");
+                              }
+                            }}
+                            className="border border-base-300 rounded overflow-hidden"
+                            minHeight="128px"
+                          />
+                        </div>
                       </div>
                       <FullscreenEditorModal
                         modalId={MODAL_TYPE.FULLSCREEN_JSON_SCHEMA}
                         title="JSON Schema"
-                        value={objectFieldValue || JSON.stringify(configuration?.[key]?.value || {}, null, 2)}
+                        value={
+                          objectFieldValue ??
+                          JSON.stringify(
+                            configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
+                            null,
+                            2
+                          )
+                        }
                         isOpen={jsonSchemaFullscreen}
                         onClose={() => setJsonSchemaFullscreen(false)}
                         onSave={(finalVal) => {
                           try {
-                            const parsedValue = JSON.parse(finalVal);
+                            const parsedValue = JSON.parse(String(finalVal).trim());
                             const trimmedValue = {
                               ...parsedValue,
                               name: parsedValue.name?.trim(),
@@ -928,7 +960,7 @@ const AdvancedParameters = ({
                                   }
                                 : parsedValue.schema,
                             };
-                            setObjectFieldValue(finalVal);
+                            setObjectFieldValue(JSON.stringify(parsedValue, undefined, 4));
                             handleSelectChange(
                               { target: { value: "json_schema" } },
                               key,
@@ -936,14 +968,17 @@ const AdvancedParameters = ({
                               trimmedValue,
                               true
                             );
+                            return true;
                           } catch (error) {
                             console.error(error);
                             toast.error("Invalid JSON schema");
+                            return false;
                           }
                         }}
                         placeholder="Enter JSON schema..."
                         disabled={isReadOnly}
                         mono
+                        isJson
                       />
                       <JsonSchemaBuilderModal params={params} searchParams={searchParams} isReadOnly={isReadOnly} />
                       <JsonSchemaModal
@@ -1123,7 +1158,7 @@ const AdvancedParameters = ({
                         </div>
                         {Object.values(version_function_data)
                           .filter((func) => {
-                            const funcName = func?.script_id || func?.title || "";
+                            const funcName = integrationData?.[func?.script_id]?.title || func?.title || "";
                             return funcName.toLowerCase().includes(searchQuery.toLowerCase());
                           })
                           .map((func) => (
@@ -1166,7 +1201,10 @@ const AdvancedParameters = ({
                         </div>
                         {Object.entries(connected_agents)
                           .filter(([name, agent]) => {
-                            return name.toLowerCase().includes(searchQuery.toLowerCase());
+                            const agentName = getToolName(agent.bridge_id, allBridgesMap, orgBridges, integrationData);
+                            return String(agentName || name)
+                              .toLowerCase()
+                              .includes(searchQuery.toLowerCase());
                           })
                           .map(([name, agent]) => (
                             <div
