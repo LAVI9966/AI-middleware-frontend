@@ -199,6 +199,10 @@ function ChatTextInput({
   }, [prompt, variablesKeyValue]);
 
   const handleSendMessage = async (e, forceRun = false) => {
+    if (loading || uploading) {
+      return;
+    }
+
     if (inputRef.current) {
       inputRef.current.style.height = "40px"; // Set initial height
     }
@@ -768,7 +772,7 @@ function ChatTextInput({
                 id="chat-attachment-button"
                 tabIndex={0}
                 className={`btn btn-circle transition-all duration-200 ${
-                  uploading ? "btn-disabled bg-base-300" : "btn-ghost hover:btn-primary hover:scale-105"
+                  loading || uploading ? "btn-disabled bg-base-300" : "btn-ghost hover:btn-primary hover:scale-105"
                 }`}
                 disabled={loading || uploading}
               >
