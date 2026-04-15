@@ -85,6 +85,8 @@ export const MODAL_TYPE = {
   MIGRATE_PROMPT_WARNING_MODAL: "MIGRATE_PROMPT_WARNING_MODAL",
   FULLSCREEN_PROMPT: "FULLSCREEN_PROMPT",
   FULLSCREEN_JSON_SCHEMA: "FULLSCREEN_JSON_SCHEMA",
+  CUSTOM_TONE_MODAL: "CUSTOM_TONE_MODAL",
+  CUSTOM_RESPONSE_STYLE_MODAL: "CUSTOM_RESPONSE_STYLE_MODAL",
 };
 
 export const API_KEY_MODAL_INPUT = ["name", "apikey", "apikey_limit"];
@@ -266,6 +268,7 @@ export const HISTORY_FILTER_BY_FIELDS = {
   thread_id: "",
   sub_thread_id: "",
   message_id: "",
+  batch_id: "",
   user: "",
   llm_message: "",
   variables: "",
