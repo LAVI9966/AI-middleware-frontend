@@ -352,6 +352,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                   handleOpenModal={handleOpenModal}
                   embedToken={embedToken}
                   params={params}
+                  versionId={searchParams?.version}
                   name="preFunction"
                   handleRemoveEmbed={removePreFunction}
                   handleOpenDeleteModal={handleOpenDeleteModal}

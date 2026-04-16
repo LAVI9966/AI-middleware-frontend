@@ -214,6 +214,7 @@ const ToolsConfiguration = ({
           handleOpenModal={handleOpenConfigModal}
           embedToken={embedToken}
           params={params}
+          versionId={searchParams?.version}
           handleRemoveEmbed={handleRemoveFunction}
           handleOpenDeleteModal={(functionId) => handleRemoveFunction(functionId)}
           handleChangePreTool={null}

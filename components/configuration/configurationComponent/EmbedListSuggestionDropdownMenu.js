@@ -31,14 +31,16 @@ function EmbedListSuggestionDropdownMenu({
   // Determine if content is read-only (either published or user is not an editor)
   // Use the tutorial videos hook
   const { getFunctionCreationVideo } = useTutorialVideos();
+  const versionId = searchParams?.version;
 
-  const { integrationData, function_data, embedToken } = useCustomSelector((state) => {
+  const { integrationData, function_data, embedToken, variablesPath } = useCustomSelector((state) => {
     const orgId = Number(params?.org_id);
     const orgData = state?.bridgeReducer?.org?.[orgId] || {};
     return {
       integrationData: orgData.integrationData,
       function_data: orgData.functionData,
       embedToken: orgData.embed_token,
+      variablesPath: state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[versionId]?.variables_path || {},
     };
   });
 
@@ -229,16 +231,20 @@ function EmbedListSuggestionDropdownMenu({
                 data-testid="embed-suggestion-add-new-button"
                 id="embed-suggestion-add-new-button"
                 className="border-t border-base-300 w-full sticky bottom-0 bg-base-100 py-2"
-                onClick={() =>
-                  openViasocket(undefined, {
+                onClick={() => {
+                  const payload = {
                     embedToken,
                     meta: {
                       createFrom: name,
                       type: "tool",
                       bridge_id: params?.id,
                     },
-                  })
-                }
+                    dummy_payload: {
+                      variablesPath,
+                    },
+                  };
+                  openViasocket(undefined, payload);
+                }}
               >
                 <div>
                   <AddIcon size={16} />

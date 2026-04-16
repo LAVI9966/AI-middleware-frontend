@@ -32,7 +32,16 @@ export default function Page({ params, searchParams }) {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const orgId = resolvedParams?.org_id;
   const bridgeId = resolvedParams?.id;
-  const { recursiveHistory, recursiveHistoryLoading, embedToken, mainAgentName } = useCustomSelector((state) => {
+  const messageId = resolvedSearchParams?.message_id;
+  const threadId = resolvedSearchParams?.thread_id;
+  const subThreadId = resolvedSearchParams?.subThread_id;
+  const versionId = resolvedSearchParams?.version;
+  const {
+    recursiveHistory,
+    recursiveHistoryLoading,
+    embedToken,
+    mainAgentName,
+  } = useCustomSelector((state) => {
     const recursiveHistory = state?.historyReducer?.recursiveHistory;
     const recursiveHistoryLoading = state?.historyReducer?.recursiveHistoryLoading;
 
@@ -40,6 +49,9 @@ export default function Page({ params, searchParams }) {
 
     const orgAgents = state?.bridgeReducer?.org?.[orgId]?.orgs || [];
     const agent = orgAgents.find((item) => item?._id === bridgeId || item?.id === bridgeId);
+    const versionState = state?.variableReducer?.VariableMapping?.[bridgeId]?.[versionId] || {};
+    const groups = versionState?.groups || [];
+    const activeGroupId = versionState?.activeGroupId;
 
     const mainAgentName = agent?.name || agent?.agent_name || agent?.bridge_name || "main_agent";
 
@@ -50,11 +62,6 @@ export default function Page({ params, searchParams }) {
       mainAgentName,
     };
   });
-
-  const messageId = resolvedSearchParams?.message_id;
-  const threadId = resolvedSearchParams?.thread_id;
-  const subThreadId = resolvedSearchParams?.subThread_id;
-  const versionId = resolvedSearchParams?.version;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
