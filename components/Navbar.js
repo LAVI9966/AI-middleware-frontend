@@ -121,11 +121,18 @@ const Navbar = ({ isEmbedUser, params }) => {
         label: `${bridgeData.bridgeType === "api" ? "Agent" : "Chatbot"} Config`,
         icon: BotIcon,
         shortLabel: `${bridgeData.bridgeType === "api" ? "Agent" : "Chatbot"} Config`,
+        shortcut: "G C",
       },
-      { id: "history", label: "History", icon: MessageCircleMore, shortLabel: "History" },
+      { id: "history", label: "History", icon: MessageCircleMore, shortLabel: "History", shortcut: "G H" },
     ];
     if (!isEmbedUser) {
-      baseTabs.splice(1, 0, { id: "testcase", label: "Test Cases", icon: TestTube, shortLabel: "Tests" });
+      baseTabs.splice(1, 0, {
+        id: "testcase",
+        label: "Test Cases",
+        icon: TestTube,
+        shortLabel: "Tests",
+        shortcut: "G T",
+      });
     }
     return baseTabs;
   }, [isEmbedUser, bridgeType]);
@@ -555,22 +562,25 @@ const Navbar = ({ isEmbedUser, params }) => {
                   />
                   {TABS.map((tab) => {
                     const isActive = activeTab === tab.id;
+                    const formattedShortcut = tab.shortcut.replace(/\s+/g, " + ");
+                    const tabShortcutTooltip = `${formattedShortcut}`;
                     return (
-                      <button
-                        data-testid={`navbar-tab-${tab.id}`}
-                        id={`navbar-tab-${tab.id}`}
-                        key={tab.id}
-                        onClick={() => handleTabChange(tab.id)}
-                        className={`relative z-10 h-8 flex items-center justify-center gap-2 text-sm font-medium transition-colors
+                      <div key={tab.id} className="tooltip tooltip-bottom" data-tip={tabShortcutTooltip}>
+                        <button
+                          data-testid={`navbar-tab-${tab.id}`}
+                          id={`navbar-tab-${tab.id}`}
+                          onClick={() => handleTabChange(tab.id)}
+                          className={`relative z-10 h-8 flex items-center justify-center gap-2 text-sm font-medium transition-colors
                 ${isActive ? "text-primary-content" : "text-base-content/70 hover:text-base-content"}`}
-                        style={{ width: `${TAB_WIDTH}px` }} // 🔒 lock tab width
-                      >
-                        <tab.icon
-                          size={14}
-                          className={`w-3.5 h-3.5 transition-opacity ${isActive ? "opacity-100" : "opacity-60"}`}
-                        />
-                        <span className="truncate text-xs">{isMobile ? tab.shortLabel : tab.label}</span>
-                      </button>
+                          style={{ width: `${TAB_WIDTH}px` }} // 🔒 lock tab width
+                        >
+                          <tab.icon
+                            size={14}
+                            className={`w-3.5 h-3.5 transition-opacity ${isActive ? "opacity-100" : "opacity-60"}`}
+                          />
+                          <span className="truncate text-xs">{isMobile ? tab.shortLabel : tab.label}</span>
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

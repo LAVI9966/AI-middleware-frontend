@@ -25,7 +25,14 @@ import { TrashIcon } from "@/components/Icons";
 import DeleteModal from "@/components/UI/DeleteModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 
-function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions = 2, shouldFetch = true }) {
+function BridgeVersionDropdown({
+  params,
+  searchParams,
+  isEmbedUser,
+  maxVersions = 2,
+  shouldFetch = true,
+  showDropdownOnly = false,
+}) {
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -401,12 +408,14 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
         id="bridge-version-dropdown-empty"
         className="flex items-center gap-2"
       >
-        <PublishBridgeVersionModal
-          params={params}
-          searchParams={searchParams}
-          agent_name={bridgeName}
-          agent_description={versionDescription}
-        />
+        {!showDropdownOnly && (
+          <PublishBridgeVersionModal
+            params={params}
+            searchParams={searchParams}
+            agent_name={bridgeName}
+            agent_description={versionDescription}
+          />
+        )}
         <VersionDescriptionModal
           versionDescriptionRef={versionDescriptionRef}
           handleCreateNewVersion={handleCreateNewVersion}
@@ -588,12 +597,14 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
         </button>
       </div>
 
-      <PublishBridgeVersionModal
-        params={params}
-        searchParams={searchParams}
-        agent_name={bridgeName}
-        agent_description={versionDescription}
-      />
+      {!showDropdownOnly && (
+        <PublishBridgeVersionModal
+          params={params}
+          searchParams={searchParams}
+          agent_name={bridgeName}
+          agent_description={versionDescription}
+        />
+      )}
       <VersionDescriptionModal
         versionDescriptionRef={versionDescriptionRef}
         handleCreateNewVersion={handleCreateNewVersion}
