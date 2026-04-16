@@ -1,5 +1,5 @@
-import CopyButton from "@/components/copyButton/CopyButton";
 import GenericTable from "@/components/table/Table";
+import CodeBlock from "@/components/codeBlock/CodeBlock";
 import Link from "next/link";
 import React from "react";
 
@@ -60,6 +60,12 @@ const Section = ({ title, caption, children }) => (
   </div>
 );
 
+const CodeSnippet = ({ code, language = "bash", id }) => (
+  <div data-testid={id} id={id} className="relative rounded-lg overflow-hidden border border-base-300">
+    <CodeBlock className={`language-${language}`}>{code}</CodeBlock>
+  </div>
+);
+
 const BatchApiGuide = ({ params, searchParams }) => {
   return (
     <div
@@ -93,16 +99,11 @@ const BatchApiGuide = ({ params, searchParams }) => {
         className="flex flex-col gap-4 p-4"
       >
         <Section title="Step 2" caption="Use the Batch API" />
-        <div
-          data-testid="batch-api-guide-curl-code-block"
+        <CodeSnippet
+          code={BatchApi(params.id, searchParams?.version)}
+          language="bash"
           id="batch-api-guide-curl-code-block"
-          className="mockup-code relative"
-        >
-          <CopyButton data={BatchApi(params.id, searchParams?.version)} />
-          <pre className="break-words whitespace-pre-wrap ml-4">
-            <code>{BatchApi(params.id, searchParams?.version)}</code>
-          </pre>
-        </div>
+        />
         <GenericTable headers={headers} data={data} />
         <p className=" text-sm">
           <strong>Note:</strong> Ensure that the 'webhook_url' is correctly set to receive batch processing updates.
@@ -114,16 +115,7 @@ const BatchApiGuide = ({ params, searchParams }) => {
         className="flex flex-col gap-4 p-4"
       >
         <Section title="Response Format" />
-        <div
-          data-testid="batch-api-guide-response-code-block"
-          id="batch-api-guide-response-code-block"
-          className="mockup-code relative"
-        >
-          <CopyButton data={BatchResponseFormat()} />
-          <pre className="break-words whitespace-pre-wrap">
-            <code>{BatchResponseFormat()}</code>
-          </pre>
-        </div>
+        <CodeSnippet code={BatchResponseFormat()} language="json" id="batch-api-guide-response-code-block" />
       </div>
     </div>
   );
