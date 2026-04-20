@@ -209,11 +209,6 @@ const ApiKeyModal = ({
                 data-testid={`apikey-modal-field-${field}-input`}
                 id={field}
                 required={isRequired}
-                onFocus={(e) => {
-                  if (field === "apikey" && isEditing) {
-                    e.target.value = "";
-                  }
-                }}
                 type={
                   (field === "apikey" && isEditing && "password") || (field === "apikey_limit" && "number") || "text"
                 }
