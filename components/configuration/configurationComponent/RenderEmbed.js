@@ -67,6 +67,7 @@ const RenderEmbed = ({
           <div
             className="p-2 flex-1 flex items-center"
             onClick={() => {
+              if (isReadOnly) return;
               if (value?._type === "custom_function" || !value?._type) {
                 openViasocket(functionName, {
                   embedToken,
@@ -77,6 +78,7 @@ const RenderEmbed = ({
                 });
               }
             }}
+            disabled={isReadOnly}
           >
             <div className="flex items-center gap-2 w-full">
               {integrationData?.[functionName]?.serviceIcons?.length > 0 ? (
@@ -108,7 +110,9 @@ const RenderEmbed = ({
           </div>
 
           {/* Action buttons that appear on hover */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1 pr-2 flex-shrink-0">
+          <div
+            className={`opacity-0 ${!isReadOnly ? "group-hover:opacity-100" : ""} transition-opacity duration-200 flex gap-1 pr-2 flex-shrink-0`}
+          >
             <button
               data-testid={`render-embed-config-button-${value?._id}`}
               id={`render-embed-config-button-${value?._id}`}
@@ -190,6 +194,7 @@ const RenderEmbed = ({
     isExpanded,
     toggleExpanded,
     hiddenItemsCount,
+    isReadOnly,
   ]);
 
   return renderEmbed;

@@ -25,7 +25,14 @@ import { TrashIcon } from "@/components/Icons";
 import DeleteModal from "@/components/UI/DeleteModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 
-function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions = 2, shouldFetch = true }) {
+function BridgeVersionDropdown({
+  params,
+  searchParams,
+  isEmbedUser,
+  maxVersions = 2,
+  shouldFetch = true,
+  showDropdownOnly = false,
+}) {
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -401,12 +408,14 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
         id="bridge-version-dropdown-empty"
         className="flex items-center gap-2"
       >
-        <PublishBridgeVersionModal
-          params={params}
-          searchParams={searchParams}
-          agent_name={bridgeName}
-          agent_description={versionDescription}
-        />
+        {!showDropdownOnly && (
+          <PublishBridgeVersionModal
+            params={params}
+            searchParams={searchParams}
+            agent_name={bridgeName}
+            agent_description={versionDescription}
+          />
+        )}
         <VersionDescriptionModal
           versionDescriptionRef={versionDescriptionRef}
           handleCreateNewVersion={handleCreateNewVersion}
@@ -575,25 +584,29 @@ function BridgeVersionDropdown({ params, searchParams, isEmbedUser, maxVersions 
           </div>
         )}
 
-        {/* Create New Version Button */}
-        <button
-          data-testid="create-new-version-button"
-          id="create-new-version-button"
-          onClick={() => openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL)}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-base-100 text-base-content  hover:bg-base-200 rounded-md transition-all duration-200"
-          title="Create New Version"
-        >
-          <Plus className="w-3 h-3" />
-          <span className="hidden sm:inline">New</span>
-        </button>
+        {/* Create New Version Button (available only after first publish) */}
+        {publishedVersion && (
+          <button
+            data-testid="create-new-version-button"
+            id="create-new-version-button"
+            onClick={() => openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL)}
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-base-100 text-base-content  hover:bg-base-200 rounded-md transition-all duration-200"
+            title="Create New Version"
+          >
+            <Plus className="w-3 h-3" />
+            <span className="hidden sm:inline">New</span>
+          </button>
+        )}
       </div>
 
-      <PublishBridgeVersionModal
-        params={params}
-        searchParams={searchParams}
-        agent_name={bridgeName}
-        agent_description={versionDescription}
-      />
+      {!showDropdownOnly && (
+        <PublishBridgeVersionModal
+          params={params}
+          searchParams={searchParams}
+          agent_name={bridgeName}
+          agent_description={versionDescription}
+        />
+      )}
       <VersionDescriptionModal
         versionDescriptionRef={versionDescriptionRef}
         handleCreateNewVersion={handleCreateNewVersion}

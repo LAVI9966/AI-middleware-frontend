@@ -31,8 +31,10 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [showSummaryValidation, setShowSummaryValidation] = useState(false);
   const [summaryAccordionOpen, setSummaryAccordionOpen] = useState(false);
+  const [summaryAutoGenerateTrigger, setSummaryAutoGenerateTrigger] = useState(0);
   const [convertToTemplate, setConvertToTemplate] = useState(false);
   const publishDropdownRef = useRef(null);
+  const lastSummaryAutoGenerateVersionRef = useRef(null);
 
   const {
     bridge,
@@ -115,6 +117,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     !hasApiKeyForActiveService &&
     !(isEmbedUser && showDefaultApikeys) &&
     !isChatbotWithGpt5Nano;
+  const activeVersionId = searchParams?.get("version");
 
   // Memoized form data initialization
   const [formData, setFormData] = useState(() => ({
@@ -333,6 +336,14 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           if (isOpen) {
             // Modal just opened, fetch connected agents
             fetchConnectedAgents();
+            if (
+              (!bridge_summary || bridge_summary.trim() === "") &&
+              lastSummaryAutoGenerateVersionRef.current !== activeVersionId
+            ) {
+              lastSummaryAutoGenerateVersionRef.current = activeVersionId;
+              setSummaryAccordionOpen(true);
+              setSummaryAutoGenerateTrigger((prev) => prev + 1);
+            }
           }
         }
       });
@@ -346,7 +357,13 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
 
     // Cleanup observer on unmount
     return () => observer.disconnect();
-  }, [fetchConnectedAgents]);
+  }, [activeVersionId, bridge_summary, fetchConnectedAgents]);
+
+  useEffect(() => {
+    if (bridge_summary?.trim()) {
+      lastSummaryAutoGenerateVersionRef.current = null;
+    }
+  }, [bridge_summary]);
 
   const { filteredBridgeData, filteredVersionData } = useMemo(() => {
     const filterData = (data, keys) => {
@@ -844,13 +861,16 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               <AgentSummaryContent
                 params={params}
                 prompt={prompt}
-                versionId={searchParams?.get("version")}
+                versionId={activeVersionId}
                 showTitle={false}
                 showButtons={true}
                 onSave={() => setShowSummaryValidation(false)}
                 isMandatory={showSummaryValidation}
                 showValidationError={showSummaryValidation}
                 isEditor={isEditor}
+                showSaveButton={false}
+                autoSave={true}
+                autoGenerateOnEmptyTrigger={summaryAutoGenerateTrigger}
               />
             </div>
           </div>

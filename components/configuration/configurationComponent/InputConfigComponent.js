@@ -213,7 +213,7 @@ const InputConfigComponent = memo(
       (fields) => {
         const valueToSave = { ...fields };
         savePrompt(valueToSave);
-        setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
+        setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "", messages: [] }));
       },
       [savePrompt, setPromptState]
     );
@@ -222,7 +222,7 @@ const InputConfigComponent = memo(
       (fields) => {
         const valueToSave = { ...fields };
         savePrompt(valueToSave);
-        setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
+        setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "", messages: [] }));
       },
       [savePrompt, setPromptState]
     );

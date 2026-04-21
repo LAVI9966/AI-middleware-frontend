@@ -20,6 +20,7 @@ const HistoryPagePromptUpdateModal = ({
 
   const handleClose = () => {
     closeModal(MODAL_TYPE.HISTORY_PAGE_PROMPT_UPDATE_MODAL);
+    closeModal(MODAL_TYPE.EDIT_MESSAGE_MODAL);
   };
 
   const handleSave = (e) => {

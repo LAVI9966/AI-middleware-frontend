@@ -1,23 +1,46 @@
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
+import { MODAL_TYPE } from "@/utils/enums";
+import { openModal } from "@/utils/utility";
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { createPortal } from "react-dom";
 import Dropdown from "@/components/UI/Dropdown";
-import { CircleQuestionMark, Sparkles, CircleAlert } from "lucide-react";
+import { CircleQuestionMark, Sparkles, CircleAlert, Plus } from "lucide-react";
 import InfoTooltip from "@/components/InfoTooltip";
+import AddNewModelModal from "@/components/modals/AddNewModal";
 // Model Preview component to display model specifications
 const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
   if (!hoveredModel || !modelSpecs || !dropdownRef?.current) return null;
 
   // Calculate position relative to dropdown with viewport constraints
   const dropdownRect = dropdownRef.current.getBoundingClientRect();
+
+  // Try to get the dropdown menu element instead of trigger
+  const dropdownMenu = dropdownRef.current?.querySelector(".dropdown-content");
+  const targetRect = dropdownMenu ? dropdownMenu.getBoundingClientRect() : dropdownRect;
   const viewportHeight = window.innerHeight;
+
+  const modalWidth = 260;
+  const viewportWidth = window.innerWidth;
+  let leftPosition;
+
+  const rightPosition = targetRect?.right;
+  if (rightPosition + modalWidth <= viewportWidth) {
+    leftPosition = rightPosition;
+  } else {
+    const leftSidePosition = targetRect?.left - modalWidth;
+    if (leftSidePosition >= 0) {
+      leftPosition = leftSidePosition;
+    } else {
+      leftPosition = Math.max(10, targetRect?.left + targetRect?.width / 2 - modalWidth / 2);
+    }
+  }
 
   const previewStyle = {
     position: "fixed",
     top: Math.max(20, dropdownRect?.top - 50),
-    left: dropdownRect?.right + -125, // Position to the right of dropdown
+    left: leftPosition,
     zIndex: 99999,
     maxHeight: `${viewportHeight}px`,
     overflowY: "auto",
@@ -273,6 +296,9 @@ const ModelDropdown = ({
     setModelSpecs(opt?.meta?.specs);
   }, []);
 
+  const handleAddModelClick = useCallback(() => {
+    openModal(MODAL_TYPE.ADD_NEW_MODEL_MODAL);
+  }, []);
   const showFallbackModelHint = ((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && modelType !== "image";
 
   return (
@@ -321,6 +347,12 @@ const ModelDropdown = ({
               onChange={handleSelect}
               onOptionHover={handleOptionHover}
               showGroupHeaders
+              bottomOption={{
+                label: "Add Model",
+                icon: Plus,
+                onClick: handleAddModelClick,
+                testId: "model-dropdown-add-model",
+              }}
               placeholder="Select model"
               size="sm"
               className="flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 border-base-200 text-base-content h-8 min-w-[150px]"
@@ -384,6 +416,8 @@ const ModelDropdown = ({
             />
           </div>
         )}
+
+        <AddNewModelModal />
       </div>
     </>
   );

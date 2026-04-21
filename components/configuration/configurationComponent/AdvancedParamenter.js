@@ -461,7 +461,7 @@ const AdvancedParameters = ({
 
     const name = ADVANCED_BRIDGE_PARAMETERS?.[key]?.name || key;
     const description = ADVANCED_BRIDGE_PARAMETERS?.[key]?.description || "";
-    const isDefaultValue = configuration?.[key] === "default";
+    const isDefaultValue = configuration?.[key] === "default" || configuration?.[key] === undefined;
     // Check if this parameter has a default value defined in model info
     const hasDefaultValue = modelInfoData?.[key]?.default !== undefined;
     const inputSizeClass = "input-sm h-8";
@@ -1117,7 +1117,8 @@ const AdvancedParameters = ({
                       />
                     </div>
                     {/* Static options (auto, none, required) */}
-                    {options &&
+                    {!searchQuery &&
+                      options &&
                       options.map((option) => (
                         <div
                           id={`advanced-param-dropdown-option-${key}-${option}`}
