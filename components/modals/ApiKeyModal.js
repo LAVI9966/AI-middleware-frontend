@@ -37,6 +37,7 @@ const ApiKeyModal = ({
   const orgId = path[2] || "";
   const dispatch = useDispatch();
   const { SERVICES } = useCustomSelector((state) => ({ SERVICES: state?.serviceReducer?.services }));
+  const lockedService = service || selectedService || "";
 
   // Reset ischanged state when modal opens/closes
   useEffect(() => {
@@ -55,7 +56,7 @@ const ApiKeyModal = ({
       const currentData = {
         name: formData.get("name") || "",
         apikey: formData.get("apikey") || "",
-        service: service || formData.get("service") || "",
+        service: lockedService || formData.get("service") || "",
         apikey_limit: formData.get("apikey_limit") || "",
         apikey_limit_reset_period: formData.get("apikey_limit_reset_period") || "",
       };
@@ -70,7 +71,7 @@ const ApiKeyModal = ({
         const hasChanges =
           currentData.name !== (selectedApiKey.name || "") ||
           currentData.apikey !== (selectedApiKey.apikey || "") ||
-          currentData.service !== (selectedApiKey.service || service || "") ||
+          currentData.service !== lockedService ||
           (currentData.apikey_limit !== "" &&
             Number(currentData.apikey_limit) !== Number(selectedApiKey.apikey_limit || 0)) ||
           currentData.apikey_limit_reset_period !== (selectedApiKey.apikey_limit_reset_period || "");
@@ -87,7 +88,7 @@ const ApiKeyModal = ({
         }));
       }
     },
-    [isEditing, selectedApiKey, service]
+    [isEditing, selectedApiKey, lockedService]
   );
 
   const handleClose = useCallback(() => {
@@ -103,7 +104,7 @@ const ApiKeyModal = ({
       const formData = new FormData(event.target);
       const data = {
         name: formData.get("name"),
-        service: service || formData.get("service"),
+        service: lockedService || formData.get("service"),
         apikey: formData.get("apikey"),
         apikey_limit: Number(formData.get("apikey_limit")) || 0,
         apikey_limit_reset_period: formData.get("apikey_limit_reset_period") || "",
@@ -176,7 +177,7 @@ const ApiKeyModal = ({
     [
       isEditing,
       selectedApiKey,
-      service,
+      lockedService,
       apikeyData,
       orgId,
       dispatch,
@@ -287,9 +288,9 @@ const ApiKeyModal = ({
             id="service"
             name="service"
             className="select select-sm select-bordered"
-            key={selectedApiKey?.service || service}
-            defaultValue={service || (selectedApiKey ? selectedApiKey.service : "")}
-            disabled={service || (selectedApiKey && selectedApiKey.service)}
+            key={lockedService || "service-select"}
+            defaultValue={lockedService || ""}
+            disabled={Boolean(lockedService)}
             onChange={handleFormChange}
             required
           >
