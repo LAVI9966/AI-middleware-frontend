@@ -6,7 +6,12 @@ import { useDispatch } from "react-redux";
 import EmbedListSuggestionDropdownMenu from "./EmbedListSuggestionDropdownMenu";
 import FunctionParameterModal from "./FunctionParameterModal";
 import { GetPreBuiltToolTypeIcon, openModal } from "@/utils/utility";
-import { MODAL_TYPE } from "@/utils/enums";
+import {
+  MODAL_TYPE,
+  WEB_SEARCH_PREBUILT_TOOL_VALUES,
+  WEB_SEARCH_WARNING_CLASS,
+  WEB_SEARCH_TOKEN_WARNING,
+} from "@/utils/enums";
 import { cleanVariablesPathByFields } from "@/utils/variableValidation";
 import RenderEmbed from "./RenderEmbed";
 import { isEqual } from "lodash";
@@ -15,7 +20,7 @@ import { AddIcon, TrashIcon, SettingsIcon } from "@/components/Icons";
 import DeleteModal from "@/components/UI/DeleteModal";
 import PrebuiltToolsConfigModal from "@/components/modals/PrebuiltToolsConfigModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
-import { CircleQuestionMark } from "lucide-react";
+import { AlertTriangle, CircleQuestionMark } from "lucide-react";
 
 function getStatusClass(status) {
   switch (status?.toString().trim().toLowerCase()) {
@@ -381,6 +386,7 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                     {/* Render selected Prebuilt Tools with same UI */}
                     {selectedPrebuiltTools.map((item) => {
                       const missingDesc = !item?.description;
+                      const isWebSearchTool = WEB_SEARCH_PREBUILT_TOOL_VALUES.has(item?.value);
                       const isNotSupported =
                         !showInbuiltTools ||
                         (Array.isArray(showInbuiltTools)
@@ -393,7 +399,9 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                           data-testid={`embed-list-prebuilt-tool-${item?.value}`}
                           key={item?.value}
                           id={`embed-list-prebuilt-tool-${item?.value}`}
-                          className={`group flex w-full items-center border border-base-200 cursor-pointer bg-base-100 relative ${hasIssue ? "border-error" : ""} transition-colors duration-200 min-h-[44px]`}
+                          className={`group flex w-full items-center border cursor-pointer bg-base-100 relative ${
+                            hasIssue ? "border-error" : isWebSearchTool ? WEB_SEARCH_WARNING_CLASS : "border-base-200"
+                          } transition-colors duration-200 min-h-[44px]`}
                         >
                           <div className="p-2 flex-1 flex items-center gap-2">
                             {GetPreBuiltToolTypeIcon(item?.value, 16, 16)}
@@ -445,6 +453,23 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                               <TrashIcon size={16} />
                             </button>
                           </div>
+                          {isWebSearchTool && (
+                            <span
+                              className="pr-2"
+                              onClick={(event) => event.stopPropagation()}
+                              onMouseDown={(event) => event.stopPropagation()}
+                            >
+                              <InfoTooltip tooltipContent={WEB_SEARCH_TOKEN_WARNING}>
+                                <button
+                                  type="button"
+                                  aria-label="Web Search token usage warning"
+                                  className="btn btn-ghost btn-sm p-1 text-warning hover:bg-warning/10"
+                                >
+                                  <AlertTriangle size={16} />
+                                </button>
+                              </InfoTooltip>
+                            </span>
+                          )}
                         </div>
                       );
                     })}

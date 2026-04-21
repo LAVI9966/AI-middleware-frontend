@@ -93,6 +93,11 @@ export const API_KEY_MODAL_INPUT = ["name", "apikey", "apikey_limit"];
 
 export const USER_FEEDBACK_FILTER_OPTIONS = ["all", "1", "2"];
 
+export const WEB_SEARCH_PREBUILT_TOOL_VALUES = new Set(["web_search", "Gtwy_Web_Search"]);
+export const WEB_SEARCH_WARNING_CLASS = "border-warning/40 bg-warning/5";
+export const WEB_SEARCH_TOKEN_WARNING =
+  "Selecting Web Search can cause heavy token utilization and may exceed 10,000 tokens.";
+
 export const CONFIG_HISTORY_FILTER_KEYS = {
   USER_IDS: "user_ids",
   TYPES: "types",

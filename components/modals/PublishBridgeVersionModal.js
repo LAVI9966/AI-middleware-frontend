@@ -1172,7 +1172,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               </label>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 ml-auto">
               <button id="publish-cancel-button" className="btn btn-sm" onClick={handleCloseModal} disabled={isLoading}>
                 Cancel
               </button>
