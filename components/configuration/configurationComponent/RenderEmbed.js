@@ -1,6 +1,11 @@
 import React, { useMemo } from "react";
 import { SettingsIcon, TrashIcon, RefreshIcon, SquareFunctionIcon } from "@/components/Icons";
 import useExpandableList from "@/customHooks/useExpandableList";
+import InfoTooltip from "@/components/InfoTooltip";
+import { AlertTriangle } from "lucide-react";
+
+const WEB_SEARCH_WARNING_CLASS = "border-warning/40";
+const WEB_SEARCH_TOKEN_WARNING = "Selecting Web Search can cause heavy token utilization and may exceed 10,000 tokens.";
 
 const RenderEmbed = ({
   bridgeFunctions,
@@ -44,13 +49,20 @@ const RenderEmbed = ({
     const embedItems = displayItems?.map((value) => {
       const functionName = value?.script_id;
       const title = value?.title || integrationData?.[functionName]?.title;
+      const isWebSearchPreTool = value?._type === "gtwy_web_search";
 
       return (
         <div
           data-testid={`render-embed-item-${value?._id}`}
           key={value?._id}
           id={value?._id}
-          className={`group flex items-center border border-base-200 cursor-pointer bg-base-100 relative min-h-[44px] w-full ${value?.description?.trim() === "" ? "border-red-600" : ""} transition-colors duration-200`}
+          className={`group flex items-center border cursor-pointer bg-base-100 relative min-h-[44px] w-full ${
+            value?.description?.trim() === ""
+              ? "border-red-600"
+              : isWebSearchPreTool
+                ? WEB_SEARCH_WARNING_CLASS
+                : "border-base-200"
+          } transition-colors duration-200`}
         >
           <div
             className="p-2 flex-1 flex items-center"
@@ -138,6 +150,23 @@ const RenderEmbed = ({
               <TrashIcon size={16} />
             </button>
           </div>
+          {isWebSearchPreTool && (
+            <span
+              className="pr-2"
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <InfoTooltip tooltipContent={WEB_SEARCH_TOKEN_WARNING}>
+                <button
+                  type="button"
+                  aria-label="Web Search token usage warning"
+                  className="btn btn-ghost btn-sm p-1 text-warning"
+                >
+                  <AlertTriangle size={16} />
+                </button>
+              </InfoTooltip>
+            </span>
+          )}
         </div>
       );
     });
