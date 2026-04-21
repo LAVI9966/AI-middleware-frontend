@@ -153,7 +153,7 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
 
                       let displayValue = value;
                       let rawSystemPrompt;
-                      if (key === "system Prompt" && typeof value === "string") {
+                      if (key === "prompt" && typeof value === "string") {
                         rawSystemPrompt = replaceVariablesInPrompt(value);
                         displayValue = rawSystemPrompt;
                       }
