@@ -148,6 +148,8 @@ const Navbar = ({ isEmbedUser, params }) => {
     return isMobile ? 90 : 120; // px
   }, [isMobile]);
 
+  const canRevertDraft = useMemo(() => isDrafted && publishedVersionId != null, [isDrafted, publishedVersionId]);
+
   const shouldShowNavbar = useCallback(() => {
     const depth = pathParts.length;
     if (depth === 3) return false;
@@ -614,35 +616,37 @@ const Navbar = ({ isEmbedUser, params }) => {
               {/* Publish/Discard Dropdown - Fixed Position */}
               {activeTab == "configure" && (
                 <div className="flex items-center">
-                  <div className="dropdown dropdown-end">
-                    <button
-                      data-testid="navbar-publish-dropdown-toggle"
-                      id="navbar-publish-dropdown-toggle"
-                      tabIndex={0}
-                      role="button"
-                      className={`inline-flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-primary/90 rounded-md gap-1 lg:gap-1.5 px-2 lg:px-3 has-[>svg]:px-2 lg:has-[>svg]:px-2.5 h-8 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm shadow-lg shadow-emerald-500/20 transition-all duration-200 font-medium min-w-0 ${isPublishing ? "loading" : ""}`}
-                      disabled={isPublishing || isPublished}
-                    >
-                      <span className="text-white text-sm truncate">{isPublishing ? "Publishing..." : "Publish"}</span>
-                      {!isPublishing && <ChevronDown size={12} className="text-white" />}
-                    </button>
-                    <ul
-                      tabIndex={0}
-                      className="dropdown-content menu bg-base-100 rounded-box z-very-high w-52 p-2 shadow border border-base-200"
-                    >
-                      <li>
-                        <button
-                          data-testid="navbar-publish-button"
-                          id="navbar-publish-button"
-                          onClick={handlePublish}
-                          disabled={!isDrafted || isPublishing || isPublished}
-                          className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <BookCheck size={14} className="text-success" />
-                          <span>Publish</span>
-                        </button>
-                      </li>
-                      {isDrafted && publishedVersionId != null && (
+                  {canRevertDraft ? (
+                    <div className="dropdown dropdown-end">
+                      <button
+                        data-testid="navbar-publish-dropdown-toggle"
+                        id="navbar-publish-dropdown-toggle"
+                        tabIndex={0}
+                        role="button"
+                        className={`inline-flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-primary/90 rounded-md gap-1 lg:gap-1.5 px-2 lg:px-3 has-[>svg]:px-2 lg:has-[>svg]:px-2.5 h-8 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm shadow-lg shadow-emerald-500/20 transition-all duration-200 font-medium min-w-0 ${isPublishing ? "loading" : ""}`}
+                        disabled={isPublishing || isPublished}
+                      >
+                        <span className="text-white text-sm truncate">
+                          {isPublishing ? "Publishing..." : "Publish"}
+                        </span>
+                        {!isPublishing && <ChevronDown size={12} className="text-white" />}
+                      </button>
+                      <ul
+                        tabIndex={0}
+                        className="dropdown-content menu bg-base-100 rounded-box z-very-high w-52 p-2 shadow border border-base-200"
+                      >
+                        <li>
+                          <button
+                            data-testid="navbar-publish-button"
+                            id="navbar-publish-button"
+                            onClick={handlePublish}
+                            disabled={!isDrafted || isPublishing || isPublished}
+                            className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <BookCheck size={14} className="text-success" />
+                            <span>Publish</span>
+                          </button>
+                        </li>
                         <li>
                           <button
                             data-testid="navbar-revert-button"
@@ -655,9 +659,20 @@ const Navbar = ({ isEmbedUser, params }) => {
                             <span>Revert</span>
                           </button>
                         </li>
-                      )}
-                    </ul>
-                  </div>
+                      </ul>
+                    </div>
+                  ) : (
+                    <button
+                      data-testid="navbar-publish-button"
+                      id="navbar-publish-button"
+                      onClick={handlePublish}
+                      disabled={!isDrafted || isPublishing || isPublished}
+                      className={`inline-flex items-center justify-center whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive hover:bg-primary/90 rounded-md gap-1 lg:gap-1.5 px-2 lg:px-3 has-[>svg]:px-2 lg:has-[>svg]:px-2.5 h-8 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm shadow-lg shadow-emerald-500/20 transition-all duration-200 font-medium min-w-0 ${isPublishing ? "loading" : ""}`}
+                    >
+                      {!isPublishing && <BookCheck size={12} className="text-white" />}
+                      <span className="text-white text-sm truncate">{isPublishing ? "Publishing..." : "Publish"}</span>
+                    </button>
+                  )}
                 </div>
               )}
               {/* Ellipsis menu - Fixed Position */}
@@ -776,34 +791,34 @@ const Navbar = ({ isEmbedUser, params }) => {
             )}
 
             {/* Mobile Publish/Discard Dropdown */}
-            <div className="dropdown dropdown-end flex-1">
-              <div
-                id="navbar-mobile-publish-dropdown-toggle"
-                tabIndex={0}
-                role="button"
-                className={`btn btn-xs bg-success gap-1 w-full rounded-full ${isPublishing ? "loading" : ""}`}
-                disabled={isPublishing}
-              >
-                {!isPublishing && <BookCheck size={12} className="text-black" />}
-                <span className="text-black text-xs">{isPublishing ? "Publishing..." : "Publish"}</span>
-                {!isPublishing && <ChevronDown size={10} className="text-black" />}
-              </div>
-              <ul
-                tabIndex={0}
-                className="dropdown-content menu bg-base-100 rounded-box z-very-high w-48 p-2 shadow border border-base-200"
-              >
-                <li>
-                  <button
-                    id="navbar-mobile-publish-button"
-                    onClick={handlePublish}
-                    disabled={!isDrafted || isPublishing}
-                    className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <BookCheck size={14} className="text-green-600" />
-                    <span>Publish</span>
-                  </button>
-                </li>
-                {isDrafted && (
+            {canRevertDraft ? (
+              <div className="dropdown dropdown-end flex-1">
+                <div
+                  id="navbar-mobile-publish-dropdown-toggle"
+                  tabIndex={0}
+                  role="button"
+                  className={`btn btn-xs bg-success gap-1 w-full rounded-full ${isPublishing ? "loading" : ""}`}
+                  disabled={isPublishing}
+                >
+                  {!isPublishing && <BookCheck size={12} className="text-black" />}
+                  <span className="text-black text-xs">{isPublishing ? "Publishing..." : "Publish"}</span>
+                  {!isPublishing && <ChevronDown size={10} className="text-black" />}
+                </div>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content menu bg-base-100 rounded-box z-very-high w-48 p-2 shadow border border-base-200"
+                >
+                  <li>
+                    <button
+                      id="navbar-mobile-publish-button"
+                      onClick={handlePublish}
+                      disabled={!isDrafted || isPublishing}
+                      className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <BookCheck size={14} className="text-green-600" />
+                      <span>Publish</span>
+                    </button>
+                  </li>
                   <li>
                     <button
                       id="navbar-mobile-revert-button"
@@ -815,9 +830,19 @@ const Navbar = ({ isEmbedUser, params }) => {
                       <span>Discard</span>
                     </button>
                   </li>
-                )}
-              </ul>
-            </div>
+                </ul>
+              </div>
+            ) : (
+              <button
+                id="navbar-mobile-publish-button"
+                onClick={handlePublish}
+                disabled={!isDrafted || isPublishing}
+                className={`btn btn-xs bg-success gap-1 w-full rounded-full ${isPublishing ? "loading" : ""}`}
+              >
+                {!isPublishing && <BookCheck size={12} className="text-black" />}
+                <span className="text-black text-xs">{isPublishing ? "Publishing..." : "Publish"}</span>
+              </button>
+            )}
           </div>
         </div>
       )}

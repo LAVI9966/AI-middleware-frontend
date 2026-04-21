@@ -584,17 +584,19 @@ function BridgeVersionDropdown({
           </div>
         )}
 
-        {/* Create New Version Button */}
-        <button
-          data-testid="create-new-version-button"
-          id="create-new-version-button"
-          onClick={() => openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL)}
-          className="flex items-center gap-1 px-2 py-1 text-xs bg-base-100 text-base-content  hover:bg-base-200 rounded-md transition-all duration-200"
-          title="Create New Version"
-        >
-          <Plus className="w-3 h-3" />
-          <span className="hidden sm:inline">New</span>
-        </button>
+        {/* Create New Version Button (available only after first publish) */}
+        {publishedVersion && (
+          <button
+            data-testid="create-new-version-button"
+            id="create-new-version-button"
+            onClick={() => openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL)}
+            className="flex items-center gap-1 px-2 py-1 text-xs bg-base-100 text-base-content  hover:bg-base-200 rounded-md transition-all duration-200"
+            title="Create New Version"
+          >
+            <Plus className="w-3 h-3" />
+            <span className="hidden sm:inline">New</span>
+          </button>
+        )}
       </div>
 
       {!showDropdownOnly && (
