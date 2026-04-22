@@ -8,11 +8,28 @@ import { preprocessPrompt } from "@/utils/promptUtils";
 import { PROMPT_SECTION_CONFIG } from "@/utils/enums";
 
 const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
-  const { apikeyData, functionData, knowledgeBaseData } = useCustomSelector((state) => ({
+  const { apikeyData, functionData, knowledgeBaseData, orgAgents, allBridgesMap } = useCustomSelector((state) => ({
     apikeyData: state?.apiKeysReducer?.apikeys[params.org_id] || [],
     functionData: state?.bridgeReducer?.org[params.org_id]?.functionData || {},
     knowledgeBaseData: state?.knowledgeBaseReducer?.knowledgeBaseData?.[params.org_id] || [],
+    orgAgents: state?.bridgeReducer?.org?.[params.org_id]?.orgs || [],
+    allBridgesMap: state?.bridgeReducer?.allBridgesMap || {},
   }));
+
+  const bridgeIdToNameMap = useMemo(() => {
+    const idToName = {};
+    orgAgents.forEach((agent) => {
+      if (agent?._id) {
+        idToName[agent._id] = agent?.name || idToName[agent._id];
+      }
+    });
+    Object.entries(allBridgesMap || {}).forEach(([id, agent]) => {
+      if (id) {
+        idToName[id] = agent?.name || idToName[id];
+      }
+    });
+    return idToName;
+  }, [orgAgents, allBridgesMap]);
 
   // Get status badge
   const getStatusBadge = (status) => {
@@ -181,13 +198,58 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
       return JSON.stringify(value);
     }
 
+    // Handle tool_choice values (show tool title instead of tool id)
+    if (key.includes("tool_choice")) {
+      const resolveToolName = (toolId) => {
+        if (!toolId || typeof toolId !== "string") return toolId;
+        const matchedTool = Object.values(functionData || {}).find((item) => item?._id === toolId);
+        return matchedTool?.title || matchedTool?.name || toolId;
+      };
+
+      if (typeof value === "string") {
+        return resolveToolName(value);
+      }
+
+      if (Array.isArray(value)) {
+        return value.map((item) => (typeof item === "string" ? resolveToolName(item) : item)).join(", ");
+      }
+
+      if (value && typeof value === "object") {
+        const transformed = { ...value };
+        ["id", "tool_id", "function_id"].forEach((candidateKey) => {
+          if (typeof transformed[candidateKey] === "string") {
+            transformed[candidateKey] = resolveToolName(transformed[candidateKey]);
+          }
+        });
+        return (
+          <pre className="text-xs whitespace-pre-wrap break-all max-h-40 overflow-auto">
+            {JSON.stringify(transformed, null, 2)}
+          </pre>
+        );
+      }
+    }
+
     // Handle document IDs
     if (rootKey === "doc_ids") {
       if (Array.isArray(value) && value.length > 0) {
-        const kbItems = knowledgeBaseData?.filter((item) => value.includes(item?._id));
-        if (kbItems?.length > 0) {
-          return kbItems.map((item) => item?.name || item?._id).join(", ");
-        }
+        const labels = value.map((docItem) => {
+          if (typeof docItem === "string") {
+            const kbItem = knowledgeBaseData?.find((item) => item?._id === docItem);
+            return kbItem?.title || kbItem?.name || docItem;
+          }
+          if (docItem && typeof docItem === "object") {
+            return (
+              docItem.name ||
+              docItem.title ||
+              docItem.resource_id ||
+              docItem._id ||
+              docItem.id ||
+              JSON.stringify(docItem)
+            );
+          }
+          return String(docItem);
+        });
+        return labels.join(", ");
       }
       return JSON.stringify(value);
     }
@@ -252,11 +314,17 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
         if (CONFIGURATION_KEYS_TO_EXCLUDE.includes(configKey)) return;
       }
 
-      if (
+      const isOldEmpty =
         diff.oldValue === undefined ||
         diff.oldValue === null ||
-        (Array.isArray(diff.oldValue) && diff.oldValue.length === 0)
-      ) {
+        (Array.isArray(diff.oldValue) && diff.oldValue.length === 0);
+      const isNewEmpty =
+        diff.newValue === undefined ||
+        diff.newValue === null ||
+        (Array.isArray(diff.newValue) && diff.newValue.length === 0);
+
+      // Skip only when both sides are empty; keep added/removed/changed fields visible.
+      if (isOldEmpty && isNewEmpty) {
         return;
       }
 
@@ -288,13 +356,53 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
                   // "prompt.customPrompt", or any embed field under prompt
                   const promptSubFieldKey = path.startsWith("prompt.") ? path.slice("prompt.".length) : null;
                   const isPromptField = path === "prompt" || promptSubFieldKey !== null;
+                  const pathParts = path.split(".");
+                  const isConnectedAgentPath = pathParts[0] === "connected_agents";
+
+                  const resolveConnectedAgentName = () => {
+                    if (!isConnectedAgentPath) return "";
+
+                    const connectionKey = pathParts[1];
+                    if (bridgeIdToNameMap[connectionKey]) {
+                      return bridgeIdToNameMap[connectionKey];
+                    }
+
+                    if (typeof oldValue === "string" && bridgeIdToNameMap[oldValue]) {
+                      return bridgeIdToNameMap[oldValue];
+                    }
+                    if (typeof newValue === "string" && bridgeIdToNameMap[newValue]) {
+                      return bridgeIdToNameMap[newValue];
+                    }
+
+                    if (
+                      oldValue &&
+                      typeof oldValue === "object" &&
+                      oldValue.bridge_id &&
+                      bridgeIdToNameMap[oldValue.bridge_id]
+                    ) {
+                      return bridgeIdToNameMap[oldValue.bridge_id];
+                    }
+                    if (
+                      newValue &&
+                      typeof newValue === "object" &&
+                      newValue.bridge_id &&
+                      bridgeIdToNameMap[newValue.bridge_id]
+                    ) {
+                      return bridgeIdToNameMap[newValue.bridge_id];
+                    }
+
+                    return "";
+                  };
+                  const connectedAgentName = resolveConnectedAgentName();
 
                   // Label: use PROMPT_SECTION_CONFIG label for known prompt sub-fields, else DIFFERNCE_DATA_DISPLAY_NAME
-                  const leafKey = path.split(".").at(-1);
+                  const leafKey = pathParts.at(-1);
                   const displayLabel =
-                    promptSubFieldKey && PROMPT_SECTION_CONFIG[promptSubFieldKey]?.label
-                      ? PROMPT_SECTION_CONFIG[promptSubFieldKey].label
-                      : DIFFERNCE_DATA_DISPLAY_NAME(leafKey);
+                    isConnectedAgentPath && connectedAgentName
+                      ? connectedAgentName
+                      : promptSubFieldKey && PROMPT_SECTION_CONFIG[promptSubFieldKey]?.label
+                        ? PROMPT_SECTION_CONFIG[promptSubFieldKey].label
+                        : DIFFERNCE_DATA_DISPLAY_NAME(leafKey);
 
                   return (
                     <div key={path} data-testid={`comparison-card-${path}`} className="card bg-base-200">
@@ -312,11 +420,15 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <div className="text-xs text-gray-500 mb-1">Current Value:</div>
-                              <div className="bg-base-300 p-3 rounded text-sm">{formatValue(oldValue, path)}</div>
+                              <div className="bg-base-300 p-3 rounded text-sm break-all whitespace-pre-wrap overflow-hidden">
+                                {formatValue(oldValue, path)}
+                              </div>
                             </div>
                             <div>
                               <div className="text-xs text-gray-500 mb-1">Updated Value:</div>
-                              <div className="bg-base-300 p-3 rounded text-sm">{formatValue(newValue, path)}</div>
+                              <div className="bg-base-300 p-3 rounded text-sm break-all whitespace-pre-wrap overflow-hidden">
+                                {formatValue(newValue, path)}
+                              </div>
                             </div>
                           </div>
                         )}

@@ -68,6 +68,7 @@ export const AgentSummaryContent = memo(
     params,
     autoGenerateSummary = false,
     setAutoGenerateSummary = () => {},
+    onGeneratingChange = () => {},
     showTitle = true,
     showButtons = true,
     onSave = () => {},
@@ -168,6 +169,7 @@ export const AgentSummaryContent = memo(
       }
       isGeneratingSummaryRef.current = true;
       setIsGeneratingSummary(true);
+      onGeneratingChange(true);
       try {
         const result = await dispatch(genrateSummaryAction({ versionId: versionId }));
         if (result) {
@@ -181,8 +183,9 @@ export const AgentSummaryContent = memo(
       } finally {
         isGeneratingSummaryRef.current = false;
         setIsGeneratingSummary(false);
+        onGeneratingChange(false);
       }
-    }, [autoSave, dispatch, prompt, saveSummary, setAutoGenerateSummary, versionId]);
+    }, [autoSave, dispatch, onGeneratingChange, prompt, saveSummary, setAutoGenerateSummary, versionId]);
 
     // Auto-generate summary when flag is true
     useEffect(() => {
@@ -258,13 +261,22 @@ export const AgentSummaryContent = memo(
         )}
 
         <div className="space-y-2">
-          <OptimizedTextarea
-            value={displayValue}
-            onChange={handleTextareaChange}
-            className={validationProps.textareaClassName}
-            placeholder="Enter agent summary..."
-            disabled={isGeneratingSummary}
-          />
+          <div className="relative">
+            {isGeneratingSummary ? (
+              <div className="flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content/70">
+                <span className="loading loading-spinner loading-xs text-primary" />
+                Generating summary...
+              </div>
+            ) : (
+              <OptimizedTextarea
+                value={displayValue}
+                onChange={handleTextareaChange}
+                className={validationProps.textareaClassName}
+                placeholder="Enter agent summary..."
+                disabled={false}
+              />
+            )}
+          </div>
           {showSaveButton && (
             <div className="flex gap-2">
               <button

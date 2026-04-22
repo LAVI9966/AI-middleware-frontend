@@ -27,6 +27,7 @@ const Dropdown = ({
   testId = "dropdown",
   hasError = false,
   bottomOption = null,
+  isEmbedUser = false,
 }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -399,7 +400,7 @@ const Dropdown = ({
             </ul>
           </div>
 
-          {bottomOption && (
+          {bottomOption && !isEmbedUser && (
             <div className="border-t border-base-content/10 p-1">
               <button
                 data-testid={bottomOption.testId || `${testId}-bottom-option`}

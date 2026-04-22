@@ -86,6 +86,7 @@ export const parameterTypes = ["string", "number", "boolean", "object", "array"]
 export const KEYS_TO_COMPARE = [
   "configuration",
   "service",
+  "cache_on",
   "org_id",
   "apikey_object_id",
   "gpt_memory",
@@ -110,6 +111,8 @@ export const DIFFERNCE_DATA_DISPLAY_NAME = (key) => {
       return "Tools";
     case "service":
       return "Service Provider";
+    case "cache_on":
+      return "Allow Cached Response";
     case "apikey_object_id":
       return "API Key";
     case "doc_ids":
