@@ -803,7 +803,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                         message?.llm_urls?.length > 0 ||
                         message?.image_urls?.length > 0) && (
                         <div
-                          className={`flex gap-2 show-on-hover justify-start w-full max-w-[700px] min-w-0 items-center relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
+                          className={`flex gap-2 show-on-hover ${message.sender === "user" ? "justify-end" : "justify-start"} w-full max-w-[700px] min-w-0 items-center relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
                         >
                           {message?.sender === "user" && message?.content && (
                             <button
@@ -890,12 +890,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           ) : (
                             /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
                             <div
-                              className={`break-words gap-0 justify-start relative w-full min-w-0 max-w-full ${
+                              className={`break-words gap-0 justify-start relative min-w-0 ${message.sender === "user" ? "ml-auto" : ""} ${
                                 message.sender === "assistant"
-                                  ? "mr-8 bg-transparent p-0"
+                                  ? "mr-8 w-full bg-transparent p-0"
                                   : message.sender === "error"
-                                    ? "chat-bubble overflow-hidden bg-error/10 border border-error/30 text-error"
-                                    : "chat-bubble"
+                                    ? "chat-bubble w-fit max-w-[75%] overflow-hidden bg-error/10 border border-error/30 text-error"
+                                    : "chat-bubble w-fit max-w-[75%]"
                               } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0" : ""}`}
                             >
                               {/* Show loader overlay if this is the message being tested */}

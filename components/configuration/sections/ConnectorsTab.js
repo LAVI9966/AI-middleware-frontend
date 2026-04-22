@@ -12,7 +12,7 @@ const ConnectorsTab = ({ isPublished }) => {
     <div
       data-testid="connectors-tab-container"
       id="connectors-tab-container"
-      className={`w-full relative ${shouldToolsShow ? "" : "overflow-hidden min-h-[24rem]"}`}
+      className={`w-full relative ${shouldToolsShow ? "" : "overflow-hidden max-h-[46rem]"}`}
     >
       {!shouldToolsShow && <UnsupportedFeatureOverlay featureName="Connectors" />}
 

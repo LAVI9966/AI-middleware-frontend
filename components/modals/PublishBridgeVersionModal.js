@@ -366,6 +366,20 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   }, [bridge_summary]);
 
   const { filteredBridgeData, filteredVersionData } = useMemo(() => {
+    const normalizeConnectedAgents = (data) => {
+      if (!data || typeof data !== "object") return {};
+      return data.connected_agents || data.page_config?.connected_agents || data.configuration?.connected_agents || {};
+    };
+
+    const normalizeForComparison = (data) => {
+      if (!data || typeof data !== "object") return data;
+      return {
+        ...data,
+        // Normalize source shape so connected agent diffs are consistently detected.
+        connected_agents: normalizeConnectedAgents(data),
+      };
+    };
+
     const filterData = (data, keys) => {
       if (!data || !keys) return {};
       const filtered = {};
@@ -376,9 +390,13 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       });
       return filtered;
     };
+
+    const normalizedBridgeData = normalizeForComparison(bridgeData);
+    const normalizedVersionData = normalizeForComparison(versionData);
+
     return {
-      filteredBridgeData: filterData(bridgeData, KEYS_TO_COMPARE),
-      filteredVersionData: filterData(versionData, KEYS_TO_COMPARE),
+      filteredBridgeData: filterData(normalizedBridgeData, KEYS_TO_COMPARE),
+      filteredVersionData: filterData(normalizedVersionData, KEYS_TO_COMPARE),
     };
   }, [bridgeData, versionData]);
 
@@ -638,6 +656,9 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                         </div>
                         <p className="text-xs text-base-content/70 mt-1">
                           Service: {agent.service || "N/A"} | Model: {agent.configuration?.model || "N/A"}
+                        </p>
+                        <p className="text-xs text-base-content/70 mt-1">
+                          Allow Cached Response: {agent?.cache_on ? "On" : "Off"}
                         </p>
                         {agent.url_slugname && (
                           <p className="text-xs text-base-content/50">Slug: {agent.url_slugname}</p>
@@ -1179,9 +1200,11 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               <button
                 id="publish-confirm-button"
                 data-testid="publish-version-publish-button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => handlePublishBridge(convertToTemplate)}
-                disabled={isLoading || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly}
+                disabled={
+                  isLoading || !bridge_summary?.trim() || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly
+                }
                 title={isReadOnly ? "You don't have permission to publish" : ""}
               >
                 {isLoading ? (

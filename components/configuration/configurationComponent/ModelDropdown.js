@@ -347,6 +347,7 @@ const ModelDropdown = ({
               onChange={handleSelect}
               onOptionHover={handleOptionHover}
               showGroupHeaders
+              isEmbedUser={isEmbedUser}
               bottomOption={{
                 label: "Add Model",
                 icon: Plus,

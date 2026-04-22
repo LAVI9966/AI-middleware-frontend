@@ -130,7 +130,7 @@ ${variablesObject}
         </pre>
         <pre data-prefix=">" className="text-error">
           <code> bridgeName=</code>
-          <code className="text-warning"> "{slugName}"</code>
+          <code className="text-warning">{`"${slugName || "Your Agent Name"}"`}</code>
         </pre>
         <pre data-prefix=">" className="text-error">
           <code> theme=</code>

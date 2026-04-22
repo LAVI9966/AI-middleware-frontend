@@ -3,13 +3,14 @@
 import { CloseIcon } from "@/components/Icons";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { addNewModelAction, getModelAction } from "@/store/action/modelAction";
 import { useDispatch } from "react-redux";
+import { useParams, useSearchParams } from "next/navigation";
 
 // --- Placeholder Examples for UI ---
 const PLACEHOLDERS = {
@@ -144,11 +145,23 @@ const DEFAULT_PARAMETER = {
 
 export default function AddNewModelModal() {
   const dispatch = useDispatch();
-  const { modelInfo, SERVICES, DEFAULT_MODEL } = useCustomSelector((state) => ({
-    modelInfo: state?.modelReducer?.serviceModels,
-    SERVICES: state?.serviceReducer?.services,
-    DEFAULT_MODEL: state?.serviceReducer?.default_model,
-  }));
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const versionId = searchParams?.get("version");
+  const isPublished = searchParams?.get("isPublished") === "true";
+
+  const { modelInfo, SERVICES, DEFAULT_MODEL, selectedService } = useCustomSelector((state) => {
+    const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
+    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[versionId];
+    const activeData = isPublished ? bridgeDataFromState : versionData;
+
+    return {
+      modelInfo: state?.modelReducer?.serviceModels,
+      SERVICES: state?.serviceReducer?.services,
+      DEFAULT_MODEL: state?.serviceReducer?.default_model,
+      selectedService: activeData?.service || bridgeDataFromState?.service,
+    };
+  });
   const SERVICE_CONFIGS = (Array.isArray(SERVICES) ? SERVICES : []).reduce((acc, service) => {
     const model = DEFAULT_MODEL?.[service?.value]?.model;
     const chatModel = modelInfo?.[service?.value]?.["chat"]?.[model];
@@ -176,7 +189,11 @@ export default function AddNewModelModal() {
     return acc;
   }, {});
   const [error, setError] = useState({});
-  const initialService = SERVICE_CONFIGS.openai ? "openai" : Object.keys(SERVICE_CONFIGS)[0];
+  const initialService = SERVICE_CONFIGS[selectedService]
+    ? selectedService
+    : SERVICE_CONFIGS.openai
+      ? "openai"
+      : Object.keys(SERVICE_CONFIGS)[0];
   const [config, setConfig] = useState(SERVICE_CONFIGS[initialService] || {});
   const [selectedKeys, setSelectedKeys] = useState(
     Object.keys(SERVICE_CONFIGS[initialService]?.configuration?.additional_parameters || {})
@@ -184,6 +201,16 @@ export default function AddNewModelModal() {
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [showNewParamForm, setShowNewParamForm] = useState(false);
   const [newParamData, setNewParamData] = useState({ name: "", type: "slider" });
+
+  useEffect(() => {
+    if (!selectedService || !SERVICE_CONFIGS[selectedService]) return;
+    if (config?.service === selectedService) return;
+
+    const nextConfig = JSON.parse(JSON.stringify(SERVICE_CONFIGS[selectedService]));
+    setConfig(nextConfig);
+    setSelectedKeys(Object.keys(nextConfig.configuration?.additional_parameters || {}));
+    setExpandedKeys(new Set());
+  }, [selectedService, SERVICE_CONFIGS]);
 
   const resetFormToDefault = () => {
     const defaultConfig = SERVICE_CONFIGS[config.service];

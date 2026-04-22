@@ -32,6 +32,13 @@ const BridgeTypeToggle = ({ params, searchParams, isEmbedUser, isPublished, isEd
       bridgeType: newCheckedValue,
     };
 
+    const previousBridgeType = bridgeType?.toString()?.toLowerCase();
+    const nextBridgeType = newCheckedValue?.toString()?.toLowerCase();
+
+    if (typeof window !== "undefined" && previousBridgeType === "api" && nextBridgeType === "trigger") {
+      sessionStorage.setItem(`auto_open_trigger_embed_${params?.id}`, "1");
+    }
+
     dispatch(
       updateBridgeAction({
         bridgeId: params.id,
