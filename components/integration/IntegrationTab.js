@@ -214,12 +214,17 @@ window.addEventListener('message', (event) => {
                 <pre data-prefix=">">
                   <code className="text-error"> agent_name: </code>
                   <code className="text-warning">"New Agent"</code>
-                  <code>{", // Create bridge with agent name"}</code>
+                  <code>{", // Create Agent with agent name"}</code>
                 </pre>
                 <pre data-prefix=">">
                   <code className="text-error"> agent_id: </code>
                   <code className="text-warning">"your_agent_id"</code>
                   <code>{" // Redirect to specific agent"}</code>
+                </pre>
+                <pre data-prefix=">">
+                  <code className="text-error"> agent_purpose: </code>
+                  <code className="text-warning">"your_agent_purpose"</code>
+                  <code>{" // Create Agent with given purpose"}</code>
                 </pre>
                 <pre data-prefix=">">
                   <code className="text-error"> {`});`}</code>
@@ -256,6 +261,10 @@ window.addEventListener('message', (event) => {
                 <pre data-prefix=">">
                   <code className="text-warning"> window.openGtwy({`{"agent_name":"your agent name"}`})</code>
                   <code>{" // Create agent with specific name"}</code>
+                </pre>
+                <pre data-prefix=">">
+                  <code className="text-warning"> window.openGtwy({`{"agent_purpose":"your agent purpose"}`})</code>
+                  <code>{" // Create agent with specific purpose"}</code>
                 </pre>
               </div>
               <CopyButton data={helperFunctions} />
