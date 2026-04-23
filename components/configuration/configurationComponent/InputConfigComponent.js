@@ -464,7 +464,7 @@ const InputConfigComponent = memo(
                     )}
                     <FullscreenEditorButton
                       tooltip={`Open ${fieldConfig.label || key} in fullscreen`}
-                      className="absolute top-1 right-1 opacity-50 hover:opacity-100 z-10"
+                      className="absolute top-1 right-1 opacity-50 hover:opacity-100"
                       onClick={() => {
                         setFullscreenEditor({
                           isOpen: true,

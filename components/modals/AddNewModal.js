@@ -143,7 +143,7 @@ const DEFAULT_PARAMETER = {
   },
 };
 
-export default function AddNewModelModal() {
+export default function AddNewModelModal({ disableServiceChange = false }) {
   const dispatch = useDispatch();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -660,6 +660,7 @@ export default function AddNewModelModal() {
                         value={config.service}
                         onChange={(e) => handleTopLevelChange("service", e.target.value)}
                         className="select select-bordered w-full"
+                        disabled={disableServiceChange}
                       >
                         {Array.isArray(SERVICES)
                           ? SERVICES.map(({ value, displayName }) => (

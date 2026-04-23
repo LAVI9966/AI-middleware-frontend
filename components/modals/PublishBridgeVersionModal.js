@@ -456,13 +456,37 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     return extracted;
   }, [differences, filteredBridgeData, filteredVersionData]);
 
+  const hasAdditionalConfigurationChanges = useMemo(() => {
+    if (!differences.configuration) return false;
+
+    const oldConfig = filteredBridgeData.configuration || {};
+    const newConfig = filteredVersionData.configuration || {};
+
+    const stripHandledConfigFields = (config) => {
+      const normalized = { ...(config || {}) };
+      delete normalized.prompt;
+      delete normalized.model;
+      delete normalized.system_prompt_version_id;
+      return normalized;
+    };
+
+    return JSON.stringify(stripHandledConfigFields(oldConfig)) !== JSON.stringify(stripHandledConfigFields(newConfig));
+  }, [differences.configuration, filteredBridgeData, filteredVersionData]);
+
   // Changes summary
   const changesSummary = useMemo(() => {
+    const baseSummary = Object.fromEntries(Object.entries(differences).map(([key, value]) => [key, value.status]));
+
+    // Hide generic configuration key when only extracted fields (prompt/model) changed.
+    if (baseSummary.configuration && !hasAdditionalConfigurationChanges) {
+      delete baseSummary.configuration;
+    }
+
     return {
-      ...Object.fromEntries(Object.entries(differences).map(([key, value]) => [key, value.status])),
+      ...baseSummary,
       ...Object.fromEntries(Object.entries(extractedConfigChanges).map(([key, value]) => [key, value.status])),
     };
-  }, [differences, extractedConfigChanges]);
+  }, [differences, extractedConfigChanges, hasAdditionalConfigurationChanges]);
 
   // Event handlers
   useEffect(() => {
