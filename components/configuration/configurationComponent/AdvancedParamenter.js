@@ -691,6 +691,11 @@ const AdvancedParameters = ({
                         return;
                       }
                     }
+                    // If default is selected, reset to plain "default" string (not wrapped in object)
+                    if (selectedValue === "default") {
+                      setSliderValue("default", key, isDeafaultObject);
+                      return;
+                    }
                     // Fallback for other keys or normal types
                     handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject);
                   }}
