@@ -102,8 +102,14 @@ const FallbackModel = ({
 
   const handleSelectionChange = useCallback(
     (service, apiKeyId) => {
+      if (isReadOnly) return;
       setSelectedApiKeys((prev) => {
-        const updated = { ...prev, [service]: apiKeyId };
+        const updated = { ...prev };
+        if (prev[service] === apiKeyId) {
+          delete updated[service];
+        } else {
+          updated[service] = apiKeyId;
+        }
         dispatch(
           updateBridgeVersionAction({
             bridgeId: params?.id,
@@ -496,7 +502,8 @@ const FallbackModel = ({
                                   name={`apiKey-${service?.value}`}
                                   value={apiKey?._id}
                                   checked={selectedApiKeys[service?.value] === apiKey?._id}
-                                  onChange={() => handleSelectionChange(service?.value, apiKey?._id)}
+                                  onClick={() => handleSelectionChange(service?.value, apiKey?._id)}
+                                  onChange={() => {}}
                                   className="radio radio-sm h-4 w-4"
                                 />
                                 <span

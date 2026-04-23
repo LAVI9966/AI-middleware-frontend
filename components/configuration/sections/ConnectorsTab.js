@@ -9,7 +9,11 @@ const ConnectorsTab = ({ isPublished }) => {
   const { shouldToolsShow } = useConfigurationContext();
 
   return (
-    <div data-testid="connectors-tab-container" id="connectors-tab-container" className="w-full relative">
+    <div
+      data-testid="connectors-tab-container"
+      id="connectors-tab-container"
+      className={`w-full relative ${shouldToolsShow ? "" : "overflow-hidden max-h-[46rem]"}`}
+    >
       {!shouldToolsShow && <UnsupportedFeatureOverlay featureName="Connectors" />}
 
       <ToolsSection isPublished={isPublished} />

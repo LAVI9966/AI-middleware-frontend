@@ -507,11 +507,12 @@ function FunctionParameterModal({
   const [isTextareaVisible, setIsTextareaVisible] = useState(false);
   const [isOldFieldViewTrue, setIsOldFieldViewTrue] = useState(false);
   const [showNameDescription, setShowNameDescription] = useState(false);
+  const threadIdChecked = Boolean(toolData?.thread_id ?? function_details?.thread_id ?? false);
 
   useEffect(() => {
     if (!isEqual(toolData, function_details)) {
-      const thread_id = function_details?.thread_id ? function_details?.thread_id : toolData?.thread_id;
-      const version_id = function_details?.version_id ? function_details?.version_id : toolData?.version_id;
+      const thread_id = function_details?.thread_id ?? false;
+      const version_id = function_details?.version_id ?? toolData?.version_id;
       setToolData({ ...function_details, thread_id, version_id });
     }
   }, [function_details]);
@@ -724,14 +725,14 @@ function FunctionParameterModal({
       };
     });
     setVariablesPath((prev) => {
-      const updatedPath = { ...prev };
-      delete updatedPath[path];
-      const remainingPaths = Object.entries(updatedPath);
-      const formattedPaths = {};
-      remainingPaths.forEach(([key, value]) => {
-        formattedPaths[key] = value;
+      const next = {};
+      Object.entries(prev || {}).forEach(([key, value]) => {
+        if (key === path || key.startsWith(`${path}.`)) {
+          return;
+        }
+        next[key] = value;
       });
-      return formattedPaths;
+      return next;
     });
     setIsModified(true);
   }, []);
@@ -862,9 +863,24 @@ function FunctionParameterModal({
         };
       });
 
+      const oldPath = currentPath;
+      const newPath = [...parentPath, newName].join(".");
+      setVariablesPath((prev) => {
+        const next = {};
+        Object.entries(prev || {}).forEach(([key, value]) => {
+          if (key === oldPath || key.startsWith(`${oldPath}.`)) {
+            const suffix = key.slice(oldPath.length);
+            next[`${newPath}${suffix}`] = value;
+            return;
+          }
+          next[key] = value;
+        });
+        return next;
+      });
+
       setIsModified(true);
     },
-    [updateField]
+    [updateField, setVariablesPath]
   );
 
   const handleToolNameChange = useCallback(() => {
@@ -1249,12 +1265,12 @@ function FunctionParameterModal({
                       id="function-param-thread-id-toggle"
                       disabled={isReadOnly}
                       type="checkbox"
-                      className="toggle toggle-sm"
+                      className="toggle toggle-sm transition-none"
                       onChange={(e) => {
                         setToolData({ ...toolData, thread_id: e.target.checked });
                         setIsModified(true);
                       }}
-                      checked={!!toolData?.thread_id}
+                      checked={threadIdChecked}
                       title="Toggle to include thread_id while calling function"
                     />
                   </label>
@@ -1481,7 +1497,7 @@ function FunctionParameterModal({
                 />
               </div>
               {isOldFieldViewTrue && (
-                <div className="w-1/2">
+                <div data-testid="function-parameter-old-data-codemirror-wrapper" className="w-1/2">
                   <CodeMirror
                     value={toolData?.old_fields ? JSON.stringify(toolData["old_fields"], undefined, 4) : ""}
                     height="400px"

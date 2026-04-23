@@ -312,7 +312,6 @@ function Home({ params, searchParams, isEmbedUser }) {
     isLoading,
     isFirstBridgeCreation,
     descriptions,
-    bridgeStatus,
     showHistory,
     usageMetrics,
     isAdminOrOwner,
@@ -335,7 +334,6 @@ function Home({ params, searchParams, isEmbedUser }) {
       isLoading: state.bridgeReducer.loading,
       isFirstBridgeCreation: user.meta?.onboarding?.bridgeCreation || "",
       descriptions: state.flowDataReducer.flowData.descriptionsData?.descriptions || {},
-      bridgeStatus: state.bridgeReducer.allBridgesMap,
       showHistory: state.appInfoReducer.embedUserDetails?.showHistory || false,
       usageMetrics: state.bridgeReducer.usageMetrics,
       users: state.orgReducer.users,
@@ -356,11 +354,11 @@ function Home({ params, searchParams, isEmbedUser }) {
       };
     }
     return {
-      title: "API Agents",
+      title: isEmbedUser ? "Agents" : "API Agents",
       description:
         descriptions?.Agents || "Build and manage API-powered AI agents for workflows, automations, and integrations.",
     };
-  }, [bridgeTypeFilter, descriptions]);
+  }, [bridgeTypeFilter, descriptions, isEmbedUser]);
   const deletedSectionTitle = bridgeTypeFilter === "chatbot" ? "Deleted Chatbots" : "Deleted Agents";
   // Initialize with empty array instead of typeFilteredBridges to avoid reference error
   const [filterBridges, setFilterBridges] = useState([]);
@@ -976,7 +974,7 @@ function Home({ params, searchParams, isEmbedUser }) {
           <AgentMenuItems
             bridge={row}
             bridgeData={row}
-            bridgeStatus={bridgeStatus[row._id]?.bridge_status}
+            bridgeStatus={allBridges.find((bridge) => bridge._id === row._id)?.bridge_status}
             isArchived={row?.status === 0}
             isUpdatingBridge={false}
             isEmbedUser={isEmbedUser}
@@ -1134,6 +1132,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                       <div className="flex items-center gap-2 ml-2">
                         <button
                           type="button"
+                          data-testid="agents-usage-filter-button"
                           className="btn btn-outline btn-ghost btn-sm text-sm btn-sm border border-base-300 gap-1"
                           onClick={handleUsageFilterDropdownClick}
                         >
@@ -1248,6 +1247,7 @@ function Home({ params, searchParams, isEmbedUser }) {
             <div className="fixed z-[999999999]" style={{ top: usageFilterPopover.top, left: usageFilterPopover.left }}>
               <div
                 ref={usageFilterPopoverRef}
+                data-testid="agents-usage-filter-popover"
                 className="w-72 rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl space-y-3"
               >
                 <div className="flex items-start justify-between">
@@ -1261,6 +1261,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                   <label className="text-xs font-semibold uppercase text-base-content/60">Start date</label>
                   <input
                     type="date"
+                    data-testid="usage-filter-start-date"
                     className="input input-bordered input-sm w-full"
                     value={usageFilterDates.start_date}
                     max={usageFilterDates.end_date || undefined}
@@ -1271,6 +1272,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                   <label className="text-xs font-semibold uppercase text-base-content/60">End date</label>
                   <input
                     type="date"
+                    data-testid="usage-filter-end-date"
                     className="input input-bordered input-sm w-full"
                     value={usageFilterDates.end_date}
                     min={usageFilterDates.start_date || undefined}
@@ -1288,6 +1290,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                   </button>
                   <button
                     className="btn btn-primary btn-sm min-w-[70px]"
+                    data-testid="usage-filter-apply-button"
                     onClick={handleUsageFilterApply}
                     disabled={isUsageFilterSubmitting}
                   >

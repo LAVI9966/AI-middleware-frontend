@@ -1,48 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import React from "react";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { generateEmbedTokenAction } from "@/store/action/integrationAction";
 import CopyButton from "../copyButton/CopyButton";
 
 const IntegrationTab = ({ data }) => {
-  const dispatch = useDispatch();
-  const [embedToken, setEmbedToken] = useState("");
+  const embedToken = "";
   const gtwyAccessToken = useCustomSelector(
     (state) => state?.userDetailsReducer?.organizations?.[data?.org_id]?.meta?.gtwyAccessToken || ""
   );
-
-  useEffect(() => {
-    const generateEmbedToken = async () => {
-      if (!data?.org_id || !data?.folder_id || !gtwyAccessToken) {
-        setEmbedToken("");
-        return;
-      }
-
-      try {
-        const response = await dispatch(
-          generateEmbedTokenAction({
-            access_token: gtwyAccessToken,
-            folder_id: data.folder_id,
-            org_id: data.org_id,
-            user_id: "user_id",
-          })
-        );
-
-        if (response?.data?.token) {
-          setEmbedToken(response.data.token);
-        } else {
-          setEmbedToken("");
-        }
-      } catch (error) {
-        console.error("Failed to generate embed token:", error);
-        setEmbedToken("");
-      }
-    };
-
-    generateEmbedToken();
-  }, [data?.org_id, data?.folder_id, gtwyAccessToken, dispatch]);
 
   const jwtPayload = `{
   "org_id": "${data?.org_id}",
@@ -248,12 +214,17 @@ window.addEventListener('message', (event) => {
                 <pre data-prefix=">">
                   <code className="text-error"> agent_name: </code>
                   <code className="text-warning">"New Agent"</code>
-                  <code>{", // Create bridge with agent name"}</code>
+                  <code>{", // Create Agent with agent name"}</code>
                 </pre>
                 <pre data-prefix=">">
                   <code className="text-error"> agent_id: </code>
                   <code className="text-warning">"your_agent_id"</code>
                   <code>{" // Redirect to specific agent"}</code>
+                </pre>
+                <pre data-prefix=">">
+                  <code className="text-error"> agent_purpose: </code>
+                  <code className="text-warning">"your_agent_purpose"</code>
+                  <code>{" // Create Agent with given purpose"}</code>
                 </pre>
                 <pre data-prefix=">">
                   <code className="text-error"> {`});`}</code>
@@ -290,6 +261,10 @@ window.addEventListener('message', (event) => {
                 <pre data-prefix=">">
                   <code className="text-warning"> window.openGtwy({`{"agent_name":"your agent name"}`})</code>
                   <code>{" // Create agent with specific name"}</code>
+                </pre>
+                <pre data-prefix=">">
+                  <code className="text-warning"> window.openGtwy({`{"agent_purpose":"your agent purpose"}`})</code>
+                  <code>{" // Create agent with specific purpose"}</code>
                 </pre>
               </div>
               <CopyButton data={helperFunctions} />

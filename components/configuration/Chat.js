@@ -757,7 +757,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                   </span>
                                 </div>
                                 <a
-                                  href="https://gtwy.ai/blogs/finish-reasons?source=public"
+                                  href="https://app.docstar.io/p/finish-reasons?collectionId=inYU67SKiHgW"
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-warning/70 hover:text-warning transition-colors flex-shrink-0 ml-2"
@@ -803,7 +803,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                         message?.llm_urls?.length > 0 ||
                         message?.image_urls?.length > 0) && (
                         <div
-                          className={`flex gap-2 show-on-hover justify-start max-w-[700px] items-center relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
+                          className={`flex gap-2 show-on-hover ${message.sender === "user" ? "justify-end" : "justify-start"} w-full max-w-[700px] min-w-0 items-center relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
                         >
                           {message?.sender === "user" && message?.content && (
                             <button
@@ -890,12 +890,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           ) : (
                             /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
                             <div
-                              className={`break-words gap-0 justify-start relative w-full ${
+                              className={`break-words gap-0 justify-start relative min-w-0 ${message.sender === "user" ? "ml-auto" : ""} ${
                                 message.sender === "assistant"
-                                  ? "mr-8 bg-transparent p-0"
+                                  ? "mr-8 w-full bg-transparent p-0"
                                   : message.sender === "error"
-                                    ? "chat-bubble bg-error/10 border border-error/30 text-error"
-                                    : "chat-bubble"
+                                    ? "chat-bubble w-fit max-w-[75%] overflow-hidden bg-error/10 border border-error/30 text-error"
+                                    : "chat-bubble w-fit max-w-[75%]"
                               } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0" : ""}`}
                             >
                               {/* Show loader overlay if this is the message being tested */}
@@ -994,9 +994,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     <div className="whitespace-pre-wrap">{message.content}</div>
                                   ) : message.sender === "error" ? (
                                     /* Error Message - Display with error styling and icon */
-                                    <div className="flex items-start gap-2">
+                                    <div className="flex min-w-0 items-start gap-2">
                                       <AlertTriangle className="h-4 w-4 text-error flex-shrink-0 mt-0.5" />
-                                      <div className="whitespace-pre-wrap text-error font-medium">
+                                      <div className="min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-error font-medium">
                                         {message.content}
                                       </div>
                                     </div>

@@ -85,11 +85,18 @@ export const MODAL_TYPE = {
   MIGRATE_PROMPT_WARNING_MODAL: "MIGRATE_PROMPT_WARNING_MODAL",
   FULLSCREEN_PROMPT: "FULLSCREEN_PROMPT",
   FULLSCREEN_JSON_SCHEMA: "FULLSCREEN_JSON_SCHEMA",
+  CUSTOM_TONE_MODAL: "CUSTOM_TONE_MODAL",
+  CUSTOM_RESPONSE_STYLE_MODAL: "CUSTOM_RESPONSE_STYLE_MODAL",
 };
 
 export const API_KEY_MODAL_INPUT = ["name", "apikey", "apikey_limit"];
 
 export const USER_FEEDBACK_FILTER_OPTIONS = ["all", "1", "2"];
+
+export const WEB_SEARCH_PREBUILT_TOOL_VALUES = new Set(["web_search", "Gtwy_Web_Search"]);
+export const WEB_SEARCH_WARNING_CLASS = "border-warning/40 bg-warning/5";
+export const WEB_SEARCH_TOKEN_WARNING =
+  "Selecting Web Search can cause heavy token utilization and may exceed 10,000 tokens.";
 
 export const CONFIG_HISTORY_FILTER_KEYS = {
   USER_IDS: "user_ids",
@@ -266,6 +273,7 @@ export const HISTORY_FILTER_BY_FIELDS = {
   thread_id: "",
   sub_thread_id: "",
   message_id: "",
+  batch_id: "",
   user: "",
   llm_message: "",
   variables: "",
@@ -340,4 +348,4 @@ export const PRE_TOOL_CONFIG_SCHEMA = {
 
 export const ON_CLICK_ACTION_TYPES = ["reply", "sendDataToFrontend"];
 
-export const PROXY_SCRIPT_SRC = "https://proxy.msg91.com/assets/proxy-auth/proxy-auth.js";
+export const PROXY_SCRIPT_SRC = "https://36blocks.com/assets/proxy-auth/proxy-auth.js";

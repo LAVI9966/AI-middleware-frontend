@@ -3,13 +3,14 @@
 import { CloseIcon } from "@/components/Icons";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { addNewModelAction, getModelAction } from "@/store/action/modelAction";
 import { useDispatch } from "react-redux";
+import { useParams, useSearchParams } from "next/navigation";
 
 // --- Placeholder Examples for UI ---
 const PLACEHOLDERS = {
@@ -142,13 +143,25 @@ const DEFAULT_PARAMETER = {
   },
 };
 
-export default function AddNewModelModal() {
+export default function AddNewModelModal({ disableServiceChange = false }) {
   const dispatch = useDispatch();
-  const { modelInfo, SERVICES, DEFAULT_MODEL } = useCustomSelector((state) => ({
-    modelInfo: state?.modelReducer?.serviceModels,
-    SERVICES: state?.serviceReducer?.services,
-    DEFAULT_MODEL: state?.serviceReducer?.default_model,
-  }));
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const versionId = searchParams?.get("version");
+  const isPublished = searchParams?.get("isPublished") === "true";
+
+  const { modelInfo, SERVICES, DEFAULT_MODEL, selectedService } = useCustomSelector((state) => {
+    const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
+    const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[versionId];
+    const activeData = isPublished ? bridgeDataFromState : versionData;
+
+    return {
+      modelInfo: state?.modelReducer?.serviceModels,
+      SERVICES: state?.serviceReducer?.services,
+      DEFAULT_MODEL: state?.serviceReducer?.default_model,
+      selectedService: activeData?.service || bridgeDataFromState?.service,
+    };
+  });
   const SERVICE_CONFIGS = (Array.isArray(SERVICES) ? SERVICES : []).reduce((acc, service) => {
     const model = DEFAULT_MODEL?.[service?.value]?.model;
     const chatModel = modelInfo?.[service?.value]?.["chat"]?.[model];
@@ -176,7 +189,11 @@ export default function AddNewModelModal() {
     return acc;
   }, {});
   const [error, setError] = useState({});
-  const initialService = SERVICE_CONFIGS.openai ? "openai" : Object.keys(SERVICE_CONFIGS)[0];
+  const initialService = SERVICE_CONFIGS[selectedService]
+    ? selectedService
+    : SERVICE_CONFIGS.openai
+      ? "openai"
+      : Object.keys(SERVICE_CONFIGS)[0];
   const [config, setConfig] = useState(SERVICE_CONFIGS[initialService] || {});
   const [selectedKeys, setSelectedKeys] = useState(
     Object.keys(SERVICE_CONFIGS[initialService]?.configuration?.additional_parameters || {})
@@ -184,6 +201,16 @@ export default function AddNewModelModal() {
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [showNewParamForm, setShowNewParamForm] = useState(false);
   const [newParamData, setNewParamData] = useState({ name: "", type: "slider" });
+
+  useEffect(() => {
+    if (!selectedService || !SERVICE_CONFIGS[selectedService]) return;
+    if (config?.service === selectedService) return;
+
+    const nextConfig = JSON.parse(JSON.stringify(SERVICE_CONFIGS[selectedService]));
+    setConfig(nextConfig);
+    setSelectedKeys(Object.keys(nextConfig.configuration?.additional_parameters || {}));
+    setExpandedKeys(new Set());
+  }, [selectedService, SERVICE_CONFIGS]);
 
   const resetFormToDefault = () => {
     const defaultConfig = SERVICE_CONFIGS[config.service];
@@ -603,13 +630,13 @@ export default function AddNewModelModal() {
           <div className="w-full mx-auto">
             <div className="relative text-center">
               <button
-                data-testid="add-model-reset-button"
-                id="add-model-reset-button"
-                onClick={resetFormToDefault}
-                className="btn btn-ghost absolute right-0 top-1/3 tooltip tooltip-left"
-                data-tip="Reset form to default values"
+                data-testid="add-model-header-close-button"
+                id="add-model-header-close-button"
+                onClick={() => closeModal(MODAL_TYPE?.ADD_NEW_MODEL_MODAL)}
+                className="btn btn-ghost btn-circle btn-sm absolute right-0 top-0"
+                aria-label="Close add model modal"
               >
-                <RefreshCw size={20} />
+                <CloseIcon size={18} />
               </button>
               <div>
                 <h1 className="text-2xl font-bold">Add a New Model</h1>
@@ -633,6 +660,7 @@ export default function AddNewModelModal() {
                         value={config.service}
                         onChange={(e) => handleTopLevelChange("service", e.target.value)}
                         className="select select-bordered w-full"
+                        disabled={disableServiceChange}
                       >
                         {Array.isArray(SERVICES)
                           ? SERVICES.map(({ value, displayName }) => (
@@ -940,7 +968,7 @@ export default function AddNewModelModal() {
                     <div className="space-y-2">{renderSelectableKeys()}</div>
                   </div>
                 </div>
-                <div className="card-actions justify-end border-t border-base-200 pt-6 mt-8">
+                <div className="border-t border-base-200 pt-6 mt-8">
                   {error?.message && (
                     <div className="w-full mb-4">
                       <div className="error-container p-4 bg-red-50 border-l-4 border-red-500 rounded-md shadow-sm">
@@ -948,23 +976,28 @@ export default function AddNewModelModal() {
                       </div>
                     </div>
                   )}
-                  <button
-                    id="add-model-close-button"
-                    type="button"
-                    onClick={() => closeModal(MODAL_TYPE?.ADD_NEW_MODEL_MODAL)}
-                    className="btn btn-sm"
-                  >
-                    Close
-                  </button>
-                  <button
-                    id="add-model-save-button"
-                    type="button"
-                    onClick={handleAddModel}
-                    className="btn btn-sm btn-primary"
-                    disabled={isFormInvalid}
-                  >
-                    Save Model
-                  </button>
+                  <div className="flex items-center justify-between gap-3">
+                    <button
+                      data-testid="add-model-reset-button"
+                      id="add-model-reset-button"
+                      type="button"
+                      onClick={resetFormToDefault}
+                      className="btn btn-sm btn-ghost"
+                      title="Reset form to default values"
+                    >
+                      <RefreshCw size={16} />
+                      Reset to defaults
+                    </button>
+                    <button
+                      id="add-model-save-button"
+                      type="button"
+                      onClick={handleAddModel}
+                      className="btn btn-sm btn-primary"
+                      disabled={isFormInvalid}
+                    >
+                      Save Model
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

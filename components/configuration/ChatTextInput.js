@@ -56,6 +56,7 @@ function ChatTextInput({
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [validationError, setValidationError] = useState(null);
+  const [imagePreviewLoadedKeys, setImagePreviewLoadedKeys] = useState(() => new Set());
   const dispatch = useDispatch();
   const [fileInput, setFileInput] = useState(null); // Use state for the file input element
   const versionId = searchParams?.version;
@@ -199,6 +200,10 @@ function ChatTextInput({
   }, [prompt, variablesKeyValue]);
 
   const handleSendMessage = async (e, forceRun = false) => {
+    if (loading || uploading) {
+      return;
+    }
+
     if (inputRef.current) {
       inputRef.current.style.height = "40px"; // Set initial height
     }
@@ -289,16 +294,23 @@ function ChatTextInput({
     dispatch(setChatError(channelIdentifier, ""));
     if (modelType !== "completion") inputRef.current.value = "";
 
+    // Capture current attachments and clear preview immediately for snappier UX.
+    const selectedUploadedImages = [...uploadedImages];
+    const selectedUploadedFiles = [...uploadedFiles];
+    dispatch(setChatUploadedFiles(channelIdentifier, []));
+    dispatch(setChatUploadedImages(channelIdentifier, []));
+    setImagePreviewLoadedKeys(new Set());
+
     try {
       let responseData;
       let data;
-      const userUrls = buildUserUrls(uploadedImages, uploadedFiles);
+      const userUrls = buildUserUrls(selectedUploadedImages, selectedUploadedFiles);
       if (modelType !== "completion" && modelType !== "embedding") {
         data = {
           role: "user",
           content: newMessage,
-          images: uploadedImages, // Include images in the data
-          files: uploadedFiles,
+          images: selectedUploadedImages,
+          files: selectedUploadedFiles,
           youtube_url: mediaUrls, // Include media URLs in the data
         };
 
@@ -333,10 +345,6 @@ function ChatTextInput({
             youtube_url: mediaUrls,
           })
         );
-
-        // Clear uploaded files after successful RT layer message creation
-        dispatch(setChatUploadedFiles(channelIdentifier, []));
-        dispatch(setChatUploadedImages(channelIdentifier, []));
 
         responseData = result.response;
 
@@ -586,23 +594,58 @@ function ChatTextInput({
         <div
           data-testid="chat-preview-container"
           id="chat-preview-container"
-          className="absolute bottom-16 left-0 w-full flex flex-nowrap overflow-x-auto items-end gap-2 p-2 bg-base-100 border-t rounded-t-lg"
+          className="absolute bottom-16 left-0 inline-flex w-fit max-w-full flex-nowrap overflow-x-auto items-end gap-2 p-2 border border-base-300/70 rounded-lg bg-base-200/40"
         >
           {/* Image Previews */}
           {uploadedImages.map((url, index) => (
             <div key={index} className="relative flex-shrink-0">
-              <Image
-                src={url}
-                alt={`Uploaded Preview ${index + 1}`}
-                width={64}
-                height={64}
-                className="w-16 h-16 object-cover bg-base-300 p-1 rounded-lg"
-              />
+              {(() => {
+                const previewKey = `${url}-${index}`;
+                const isLoaded = imagePreviewLoadedKeys.has(previewKey);
+
+                return (
+                  <div className="relative w-16 h-16 rounded-lg border border-base-300 overflow-hidden bg-base-200">
+                    {!isLoaded && <div className="absolute inset-0 animate-pulse bg-base-300" />}
+                    <Image
+                      src={url}
+                      alt={`Uploaded Preview ${index + 1}`}
+                      width={64}
+                      height={64}
+                      onLoad={() =>
+                        setImagePreviewLoadedKeys((prev) => {
+                          if (prev.has(previewKey)) return prev;
+                          const next = new Set(prev);
+                          next.add(previewKey);
+                          return next;
+                        })
+                      }
+                      onError={() =>
+                        setImagePreviewLoadedKeys((prev) => {
+                          if (prev.has(previewKey)) return prev;
+                          const next = new Set(prev);
+                          next.add(previewKey);
+                          return next;
+                        })
+                      }
+                      className={`w-16 h-16 object-cover transition-opacity duration-200 ${
+                        isLoaded ? "opacity-100" : "opacity-0"
+                      }`}
+                    />
+                  </div>
+                );
+              })()}
               <button
                 data-testid={`chat-remove-image-${index}`}
                 id={`chat-remove-image-${index}`}
                 className="absolute -top-2 -right-2 text-white rounded-full"
                 onClick={() => {
+                  const previewKey = `${url}-${index}`;
+                  setImagePreviewLoadedKeys((prev) => {
+                    if (!prev.has(previewKey)) return prev;
+                    const next = new Set(prev);
+                    next.delete(previewKey);
+                    return next;
+                  });
                   const newImages = uploadedImages.filter((_, i) => i !== index);
                   dispatch(setChatUploadedImages(channelIdentifier, newImages));
                 }}
@@ -614,7 +657,7 @@ function ChatTextInput({
           {/* File Previews */}
           {uploadedFiles.map((url, index) => (
             <div key={index} className="relative flex-shrink-0">
-              <div className="flex items-center h-16 gap-2 bg-base-300 p-2 rounded-lg">
+              <div className="flex items-center h-16 gap-2 bg-base-300 p-2 rounded-lg border border-base-300">
                 <PdfIcon height={24} width={24} />
                 <p className="text-sm max-w-[120px] truncate" title={url}>
                   {url.split("/").pop()}
@@ -768,7 +811,7 @@ function ChatTextInput({
                 id="chat-attachment-button"
                 tabIndex={0}
                 className={`btn btn-circle transition-all duration-200 ${
-                  uploading ? "btn-disabled bg-base-300" : "btn-ghost hover:btn-primary hover:scale-105"
+                  loading || uploading ? "btn-disabled bg-base-300" : "btn-ghost hover:btn-primary hover:scale-105"
                 }`}
                 disabled={loading || uploading}
               >

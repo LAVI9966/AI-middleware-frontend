@@ -31,8 +31,10 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [showSummaryValidation, setShowSummaryValidation] = useState(false);
   const [summaryAccordionOpen, setSummaryAccordionOpen] = useState(false);
+  const [summaryAutoGenerateTrigger, setSummaryAutoGenerateTrigger] = useState(0);
   const [convertToTemplate, setConvertToTemplate] = useState(false);
   const publishDropdownRef = useRef(null);
+  const lastSummaryAutoGenerateVersionRef = useRef(null);
 
   const {
     bridge,
@@ -115,6 +117,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     !hasApiKeyForActiveService &&
     !(isEmbedUser && showDefaultApikeys) &&
     !isChatbotWithGpt5Nano;
+  const activeVersionId = searchParams?.get("version");
 
   // Memoized form data initialization
   const [formData, setFormData] = useState(() => ({
@@ -333,6 +336,14 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           if (isOpen) {
             // Modal just opened, fetch connected agents
             fetchConnectedAgents();
+            if (
+              (!bridge_summary || bridge_summary.trim() === "") &&
+              lastSummaryAutoGenerateVersionRef.current !== activeVersionId
+            ) {
+              lastSummaryAutoGenerateVersionRef.current = activeVersionId;
+              setSummaryAccordionOpen(true);
+              setSummaryAutoGenerateTrigger((prev) => prev + 1);
+            }
           }
         }
       });
@@ -346,9 +357,29 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
 
     // Cleanup observer on unmount
     return () => observer.disconnect();
-  }, [fetchConnectedAgents]);
+  }, [activeVersionId, bridge_summary, fetchConnectedAgents]);
+
+  useEffect(() => {
+    if (bridge_summary?.trim()) {
+      lastSummaryAutoGenerateVersionRef.current = null;
+    }
+  }, [bridge_summary]);
 
   const { filteredBridgeData, filteredVersionData } = useMemo(() => {
+    const normalizeConnectedAgents = (data) => {
+      if (!data || typeof data !== "object") return {};
+      return data.connected_agents || data.page_config?.connected_agents || data.configuration?.connected_agents || {};
+    };
+
+    const normalizeForComparison = (data) => {
+      if (!data || typeof data !== "object") return data;
+      return {
+        ...data,
+        // Normalize source shape so connected agent diffs are consistently detected.
+        connected_agents: normalizeConnectedAgents(data),
+      };
+    };
+
     const filterData = (data, keys) => {
       if (!data || !keys) return {};
       const filtered = {};
@@ -359,9 +390,13 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       });
       return filtered;
     };
+
+    const normalizedBridgeData = normalizeForComparison(bridgeData);
+    const normalizedVersionData = normalizeForComparison(versionData);
+
     return {
-      filteredBridgeData: filterData(bridgeData, KEYS_TO_COMPARE),
-      filteredVersionData: filterData(versionData, KEYS_TO_COMPARE),
+      filteredBridgeData: filterData(normalizedBridgeData, KEYS_TO_COMPARE),
+      filteredVersionData: filterData(normalizedVersionData, KEYS_TO_COMPARE),
     };
   }, [bridgeData, versionData]);
 
@@ -421,13 +456,37 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     return extracted;
   }, [differences, filteredBridgeData, filteredVersionData]);
 
+  const hasAdditionalConfigurationChanges = useMemo(() => {
+    if (!differences.configuration) return false;
+
+    const oldConfig = filteredBridgeData.configuration || {};
+    const newConfig = filteredVersionData.configuration || {};
+
+    const stripHandledConfigFields = (config) => {
+      const normalized = { ...(config || {}) };
+      delete normalized.prompt;
+      delete normalized.model;
+      delete normalized.system_prompt_version_id;
+      return normalized;
+    };
+
+    return JSON.stringify(stripHandledConfigFields(oldConfig)) !== JSON.stringify(stripHandledConfigFields(newConfig));
+  }, [differences.configuration, filteredBridgeData, filteredVersionData]);
+
   // Changes summary
   const changesSummary = useMemo(() => {
+    const baseSummary = Object.fromEntries(Object.entries(differences).map(([key, value]) => [key, value.status]));
+
+    // Hide generic configuration key when only extracted fields (prompt/model) changed.
+    if (baseSummary.configuration && !hasAdditionalConfigurationChanges) {
+      delete baseSummary.configuration;
+    }
+
     return {
-      ...Object.fromEntries(Object.entries(differences).map(([key, value]) => [key, value.status])),
+      ...baseSummary,
       ...Object.fromEntries(Object.entries(extractedConfigChanges).map(([key, value]) => [key, value.status])),
     };
-  }, [differences, extractedConfigChanges]);
+  }, [differences, extractedConfigChanges, hasAdditionalConfigurationChanges]);
 
   // Event handlers
   useEffect(() => {
@@ -621,6 +680,9 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                         </div>
                         <p className="text-xs text-base-content/70 mt-1">
                           Service: {agent.service || "N/A"} | Model: {agent.configuration?.model || "N/A"}
+                        </p>
+                        <p className="text-xs text-base-content/70 mt-1">
+                          Allow Cached Response: {agent?.cache_on ? "On" : "Off"}
                         </p>
                         {agent.url_slugname && (
                           <p className="text-xs text-base-content/50">Slug: {agent.url_slugname}</p>
@@ -844,13 +906,16 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               <AgentSummaryContent
                 params={params}
                 prompt={prompt}
-                versionId={searchParams?.get("version")}
+                versionId={activeVersionId}
                 showTitle={false}
                 showButtons={true}
                 onSave={() => setShowSummaryValidation(false)}
                 isMandatory={showSummaryValidation}
                 showValidationError={showSummaryValidation}
                 isEditor={isEditor}
+                showSaveButton={false}
+                autoSave={true}
+                autoGenerateOnEmptyTrigger={summaryAutoGenerateTrigger}
               />
             </div>
           </div>
@@ -1152,16 +1217,18 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               </label>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-3 ml-auto">
               <button id="publish-cancel-button" className="btn btn-sm" onClick={handleCloseModal} disabled={isLoading}>
                 Cancel
               </button>
               <button
                 id="publish-confirm-button"
                 data-testid="publish-version-publish-button"
-                className="btn btn-primary btn-sm"
+                className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => handlePublishBridge(convertToTemplate)}
-                disabled={isLoading || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly}
+                disabled={
+                  isLoading || !bridge_summary?.trim() || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly
+                }
                 title={isReadOnly ? "You don't have permission to publish" : ""}
               >
                 {isLoading ? (

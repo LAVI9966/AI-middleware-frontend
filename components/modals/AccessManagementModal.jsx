@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
-import { closeModal } from "@/utils/utility";
+import { closeModal, getIconOfService } from "@/utils/utility";
 import { toast } from "react-toastify";
 import { getInvitedUsers, inviteUser } from "@/config";
 import { updateBridgeAction } from "@/store/action/bridgeAction";
@@ -386,8 +386,12 @@ const AccessManagementModal = ({ agent }) => {
     <Modal MODAL_ID={MODAL_TYPE.ACCESS_MANAGEMENT_MODAL} onClose={handleClose}>
       <div id="access-management-modal-container" className="modal-box max-w-3xl">
         <div className="flex justify-between items-center mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">Manage Access for {agent?.name || "Agent"}</h2>
+          <div className="flex flex-col items-start gap-3">
+            <h2 className="text-lg font-semibold">Manage Access for {agent?.actualName || "Agent"}</h2>
+            <div className="flex flex-row items-center justify-start gap-2">
+              {agent?.service ? <div className="shrink-0">{getIconOfService(agent.service, 24, 24)}</div> : null}
+              {agent?.model ? <span className="text-xs text-base-content/70">Model: {agent.model}</span> : null}
+            </div>
           </div>
         </div>
 

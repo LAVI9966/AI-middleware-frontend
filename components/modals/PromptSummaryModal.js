@@ -68,6 +68,7 @@ export const AgentSummaryContent = memo(
     params,
     autoGenerateSummary = false,
     setAutoGenerateSummary = () => {},
+    onGeneratingChange = () => {},
     showTitle = true,
     showButtons = true,
     onSave = () => {},
@@ -76,6 +77,9 @@ export const AgentSummaryContent = memo(
     prompt,
     versionId,
     isEditor = true,
+    showSaveButton = true,
+    autoSave = false,
+    autoGenerateOnEmptyTrigger = 0,
   }) => {
     const dispatch = useDispatch();
     const { bridge_summary } = useCustomSelector((state) => ({
@@ -85,21 +89,65 @@ export const AgentSummaryContent = memo(
     const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const debounceTimerRef = useRef(null);
+    const isGeneratingSummaryRef = useRef(false);
+    const lastSavedSummaryRef = useRef(bridge_summary || "");
+    const latestDisplayValueRef = useRef(bridge_summary || "");
+    const lastAutoGenerateKeyRef = useRef(null);
 
     useEffect(() => {
-      setDisplayValue(bridge_summary || "");
-    }, [bridge_summary, params, versionId]);
+      const nextSummary = bridge_summary || "";
+      lastSavedSummaryRef.current = nextSummary;
+      if (!autoSave || nextSummary === latestDisplayValueRef.current) {
+        latestDisplayValueRef.current = nextSummary;
+        setDisplayValue(nextSummary);
+      }
+    }, [autoSave, bridge_summary, params, versionId]);
+
+    const saveSummary = useCallback(
+      async (value) => {
+        if (!isEditor) return;
+
+        const newValue = value || "";
+        if (newValue === lastSavedSummaryRef.current) {
+          onSave(newValue);
+          return;
+        }
+
+        try {
+          const dataToSend = { bridge_summary: newValue };
+          const data = await dispatch(updateBridgeAction({ bridgeId: params.id, dataToSend }));
+          if (data?.success) {
+            lastSavedSummaryRef.current = newValue;
+            onSave(newValue);
+          }
+        } catch (error) {
+          console.error("Failed to save summary:", error);
+        }
+      },
+      [dispatch, isEditor, onSave, params.id]
+    );
 
     // Ultra-fast textarea change handler with minimal processing
-    const handleTextareaChange = useCallback((e) => {
-      const value = e.target.value || "";
-      setDisplayValue(value); // Only update display value immediately
+    const handleTextareaChange = useCallback(
+      (e) => {
+        const value = e.target.value || "";
+        latestDisplayValueRef.current = value;
+        setDisplayValue(value); // Only update display value immediately
 
-      // Clear existing timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    }, []);
+        // Clear existing timer
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+
+        if (autoSave && isEditor) {
+          debounceTimerRef.current = setTimeout(() => {
+            debounceTimerRef.current = null;
+            saveSummary(value);
+          }, 800);
+        }
+      },
+      [autoSave, isEditor, saveSummary]
+    );
 
     // Cleanup debounce timer
     useEffect(() => {
@@ -110,40 +158,62 @@ export const AgentSummaryContent = memo(
       };
     }, []);
 
-    // Auto-generate summary when flag is true
-    useEffect(() => {
-      if (autoGenerateSummary && setAutoGenerateSummary) {
-        handleGenerateSummary();
-      }
-    }, [autoGenerateSummary, setAutoGenerateSummary]);
     const handleGenerateSummary = useCallback(async () => {
+      if (isGeneratingSummaryRef.current) return;
+
       // Convert prompt to string safely (handles both string and object formats)
       const promptText = typeof prompt === "string" ? prompt : promptObjectToString(prompt);
       if (!promptText || promptText.trim() === "") {
         setErrorMessage("Prompt is required");
         return;
       }
+      isGeneratingSummaryRef.current = true;
       setIsGeneratingSummary(true);
+      onGeneratingChange(true);
       try {
         const result = await dispatch(genrateSummaryAction({ versionId: versionId }));
         if (result) {
+          latestDisplayValueRef.current = result;
           setDisplayValue(result); // Update display value immediately
+          if (autoSave) {
+            await saveSummary(result);
+          }
           setAutoGenerateSummary(false); // Reset the flag
         }
       } finally {
+        isGeneratingSummaryRef.current = false;
         setIsGeneratingSummary(false);
+        onGeneratingChange(false);
       }
-    }, [dispatch, params, prompt, versionId]);
+    }, [autoSave, dispatch, onGeneratingChange, prompt, saveSummary, setAutoGenerateSummary, versionId]);
+
+    // Auto-generate summary when flag is true
+    useEffect(() => {
+      if (autoGenerateSummary && setAutoGenerateSummary) {
+        handleGenerateSummary();
+      }
+    }, [autoGenerateSummary, handleGenerateSummary, setAutoGenerateSummary]);
+
+    // Generate once per explicit trigger when the publish modal opens with an empty summary.
+    useEffect(() => {
+      const summaryIsEmpty = !bridge_summary || bridge_summary.trim() === "";
+      const autoGenerateKey = `${versionId || "unknown"}:${autoGenerateOnEmptyTrigger}`;
+
+      if (
+        autoGenerateOnEmptyTrigger &&
+        summaryIsEmpty &&
+        isEditor &&
+        lastAutoGenerateKeyRef.current !== autoGenerateKey
+      ) {
+        lastAutoGenerateKeyRef.current = autoGenerateKey;
+        handleGenerateSummary();
+      }
+    }, [autoGenerateOnEmptyTrigger, bridge_summary, handleGenerateSummary, isEditor, versionId]);
+
     const handleSaveSummary = useCallback(() => {
       // Ensure we save the latest value from displayValue
-      const newValue = displayValue || "";
-      const dataToSend = { bridge_summary: newValue };
-      dispatch(updateBridgeAction({ bridgeId: params.id, dataToSend })).then((data) => {
-        if (data.success) {
-          onSave(newValue); // Call the callback for external handling
-        }
-      });
-    }, [dispatch, params.id, displayValue, onSave]);
+      saveSummary(displayValue);
+    }, [displayValue, saveSummary]);
 
     // Memoized validation values with reduced computation
     const validationProps = useMemo(() => {
@@ -191,24 +261,35 @@ export const AgentSummaryContent = memo(
         )}
 
         <div className="space-y-2">
-          <OptimizedTextarea
-            value={displayValue}
-            onChange={handleTextareaChange}
-            className={validationProps.textareaClassName}
-            placeholder="Enter agent summary..."
-            disabled={isGeneratingSummary}
-          />
-          <div className="flex gap-2">
-            <button
-              data-testid="agent-summary-save-button"
-              id="agent-summary-save-button"
-              className="btn btn-primary btn-sm"
-              onClick={handleSaveSummary}
-              disabled={validationProps.isDisabled || !isEditor}
-            >
-              Save
-            </button>
+          <div className="relative">
+            {isGeneratingSummary ? (
+              <div className="flex items-center gap-2 rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-sm text-base-content/70">
+                <span className="loading loading-spinner loading-xs text-primary" />
+                Generating summary...
+              </div>
+            ) : (
+              <OptimizedTextarea
+                value={displayValue}
+                onChange={handleTextareaChange}
+                className={validationProps.textareaClassName}
+                placeholder="Enter agent summary..."
+                disabled={false}
+              />
+            )}
           </div>
+          {showSaveButton && (
+            <div className="flex gap-2">
+              <button
+                data-testid="agent-summary-save-button"
+                id="agent-summary-save-button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSaveSummary}
+                disabled={validationProps.isDisabled || !isEditor}
+              >
+                Save
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
