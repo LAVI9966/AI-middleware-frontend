@@ -17,6 +17,13 @@ function ConfigHistorySlider({ versionId }) {
   });
   const [availableUsers, setAvailableUsers] = useState([]);
   const pageSize = 25;
+  const resetFilters = useCallback(() => {
+    setFilters({
+      [CONFIG_HISTORY_FILTER_KEYS.USER_IDS]: [],
+      [CONFIG_HISTORY_FILTER_KEYS.TYPES]: [],
+    });
+  }, []);
+
   const featureLabelMap = useMemo(
     () =>
       CONFIG_HISTORY_FEATURE_OPTIONS.reduce((acc, option) => {
@@ -77,6 +84,8 @@ function ConfigHistorySlider({ versionId }) {
             setPage(1);
             setHistoryData([]);
             fetchHistory(1);
+          } else if (!isOpen) {
+            resetFilters();
           }
         }
       });
@@ -88,7 +97,7 @@ function ConfigHistorySlider({ versionId }) {
     });
 
     return () => observer.disconnect();
-  }, [versionId, fetchHistory]);
+  }, [versionId, fetchHistory, resetFilters]);
 
   useEffect(() => {
     if (page > 1) {
@@ -120,13 +129,6 @@ function ConfigHistorySlider({ versionId }) {
     handleFilterChange(filterType, value ? [value] : []);
   };
 
-  const clearFilters = () => {
-    setFilters({
-      [CONFIG_HISTORY_FILTER_KEYS.USER_IDS]: [],
-      [CONFIG_HISTORY_FILTER_KEYS.TYPES]: [],
-    });
-  };
-
   const getDateLabel = (timestamp) => {
     return new Date(timestamp).toLocaleDateString("en-US", {
       month: "long",
@@ -155,12 +157,8 @@ function ConfigHistorySlider({ versionId }) {
 
   const handleCloseConfigHistorySlider = useCallback(() => {
     toggleSidebar("default-config-history-slider", "right");
-    // Reset filters when closing
-    setFilters({
-      [CONFIG_HISTORY_FILTER_KEYS.USER_IDS]: [],
-      [CONFIG_HISTORY_FILTER_KEYS.TYPES]: [],
-    });
-  }, []);
+    resetFilters();
+  }, [resetFilters]);
 
   return (
     <aside
@@ -227,7 +225,7 @@ function ConfigHistorySlider({ versionId }) {
           {/* Filter Actions */}
           <div className="flex gap-2">
             <button
-              onClick={clearFilters}
+              onClick={resetFilters}
               className="w-full px-3 py-1.5 text-xs bg-base-300 text-base-content rounded hover:bg-base-200 transition-colors"
             >
               Clear
