@@ -307,8 +307,15 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
     const categories = {};
 
     flattenedDifferences.forEach((diff) => {
+      let normalizedPath = diff.path;
+
+      // Show prompt changes under a dedicated Prompt section instead of Advanced Parameters.
+      if (normalizedPath === "configuration.prompt" || normalizedPath.startsWith("configuration.prompt.")) {
+        normalizedPath = normalizedPath.replace("configuration.", "");
+      }
+
       // Check if this is a configuration key that should be excluded
-      const pathParts = diff.path.split(".");
+      const pathParts = normalizedPath.split(".");
       if (pathParts[0] === "configuration" && pathParts.length > 1) {
         const configKey = pathParts[1];
         if (CONFIGURATION_KEYS_TO_EXCLUDE.includes(configKey)) return;
@@ -332,7 +339,10 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
       if (!categories[category]) {
         categories[category] = [];
       }
-      categories[category].push(diff);
+      categories[category].push({
+        ...diff,
+        path: normalizedPath,
+      });
     });
     return categories;
   }, [flattenedDifferences]);
@@ -397,12 +407,15 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
 
                   // Label: use PROMPT_SECTION_CONFIG label for known prompt sub-fields, else DIFFERNCE_DATA_DISPLAY_NAME
                   const leafKey = pathParts.at(-1);
+                  const isFallbackModelPath = path === "settings.fall_back.model";
                   const displayLabel =
                     isConnectedAgentPath && connectedAgentName
                       ? connectedAgentName
-                      : promptSubFieldKey && PROMPT_SECTION_CONFIG[promptSubFieldKey]?.label
-                        ? PROMPT_SECTION_CONFIG[promptSubFieldKey].label
-                        : DIFFERNCE_DATA_DISPLAY_NAME(leafKey);
+                      : isFallbackModelPath
+                        ? "Fallback Model"
+                        : promptSubFieldKey && PROMPT_SECTION_CONFIG[promptSubFieldKey]?.label
+                          ? PROMPT_SECTION_CONFIG[promptSubFieldKey].label
+                          : DIFFERNCE_DATA_DISPLAY_NAME(leafKey);
 
                   return (
                     <div key={path} data-testid={`comparison-card-${path}`} className="card bg-base-200">
