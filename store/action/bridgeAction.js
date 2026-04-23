@@ -707,11 +707,25 @@ export const createApiAction = (org_id, dataFromEmbed) => async (dispatch) => {
   }
 };
 
-export const updateApiAction = (bridge_id, dataFromEmbed) => async (dispatch) => {
+export const updateApiAction = (bridge_id, dataFromEmbed) => async (dispatch, getState) => {
   try {
     markUpdateInitiatedByCurrentTab(dataFromEmbed?.version_id);
     const data = await updateapi(bridge_id, dataFromEmbed);
-    dispatch(updateBridgeVersionReducer({ bridges: data?.data?.agent }));
+
+    const versionId = dataFromEmbed?.version_id;
+    const state = getState().bridgeReducer;
+    const currentVersion = state?.bridgeVersionMapping?.[bridge_id]?.[versionId] || {};
+    const updatedAgent = {
+      ...currentVersion,
+      ...(data?.data?.agent || {}),
+    };
+
+    // Ensure draft state is reflected immediately in UI after pre-tool updates.
+    if (dataFromEmbed?.is_drafted === true) {
+      updatedAgent.is_drafted = true;
+    }
+
+    dispatch(updateBridgeVersionReducer({ bridges: updatedAgent }));
   } catch (error) {
     console.error(error);
   }

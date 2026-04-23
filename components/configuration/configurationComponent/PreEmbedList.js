@@ -119,6 +119,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
         },
         version_id: searchParams?.version,
         status: "1",
+        is_drafted: true,
       })
     );
   };
@@ -129,6 +130,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
         pre_tools: { type },
         version_id: searchParams?.version,
         status: "1",
+        is_drafted: true,
       })
     );
     setSelectedPreTool({ type, config: {}, args: {} });
@@ -164,6 +166,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
         },
         version_id: searchParams?.version,
         status: "1",
+        is_drafted: true,
       })
     );
     setShowChangePicker(false);
@@ -176,6 +179,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
         pre_tools: { type },
         version_id: searchParams?.version,
         status: "1",
+        is_drafted: true,
       })
     );
     setShowChangePicker(false);
