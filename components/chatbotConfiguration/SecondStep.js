@@ -5,12 +5,13 @@ import { extractPromptVariables } from "@/utils/utility";
 
 const generateDataObject = (slugName) => ({
   script: `<script
-      id="chatbot-main-script"
-      embedToken="<embed token here>"
-      bridgeName="${slugName}"
-      threadId="<thread_id>"
-      src="${process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC || "https://chatbot-embed.viasocket.com/chatbot-prod.js"}"
-    ></script>`,
+  id="chatbot-main-script"
+  embedToken="Enter Embed Token here"
+  src="${process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC || "https://chatbot-embed.viasocket.com/chatbot-prod.js"}"
+  threadId="Enter Thread ID here"
+  bridgeName="${slugName || "Your Agent Name"}"
+  theme="dark/light"
+></script>`,
   event: `window.addEventListener('message', (event) => {
         const receivedData = event.data;
      });`,
@@ -121,8 +122,9 @@ ${variablesObject}
         </pre>
         <pre data-prefix=">" className="text-error">
           <code> src=</code>
-          <code className="text-warning">"{process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC}"</code>
-          <code className="text-error">&gt;</code>
+          <code className="text-warning">
+            "{process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC || "https://chatbot-embed.viasocket.com/chatbot-prod.js"}"
+          </code>
         </pre>
         <pre data-prefix=">" className="text-error">
           <code> threadId=</code>
@@ -135,6 +137,7 @@ ${variablesObject}
         <pre data-prefix=">" className="text-error">
           <code> theme=</code>
           <code className="text-warning"> "dark/light"</code>
+          <code className="text-error">&gt;</code>
         </pre>
         <pre data-prefix=">" className="text-error">
           <code>&lt;/script&gt;</code>
