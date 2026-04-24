@@ -32,12 +32,14 @@ const IntegrationTab = ({ data }) => {
   const helperFunctions = `window.openGtwy() //To open GTWY;
 window.closeGtwy() //To Close GTWY;
 window.openGtwy({"agent_id":"your gtwy agentid"}); // Open GTWY with specific agent
-window.openGtwy({"agent_name":"your gtwy agent name"}); // Create agent with specific name`;
+window.openGtwy({"agent_name":"your gtwy agent name"}); // Create agent with specific name
+window.openGtwy({"agent_purpose":"your agent purpose"}) // Create agent with specific purpose`;
 
   const interfaceData = `// Configure UI elements
 window.GtwyEmbed.sendDataToGtwy({
   agent_name: "New Agent",  // Create bridge with agent name
   agent_id: "your_agent_id" // Redirect to specific agent
+  agent_purpose: "your_agent_purpose" // Create Agent with given purpose
 });`;
 
   const metaUpdateScript = `window.openGtwy({
