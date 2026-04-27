@@ -180,10 +180,11 @@ const KnowledgeBaseModal = ({
       settings: settings,
     };
 
-    // Only add content if there's actual content data (not just URL)
-    if (content && content !== resourceUrl && content.trim() !== "") {
-      payload.content = content;
-    } else {
+    // Send both fields when present; some resources store the same value in url and content.
+    if (content && content.trim() !== "") {
+      payload.chunkingUrl = content;
+    }
+    if (resourceUrl && resourceUrl.trim() !== "") {
       payload.url = resourceUrl;
     }
     payload.collection_details = collection_details;
@@ -225,9 +226,9 @@ const KnowledgeBaseModal = ({
       description: (formData.get("description") || "").trim(),
     };
 
-    // Add content if the resource has content and it's being updated
+    // Keep content updates separate from url-based resources.
     const updatedContent = (formData.get("content") || "").trim();
-    if (selectedResource?.content && updatedContent) {
+    if (updatedContent) {
       payload.content = updatedContent;
     }
 
