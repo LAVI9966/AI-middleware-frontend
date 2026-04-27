@@ -228,9 +228,9 @@ const KnowledgeBaseModal = ({
       description: (formData.get("description") || "").trim(),
     };
 
-    // Add content if the resource has content and it's being updated
+    // Keep content updates separate from url-based resources.
     const updatedContent = (formData.get("content") || "").trim();
-    if (selectedResource?.content && updatedContent) {
+    if (updatedContent) {
       payload.content = updatedContent;
     }
 
