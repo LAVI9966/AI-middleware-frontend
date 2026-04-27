@@ -146,7 +146,6 @@ const KnowledgeBaseModal = ({
       if (uploadedFile) {
         // Use uploaded file URL
         resourceUrl = uploadedFile.url;
-        content = uploadedFile.url;
       } else {
         // Fallback to local file reading (existing behavior)
         const file = formData.get("file");
@@ -171,7 +170,6 @@ const KnowledgeBaseModal = ({
       // No resourceUrl needed for content input
     } else {
       resourceUrl = (formData.get("url") || "").trim();
-      content = resourceUrl;
     }
 
     const payload = {
@@ -180,9 +178,13 @@ const KnowledgeBaseModal = ({
       settings: settings,
     };
 
-    // Send both fields when present; some resources store the same value in url and content.
+    const chunkingUrl = (formData.get("chunkingUrl") || "").trim();
+
+    if (chunkingUrl) {
+      payload.settings.chunkingUrl = chunkingUrl;
+    }
     if (content && content.trim() !== "") {
-      payload.chunkingUrl = content;
+      payload.content = content;
     }
     if (resourceUrl && resourceUrl.trim() !== "") {
       payload.url = resourceUrl;
