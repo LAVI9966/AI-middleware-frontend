@@ -231,6 +231,11 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
     [updateField]
   );
 
+  const handleFieldShowPromptHelperChange = useCallback(
+    (fieldName, showPromptHelper) => updateField(fieldName, { showPromptHelper }),
+    [updateField]
+  );
+
   return (
     <>
       <h5 className="text-sm font-semibold border-b border-base-300 pb-2">Prompt Configuration</h5>
@@ -250,11 +255,71 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
         </div>
 
         {/* Default Prompt Info (shown when useDefaultPrompt is true) */}
-        {promptConfig.useDefaultPrompt && (
-          <p className="text-xs text-base-content/70 px-1">
-            Using default system prompt from backend. The prompt will be automatically applied when creating agents.
-          </p>
-        )}
+        {promptConfig.useDefaultPrompt &&
+          (() => {
+            const rawPrompt = typeof configuration?.prompt === "string" ? configuration.prompt : "";
+            const promptVars = rawPrompt ? extractVariablesFromPrompt(rawPrompt) : [];
+
+            if (!rawPrompt) {
+              return (
+                <p className="text-xs text-base-content/70 px-1">
+                  Using default system prompt from backend. The prompt will be automatically applied when creating
+                  agents.
+                </p>
+              );
+            }
+
+            // Split prompt text on {{variable}} tokens for inline rendering
+            const parts = rawPrompt.split(/(\{\{[^}]+\}\})/g);
+
+            return (
+              <div className="space-y-3">
+                <p className="text-xs text-base-content/70 px-1">
+                  Using default system prompt. Variables detected below.
+                </p>
+                {/* Prompt preview with highlighted variables */}
+                <div className="text-xs font-mono bg-base-100 border border-base-300 rounded p-2 whitespace-pre-wrap break-words leading-6">
+                  {parts.map((part, i) => {
+                    const match = part.match(/^\{\{([^}]+)\}\}$/);
+                    if (match) {
+                      return (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1 bg-primary/10 text-primary border border-primary/30 rounded px-1.5 py-0.5 mx-0.5 font-semibold"
+                        >
+                          <span>{part}</span>
+                          <span
+                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-primary/20 text-primary cursor-default"
+                            title={`Variable: ${match[1].trim()} — this value will be filled in at runtime`}
+                          >
+                            &#x2713;
+                          </span>
+                        </span>
+                      );
+                    }
+                    return <span key={i}>{part}</span>;
+                  })}
+                </div>
+                {/* Variable summary chips */}
+                {promptVars.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 px-1">
+                    {promptVars.map((varName) => (
+                      <span
+                        key={varName}
+                        className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/30 rounded-full px-2 py-0.5"
+                        title={`Variable: ${varName} — this value will be filled in at runtime`}
+                      >
+                        <span className="font-mono">{`{{${varName}}}`}</span>
+                        <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-primary/20 text-primary font-bold text-xs">
+                          &#x2713;
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
         {/* Custom Prompt Builder (shown when useDefaultPrompt is false) */}
         {!promptConfig.useDefaultPrompt && (
@@ -324,7 +389,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
                         />
                       )}
 
-                      {/* Row 3: type selector (when visible) + Hide toggle */}
+                      {/* Row 3: type selector (when visible) + Hide checkbox + Prompt Helper button */}
                       <div className="flex items-center justify-between gap-2">
                         {!field.hidden ? (
                           <select
@@ -338,15 +403,26 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
                         ) : (
                           <span />
                         )}
-                        <label className="label cursor-pointer gap-2 py-0">
-                          <span className="label-text text-sm">Hide</span>
-                          <input
-                            type="checkbox"
-                            className="toggle toggle-sm"
-                            checked={field.hidden}
-                            onChange={(e) => handleFieldVisibilityToggle(field.name, e.target.checked)}
-                          />
-                        </label>
+                        <div className="flex items-center gap-3">
+                          <label className="label cursor-pointer gap-2 py-0">
+                            <span className="label-text text-sm">Hide</span>
+                            <input
+                              type="checkbox"
+                              className="checkbox checkbox-sm"
+                              checked={field.hidden}
+                              onChange={(e) => handleFieldVisibilityToggle(field.name, e.target.checked)}
+                            />
+                          </label>
+                          <label className="label cursor-pointer gap-2 py-0">
+                            <span className="label-text text-sm">Prompt Helper</span>
+                            <input
+                              type="checkbox"
+                              className="checkbox checkbox-sm"
+                              checked={field.showPromptHelper || false}
+                              onChange={(e) => handleFieldShowPromptHelperChange(field.name, e.target.checked)}
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
                   ))}

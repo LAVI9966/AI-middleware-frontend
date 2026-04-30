@@ -26,7 +26,8 @@ export const optimizePromptApi = async ({
   version_id,
   query,
   thread_id,
-  data = { query, thread_id, version_id },
+  variables,
+  data = { query, thread_id, version_id, variables },
 }) => {
   try {
     const response = await axios.post(`${URL}/api/utils/call-gtwy`, {
@@ -34,6 +35,7 @@ export const optimizePromptApi = async ({
       ...data,
       bridge_id: bridge_id || data.bridge_id,
       version_id: version_id || data.version_id,
+      variables: variables || data.variables,
     });
     return response.data.result;
   } catch (error) {

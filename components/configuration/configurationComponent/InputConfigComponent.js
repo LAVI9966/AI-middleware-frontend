@@ -12,6 +12,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { promptObjectToString } from "@/utils/promptUtils";
 import Protected from "@/components/Protected";
 import FullscreenEditorModal, { FullscreenEditorButton } from "../../modals/FullscreenEditorModal";
+import { BrainIcon } from "@/components/Icons";
 
 // Ultra-smooth InputConfigComponent with ref-based approach
 const InputConfigComponent = memo(
@@ -241,6 +242,28 @@ const InputConfigComponent = memo(
       }
     }, [uiState.isPromptHelperOpen, updateUiState]);
 
+    const handleOpenPromptHelperForField = useCallback(
+      (fieldName) => {
+        setPromptState((prev) => ({ ...prev, activeHelperField: fieldName }));
+        if (window.innerWidth > 710) {
+          updateUiState({ isPromptHelperOpen: true });
+        }
+      },
+      [updateUiState, setPromptState]
+    );
+
+    // When PromptHelper applies a result and activeHelperField is set,
+    // route the new content into that specific embed field instead of the main prompt.
+    useEffect(() => {
+      if (!promptState.activeHelperField || !promptState.newContent) return;
+      const value =
+        typeof promptState.newContent === "object"
+          ? (promptState.newContent[promptState.activeHelperField] ?? JSON.stringify(promptState.newContent))
+          : String(promptState.newContent);
+      handleEmbedFieldChange(promptState.activeHelperField, value);
+      setPromptState((prev) => ({ ...prev, newContent: "" }));
+    }, [promptState.newContent, promptState.activeHelperField, handleEmbedFieldChange, setPromptState]);
+
     const handleTextareaFocus = useCallback(() => {
       if (blurTimerRef.current) {
         clearTimeout(blurTimerRef.current);
@@ -345,6 +368,21 @@ const InputConfigComponent = memo(
                       {field.displayValue || field.name}
                     </span>
                     {field.deprecated && <span className="badge badge-warning badge-xs text-xs">deprecated</span>}
+                    {field.showPromptHelper && !field.deprecated && !isPublished && isEditor && (
+                      <button
+                        type="button"
+                        className={`btn btn-xs gap-1 ml-auto ${
+                          promptState.activeHelperField === field.name && uiState.isPromptHelperOpen
+                            ? "btn-primary"
+                            : "btn-ghost border border-base-300"
+                        }`}
+                        onClick={() => handleOpenPromptHelperForField(field.name)}
+                        title={`Open Prompt Helper for ${field.displayValue || field.name}`}
+                      >
+                        <BrainIcon size={12} />
+                        <span>Helper</span>
+                      </button>
+                    )}
                   </label>
                   <div className="relative">
                     {field.type === "textarea" ? (
