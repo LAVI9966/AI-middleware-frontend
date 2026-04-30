@@ -1276,7 +1276,8 @@ function FunctionParameterModal({
         setIsLoading(true);
         const shouldUpdateFlowDetails =
           toolData?.description?.trim() != function_details?.description?.trim() ||
-          ((name === "Tool" || name === "Pre Tool" || name === "Post Tool") && toolData?.title?.trim() !== toolName?.trim());
+          ((name === "Tool" || name === "Pre Tool" || name === "Post Tool") &&
+            toolData?.title?.trim() !== toolName?.trim());
 
         if (shouldUpdateFlowDetails) {
           const didUpdateFlow = await handleUpdateFlow();
