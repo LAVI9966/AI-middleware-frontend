@@ -358,7 +358,7 @@ export function flattenParameters(parameters, prefix = "") {
       type: value?.type,
       description: value?.description,
       enum: value.enum,
-      required_params: value?.required_params,
+      required: value?.required,
       parameter: value?.parameter,
       items: value?.items,
     });
@@ -566,7 +566,7 @@ export const createDiff = (oldText, newText) => {
 
 export const transformAgentVariableToToolCallFormat = (inputData) => {
   const fields = {};
-  const required_params = [];
+  const required = [];
 
   function setNestedValue(obj, path, value, isRequired) {
     const parts = path.split(".");
@@ -580,7 +580,7 @@ export const transformAgentVariableToToolCallFormat = (inputData) => {
           type: "object",
           description: "",
           enum: [],
-          required_params: [],
+          required: [],
           parameter: {},
         };
       } else if (!current[part].parameter) {
@@ -603,7 +603,7 @@ export const transformAgentVariableToToolCallFormat = (inputData) => {
       type: paramType,
       description: "",
       enum: [],
-      required_params: [],
+      required: [],
     };
 
     if (isRequired) {
@@ -616,14 +616,14 @@ export const transformAgentVariableToToolCallFormat = (inputData) => {
         const parentKey = parts[i];
         const childKey = parts[i + 1];
 
-        if (!currentLevel[parentKey].required_params.includes(childKey)) {
-          currentLevel[parentKey].required_params.push(childKey);
+        if (!currentLevel[parentKey].required.includes(childKey)) {
+          currentLevel[parentKey].required.push(childKey);
         }
       }
 
-      // Add top-level key to required_params
-      if (!required_params.includes(parts[0])) {
-        required_params.push(parts[0]);
+      // Add top-level key to required
+      if (!required.includes(parts[0])) {
+        required.push(parts[0]);
       }
     }
   }
@@ -645,16 +645,16 @@ export const transformAgentVariableToToolCallFormat = (inputData) => {
         type: paramType,
         description: "",
         enum: [],
-        required_params: [],
+        required: [],
       };
 
-      if (isRequired && !required_params.includes(key)) {
-        required_params.push(key);
+      if (isRequired && !required.includes(key)) {
+        required.push(key);
       }
     }
   }
 
-  return { fields, required_params };
+  return { fields, required };
 };
 
 export function toBoolean(str) {
