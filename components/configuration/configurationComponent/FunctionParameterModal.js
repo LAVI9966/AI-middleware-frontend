@@ -175,8 +175,8 @@ const ParameterCard = ({
                   checked={(() => {
                     const keyParts = currentPath.split(".");
                     if (keyParts.length === 1) {
-                      // For top-level parameters, check in toolData.required_params
-                      return (toolData?.required_params || []).includes(paramKey);
+                      // For top-level parameters, check in toolData.required
+                      return (toolData?.required || []).includes(paramKey);
                     } else {
                       // For nested parameters, navigate to the direct parent field
                       const parentKeyParts = keyParts.slice(0, -1);
@@ -189,7 +189,7 @@ const ParameterCard = ({
                           currentField = currentField[key]?.items;
                         } else {
                           if (i === parentKeyParts.length - 1) {
-                            // This is the direct parent - check its required_params
+                            // This is the direct parent - check its required
                             currentField = currentField?.[key];
                           } else {
                             // Navigate deeper into nested structure
@@ -198,7 +198,7 @@ const ParameterCard = ({
                         }
                       }
 
-                      return (currentField?.required_params || []).includes(paramKey);
+                      return (currentField?.required || []).includes(paramKey);
                     }
                   })()}
                   disabled={(() => {
@@ -217,13 +217,13 @@ const ParameterCard = ({
 
                         if (i === 0) {
                           // Check if top-level parent is required
-                          isParentRequired = (toolData?.required_params || []).includes(key);
+                          isParentRequired = (toolData?.required || []).includes(key);
                         } else {
                           // Check if nested parent is required
                           const parentPath = keyParts.slice(0, i);
                           let parentField = toolData?.fields;
 
-                          // Navigate to the field that should contain the required_params
+                          // Navigate to the field that should contain the required
                           for (let j = 0; j < parentPath.length; j++) {
                             const parentKey = parentPath[j];
                             if (parentField?.[parentKey]?.type === "array") {
@@ -238,7 +238,7 @@ const ParameterCard = ({
                             }
                           }
 
-                          isParentRequired = isParentRequired && (parentField?.required_params || []).includes(key);
+                          isParentRequired = isParentRequired && (parentField?.required || []).includes(key);
                         }
 
                         if (!isParentRequired) break;
@@ -258,7 +258,7 @@ const ParameterCard = ({
                       for (let i = 0; i < keyParts.length - 1; i++) {
                         const key = keyParts[i];
                         if (i === 0) {
-                          isParentRequired = (toolData?.required_params || []).includes(key);
+                          isParentRequired = (toolData?.required || []).includes(key);
                         } else {
                           const parentPath = keyParts.slice(0, i);
                           let parentField = toolData?.fields;
@@ -275,7 +275,7 @@ const ParameterCard = ({
                               }
                             }
                           }
-                          isParentRequired = isParentRequired && (parentField?.required_params || []).includes(key);
+                          isParentRequired = isParentRequired && (parentField?.required || []).includes(key);
                         }
                         if (!isParentRequired) break;
                       }
@@ -293,7 +293,7 @@ const ParameterCard = ({
                       for (let i = 0; i < keyParts.length - 1; i++) {
                         const key = keyParts[i];
                         if (i === 0) {
-                          isParentRequired = (toolData?.required_params || []).includes(key);
+                          isParentRequired = (toolData?.required || []).includes(key);
                         } else {
                           const parentPath = keyParts.slice(0, i);
                           let parentField = toolData?.fields;
@@ -310,7 +310,7 @@ const ParameterCard = ({
                               }
                             }
                           }
-                          isParentRequired = isParentRequired && (parentField?.required_params || []).includes(key);
+                          isParentRequired = isParentRequired && (parentField?.required || []).includes(key);
                         }
                         if (!isParentRequired) break;
                       }
@@ -691,7 +691,7 @@ function FunctionParameterModal({
           properties: {
             type: "object",
             properties: properties,
-            required_params: function_details?.["required_params"] || [],
+            required: function_details?.["required"] || [],
             additionalProperties: false,
           },
         },
@@ -826,14 +826,14 @@ function FunctionParameterModal({
       const keyParts = key.split(".");
       if (keyParts.length === 1) {
         setToolData((prevToolData) => {
-          const updatedRequiredParams = prevToolData.required_params || [];
+          const updatedRequiredParams = prevToolData.required || [];
           const newRequiredParams = updatedRequiredParams.includes(keyParts[0])
             ? updatedRequiredParams.filter((item) => item !== keyParts[0])
             : [...updatedRequiredParams, keyParts[0]];
 
           return {
             ...prevToolData,
-            required_params: newRequiredParams,
+            required: newRequiredParams,
           };
         });
       } else {
@@ -845,14 +845,14 @@ function FunctionParameterModal({
             }
 
             const fieldKey = keyParts[keyParts.length - 1];
-            const updatedRequiredParams = field.required_params || [];
+            const updatedRequiredParams = field.required || [];
             const newRequiredParams = updatedRequiredParams.includes(fieldKey)
               ? updatedRequiredParams.filter((item) => item !== fieldKey)
               : [...updatedRequiredParams, fieldKey];
 
             return {
               ...field,
-              required_params: newRequiredParams,
+              required: newRequiredParams,
             };
           });
 
@@ -901,8 +901,8 @@ function FunctionParameterModal({
           delete newFields[oldName];
           newFields[newName] = paramData;
 
-          // Update required_params if the old name was required
-          let newRequiredParams = prevToolData.required_params || [];
+          // Update required if the old name was required
+          let newRequiredParams = prevToolData.required || [];
           if (newRequiredParams.includes(oldName)) {
             newRequiredParams = newRequiredParams.filter((name) => name !== oldName);
             newRequiredParams.push(newName);
@@ -911,7 +911,7 @@ function FunctionParameterModal({
           return {
             ...prevToolData,
             fields: newFields,
-            required_params: newRequiredParams,
+            required: newRequiredParams,
           };
         }
 
@@ -927,8 +927,8 @@ function FunctionParameterModal({
           delete newParameter[oldName];
           newParameter[newName] = paramData;
 
-          // Update required_params if the old name was required
-          let newRequiredParams = parentField.required_params || [];
+          // Update required if the old name was required
+          let newRequiredParams = parentField.required || [];
           if (newRequiredParams.includes(oldName)) {
             newRequiredParams = newRequiredParams.filter((name) => name !== oldName);
             newRequiredParams.push(newName);
@@ -937,7 +937,7 @@ function FunctionParameterModal({
           return {
             ...parentField,
             properties: newParameter,
-            required_params: newRequiredParams,
+            required: newRequiredParams,
           };
         });
 
@@ -996,7 +996,7 @@ function FunctionParameterModal({
           ...field,
           type: newType,
           items: { type: "string" },
-          required_params: [],
+          required: [],
           ...(field?.properties || field?.parameter ? { properties: undefined } : {}),
         }));
       } else {
