@@ -107,6 +107,7 @@ export const UsageSummaryPopover = ({ stats, item, isEmbedUser, onSetLimit, onRe
           <div className="flex gap-1 items-center justify-between">
             <span className="text-base-content/60">Limit</span>
             <input
+              autoComplete="off"
               type="number"
               placeholder="Enter limit in $"
               className="input input-bordered max-w-sm w-full input-sm"
@@ -1098,7 +1099,7 @@ function Home({ params, searchParams, isEmbedUser }) {
         )}
         <CreateNewBridge orgid={resolvedParams.org_id} defaultBridgeType={bridgeTypeFilter} />
         {!typeFilteredBridges.length && isLoading && <LoadingSpinner />}
-        <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
+        <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
         <div className="drawer-content flex flex-col items-start justify-start">
           <div className="flex w-full justify-start gap-4 lg:gap-16 items-start">
             <div className="w-full">
@@ -1260,6 +1261,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold uppercase text-base-content/60">Start date</label>
                   <input
+                    autoComplete="off"
                     type="date"
                     data-testid="usage-filter-start-date"
                     className="input input-bordered input-sm w-full"
@@ -1271,6 +1273,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                 <div className="space-y-1">
                   <label className="text-xs font-semibold uppercase text-base-content/60">End date</label>
                   <input
+                    autoComplete="off"
                     type="date"
                     data-testid="usage-filter-end-date"
                     className="input input-bordered input-sm w-full"

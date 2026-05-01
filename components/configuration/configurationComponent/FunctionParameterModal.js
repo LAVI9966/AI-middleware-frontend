@@ -140,6 +140,7 @@ const ParameterCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 justify-between w-full">
           <input
+            autoComplete="off"
             data-testid={`param-name-input-${currentPath}`}
             id={`param-name-input-${currentPath}`}
             disabled={isPublished || !isEditor}
@@ -168,6 +169,7 @@ const ParameterCard = ({
             <div className="flex items-center mr-4 gap-2">
               <label className="flex items-center gap-1 text-xs">
                 <input
+                  autoComplete="off"
                   data-testid={`param-required-checkbox-${currentPath}`}
                   id={`param-required-checkbox-${currentPath}`}
                   type="checkbox"
@@ -322,6 +324,7 @@ const ParameterCard = ({
               </label>
               <label className="flex items-center gap-2">
                 <input
+                  autoComplete="off"
                   data-testid={`param-fill-ai-checkbox-${currentPath}`}
                   id={`param-fill-ai-checkbox-${currentPath}`}
                   type="checkbox"
@@ -365,6 +368,7 @@ const ParameterCard = ({
             <div className="flex flex-row items-center">
               <label className="text-xs mb-0 mr-1 whitespace-nowrap">Value Path:</label>
               <input
+                autoComplete="off"
                 data-testid={`param-value-path-input-${currentPath}`}
                 id={`param-value-path-input-${currentPath}`}
                 disabled={isReadOnly}
@@ -418,6 +422,7 @@ const ParameterCard = ({
         {name !== "Pre Tool" && name !== "Post Tool" && param.type !== "object" && (
           <div className="flex items-center gap-1 text-xs mb-1">
             <input
+              autoComplete="off"
               id={`param-enum-checkbox-${currentPath}`}
               disabled={isReadOnly}
               type="checkbox"
@@ -435,6 +440,7 @@ const ParameterCard = ({
 
             {param.hasOwnProperty("enum") && (
               <input
+                autoComplete="off"
                 data-testid={`param-enum-input-${currentPath}`}
                 id={`param-enum-input-${currentPath}`}
                 disabled={isReadOnly}
@@ -463,6 +469,7 @@ const ParameterCard = ({
             <div className="mb-1 flex flex-row ml-1 items-center justify-end">
               <label className="block text-xs mb-0 mr-1">Value Path:</label>
               <input
+                autoComplete="off"
                 data-testid={`param-value-path-input-${currentPath}`}
                 id={`param-value-path-input-${currentPath}`}
                 disabled={isReadOnly}
@@ -1388,6 +1395,7 @@ function FunctionParameterModal({
                       />
                     </InfoTooltip>
                     <input
+                      autoComplete="off"
                       id="function-param-thread-id-toggle"
                       disabled={isReadOnly}
                       type="checkbox"
@@ -1460,6 +1468,7 @@ function FunctionParameterModal({
               <div className="flex items-center text-sm gap-3">
                 <p>Check for old data</p>
                 <input
+                  autoComplete="off"
                   id="function-param-old-data-checkbox"
                   disabled={isReadOnly}
                   type="checkbox"
@@ -1513,6 +1522,7 @@ function FunctionParameterModal({
                       <label className="block text-xs font-medium mb-1">Name</label>
                       {name === "Orchestral Agent" || name === "Agent" ? (
                         <input
+                          autoComplete="off"
                           id="function-param-name-input"
                           data-testid="function-parameter-name-input"
                           type="text"
@@ -1522,6 +1532,7 @@ function FunctionParameterModal({
                         />
                       ) : (
                         <input
+                          autoComplete="off"
                           id="function-param-name-input"
                           data-testid="function-parameter-name-input"
                           className="input input-sm text-xs input-bordered w-full"

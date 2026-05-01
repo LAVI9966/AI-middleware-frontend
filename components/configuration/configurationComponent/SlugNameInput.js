@@ -22,6 +22,7 @@ const SlugNameInput = ({ params }) => {
         <span className="label-text font-medium">Enter Slugname</span>
       </div>
       <input
+        autoComplete="off"
         data-testid="slug-name-input"
         id="slug-name-input"
         type="text"

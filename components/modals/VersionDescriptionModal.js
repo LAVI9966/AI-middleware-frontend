@@ -16,6 +16,7 @@ const VersionDescriptionModal = ({ versionDescriptionRef, handleCreateNewVersion
       >
         <h3 className="font-bold text-lg mb-4">Create New Version</h3>
         <input
+          autoComplete="off"
           data-testid="version-description-input"
           id="version-description-input"
           type="text"

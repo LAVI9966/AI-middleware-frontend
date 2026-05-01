@@ -193,7 +193,7 @@ function Page({ params, searchParams }) {
   return (
     <div className="bg-base-100 relative scrollbar-hide text-base-content max-h-[calc(100vh-9rem)]">
       <div className="drawer drawer-open overflow-hidden">
-        <input id="my-drawer-2" type="checkbox" className="drawer-toggle" />
+        <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
         {loading ? (
           <ChatLoadingSkeleton />
         ) : (

@@ -61,6 +61,7 @@ function CreateVariableModal({ keyName, setKeyName, params, searchParams }) {
           <span className="label-text">Key</span>
         </div>
         <input
+          autoComplete="off"
           data-testid="create-variable-key-input"
           id="create-variable-key-input"
           type="text"
@@ -76,6 +77,7 @@ function CreateVariableModal({ keyName, setKeyName, params, searchParams }) {
           <span className="label-text">Value</span>
         </div>
         <input
+          autoComplete="off"
           data-testid="create-variable-value-input"
           id="create-variable-value-input"
           defaultValue={valueValue}

@@ -40,6 +40,7 @@ const SchemaPropertyCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 justify-between w-full">
           <input
+            autoComplete="off"
             data-testid={`schema-prop-name-input-${currentPath}`}
             id={`schema-prop-name-input-${currentPath}`}
             disabled={isReadOnly}
@@ -74,6 +75,7 @@ const SchemaPropertyCard = ({
           <div className="flex items-center mr-4 gap-2">
             <label className="flex items-center gap-1 text-xs">
               <input
+                autoComplete="off"
                 data-testid={`schema-prop-required-checkbox-${currentPath}`}
                 id={`schema-prop-required-checkbox-${currentPath}`}
                 type="checkbox"
@@ -987,6 +989,7 @@ function JsonSchemaBuilderModal({
                   Schema Name <span className="text-error">*</span>
                 </label>
                 <input
+                  autoComplete="off"
                   data-testid="json-schema-name-input"
                   id="json-schema-name-input"
                   type="text"

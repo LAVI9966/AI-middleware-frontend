@@ -207,6 +207,7 @@ const ApiKeyModal = ({
                 {isRequired && RequiredItem()} <span className="opacity-55">{field === "apikey_limit" && "in $"}</span>
               </label>
               <input
+                autoComplete="off"
                 data-testid={`apikey-modal-field-${field}-input`}
                 id={field}
                 required={isRequired}
@@ -246,6 +247,7 @@ const ApiKeyModal = ({
                 {displayLabel} <span className="opacity-55">in $</span>
               </label>
               <input
+                autoComplete="off"
                 data-testid={`apikey-modal-field-${field}-input`}
                 id={field}
                 type="number"

@@ -709,6 +709,7 @@ function ChatTextInput({
         >
           <div className="flex gap-2 items-center">
             <input
+              autoComplete="off"
               data-testid="chat-url-input"
               id="chat-url-input"
               type="url"
@@ -776,6 +777,7 @@ function ChatTextInput({
           />
         )}
         <input
+          autoComplete="off"
           data-testid="chat-file-input"
           id="chat-file-input"
           ref={(el) => setFileInput(el)} // Use callback ref to set the state

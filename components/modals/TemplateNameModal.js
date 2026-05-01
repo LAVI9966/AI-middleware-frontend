@@ -9,6 +9,7 @@ const TemplateNameModal = ({ templateNameRef, handleConvertToTemplate }) => {
       <div id="template-name-modal-container" className="modal-box">
         <h3 className="font-bold text-lg mb-4">Convert to Template</h3>
         <input
+          autoComplete="off"
           id="template-name-input"
           type="text"
           placeholder="Enter template name"

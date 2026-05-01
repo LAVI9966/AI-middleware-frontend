@@ -1177,6 +1177,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
                       <div key={variable.id || `${variable.key}-${index}`} className="px-3 py-2 text-sm">
                         <div className="grid grid-cols-[1fr,1.2fr,1fr,0.8fr,0.6fr,auto] gap-2 items-center">
                           <input
+                            autoComplete="off"
                             id={`variable-key-input-${index}`}
                             type="text"
                             className={`input input-xs input-bordered w-full ${
@@ -1212,6 +1213,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
                             </select>
                           ) : variable.type === "number" ? (
                             <input
+                              autoComplete="off"
                               id={`variable-value-number-${index}`}
                               type="number"
                               step="any"
@@ -1228,6 +1230,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
                             />
                           ) : variable.type === "string" ? (
                             <input
+                              autoComplete="off"
                               id={`variable-value-text-${index}`}
                               type="text"
                               className={`input input-xs input-bordered w-full ${
@@ -1289,6 +1292,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
                             </select>
                           ) : variable.type === "number" ? (
                             <input
+                              autoComplete="off"
                               id={`variable-default-number-${index}`}
                               type="number"
                               step="any"
@@ -1311,6 +1315,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
                             />
                           ) : (
                             <input
+                              autoComplete="off"
                               id={`variable-default-text-${index}`}
                               type="text"
                               className="input input-xs input-bordered w-full"

@@ -86,6 +86,7 @@ const InviteUserModal = () => {
                 <Mail size={16} className="text-base-content/40" />
               </div>
               <input
+                autoComplete="off"
                 data-testid="invite-user-email-input"
                 id="invite-user-email-input"
                 type="email"

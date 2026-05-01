@@ -514,6 +514,7 @@ const AdvancedParameters = ({
                 const checkedValue = isDefaultValue ? !!modelDefault : inputConfiguration?.[key] || false;
                 return (
                   <input
+                    autoComplete="off"
                     data-testid={`advanced-param-checkbox-${key}`}
                     id={`advanced-param-checkbox-${key}`}
                     name={key}
@@ -551,6 +552,7 @@ const AdvancedParameters = ({
             {/* Text input */}
             {field === "text" && (
               <input
+                autoComplete="off"
                 data-testid={`advanced-param-text-${key}`}
                 id={`advanced-param-text-${key}`}
                 type="text"
@@ -578,6 +580,7 @@ const AdvancedParameters = ({
             {/* Number input */}
             {field === "number" && (
               <input
+                autoComplete="off"
                 data-testid={`advanced-param-number-${key}`}
                 id={`advanced-param-number-${key}`}
                 type="number"
@@ -1025,6 +1028,7 @@ const AdvancedParameters = ({
                 </button>
                 {sliderValueNode}
                 <input
+                  autoComplete="off"
                   data-testid={`advanced-param-slider-${key}`}
                   id={`advanced-param-slider-${key}`}
                   type="range"
@@ -1106,6 +1110,7 @@ const AdvancedParameters = ({
                   >
                     <div className="p-2 top-0 bg-base-100">
                       <input
+                        autoComplete="off"
                         data-testid={`advanced-param-dropdown-search-${key}`}
                         id={`advanced-param-dropdown-search-${key}`}
                         type="text"
@@ -1132,6 +1137,7 @@ const AdvancedParameters = ({
                         >
                           <label className="flex items-center gap-2">
                             <input
+                              autoComplete="off"
                               id={`advanced-param-dropdown-option-radio-${key}-${option}`}
                               type="radio"
                               name="function-select"
@@ -1178,6 +1184,7 @@ const AdvancedParameters = ({
                                 className="flex items-center gap-2"
                               >
                                 <input
+                                  autoComplete="off"
                                   id={`advanced-param-dropdown-tool-radio-${key}-${func?._id}`}
                                   type="radio"
                                   name="function-select"
@@ -1228,6 +1235,7 @@ const AdvancedParameters = ({
                                 className="flex items-center gap-2"
                               >
                                 <input
+                                  autoComplete="off"
                                   id={`advanced-param-dropdown-agent-radio-${key}-${agent.bridge_id}`}
                                   type="radio"
                                   name="function-select"
