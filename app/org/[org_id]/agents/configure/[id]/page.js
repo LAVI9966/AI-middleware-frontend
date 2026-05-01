@@ -829,7 +829,10 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                           }
                         }
                       }}
-                      showCloseButton={closeHelperButtonLocation === "promptHelper"}
+                      showCloseButton={
+                        closeHelperButtonLocation === "promptHelper" ||
+                        (isEmbedUser && closeHelperButtonLocation === "config")
+                      }
                       messages={promptState.messages}
                       setMessages={(value) => {
                         if (typeof value === "function") {
