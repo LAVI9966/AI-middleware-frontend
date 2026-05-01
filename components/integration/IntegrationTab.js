@@ -74,16 +74,24 @@ window.addEventListener('message', (event) => {
               <div className="relative">
                 <div className="mockup-code">
                   <pre data-prefix=">">
-                    <code className="text-error">org_id=</code>
-                    <code className="text-warning">{data?.org_id}</code>
+                    <code className="text-error">{`{`}</code>
                   </pre>
                   <pre data-prefix=">">
-                    <code className="text-error">folder_id=</code>
-                    <code className="text-warning">{data?.folder_id}</code>
+                    <code className="text-error"> "org_id": </code>
+                    <code className="text-warning">"{data?.org_id}"</code>
+                    <code>,</code>
                   </pre>
                   <pre data-prefix=">">
-                    <code className="text-error">user_id=</code>
+                    <code className="text-error"> "folder_id": </code>
+                    <code className="text-warning">"{data?.folder_id}"</code>
+                    <code>,</code>
+                  </pre>
+                  <pre data-prefix=">">
+                    <code className="text-error"> "user_id": </code>
                     <code className="text-warning">"Your_user_id"</code>
+                  </pre>
+                  <pre data-prefix=">">
+                    <code className="text-error">{`}`}</code>
                   </pre>
                 </div>
                 <CopyButton data={jwtPayload} />
