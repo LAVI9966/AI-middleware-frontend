@@ -85,7 +85,7 @@ function FullscreenEditorModal({
     <Modal MODAL_ID={modalId} onClose={handleClose}>
       <div
         data-testid="fullscreen-editor-modal"
-        className="modal-box max-w-screen-lg h-[calc(100%-10rem)] w-[calc(100%-20rem)] bg-base-100 overflow-hidden flex flex-col p-6"
+        className="modal-box max-w-screen-lg h-[calc(100dvh-10rem)] min-h-[calc(100dvh-10rem)] !max-h-[calc(100dvh-10rem)] w-[calc(100vw-20rem)] bg-base-100 overflow-hidden flex flex-col p-6"
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-lg flex items-center gap-2">
