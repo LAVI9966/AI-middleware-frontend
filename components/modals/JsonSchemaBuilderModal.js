@@ -863,7 +863,7 @@ function JsonSchemaBuilderModal({
               response_type: {
                 ...response_type,
                 [schemaKey]: {
-                  name: schemaName?.trim(),
+                  name: schemaName?.trim().replace(/\s+/g, "_"),
                   schema: { ...schemaData, properties: trimmedProperties },
                   strict: true,
                 },
