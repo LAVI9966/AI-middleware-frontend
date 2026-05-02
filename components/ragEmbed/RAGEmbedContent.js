@@ -26,8 +26,8 @@ function RAGEmbedContent({ params, folderId, embedToken }) {
 
   const renderStepOne = ({ orgId, access_key, folderId }) => {
     const apiConfig = `{
-    "org_id": ${orgId},
-    "user_id": "unique_user_id",${folderId ? `\n    "folder_id": "${folderId}",` : ""}
+  "org_id": "${orgId}",
+  "user_id": "unique_user_id"${folderId ? `,\n  "folder_id": "${folderId}"` : ""}
 }`;
 
     return (
@@ -35,19 +35,27 @@ function RAGEmbedContent({ params, folderId, embedToken }) {
         <Section title="Step 1: Connect Knowledge Base" caption="Use the following API configuration and access key." />
         <div className="relative">
           <div id="rag-embed-step1-api-config" className="mockup-code">
-            <pre data-prefix=">" className="text-error">
-              <code>org_id=</code>
-              <code className="text-warning">{orgId}</code>
+            <pre data-prefix=">">
+              <code className="text-error">{`{`}</code>
+            </pre>
+            <pre data-prefix=">">
+              <code className="text-error"> "org_id": </code>
+              <code className="text-warning">"{orgId}"</code>
+              <code>,</code>
+            </pre>
+            <pre data-prefix=">">
+              <code className="text-error"> "user_id": </code>
+              <code className="text-warning">"unique_user_id"</code>
+              {folderId && <code>,</code>}
             </pre>
             {folderId && (
-              <pre data-prefix=">" className="text-error">
-                <code>folder_id=</code>
+              <pre data-prefix=">">
+                <code className="text-error"> "folder_id": </code>
                 <code className="text-warning">"{folderId}"</code>
               </pre>
             )}
-            <pre data-prefix=">" className="text-error">
-              <code>user_id=</code>
-              <code className="text-warning">"unique_user_id"</code>
+            <pre data-prefix=">">
+              <code className="text-error">{`}`}</code>
             </pre>
           </div>
           <CopyButton data={apiConfig} />

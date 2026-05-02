@@ -232,6 +232,7 @@ const PrebuiltToolsConfigModal = ({ initialDomains = [], onSave }) => {
                 </label>
                 <div className="flex items-center gap-2">
                   <input
+                    autoComplete="off"
                     id="prebuilt-tools-config-domain-input"
                     data-testid="prebuilt-tools-config-domain-input"
                     type="text"
@@ -286,6 +287,7 @@ const PrebuiltToolsConfigModal = ({ initialDomains = [], onSave }) => {
                         <div className="flex-1">
                           {isEditing && editingIndex === index ? (
                             <input
+                              autoComplete="off"
                               id={`prebuilt-tools-config-edit-input-${index}`}
                               data-testid={`prebuilt-tools-config-edit-input-${index}`}
                               type="text"

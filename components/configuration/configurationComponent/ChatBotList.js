@@ -98,6 +98,7 @@ const ChatBotList = ({ params }) => {
                         <span className="mx-2 text-sm font-medium truncate">{chatBot?.title}</span>
                       </div>
                       <input
+                        autoComplete="off"
                         data-testid={`chatbot-checkbox-${chatBot._id}`}
                         type="checkbox"
                         id={`chatbot-${chatBot._id}`} // Use a unique ID for each checkbox

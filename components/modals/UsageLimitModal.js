@@ -63,6 +63,7 @@ const UsageLimitModal = ({ data, onConfirm, item }) => {
           <form id="usage-limit-form" onSubmit={handleSubmit} className="mt-4">
             <div className="form-control w-full">
               <input
+                autoComplete="off"
                 data-testid="usage-limit-input"
                 id="usage-limit-input"
                 type="number"

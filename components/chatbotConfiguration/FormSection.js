@@ -8,6 +8,7 @@ function RadioButton({ name, label, checked, onChange }) {
     <div className="form-control">
       <label className="label gap-2 cursor-pointer">
         <input
+          autoComplete="off"
           data-testid={`radio-${name}-${label.replaceAll(" ", "-").toLowerCase()}`}
           id={`radio-${name}-${label.replaceAll(" ", "-").toLowerCase()}`}
           type="radio"
@@ -59,6 +60,7 @@ function DimensionInput({ placeholder, options, onChange, name, value, unit }) {
       </div>
       <div className="join">
         <input
+          autoComplete="off"
           data-testid={`dimension-input-${name}`}
           id={`dimension-input-${name}`}
           className="input input-bordered join-item input-sm max-w-[90px]"
@@ -205,6 +207,7 @@ export default function FormSection({ params, chatbotId = null }) {
                 <span className="label-text font-medium">Chatbot Title</span>
               </div>
               <input
+                autoComplete="off"
                 data-testid="form-section-chatbot-title"
                 id="form-section-chatbot-title"
                 type="text"
@@ -222,6 +225,7 @@ export default function FormSection({ params, chatbotId = null }) {
                 <span className="label-text font-medium">Chatbot Subtitle</span>
               </div>
               <input
+                autoComplete="off"
                 data-testid="form-section-chatbot-subtitle"
                 id="form-section-chatbot-subtitle"
                 type="text"
@@ -239,6 +243,7 @@ export default function FormSection({ params, chatbotId = null }) {
                 <span className="label-text font-medium">Button Title</span>
               </div>
               <input
+                autoComplete="off"
                 data-testid="form-section-button-title"
                 id="form-section-button-title"
                 type="text"
@@ -256,6 +261,7 @@ export default function FormSection({ params, chatbotId = null }) {
                 <span className="label-text font-medium">Button Icon URL</span>
               </div>
               <input
+                autoComplete="off"
                 data-testid="form-section-icon-url"
                 id="form-section-icon-url"
                 type="text"
@@ -308,6 +314,7 @@ export default function FormSection({ params, chatbotId = null }) {
               </div>
               <div className="flex items-center gap-3">
                 <input
+                  autoComplete="off"
                   data-testid="form-section-theme-color"
                   id="form-section-theme-color"
                   type="color"

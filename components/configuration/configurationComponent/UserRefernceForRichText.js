@@ -83,6 +83,7 @@ const UserReferenceForRichText = ({ params, searchParams, isPublished, isEditor 
           </div>
 
           <input
+            autoComplete="off"
             data-testid="rich-text-toggle"
             id="rich-text-toggle"
             type="checkbox"

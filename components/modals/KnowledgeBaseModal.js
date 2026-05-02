@@ -283,6 +283,7 @@ const KnowledgeBaseModal = ({
               </span>
             </label>
             <input
+              autoComplete="off"
               data-testid="knowledgebase-name-input"
               id="knowledgebase-name-input"
               type="text"
@@ -320,6 +321,7 @@ const KnowledgeBaseModal = ({
             <div className="flex gap-4 mb-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
+                  autoComplete="off"
                   id="knowledgebase-input-type-url"
                   type="radio"
                   name="inputType"
@@ -331,6 +333,7 @@ const KnowledgeBaseModal = ({
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
+                  autoComplete="off"
                   id="knowledgebase-input-type-file"
                   type="radio"
                   name="inputType"
@@ -342,6 +345,7 @@ const KnowledgeBaseModal = ({
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
+                  autoComplete="off"
                   id="knowledgebase-input-type-content"
                   type="radio"
                   name="inputType"
@@ -366,6 +370,7 @@ const KnowledgeBaseModal = ({
               {!uploadedFile && (
                 <>
                   <input
+                    autoComplete="off"
                     id="knowledgebase-file-upload"
                     type="file"
                     onChange={handleFileUpload}
@@ -451,6 +456,7 @@ const KnowledgeBaseModal = ({
                   <span className="label-text text-sm font-medium">URL</span>
                 </label>
                 <input
+                  autoComplete="off"
                   id="knowledgebase-url-input-edit"
                   type="url"
                   name="url"
@@ -473,6 +479,7 @@ const KnowledgeBaseModal = ({
                 </span>
               </label>
               <input
+                autoComplete="off"
                 data-testid="knowledgebase-url-input-create"
                 id="knowledgebase-url-input-create"
                 type="url"
@@ -514,6 +521,7 @@ const KnowledgeBaseModal = ({
                     <span className="label-text text-sm font-medium">Chunking URL</span>
                   </label>
                   <input
+                    autoComplete="off"
                     id="knowledgebase-chunking-url-input"
                     type="url"
                     name="chunkingUrl"
@@ -530,6 +538,7 @@ const KnowledgeBaseModal = ({
                       <span className="label-text text-sm font-medium">Chunk Size</span>
                     </label>
                     <input
+                      autoComplete="off"
                       id="knowledgebase-chunk-size-input"
                       type="number"
                       name="chunkSize"
@@ -553,6 +562,7 @@ const KnowledgeBaseModal = ({
                         <span className="label-text text-sm font-medium">Chunk Overlap</span>
                       </label>
                       <input
+                        autoComplete="off"
                         id="knowledgebase-chunk-overlap-input"
                         type="number"
                         name="chunkingOverlap"
@@ -578,6 +588,7 @@ const KnowledgeBaseModal = ({
           {!selectedResource && (
             <div className="collapse collapse-arrow border border-base-300 bg-base-100">
               <input
+                autoComplete="off"
                 id="knowledgebase-advanced-settings-toggle"
                 type="checkbox"
                 checked={showQuerySettings}
@@ -594,6 +605,7 @@ const KnowledgeBaseModal = ({
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
+                          autoComplete="off"
                           id="knowledgebase-query-type-fastest"
                           type="radio"
                           name="queryAccessType"
@@ -606,6 +618,7 @@ const KnowledgeBaseModal = ({
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
+                          autoComplete="off"
                           id="knowledgebase-query-type-moderate"
                           type="radio"
                           name="queryAccessType"
@@ -617,6 +630,7 @@ const KnowledgeBaseModal = ({
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
+                          autoComplete="off"
                           id="knowledgebase-query-type-high-accuracy"
                           type="radio"
                           name="queryAccessType"

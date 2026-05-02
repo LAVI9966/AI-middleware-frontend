@@ -108,6 +108,7 @@ const CreateOrg = ({ handleSwitchOrg }) => {
             <h3 className="font-bold text-lg mb-2">Create Workspace</h3>
             <label className="label-text mb-1">Workspace Name *</label>
             <input
+              autoComplete="off"
               data-testid="create-org-name-input"
               id="create-org-name-input"
               type="text"
@@ -159,6 +160,7 @@ const CreateOrg = ({ handleSwitchOrg }) => {
                   >
                     <div className="sticky top-0 bg-base-100 p-3 border-b border-base-content/10">
                       <input
+                        autoComplete="off"
                         data-testid="create-org-timezone-search-input"
                         id="create-org-timezone-search-input"
                         type="text"

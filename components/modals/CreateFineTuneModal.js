@@ -68,6 +68,7 @@ function CreateFineTuneModal({ params, selectedThreadIds }) {
               All Responses &#40; including no feedback &#41;
             </span>
             <input
+              autoComplete="off"
               data-testid="fine-tune-all-responses-checkbox"
               id="fine-tune-all-responses-checkbox"
               type="checkbox"
@@ -84,6 +85,7 @@ function CreateFineTuneModal({ params, selectedThreadIds }) {
               Positive Feedback Responses
             </span>
             <input
+              autoComplete="off"
               data-testid="fine-tune-positive-feedback-checkbox"
               id="fine-tune-positive-feedback-checkbox"
               type="checkbox"
@@ -101,6 +103,7 @@ function CreateFineTuneModal({ params, selectedThreadIds }) {
               Negative Feedback Responses
             </span>
             <input
+              autoComplete="off"
               data-testid="fine-tune-negative-feedback-checkbox"
               id="fine-tune-negative-feedback-checkbox"
               type="checkbox"

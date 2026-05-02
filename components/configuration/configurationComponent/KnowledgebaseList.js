@@ -139,6 +139,7 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
       <div className="flex flex-col gap-2 w-full">
         <li className="text-sm font-semibold disabled">Available Knowledge Bases</li>
         <input
+          autoComplete="off"
           data-testid="knowledgebase-search-input"
           id="knowledgebase-search-input"
           type="text"

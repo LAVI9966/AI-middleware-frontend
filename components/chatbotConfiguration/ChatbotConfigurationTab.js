@@ -48,6 +48,7 @@ function DimensionInput({ placeholder, options, onChange, name, value, unit }) {
       </div>
       <div className="join">
         <input
+          autoComplete="off"
           data-testid={`chatbot-config-${name}-input`}
           id={`dimension-input-${name}`}
           className="input input-bordered join-item input-sm max-w-[90px]"
@@ -161,6 +162,7 @@ const ChatbotConfigurationTab = ({ params, chatbotId, isInSidebar = false }) => 
               <span className="label-text font-medium text-xs">Chatbot Title</span>
             </div>
             <input
+              autoComplete="off"
               data-testid="chatbot-config-title-input"
               type="text"
               placeholder="Enter chatbot title"
@@ -177,6 +179,7 @@ const ChatbotConfigurationTab = ({ params, chatbotId, isInSidebar = false }) => 
               <span className="label-text font-medium text-xs">Chatbot Subtitle</span>
             </div>
             <input
+              autoComplete="off"
               data-testid="chatbot-config-subtitle-input"
               type="text"
               placeholder="Enter chatbot subtitle"
@@ -193,6 +196,7 @@ const ChatbotConfigurationTab = ({ params, chatbotId, isInSidebar = false }) => 
               <span className="label-text font-medium text-xs">Button Title</span>
             </div>
             <input
+              autoComplete="off"
               type="text"
               placeholder="Enter button title"
               className="input input-bordered w-full input-sm"
@@ -208,6 +212,7 @@ const ChatbotConfigurationTab = ({ params, chatbotId, isInSidebar = false }) => 
               <span className="label-text font-medium text-xs">Button Icon URL</span>
             </div>
             <input
+              autoComplete="off"
               type="text"
               placeholder="Enter icon URL"
               className="input input-bordered w-full input-sm"
@@ -278,6 +283,7 @@ const ChatbotConfigurationTab = ({ params, chatbotId, isInSidebar = false }) => 
           </div>
           <div className="flex items-center gap-3">
             <input
+              autoComplete="off"
               data-testid="chatbot-config-theme-color"
               type="color"
               key={formData?.themeColor}

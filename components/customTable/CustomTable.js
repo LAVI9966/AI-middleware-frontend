@@ -266,6 +266,7 @@ const CustomTable = ({
                 {showRowSelection && (
                   <div className="flex items-center mb-3">
                     <input
+                      autoComplete="off"
                       data-testid={`custom-table-card-checkbox-${row.id || row["_id"]}`}
                       id={`custom-table-card-checkbox-${row.id || row["_id"]}`}
                       type="checkbox"
@@ -335,6 +336,7 @@ const CustomTable = ({
               {showRowSelection && (
                 <th className="px-4 py-2 text-left">
                   <input
+                    autoComplete="off"
                     data-testid="custom-table-select-all"
                     id="custom-table-select-all"
                     type="checkbox"
@@ -401,6 +403,7 @@ const CustomTable = ({
                   {showRowSelection && (
                     <td className="px-4 py-2 text-left">
                       <input
+                        autoComplete="off"
                         data-testid={`custom-table-row-checkbox-${row.id || row["_id"]}`}
                         id={`custom-table-row-checkbox-${row.id || row["_id"]}`}
                         type="checkbox"

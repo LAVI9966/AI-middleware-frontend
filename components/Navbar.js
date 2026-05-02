@@ -448,6 +448,7 @@ const Navbar = ({ isEmbedUser, params }) => {
                     </div>
                   ) : (
                     <input
+                      autoComplete="off"
                       data-testid="navbar-agent-name-input"
                       id="navbar-agent-name-input"
                       type="text"
@@ -713,6 +714,7 @@ const Navbar = ({ isEmbedUser, params }) => {
                 </div>
               ) : (
                 <input
+                  autoComplete="off"
                   data-testid="navbar-mobile-agent-name-input"
                   id="navbar-mobile-agent-name-input"
                   type="text"

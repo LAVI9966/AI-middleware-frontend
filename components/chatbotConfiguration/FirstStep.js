@@ -44,6 +44,14 @@ export default function PrivateFormSection({ params, ChooseChatbot, setChatBotId
   const [showInput, setShowInput] = useState(false);
   const [accessKey, setAccessKey] = useState("");
   const [chatbotId, setChatBotId] = useState("");
+  const chatbotPayload = `{
+    "org_id": "${params?.org_id}",
+    "chatbot_id": "${params.chatbot_id || chatbotId}",
+    "user_id": "// Add your User Id here",
+    "variables": {
+        "key": "value"
+    }
+}`;
 
   const handleGetAccessKey = async () => {
     try {
@@ -74,25 +82,37 @@ export default function PrivateFormSection({ params, ChooseChatbot, setChatBotId
         </div>
       )}
       <div className="mockup-code">
-        <CopyButton
-          data={`{
-    "org_id": "${params?.org_id}",
-    "chatbot_id": "${params.chatbot_id || chatbotId}",
-    "user_id":  "// Add your User Id here",
-    "variables": {
-        "key": "value"
-    }
-}`}
-        />
-        <pre data-prefix=">" className="text-sm p-2 rounded">
-          {`{
-        "org_id": "${params?.org_id}",
-        "chatbot_id": "${params.chatbot_id || chatbotId}",
-        "user_id":  // Add your User Id here,
-        "variables": {
-            // Add your variables here: "key": "value"
-        }
-    }`}
+        <CopyButton data={chatbotPayload} />
+        <pre data-prefix=">">
+          <code className="text-error">{`{`}</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error"> "org_id": </code>
+          <code className="text-warning">"{params?.org_id}"</code>
+          <code>,</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error"> "chatbot_id": </code>
+          <code className="text-warning">"{params.chatbot_id || chatbotId}"</code>
+          <code>,</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error"> "user_id": </code>
+          <code className="text-warning">"// Add your User Id here"</code>
+          <code>,</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error"> "variables": {`{`}</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error"> "key": </code>
+          <code className="text-warning">"value"</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error"> {`}`}</code>
+        </pre>
+        <pre data-prefix=">">
+          <code className="text-error">{`}`}</code>
         </pre>
       </div>
       <div className="flex flex-col gap-2">

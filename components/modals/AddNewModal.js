@@ -32,6 +32,25 @@ const PLACEHOLDERS = {
     knowledge_cutoff: "e.g., Apr 2024",
     usecase: "One per line, e.g., Enterprise-grade conversational AI",
   },
+  gemini: {
+    display_name: "e.g., Gemini 1.5 Pro",
+    model_name: "e.g., gemini-1.5-pro",
+    input_cost: "e.g., 3.5",
+    output_cost: "e.g., 10.5",
+    description:
+      "Google's most capable multimodal model for a wide range of tasks including text, code, and image understanding.",
+    knowledge_cutoff: "e.g., Nov 2023",
+    usecase: "One per line, e.g., Multimodal document analysis",
+  },
+  grok: {
+    display_name: "e.g., Grok 3",
+    model_name: "e.g., grok-3",
+    input_cost: "e.g., 3",
+    output_cost: "e.g., 15",
+    description: "xAI's flagship model with real-time web access and strong reasoning capabilities.",
+    knowledge_cutoff: "e.g., Nov 2024",
+    usecase: "One per line, e.g., Real-time information retrieval",
+  },
   groq: {
     display_name: "e.g., Llama 3 on Groq",
     model_name: "e.g., llama-3.1-8b-instant",
@@ -222,6 +241,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
     setConfig(initialConfig);
     setSelectedKeys(Object.keys(initialConfig.configuration.additional_parameters || {}));
     setExpandedKeys(new Set());
+    setError({});
   };
 
   /**
@@ -426,6 +446,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <span className="label-text">Min</span>
             </label>
             <input
+              autoComplete="off"
               type="number"
               value={fieldConfig.min}
               onChange={(e) => handleConfigChange(key, "min", parseFloat(e.target.value))}
@@ -439,6 +460,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <span className="label-text">Max</span>
             </label>
             <input
+              autoComplete="off"
               type="number"
               value={fieldConfig.max}
               onChange={(e) => handleConfigChange(key, "max", parseFloat(e.target.value))}
@@ -482,6 +504,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
             </select>
           ) : (
             <input
+              autoComplete="off"
               type={fieldConfig.field === "number" ? "number" : "text"}
               value={key === "model" ? config.model_name : fieldConfig.default}
               onChange={(e) => {
@@ -505,6 +528,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
             {fieldConfig.options?.map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input
+                  autoComplete="off"
                   type="text"
                   value={typeof opt === "object" ? opt.type : opt}
                   onChange={(e) => updateOption(key, i, e.target.value)}
@@ -539,6 +563,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <div className="flex items-center gap-4">
                 {!isProtected && (
                   <input
+                    autoComplete="off"
                     type="checkbox"
                     checked={selectedKeys.includes(key)}
                     onChange={() => handleSelectKey(key)}
@@ -678,6 +703,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                         </span>
                       </label>
                       <input
+                        autoComplete="off"
                         data-testid="add-model-name-input"
                         id="add-model-name-input"
                         type="text"
@@ -709,6 +735,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                         </span>
                       </label>
                       <input
+                        autoComplete="off"
                         data-testid="add-model-display-name-input"
                         id="add-model-display-name-input"
                         type="text"
@@ -728,6 +755,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control p-4 rounded-lg border border-base-300">
                         <label className="label cursor-pointer justify-start gap-4">
                           <input
+                            autoComplete="off"
                             data-testid="add-model-vision-checkbox"
                             id="add-model-vision-checkbox"
                             type="checkbox"
@@ -741,6 +769,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control p-4 rounded-lg border border-base-300">
                         <label className="label cursor-pointer justify-start gap-4">
                           <input
+                            autoComplete="off"
                             data-testid="add-model-tools-checkbox"
                             id="add-model-tools-checkbox"
                             type="checkbox"
@@ -754,6 +783,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control p-4 rounded-lg border border-base-300">
                         <label className="label cursor-pointer justify-start gap-4">
                           <input
+                            autoComplete="off"
                             data-testid="add-model-system-prompt-checkbox"
                             id="add-model-system-prompt-checkbox"
                             type="checkbox"
@@ -795,6 +825,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                               </span>
                             </label>
                             <input
+                              autoComplete="off"
                               data-testid="add-model-input-cost-input"
                               id="add-model-input-cost-input"
                               type="number"
@@ -818,6 +849,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                               </span>
                             </label>
                             <input
+                              autoComplete="off"
                               data-testid="add-model-output-cost-input"
                               id="add-model-output-cost-input"
                               type="number"
@@ -860,6 +892,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                             </span>
                           </label>
                           <input
+                            autoComplete="off"
                             id="add-model-knowledge-cutoff-input"
                             type="text"
                             value={config.validationConfig.specification.knowledge_cutoff}
@@ -921,6 +954,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                                 <span className="label-text">Parameter Name</span>
                               </label>
                               <input
+                                autoComplete="off"
                                 id="add-model-param-name-input"
                                 type="text"
                                 autoFocus
@@ -971,7 +1005,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                 <div className="border-t border-base-200 pt-6 mt-8">
                   {error?.message && (
                     <div className="w-full mb-4">
-                      <div className="error-container p-4 bg-red-50 border-l-4 border-red-500 rounded-md shadow-sm">
+                      <div className="error-container p-4 bg-error/10 border-l-4 border-error rounded-md shadow-sm text-error">
                         {error?.message}
                       </div>
                     </div>

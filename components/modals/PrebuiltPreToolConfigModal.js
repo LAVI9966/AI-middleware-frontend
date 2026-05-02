@@ -78,6 +78,7 @@ export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId })
           {field.options.map((opt) => (
             <label key={opt.value} className="flex items-center gap-1 cursor-pointer text-xs">
               <input
+                autoComplete="off"
                 type="checkbox"
                 className="checkbox checkbox-sm"
                 checked={(config[field.key] || []).includes(opt.value)}
@@ -101,6 +102,7 @@ export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId })
         <div className="flex flex-col gap-2 w-full">
           <div className="relative w-full">
             <input
+              autoComplete="off"
               data-testid="pretool-config-kb-search-input"
               type="text"
               className="input input-bordered input-sm text-xs w-full pr-6"
@@ -144,6 +146,7 @@ export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId })
 
     return (
       <input
+        autoComplete="off"
         data-testid={`pretool-config-field-${field.key}`}
         type="text"
         className="input input-bordered input-sm text-xs w-full"
@@ -175,6 +178,7 @@ export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId })
                 <div key={field.key} className="flex flex-col gap-1">
                   <label className="text-xs font-medium">{field.label}</label>
                   <input
+                    autoComplete="off"
                     type="text"
                     className="input input-bordered input-sm text-xs w-full"
                     placeholder={field.placeholder}

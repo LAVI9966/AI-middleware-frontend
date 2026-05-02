@@ -40,6 +40,7 @@ const SchemaPropertyCard = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 justify-between w-full">
           <input
+            autoComplete="off"
             data-testid={`schema-prop-name-input-${currentPath}`}
             id={`schema-prop-name-input-${currentPath}`}
             disabled={isReadOnly}
@@ -74,6 +75,7 @@ const SchemaPropertyCard = ({
           <div className="flex items-center mr-4 gap-2">
             <label className="flex items-center gap-1 text-xs">
               <input
+                autoComplete="off"
                 data-testid={`schema-prop-required-checkbox-${currentPath}`}
                 id={`schema-prop-required-checkbox-${currentPath}`}
                 type="checkbox"
@@ -563,8 +565,8 @@ function JsonSchemaBuilderModal({
             // Navigate to array items
             if (current[key].items && current[key].items.type === "object") {
               // For object-type items, navigate to items.properties
-              current = current[key].items.properties;
               parent = current[key].items; // Update parent to items for required array
+              current = current[key].items.properties;
             } else {
               // For non-object items
               current = current[key].items;
@@ -750,12 +752,15 @@ function JsonSchemaBuilderModal({
 
         try {
           const updatedProperties = updateProperty(prevData.properties, parentPath, (parentProperty) => {
-            if (!parentProperty || !parentProperty.properties) {
+            const isArrayParent = parentProperty?.type === "array";
+            const actualContainer = isArrayParent ? parentProperty.items || {} : parentProperty;
+
+            if (!actualContainer || !actualContainer.properties) {
               console.error("Invalid parent property path:", parentPath);
               throw new Error("Invalid parent path");
             }
 
-            const newNestedProperties = { ...parentProperty.properties };
+            const newNestedProperties = { ...actualContainer.properties };
             const propertyData = newNestedProperties[oldName];
 
             if (!propertyData) {
@@ -766,17 +771,20 @@ function JsonSchemaBuilderModal({
             delete newNestedProperties[oldName];
             newNestedProperties[newName] = propertyData;
 
-            let newRequired = parentProperty.required || [];
+            let newRequired = actualContainer.required || [];
             if (newRequired.includes(oldName)) {
               newRequired = newRequired.filter((name) => name !== oldName);
               newRequired.push(newName);
             }
 
-            return {
-              ...parentProperty,
-              properties: newNestedProperties,
-              required: newRequired,
-            };
+            if (isArrayParent) {
+              return {
+                ...parentProperty,
+                items: { ...parentProperty.items, properties: newNestedProperties, required: newRequired },
+              };
+            }
+
+            return { ...parentProperty, properties: newNestedProperties, required: newRequired };
           });
 
           return {
@@ -987,6 +995,7 @@ function JsonSchemaBuilderModal({
                   Schema Name <span className="text-error">*</span>
                 </label>
                 <input
+                  autoComplete="off"
                   data-testid="json-schema-name-input"
                   id="json-schema-name-input"
                   type="text"

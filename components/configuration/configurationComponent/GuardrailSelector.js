@@ -170,6 +170,7 @@ const GuardrailSelector = ({ params, searchParams, isPublished, isEditor = true 
         </div>
         <label className="swap">
           <input
+            autoComplete="off"
             data-testid="guardrails-toggle"
             id="guardrails-toggle"
             disabled={isReadOnly}
@@ -237,6 +238,7 @@ const GuardrailSelector = ({ params, searchParams, isPublished, isEditor = true 
                       <div key={key} className="form-control">
                         <div className="label cursor-pointer justify-start gap-2">
                           <input
+                            autoComplete="off"
                             data-testid={`guardrail-checkbox-${key}`}
                             id={`guardrail-checkbox-${key}`}
                             disabled={isReadOnly}
@@ -256,6 +258,7 @@ const GuardrailSelector = ({ params, searchParams, isPublished, isEditor = true 
                     <div className="form-control col-span-full">
                       <div className="label cursor-pointer justify-start gap-2">
                         <input
+                          autoComplete="off"
                           data-testid="guardrail-checkbox-custom"
                           id="guardrail-checkbox-custom"
                           disabled={isReadOnly}

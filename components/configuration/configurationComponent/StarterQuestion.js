@@ -37,6 +37,7 @@ const StarterQuestionToggle = ({ params, searchParams, isPublished, isEditor = t
         </InfoTooltip>
       </div>
       <input
+        autoComplete="off"
         data-testid="starter-question-toggle"
         id="starter-question-toggle"
         type="checkbox"

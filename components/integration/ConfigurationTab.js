@@ -231,6 +231,7 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
                   return (
                     <div key={modelName} className="flex items-start gap-2 p-2 bg-base-100 rounded">
                       <input
+                        autoComplete="off"
                         type="checkbox"
                         className="checkbox checkbox-xs mt-1"
                         checked={!modelConfig.hide}
@@ -240,6 +241,7 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
                       <div className="flex flex-col gap-1 flex-1 min-w-0">
                         <span className="text-xs text-base-content/60 truncate">{modelName}</span>
                         <input
+                          autoComplete="off"
                           type="text"
                           className="input input-bordered input-xs w-full bg-base-200"
                           value={modelConfig.value !== undefined ? modelConfig.value : modelName}
@@ -294,6 +296,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
     theme_config: config?.theme_config || defaultUserTheme,
     tools_id: config?.tools_id || [],
     pre_tool_id: config?.pre_tool_id || null,
+    post_tool_id: config?.post_tool_id || null,
     variables_path: config?.variables_path || {},
     models: config?.models || {},
     apikey_object_id: integrationData?.apikey_object_id || {},
@@ -415,6 +418,9 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
           if (configuration.pre_tool_id === matchedId) {
             handleConfigChange("pre_tool_id", null);
           }
+          if (configuration.post_tool_id === matchedId) {
+            handleConfigChange("post_tool_id", null);
+          }
           dispatch(deleteFunctionAction({ script_id: deletedScriptId, orgId: data?.org_id, functionId: matchedId }));
         }
         return;
@@ -435,6 +441,8 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
 
         if (e?.data?.metadata?.createFrom === "preFunction") {
           handleConfigChange("pre_tool_id", createdTool._id);
+        } else if (e?.data?.metadata?.createFrom === "postFunction") {
+          handleConfigChange("post_tool_id", createdTool._id);
         } else {
           const currentTools = configuration.tools_id || [];
           if (!currentTools.includes(createdTool._id)) {
@@ -446,7 +454,14 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [data?.org_id, configuration.tools_id, configuration.pre_tool_id, functionData, dispatch]);
+  }, [
+    data?.org_id,
+    configuration.tools_id,
+    configuration.pre_tool_id,
+    configuration.post_tool_id,
+    functionData,
+    dispatch,
+  ]);
 
   // Manual reload function
   const handleManualReload = () => {
@@ -553,6 +568,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           <span className="text-xs font-medium flex-1">{config.label}</span>
                           {config.type === "toggle" && (
                             <input
+                              autoComplete="off"
                               data-testid={`embed-config-toggle-${config.key}`}
                               type="checkbox"
                               className="toggle toggle-xs"
@@ -648,6 +664,20 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
               configuration={configuration}
               onConfigChange={handleConfigChange}
               modalType={MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL}
+            />
+
+            {/* Post Tool Configuration */}
+            <div className="divider my-2"></div>
+            <ToolsConfiguration
+              singleToolMode={true}
+              selectedToolId={configuration.post_tool_id}
+              onToolChange={(toolId) => handleConfigChange("post_tool_id", toolId)}
+              orgId={data?.org_id}
+              params={{ org_id: data?.org_id }}
+              configuration={configuration}
+              onConfigChange={handleConfigChange}
+              title="Post-Tool Configuration"
+              modalType={MODAL_TYPE.POST_FUNCTION_PARAMETER_MODAL}
             />
 
             {/* Theme Palette Section */}

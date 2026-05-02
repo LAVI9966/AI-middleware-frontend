@@ -98,7 +98,7 @@ const ResourceChunksModal = ({ resourceId, resourceName }) => {
                   id={`resource-chunk-item-${index}`}
                   className="collapse collapse-arrow bg-base-100 border border-base-300"
                 >
-                  <input type="checkbox" defaultChecked />
+                  <input autoComplete="off" type="checkbox" defaultChecked />
                   <div className="collapse-title font-medium flex items-center gap-2">
                     <span className="badge badge-primary badge-sm">#{index + 1}</span>
                     <span className="text-sm">Chunk {index + 1}</span>

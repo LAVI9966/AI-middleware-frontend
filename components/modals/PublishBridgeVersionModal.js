@@ -700,6 +700,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                         )}
                         <span className="text-xs text-base-content/70">Include in publish</span>
                         <input
+                          autoComplete="off"
                           type="checkbox"
                           className="toggle toggle-sm"
                           checked={isSelected}
@@ -889,6 +890,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
             }`}
           >
             <input
+              autoComplete="off"
               id="publish-summary-accordion-toggle"
               type="checkbox"
               className="peer"
@@ -1087,6 +1089,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                       <span className="label-text-alt text-xs text-base-content/60">Must be globally unique</span>
                     </label>
                     <input
+                      autoComplete="off"
                       id="publish-slug-name-input"
                       data-testid="publish-version-slug-input"
                       type="text"
@@ -1167,6 +1170,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
 
                       <div className="join w-full">
                         <input
+                          autoComplete="off"
                           id="publish-add-user-email-input"
                           type="email"
                           placeholder="Enter email address"
@@ -1207,6 +1211,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
             {!isEmbedUser && (
               <label className="flex items-center gap-2 cursor-pointer select-none mr-auto">
                 <input
+                  autoComplete="off"
                   type="checkbox"
                   className="checkbox checkbox-xs checkbox-primary"
                   checked={convertToTemplate}

@@ -106,6 +106,7 @@ const SearchItems = ({ data, setFilterItems, item, style = "", isEmbedUser }) =>
     <div className={containerClasses}>
       <div className="relative mb-2">
         <input
+          autoComplete="off"
           data-testid="search-items-input"
           id="search-items-input"
           type="text"
