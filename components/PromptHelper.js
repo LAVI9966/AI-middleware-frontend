@@ -19,6 +19,7 @@ const PromptHelper = ({
   setNewContent,
   savePrompt,
   isEmbedUser,
+  variable_key,
 }) => {
   const { embedPromptConfig, reduxPrompt } = useCustomSelector((state) => {
     const eu = state.appInfoReducer.embedUserDetails;
@@ -42,6 +43,7 @@ const PromptHelper = ({
           thread_id,
           bridge_id: params.id,
           version_id: searchParams.version,
+          variables: { variable_key },
         });
 
         const result = typeof response === "string" ? JSON.parse(response) : (response?.data ?? response);
@@ -55,7 +57,7 @@ const PromptHelper = ({
         return { description: "Failed to optimize prompt. Please try again." };
       }
     },
-    [params.id, searchParams.version, thread_id]
+    [params.id, searchParams.version, thread_id, variable_key]
   );
 
   // Apply optimized prompt and save immediately

@@ -23,7 +23,7 @@ const GuardrailSelector = ({ params, searchParams, isPublished, isEditor = true 
   const [customPrompt, setCustomPrompt] = useState(guardrailsData?.guardrails_custom_prompt || "");
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [selectedGuardrails, setSelectedGuardrails] = useState([]);
-  const [guardrailsEnabled, setGuardrailsEnabled] = useState(guardrailsData?.is_enabled);
+  const [guardrailsEnabled, setGuardrailsEnabled] = useState(guardrailsData?.is_enabled ?? false);
   const [showOptions, setShowOptions] = useState(false);
   const dispatch = useDispatch();
 
@@ -175,7 +175,7 @@ const GuardrailSelector = ({ params, searchParams, isPublished, isEditor = true 
             id="guardrails-toggle"
             disabled={isReadOnly}
             type="checkbox"
-            checked={guardrailsEnabled}
+            checked={guardrailsEnabled ?? false}
             onChange={handleToggleGuardrails}
             className="toggle toggle-sm"
           />

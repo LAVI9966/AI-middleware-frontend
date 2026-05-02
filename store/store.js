@@ -100,6 +100,7 @@ export const store = configureStore({
         ignoredActions: ["persist/PERSIST", "persist/REHYDRATE", "persist/REGISTER"],
         ignoredPaths: ["register"], // Adjust the paths as necessary
       },
+      immutableCheck: false,
     }),
 });
 

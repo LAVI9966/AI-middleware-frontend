@@ -208,7 +208,7 @@ function EmbedListSuggestionDropdownMenu({
                   availablePrebuiltTools.map((item) => (
                     <li
                       id={`embed-suggestion-prebuilt-${item?.value}`}
-                      key={item?._id}
+                      key={item?.value ?? item?._id}
                       onClick={() => handlePrebuiltToolClick(item)}
                     >
                       <div className="flex justify-between items-center w-full">

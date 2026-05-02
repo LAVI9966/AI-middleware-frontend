@@ -815,6 +815,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                       onClose={handleCloseTextAreaFocus}
                       savePrompt={savePrompt}
                       isEmbedUser={isEmbedUser}
+                      variable_key={promptState.activeHelperField || null}
                       setPrompt={(value) => {
                         // Update prompt state for diff/summary
                         setPromptState((prev) => ({ ...prev, newContent: value }));
@@ -828,7 +829,10 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                           }
                         }
                       }}
-                      showCloseButton={closeHelperButtonLocation === "promptHelper"}
+                      showCloseButton={
+                        closeHelperButtonLocation === "promptHelper" ||
+                        (isEmbedUser && closeHelperButtonLocation === "config")
+                      }
                       messages={promptState.messages}
                       setMessages={(value) => {
                         if (typeof value === "function") {

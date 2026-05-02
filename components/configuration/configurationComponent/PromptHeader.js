@@ -32,7 +32,7 @@ const PromptHeader = memo(
     const isStructuredPrompt = typeof prompt === "object" && prompt !== null;
     const canEdit = !isPublished && isEditor;
 
-    if (isPromptHelperOpen && !isMobileView) {
+    if (isPromptHelperOpen && !isMobileView && !isEmbedCustomPrompt) {
       return (
         <div
           data-testid="prompt-header-helper-open"
@@ -40,7 +40,7 @@ const PromptHeader = memo(
           className={`flex items-center justify-end px-4 py-2.5 border-b border-base-300  ${!isEditor ? "mt-8" : ""}`}
         >
           <div className="flex justify-end gap-2">
-            {prompt && showDiffButton && (
+            {prompt && showDiffButton && !isEmbedCustomPrompt && (
               <button
                 type="button"
                 data-testid="prompt-header-diff-button-open"
@@ -94,7 +94,7 @@ const PromptHeader = memo(
 
         {/* Right: Controls */}
         <div className="flex items-center gap-1.5">
-          {prompt && showDiffButton && (
+          {prompt && showDiffButton && !isEmbedCustomPrompt && (
             <button
               type="button"
               data-testid="prompt-header-diff-button"
@@ -112,7 +112,7 @@ const PromptHeader = memo(
             </button>
           )}
 
-          {!isPromptHelperOpen && ((isEmbedUser && !hidePromptHelper) || !isEmbedUser) && (
+          {!isPromptHelperOpen && !isEmbedCustomPrompt && ((isEmbedUser && !hidePromptHelper) || !isEmbedUser) && (
             <button
               type="button"
               data-testid="prompt-header-open-helper-button"
