@@ -242,6 +242,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
     setSelectedKeys(Object.keys(initialConfig.configuration.additional_parameters || {}));
     setExpandedKeys(new Set());
     setError({});
+    closeModal(MODAL_TYPE?.ADD_NEW_MODEL_MODAL);
   };
 
   /**
@@ -657,7 +658,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <button
                 data-testid="add-model-header-close-button"
                 id="add-model-header-close-button"
-                onClick={() => closeModal(MODAL_TYPE?.ADD_NEW_MODEL_MODAL)}
+                onClick={resetFormToDefault}
                 className="btn btn-ghost btn-circle btn-sm absolute right-0 top-0"
                 aria-label="Close add model modal"
               >
