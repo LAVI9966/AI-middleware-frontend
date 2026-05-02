@@ -79,6 +79,7 @@ function OrgSlider() {
           <CloseIcon id="org-slider-close-icon" className="block md:hidden" onClick={handleCloseOrgSlider} />
         </div>
         <input
+          autoComplete="off"
           id="org-slider-search-input"
           type="text"
           placeholder="Search Org by Name"

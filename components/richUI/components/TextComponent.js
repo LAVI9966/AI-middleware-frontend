@@ -78,6 +78,7 @@ export default function TextComponent({
 
     return (
       <input
+        autoComplete="off"
         type={type}
         defaultValue={editValue}
         required={required}

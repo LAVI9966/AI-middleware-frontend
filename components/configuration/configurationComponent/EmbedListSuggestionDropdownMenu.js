@@ -171,6 +171,7 @@ function EmbedListSuggestionDropdownMenu({
               <li className="text-sm font-semibold disabled">Available Tools</li>
             )}
             <input
+              autoComplete="off"
               data-testid="embed-suggestion-search-input"
               id="embed-suggestion-search-input"
               type="text"

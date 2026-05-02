@@ -63,6 +63,7 @@ function VersionDescriptionInput({ params, searchParams, isEmbedUser }) {
       <div className="flex flex-row items-center">
         <div className="relative w-full">
           <input
+            autoComplete="off"
             data-testid="version-description-input"
             id="version-description-input"
             type="text"

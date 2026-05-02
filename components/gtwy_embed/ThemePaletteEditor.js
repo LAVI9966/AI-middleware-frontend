@@ -76,6 +76,7 @@ const ThemePaletteEditor = ({ theme, onColorChange }) => {
                           <div className="text-xs font-mono text-base-content/60 mt-0.5">{value || "oklch(...)"}</div>
                         </div>
                         <input
+                          autoComplete="off"
                           id={`theme-color-${mode}-${token}`}
                           data-testid={`theme-color-input-${mode}-${token}`}
                           type="color"

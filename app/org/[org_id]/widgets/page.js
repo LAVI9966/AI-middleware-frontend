@@ -325,6 +325,7 @@ const TemplatesPage = ({ params }) => {
                 <div className="max-w-4xl mx-auto">
                   <div className="relative flex items-center w-full rounded-xl p-2 bg-base-300 backdrop-blur-sm transition-all ">
                     <input
+                      autoComplete="off"
                       ref={inputRef}
                       type="text"
                       className="input w-full outline-none border-none focus:outline-none focus:ring-0"
@@ -392,6 +393,7 @@ const TemplatesPage = ({ params }) => {
                   <div className="w-full relative">
                     <div className="relative flex items-center w-full rounded-xl p-2 bg-base-300 backdrop-blur-sm transition-all">
                       <input
+                        autoComplete="off"
                         type="text"
                         className="input w-full outline-none border-none focus:outline-none focus:ring-0"
                         placeholder="Describe your widget..."

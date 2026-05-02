@@ -73,6 +73,7 @@ const ConfigurationSettingsAccordion = ({ isEmbedUser, isPublished, isEditor = t
                   <label className="label cursor-pointer gap-2">
                     <span className="text-xs font-semibold">{currentView === "agent-flow" ? "On" : "Off"}</span>
                     <input
+                      autoComplete="off"
                       type="checkbox"
                       disabled={isReadOnly}
                       className="toggle toggle-sm"

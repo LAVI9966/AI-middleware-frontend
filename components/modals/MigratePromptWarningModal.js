@@ -149,6 +149,7 @@ const MigratePromptWarningModal = ({
                             />
                           ) : (
                             <input
+                              autoComplete="off"
                               type="text"
                               className="input input-bordered w-full"
                               value={field?.value || ""}
@@ -177,6 +178,7 @@ const MigratePromptWarningModal = ({
                 {isMainMigration || isEmbedDefaultPromptMode ? (
                   <>
                     <input
+                      autoComplete="off"
                       type="text"
                       className="input input-bordered w-full"
                       placeholder="Role"
@@ -184,6 +186,7 @@ const MigratePromptWarningModal = ({
                       onChange={(e) => setRole(e.target.value)}
                     />
                     <input
+                      autoComplete="off"
                       type="text"
                       className="input input-bordered w-full"
                       placeholder="Goal"
@@ -219,6 +222,7 @@ const MigratePromptWarningModal = ({
                               />
                             ) : (
                               <input
+                                autoComplete="off"
                                 type="text"
                                 className="input input-bordered w-full"
                                 value={embedFieldValues[fieldName] || ""}

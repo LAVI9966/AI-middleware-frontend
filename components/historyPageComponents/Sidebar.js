@@ -397,6 +397,7 @@ const Sidebar = memo(
             className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-lg min-h-0 overflow-hidden"
           >
             <input
+              autoComplete="off"
               data-testid="history-sidebar-advance-filter-toggle"
               id="history-sidebar-advance-filter-toggle"
               type="checkbox"
@@ -423,6 +424,7 @@ const Sidebar = memo(
                     {USER_FEEDBACK_FILTER_OPTIONS?.map((value, index) => (
                       <label key={index} className="flex items-center gap-1 cursor-pointer">
                         <input
+                          autoComplete="off"
                           data-testid={`history-sidebar-filter-${value}`}
                           id={`history-sidebar-filter-${value}`}
                           type="radio"
@@ -449,6 +451,7 @@ const Sidebar = memo(
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-xs">Show Error Chat History</span>
                     <input
+                      autoComplete="off"
                       data-testid="history-sidebar-error-toggle"
                       id="history-sidebar-error-toggle"
                       type="checkbox"
@@ -473,6 +476,7 @@ const Sidebar = memo(
                             {fieldKey.replace(/_/g, " ")}
                           </label>
                           <input
+                            autoComplete="off"
                             type="text"
                             className="input input-xs input-bordered w-full text-xs"
                             placeholder={`Search ${fieldKey.replace(/_/g, " ")}...`}
@@ -485,6 +489,7 @@ const Sidebar = memo(
                       <label className="text-xs text-base-content/70 capitalize">variables</label>
                       <div className="flex gap-1 w-full min-w-0">
                         <input
+                          autoComplete="off"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="key"
@@ -492,6 +497,7 @@ const Sidebar = memo(
                           onChange={(e) => setVariableKey(e.target.value)}
                         />
                         <input
+                          autoComplete="off"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="value"
@@ -570,6 +576,7 @@ const Sidebar = memo(
             className="relative"
           >
             <input
+              autoComplete="off"
               data-testid="history-sidebar-search-input"
               id="history-sidebar-search-input"
               type="text"

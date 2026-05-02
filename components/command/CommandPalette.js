@@ -814,6 +814,7 @@ const CommandPalette = ({ isEmbedUser }) => {
           <div className="flex items-center gap-2 p-3">
             <Search className="w-4 h-4 opacity-70" />
             <input
+              autoComplete="off"
               data-testid="command-palette-search-input"
               id="command-palette-search-input"
               autoFocus

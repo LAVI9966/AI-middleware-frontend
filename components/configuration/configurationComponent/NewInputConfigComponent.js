@@ -169,6 +169,7 @@ const NewInputConfigComponent = ({ params }) => {
           className="collapse bg-gradient-to-r from-yellow-50 to-orange-50 border-t-0 border border-base-300 rounded-t-none mr-2"
         >
           <input
+            autoComplete="off"
             data-testid="default-variables-toggle"
             id="default-variables-toggle"
             type="checkbox"

@@ -103,6 +103,7 @@ const Page = ({ params }) => {
                   <span className="label-text">Auth Name</span>
                 </label>
                 <input
+                  autoComplete="off"
                   type="text"
                   className="input input-bordered w-full"
                   value={name}
@@ -116,6 +117,7 @@ const Page = ({ params }) => {
                   <span className="label-text">Auth Redirect URL</span>
                 </label>
                 <input
+                  autoComplete="off"
                   type="url"
                   className={`input input-bordered w-full ${urlError ? "input-error" : ""}`}
                   value={url}

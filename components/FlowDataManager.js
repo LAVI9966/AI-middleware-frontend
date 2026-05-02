@@ -623,6 +623,7 @@ export function AgentSidebar({ isOpen, title, agents, onClose, nodes, onChoose, 
             <div className="form-control">
               <div className="input-group flex items-center gap-2">
                 <input
+                  autoComplete="off"
                   data-testid="agent-sidebar-search-input"
                   id="agent-sidebar-search-input"
                   value={q}
@@ -827,6 +828,7 @@ export function AgentSidebar({ isOpen, title, agents, onClose, nodes, onChoose, 
                     <div className="form-control">
                       {creationType === "name" ? (
                         <input
+                          autoComplete="off"
                           id="agent-sidebar-create-name-input"
                           type="text"
                           value={inputValue}
@@ -936,6 +938,7 @@ export function FlowControlPanel({
             <div className="relative flex items-center gap-2 bg-base-100/95 backdrop-blur-md border border-base-200 rounded-full px-4 py-3 shadow-lg">
               <TestTube className="h-5 w-5 text-primary" />
               <input
+                autoComplete="off"
                 id="flow-control-test-input"
                 type="text"
                 placeholder="Test the model..."

@@ -371,6 +371,7 @@ const InputConfigComponent = memo(
                       />
                     ) : (
                       <input
+                        autoComplete="off"
                         type="text"
                         className={`input input-bordered w-full text-sm input-sm pr-8 ${
                           field.deprecated ? "opacity-60" : ""
@@ -450,6 +451,7 @@ const InputConfigComponent = memo(
                       />
                     ) : (
                       <input
+                        autoComplete="off"
                         type="text"
                         className="input input-bordered w-full text-sm input-sm pr-8"
                         value={(structuredFields || {})[key] || ""}

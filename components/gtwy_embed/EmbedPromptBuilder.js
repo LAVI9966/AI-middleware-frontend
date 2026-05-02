@@ -233,6 +233,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
             Use default prompt
           </span>
           <input
+            autoComplete="off"
             type="checkbox"
             data-testid="use-default-prompt-toggle"
             className="toggle toggle-sm"
@@ -289,6 +290,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
                       {/* Row 2: displayValue input (visible) or description input (hidden) */}
                       {!field.hidden ? (
                         <input
+                          autoComplete="off"
                           type="text"
                           data-testid={`field-display-value-input-${field.name}`}
                           className="input input-sm input-bordered w-full"
@@ -300,6 +302,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
                         />
                       ) : (
                         <input
+                          autoComplete="off"
                           type="text"
                           data-testid={`field-description-input-${field.name}`}
                           className="input input-sm input-bordered w-full"
@@ -327,6 +330,7 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
                         <label className="label cursor-pointer gap-2 py-0">
                           <span className="label-text text-sm">Hide</span>
                           <input
+                            autoComplete="off"
                             type="checkbox"
                             className="toggle toggle-sm"
                             checked={field.hidden}

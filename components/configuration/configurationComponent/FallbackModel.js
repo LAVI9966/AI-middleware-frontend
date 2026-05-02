@@ -255,6 +255,7 @@ const FallbackModel = ({
           </InfoTooltip>
         </div>
         <input
+          autoComplete="off"
           data-testid="fallback-model-toggle"
           id="fallback-model-toggle"
           disabled={isReadOnly}
@@ -497,6 +498,7 @@ const FallbackModel = ({
                             <div key={apiKey?._id} className="p-2 hover:bg-base-200 cursor-pointer rounded">
                               <label className="flex items-center gap-2 cursor-pointer">
                                 <input
+                                  autoComplete="off"
                                   disabled={isReadOnly}
                                   type="radio"
                                   name={`apiKey-${service?.value}`}

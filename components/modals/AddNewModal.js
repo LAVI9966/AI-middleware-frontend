@@ -446,6 +446,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <span className="label-text">Min</span>
             </label>
             <input
+              autoComplete="off"
               type="number"
               value={fieldConfig.min}
               onChange={(e) => handleConfigChange(key, "min", parseFloat(e.target.value))}
@@ -459,6 +460,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <span className="label-text">Max</span>
             </label>
             <input
+              autoComplete="off"
               type="number"
               value={fieldConfig.max}
               onChange={(e) => handleConfigChange(key, "max", parseFloat(e.target.value))}
@@ -502,6 +504,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
             </select>
           ) : (
             <input
+              autoComplete="off"
               type={fieldConfig.field === "number" ? "number" : "text"}
               value={key === "model" ? config.model_name : fieldConfig.default}
               onChange={(e) => {
@@ -525,6 +528,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
             {fieldConfig.options?.map((opt, i) => (
               <div key={i} className="flex items-center gap-2">
                 <input
+                  autoComplete="off"
                   type="text"
                   value={typeof opt === "object" ? opt.type : opt}
                   onChange={(e) => updateOption(key, i, e.target.value)}
@@ -559,6 +563,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <div className="flex items-center gap-4">
                 {!isProtected && (
                   <input
+                    autoComplete="off"
                     type="checkbox"
                     checked={selectedKeys.includes(key)}
                     onChange={() => handleSelectKey(key)}
@@ -698,6 +703,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                         </span>
                       </label>
                       <input
+                        autoComplete="off"
                         data-testid="add-model-name-input"
                         id="add-model-name-input"
                         type="text"
@@ -729,6 +735,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                         </span>
                       </label>
                       <input
+                        autoComplete="off"
                         data-testid="add-model-display-name-input"
                         id="add-model-display-name-input"
                         type="text"
@@ -748,6 +755,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control p-4 rounded-lg border border-base-300">
                         <label className="label cursor-pointer justify-start gap-4">
                           <input
+                            autoComplete="off"
                             data-testid="add-model-vision-checkbox"
                             id="add-model-vision-checkbox"
                             type="checkbox"
@@ -761,6 +769,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control p-4 rounded-lg border border-base-300">
                         <label className="label cursor-pointer justify-start gap-4">
                           <input
+                            autoComplete="off"
                             data-testid="add-model-tools-checkbox"
                             id="add-model-tools-checkbox"
                             type="checkbox"
@@ -774,6 +783,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control p-4 rounded-lg border border-base-300">
                         <label className="label cursor-pointer justify-start gap-4">
                           <input
+                            autoComplete="off"
                             data-testid="add-model-system-prompt-checkbox"
                             id="add-model-system-prompt-checkbox"
                             type="checkbox"
@@ -815,6 +825,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                               </span>
                             </label>
                             <input
+                              autoComplete="off"
                               data-testid="add-model-input-cost-input"
                               id="add-model-input-cost-input"
                               type="number"
@@ -838,6 +849,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                               </span>
                             </label>
                             <input
+                              autoComplete="off"
                               data-testid="add-model-output-cost-input"
                               id="add-model-output-cost-input"
                               type="number"
@@ -880,6 +892,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                             </span>
                           </label>
                           <input
+                            autoComplete="off"
                             id="add-model-knowledge-cutoff-input"
                             type="text"
                             value={config.validationConfig.specification.knowledge_cutoff}
@@ -941,6 +954,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                                 <span className="label-text">Parameter Name</span>
                               </label>
                               <input
+                                autoComplete="off"
                                 id="add-model-param-name-input"
                                 type="text"
                                 autoFocus

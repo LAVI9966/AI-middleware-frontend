@@ -231,6 +231,7 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
                   return (
                     <div key={modelName} className="flex items-start gap-2 p-2 bg-base-100 rounded">
                       <input
+                        autoComplete="off"
                         type="checkbox"
                         className="checkbox checkbox-xs mt-1"
                         checked={!modelConfig.hide}
@@ -240,6 +241,7 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
                       <div className="flex flex-col gap-1 flex-1 min-w-0">
                         <span className="text-xs text-base-content/60 truncate">{modelName}</span>
                         <input
+                          autoComplete="off"
                           type="text"
                           className="input input-bordered input-xs w-full bg-base-200"
                           value={modelConfig.value !== undefined ? modelConfig.value : modelName}
@@ -566,6 +568,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           <span className="text-xs font-medium flex-1">{config.label}</span>
                           {config.type === "toggle" && (
                             <input
+                              autoComplete="off"
                               data-testid={`embed-config-toggle-${config.key}`}
                               type="checkbox"
                               className="toggle toggle-xs"

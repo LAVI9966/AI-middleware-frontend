@@ -91,6 +91,7 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                       />
                     ) : (
                       <input
+                        autoComplete="off"
                         type="text"
                         className="input input-bordered w-full text-sm input-sm"
                         placeholder={`Enter ${field.name}...`}
@@ -106,6 +107,7 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                 <div className="form-control gap-1 ">
                   <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.ROLE}</span>
                   <input
+                    autoComplete="off"
                     data-testid="migrate-prompt-role-input"
                     type="text"
                     className="input input-bordered w-full text-sm input-sm"
@@ -118,6 +120,7 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                 <div className="form-control gap-1">
                   <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.GOAL}</span>
                   <input
+                    autoComplete="off"
                     data-testid="migrate-prompt-goal-input"
                     type="text"
                     className="input input-bordered w-full text-sm input-sm"

@@ -255,6 +255,7 @@ const ModelGardenPage = ({ params }) => {
                   <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
                     <input
+                      autoComplete="off"
                       type="text"
                       placeholder="Search models..."
                       value={searchQuery}

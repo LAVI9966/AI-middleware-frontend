@@ -700,7 +700,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                       {message?.sender === "assistant" && message?.fallback && (
                         <div className="my-1">
                           <div className="max-w-[30rem] text-primary rounded-lg text-xs overflow-hidden transition-all duration-200 hover:bg-base-200/90">
-                            <input id={`retry-${message.id}`} type="checkbox" className="peer hidden" />
+                            <input
+                              autoComplete="off"
+                              id={`retry-${message.id}`}
+                              type="checkbox"
+                              className="peer hidden"
+                            />
 
                             <label
                               htmlFor={`retry-${message.id}`}

@@ -92,6 +92,7 @@ const WebhookForm = ({ params, searchParams }) => {
           <span className="label-text font-semibold">Webhook URL</span>
         </label>
         <input
+          autoComplete="off"
           type="url"
           id="webhookUrl"
           value={webhookUrl}
