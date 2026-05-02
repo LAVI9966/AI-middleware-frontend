@@ -917,28 +917,29 @@ function FunctionParameterModal({
 
         // Handle nested parameters
         const updatedFields = updateField(prevToolData.fields, parentPath, (parentField) => {
-          if (!parentField.properties && !parentField.parameter) return parentField;
+          if (!parentField.properties && !parentField.parameter && parentField.type !== "array") return parentField;
+          const isArrayParent = parentField.type === "array";
+          const actualContainer = isArrayParent ? parentField.items || {} : parentField;
 
-          // Create new parameter object with renamed key
-          const newParameter = { ...(parentField.properties || parentField.parameter || {}) };
+          const newParameter = { ...(actualContainer.properties || actualContainer.parameter || {}) };
           const paramData = newParameter[oldName];
-
-          // Remove old key and add new key
           delete newParameter[oldName];
           newParameter[newName] = paramData;
 
-          // Update required if the old name was required
-          let newRequiredParams = parentField.required || [];
+          let newRequiredParams = actualContainer.required || [];
           if (newRequiredParams.includes(oldName)) {
             newRequiredParams = newRequiredParams.filter((name) => name !== oldName);
             newRequiredParams.push(newName);
           }
 
-          return {
-            ...parentField,
-            properties: newParameter,
-            required: newRequiredParams,
-          };
+          if (isArrayParent) {
+            return {
+              ...parentField,
+              items: { ...parentField.items, properties: newParameter, required: newRequiredParams },
+            };
+          }
+
+          return { ...parentField, properties: newParameter, required: newRequiredParams };
         });
 
         return {

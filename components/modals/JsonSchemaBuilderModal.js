@@ -563,8 +563,8 @@ function JsonSchemaBuilderModal({
             // Navigate to array items
             if (current[key].items && current[key].items.type === "object") {
               // For object-type items, navigate to items.properties
-              current = current[key].items.properties;
               parent = current[key].items; // Update parent to items for required array
+              current = current[key].items.properties;
             } else {
               // For non-object items
               current = current[key].items;
@@ -750,12 +750,15 @@ function JsonSchemaBuilderModal({
 
         try {
           const updatedProperties = updateProperty(prevData.properties, parentPath, (parentProperty) => {
-            if (!parentProperty || !parentProperty.properties) {
+            const isArrayParent = parentProperty?.type === "array";
+            const actualContainer = isArrayParent ? parentProperty.items || {} : parentProperty;
+
+            if (!actualContainer || !actualContainer.properties) {
               console.error("Invalid parent property path:", parentPath);
               throw new Error("Invalid parent path");
             }
 
-            const newNestedProperties = { ...parentProperty.properties };
+            const newNestedProperties = { ...actualContainer.properties };
             const propertyData = newNestedProperties[oldName];
 
             if (!propertyData) {
@@ -766,17 +769,20 @@ function JsonSchemaBuilderModal({
             delete newNestedProperties[oldName];
             newNestedProperties[newName] = propertyData;
 
-            let newRequired = parentProperty.required || [];
+            let newRequired = actualContainer.required || [];
             if (newRequired.includes(oldName)) {
               newRequired = newRequired.filter((name) => name !== oldName);
               newRequired.push(newName);
             }
 
-            return {
-              ...parentProperty,
-              properties: newNestedProperties,
-              required: newRequired,
-            };
+            if (isArrayParent) {
+              return {
+                ...parentProperty,
+                items: { ...parentProperty.items, properties: newNestedProperties, required: newRequired },
+              };
+            }
+
+            return { ...parentProperty, properties: newNestedProperties, required: newRequired };
           });
 
           return {
