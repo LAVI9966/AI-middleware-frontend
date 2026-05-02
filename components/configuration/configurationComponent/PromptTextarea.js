@@ -163,7 +163,7 @@ const PromptTextarea = memo(
                   : ""
             }
           />
-          {fullscreenButton && <div className="absolute top-1 right-1 z-10">{fullscreenButton}</div>}
+          {fullscreenButton && <div className="absolute top-1 right-1">{fullscreenButton}</div>}
         </div>
         {variablesSection}
       </div>
