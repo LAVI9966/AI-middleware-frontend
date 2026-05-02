@@ -32,6 +32,25 @@ const PLACEHOLDERS = {
     knowledge_cutoff: "e.g., Apr 2024",
     usecase: "One per line, e.g., Enterprise-grade conversational AI",
   },
+  gemini: {
+    display_name: "e.g., Gemini 1.5 Pro",
+    model_name: "e.g., gemini-1.5-pro",
+    input_cost: "e.g., 3.5",
+    output_cost: "e.g., 10.5",
+    description:
+      "Google's most capable multimodal model for a wide range of tasks including text, code, and image understanding.",
+    knowledge_cutoff: "e.g., Nov 2023",
+    usecase: "One per line, e.g., Multimodal document analysis",
+  },
+  grok: {
+    display_name: "e.g., Grok 3",
+    model_name: "e.g., grok-3",
+    input_cost: "e.g., 3",
+    output_cost: "e.g., 15",
+    description: "xAI's flagship model with real-time web access and strong reasoning capabilities.",
+    knowledge_cutoff: "e.g., Nov 2024",
+    usecase: "One per line, e.g., Real-time information retrieval",
+  },
   groq: {
     display_name: "e.g., Llama 3 on Groq",
     model_name: "e.g., llama-3.1-8b-instant",
@@ -222,6 +241,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
     setConfig(initialConfig);
     setSelectedKeys(Object.keys(initialConfig.configuration.additional_parameters || {}));
     setExpandedKeys(new Set());
+    setError({});
   };
 
   /**
@@ -971,7 +991,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                 <div className="border-t border-base-200 pt-6 mt-8">
                   {error?.message && (
                     <div className="w-full mb-4">
-                      <div className="error-container p-4 bg-red-50 border-l-4 border-red-500 rounded-md shadow-sm">
+                      <div className="error-container p-4 bg-error/10 border-l-4 border-error rounded-md shadow-sm text-error">
                         {error?.message}
                       </div>
                     </div>
