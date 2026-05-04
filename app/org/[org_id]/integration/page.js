@@ -11,7 +11,7 @@ import { openModal, closeModal, formatRelativeTime, formatDate } from "@/utils/u
 import IntegrationModal from "@/components/modals/IntegrationModal";
 import SearchItems from "@/components/UI/SearchItems";
 import { EllipsisIcon, RefreshIcon } from "@/components/Icons";
-import { ClockFading } from "lucide-react";
+import { ClockFading, Pencil } from "lucide-react";
 import UsageLimitModal from "@/components/modals/UsageLimitModal";
 import { updateIntegrationDataAction } from "@/store/action/integrationAction";
 import { toast } from "react-toastify";
@@ -33,6 +33,8 @@ const Page = ({ params }) => {
   const [embedIntegrations, setEmbedIntegrations] = useState([]); // Type-filtered integrations
   const [filterIntegration, setFilterIntegration] = useState([]); // Search-filtered integrations
   const [selectedIntegrationForLimit, setSelectedIntegrationForLimit] = useState(null);
+  const [renameIntegration, setRenameIntegration] = useState(null);
+  const renameInputRef = React.useRef("");
 
   // Use portal dropdown hook
   const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown();
@@ -99,6 +101,20 @@ const Page = ({ params }) => {
     if (res?.data) toast.success("Integration Usage Limit Updated Successfully");
   };
 
+  const handleRenameIntegration = async () => {
+    const newName = renameInputRef.current?.value?.trim();
+    if (!newName) {
+      toast.error("Name cannot be empty");
+      return;
+    }
+    const dataToSend = { ...renameIntegration.originalItem, name: newName };
+    const res = await dispatch(updateIntegrationDataAction(resolvedParams.org_id, dataToSend));
+    if (res?.data) {
+      toast.success("Embed renamed successfully");
+    }
+    setRenameIntegration(null);
+  };
+
   const resetUsage = async (integration) => {
     const dataToSend = {
       ...integration.originalItem,
@@ -126,6 +142,19 @@ const Page = ({ params }) => {
             >
               <ClockFading className="" size={16} />
               Usage Limit
+            </a>
+          </li>
+          <li>
+            <a
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handlePortalCloseImmediate();
+                setRenameIntegration(row);
+              }}
+            >
+              <Pencil size={16} />
+              Rename
             </a>
           </li>
           {Number(row?.embed_usage) > 0 ? (
@@ -213,6 +242,34 @@ const Page = ({ params }) => {
 
       <IntegrationModal params={resolvedParams} type="embed" />
       <UsageLimitModal data={selectedIntegrationForLimit} onConfirm={handleUpdateIntegrationLimit} item="Embed Name" />
+
+      {renameIntegration && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-sm">
+            <h3 className="font-bold text-lg mb-4">Rename Embed</h3>
+            <input
+              type="text"
+              className="input input-bordered input-sm w-full mb-2"
+              defaultValue={renameIntegration.originalName}
+              maxLength={50}
+              ref={renameInputRef}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRenameIntegration();
+              }}
+            />
+            <div className="modal-action">
+              <button className="btn btn-sm" onClick={() => setRenameIntegration(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-sm btn-primary" onClick={handleRenameIntegration}>
+                Rename
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setRenameIntegration(null)} />
+        </div>
+      )}
 
       {/* Portal components from hook */}
       <PortalStyles />
