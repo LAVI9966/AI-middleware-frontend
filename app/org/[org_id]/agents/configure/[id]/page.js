@@ -171,6 +171,9 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
     if (!uiState.isPromptHelperOpen) {
       // Two panel mode: Config + Chat
       return { config: isEmbedUser && hidePlayground ? 100 : 50, chat: 50 };
+    } else if (isEmbedUser) {
+      // Embed users have no Notes panel: Config + PromptHelper 50/50
+      return { config: 50, promptHelper: 50, notes: 0 };
     } else {
       // Three panel mode: Config + PromptHelper + Notes
       return { config: 33.33, promptHelper: 33.33, notes: 33.33 };
@@ -310,6 +313,23 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       }
     }
   }, [updateUiState]);
+
+  // When prompt helper opens, force panels to correct sizes after mount
+  useEffect(() => {
+    if (!uiState.isPromptHelperOpen || !isFocus) return;
+    const timer = setTimeout(() => {
+      const hasNotes = !isEmbedUser;
+      if (hasNotes) {
+        configPanelRef.current?.resize(33.33);
+        promptHelperPanelRef.current?.resize(33.33);
+        notesPanelRef.current?.resize(33.33);
+      } else {
+        configPanelRef.current?.resize(50);
+        promptHelperPanelRef.current?.resize(50);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [uiState.isPromptHelperOpen, isFocus, isEmbedUser]);
 
   // Determine where the Close Helper button should appear
   const closeHelperButtonLocation = useMemo(() => {
