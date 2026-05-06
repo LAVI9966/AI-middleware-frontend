@@ -51,6 +51,7 @@ const AuthDataModal = ({ data }) => {
             </label>
             <div className="join w-full">
               <input
+                autoComplete="off"
                 data-testid="auth-data-route-name-input"
                 id="auth-data-route-name-input"
                 type="text"
@@ -83,6 +84,7 @@ const AuthDataModal = ({ data }) => {
             </label>
             <div className="join w-full">
               <input
+                autoComplete="off"
                 data-testid="auth-data-client-id-input"
                 id="auth-data-client-id-input"
                 type="text"
@@ -115,6 +117,7 @@ const AuthDataModal = ({ data }) => {
             </label>
             <div className="join w-full">
               <input
+                autoComplete="off"
                 data-testid="auth-data-redirection-url-input"
                 id="auth-data-redirection-url-input"
                 type="text"

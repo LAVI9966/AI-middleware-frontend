@@ -401,6 +401,7 @@ const AccessManagementModal = ({ agent }) => {
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <input
+                  autoComplete="off"
                   data-testid="access-management-email-input"
                   id="access-management-email-input"
                   type="email"

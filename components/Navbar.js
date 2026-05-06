@@ -5,6 +5,7 @@ import {
   TestTube,
   MessageCircleMore,
   ClipboardX,
+  CloudCheck,
   BookCheck,
   Clock,
   Home,
@@ -138,6 +139,15 @@ const Navbar = ({ isEmbedUser, params }) => {
   }, [isEmbedUser, bridgeType]);
 
   const agentName = useMemo(() => bridgeName || bridgeData?.name || "Agent not Found", [bridgeName, bridgeData?.name]);
+
+  const [showSavedText, setShowSavedText] = useState(false);
+  useEffect(() => {
+    if (savingStatus.status === "saved") {
+      setShowSavedText(true);
+      const timer = setTimeout(() => setShowSavedText(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [savingStatus.status, savingStatus.timestamp]);
 
   // Calculate active tab index for tab switcher animation
   const activeTabIndex = useMemo(() => {
@@ -448,6 +458,7 @@ const Navbar = ({ isEmbedUser, params }) => {
                     </div>
                   ) : (
                     <input
+                      autoComplete="off"
                       data-testid="navbar-agent-name-input"
                       id="navbar-agent-name-input"
                       type="text"
@@ -519,8 +530,8 @@ const Navbar = ({ isEmbedUser, params }) => {
                     )}
                     {savingStatus.status === "saved" && (
                       <>
-                        <BookCheck size={14} />
-                        <span>Saved</span>
+                        <CloudCheck size={16} />
+                        {showSavedText && <span>Saved</span>}
                       </>
                     )}
                     {savingStatus.status === "failed" && (
@@ -713,6 +724,7 @@ const Navbar = ({ isEmbedUser, params }) => {
                 </div>
               ) : (
                 <input
+                  autoComplete="off"
                   data-testid="navbar-mobile-agent-name-input"
                   id="navbar-mobile-agent-name-input"
                   type="text"

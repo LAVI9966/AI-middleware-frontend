@@ -29,7 +29,6 @@ import { useDispatch } from "react-redux";
 import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 import {
   getApiKeyGuideAction,
-  getGuardrailsTemplatesAction,
   getTutorialDataAction,
   getDescriptionsAction,
   getFinishReasonsAction,
@@ -106,9 +105,6 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
       dispatch(userDetails());
     }
     dispatch(getDescriptionsAction());
-    dispatch(getGuardrailsTemplatesAction());
-    dispatch(getDescriptionsAction());
-    dispatch(getGuardrailsTemplatesAction());
     dispatch(getLinksAction());
 
     if (pathName.endsWith("apikeys") && !isEmbedUser) {
@@ -421,12 +417,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
         }
       }
 
-      if (
-        e?.data?.action === "published" ||
-        e?.data?.action === "paused" ||
-        e?.data?.action === "created" ||
-        e?.data?.action === "updated"
-      ) {
+      if (e?.data?.action === "published" || e?.data?.action === "updated") {
         const dataFromEmbed = {
           url: e?.data?.webhookurl,
           desc: e?.data?.description || e?.data?.title,

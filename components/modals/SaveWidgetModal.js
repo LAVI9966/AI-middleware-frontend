@@ -25,6 +25,7 @@ const SaveWidgetModal = ({ widgetName, widgetDescription, onNameChange, onDescri
               <span className="label-text">Widget Name *</span>
             </label>
             <input
+              autoComplete="off"
               data-testid="save-widget-name-input"
               type="text"
               placeholder="Enter widget name"

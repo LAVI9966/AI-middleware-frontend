@@ -95,6 +95,7 @@ export default function DatePickerComponent({
           <div className="flex flex-col">
             <label className={labelCls}>{labelStart}</label>
             <input
+              autoComplete="off"
               type="date"
               value={startVal}
               min={min}
@@ -109,6 +110,7 @@ export default function DatePickerComponent({
           <div className="flex flex-col">
             <label className={labelCls}>{labelEnd}</label>
             <input
+              autoComplete="off"
               type="date"
               value={endVal}
               min={startVal || min}
@@ -132,6 +134,7 @@ export default function DatePickerComponent({
     >
       {label && <label className={labelCls}>{label}</label>}
       <input
+        autoComplete="off"
         type="date"
         value={singleVal}
         placeholder={placeholder}

@@ -320,6 +320,7 @@ const ModelDropdown = ({
               />
             </InfoTooltip>
             <input
+              autoComplete="off"
               data-testid="auto-select-model-toggle"
               id="auto-select-model-toggle"
               disabled={isReadOnly}
@@ -404,6 +405,7 @@ const ModelDropdown = ({
               <span className="label-text text-base-content">Fine-Tune Model</span>
             </div>
             <input
+              autoComplete="off"
               data-testid="fine-tune-model-input"
               id="fine-tune-model-input"
               type="text"

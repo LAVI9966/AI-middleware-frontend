@@ -242,6 +242,7 @@ const Dropdown = ({
           {enableSearch && (
             <div className="p-2 border-b border-base-content/10">
               <input
+                autoComplete="off"
                 data-testid={`${testId}-search-input`}
                 id="dropdown-search-input"
                 autoFocus

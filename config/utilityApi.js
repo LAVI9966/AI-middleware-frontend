@@ -26,7 +26,8 @@ export const optimizePromptApi = async ({
   version_id,
   query,
   thread_id,
-  data = { query, thread_id, version_id },
+  variables,
+  data = { query, thread_id, version_id, variables },
 }) => {
   try {
     const response = await axios.post(`${URL}/api/utils/call-gtwy`, {
@@ -34,6 +35,7 @@ export const optimizePromptApi = async ({
       ...data,
       bridge_id: bridge_id || data.bridge_id,
       version_id: version_id || data.version_id,
+      variables: variables || data.variables,
     });
     return response.data.result;
   } catch (error) {
@@ -218,7 +220,7 @@ export const deleteWebhookAlert = async (id) => {
 };
 
 // Integration and External APIs
-export const updateFlow = async (embed_token, functionId, description, title) => {
+export const updateFlowEmbed = async (embed_token, functionId, payload = {}) => {
   try {
     const response = await fetch(`https://flow-api.viasocket.com/projects/updateflowembed/${functionId}`, {
       method: "PUT",
@@ -226,11 +228,7 @@ export const updateFlow = async (embed_token, functionId, description, title) =>
         Authorization: embed_token,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        description: description,
-        title: title,
-        endpoint_name: title,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
@@ -239,6 +237,14 @@ export const updateFlow = async (embed_token, functionId, description, title) =>
     console.error(error);
     return error;
   }
+};
+
+export const updateFlow = async (embed_token, functionId, description, title) => {
+  return updateFlowEmbed(embed_token, functionId, {
+    description: description,
+    title: title,
+    endpoint_name: title,
+  });
 };
 
 export const integration = async (embed_token) => {
@@ -324,15 +330,6 @@ export const getApiKeyGuide = async () => {
 export const getDescriptions = async () => {
   try {
     const response = await axios.get("https://flow.sokt.io/func/scriPqFeiEKa");
-    return response;
-  } catch (error) {
-    throw new Error(error);
-  }
-};
-
-export const getGuardrailsTemplates = async () => {
-  try {
-    const response = await axios.get("https://flow.sokt.io/func/scriKh8LMVKV");
     return response;
   } catch (error) {
     throw new Error(error);

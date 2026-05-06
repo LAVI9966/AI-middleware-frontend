@@ -14,7 +14,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 import { generateRichUITemplate } from "@/config/utilityApi";
 import ReactMarkdown from "@/components/LazyMarkdown";
-import CodeBlock from "@/components/codeBlock/CodeBlock";
+import { mdComponentsDark, mdRemarkPlugins } from "@/utils/markdownComponents";
 import { createRichUiTemplateAction } from "@/store/action/richUiTemplateAction";
 import { useDispatch } from "react-redux";
 
@@ -274,15 +274,7 @@ const TemplatesPage = ({ params }) => {
                         ) : (
                           /* Show markdown for user messages or assistant messages without HTML */
                           <div className="leading-relaxed">
-                            <ReactMarkdown
-                              components={{
-                                code: ({ node, inline, className, children, ...props }) => (
-                                  <CodeBlock inline={inline} className={className} isDark={true} {...props}>
-                                    {children}
-                                  </CodeBlock>
-                                ),
-                              }}
-                            >
+                            <ReactMarkdown components={mdComponentsDark} remarkPlugins={mdRemarkPlugins}>
                               {message.content}
                             </ReactMarkdown>
                           </div>
@@ -333,6 +325,7 @@ const TemplatesPage = ({ params }) => {
                 <div className="max-w-4xl mx-auto">
                   <div className="relative flex items-center w-full rounded-xl p-2 bg-base-300 backdrop-blur-sm transition-all ">
                     <input
+                      autoComplete="off"
                       ref={inputRef}
                       type="text"
                       className="input w-full outline-none border-none focus:outline-none focus:ring-0"
@@ -400,6 +393,7 @@ const TemplatesPage = ({ params }) => {
                   <div className="w-full relative">
                     <div className="relative flex items-center w-full rounded-xl p-2 bg-base-300 backdrop-blur-sm transition-all">
                       <input
+                        autoComplete="off"
                         type="text"
                         className="input w-full outline-none border-none focus:outline-none focus:ring-0"
                         placeholder="Describe your widget..."

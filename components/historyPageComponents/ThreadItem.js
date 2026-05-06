@@ -15,7 +15,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import CodeBlock from "../codeBlock/CodeBlock";
+import { mdComponentsDark, mdRemarkPlugins, mdProseClass } from "@/utils/markdownComponents";
 import { truncate } from "./AssistFile";
 import ToolsDataModal from "./ToolsDataModal";
 import { useCustomSelector } from "@/customHooks/customSelector";
@@ -587,7 +587,7 @@ const ThreadItem = ({
         {/* 1. First: Render User Message if exists */}
         <div className="chat group chat-end mb-4">
           <div className="chat-image avatar flex justify-center items-center">
-            <div className="w-100 p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
+            <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
               <div className="relative rounded-full bg-base-300 flex justify-center items-center">
                 <UserIcon size={20} className="text-base-content" />
               </div>
@@ -603,18 +603,7 @@ const ThreadItem = ({
             >
               {/* User attachments - shown above message text */}
               {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-
-              <ReactMarkdown
-                components={{
-                  code: ({ node, inline, className, children, ...props }) => (
-                    <CodeBlock className={className} {...props}>
-                      {children}
-                    </CodeBlock>
-                  ),
-                }}
-              >
-                {item.user}
-              </ReactMarkdown>
+              <div>{item.user}</div>
             </div>
           </div>
 
@@ -741,7 +730,7 @@ const ThreadItem = ({
         {!item.error && (
           <div className="chat group chat-start">
             <div className="chat-image avatar flex justify-center items-center">
-              <div className="w-100 p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors mb-7">
+              <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors mb-7">
                 <div className="relative rounded-full bg-base-300 flex justify-center items-center">
                   <BotIcon
                     data-testid="thread-item-bot-icon"
@@ -855,7 +844,7 @@ const ThreadItem = ({
             >
               <div
                 className="bg-base-200 text-base-content pr-10 mb-7 chat-bubble transition-all ease-in-out duration-300 relative group break-words"
-                style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
               >
                 {/* Assistant attachments */}
                 {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
@@ -864,17 +853,11 @@ const ThreadItem = ({
                 {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
                   <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
                 ) : (
-                  <ReactMarkdown
-                    components={{
-                      code: ({ node, inline, className, children, ...props }) => (
-                        <CodeBlock className={className} {...props}>
-                          {children}
-                        </CodeBlock>
-                      ),
-                    }}
-                  >
-                    {getMessageToDisplay()}
-                  </ReactMarkdown>
+                  <div className={mdProseClass.dark}>
+                    <ReactMarkdown components={mdComponentsDark} remarkPlugins={mdRemarkPlugins}>
+                      {getMessageToDisplay()}
+                    </ReactMarkdown>
+                  </div>
                 )}
 
                 {/* Edit button for assistant messages */}
@@ -933,7 +916,7 @@ const ThreadItem = ({
                   </div>
                   <p className="text-sm">{item?.error}</p>
                 </div>
-                <div className="w-100 p-2 rounded-full bg-error/20 flex justify-center items-center">
+                <div className="p-2 rounded-full bg-error/20 flex justify-center items-center">
                   <BotIcon className="text-base-content" size={18} />
                 </div>
               </div>

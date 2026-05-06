@@ -190,6 +190,7 @@ function Page() {
                 <span className="label-text">Search organizations</span>
               </label>
               <input
+                autoComplete="off"
                 type="text"
                 placeholder="Type a name"
                 value={formState.searchQuery}

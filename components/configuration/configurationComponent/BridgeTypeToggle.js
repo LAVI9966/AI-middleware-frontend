@@ -76,6 +76,7 @@ const BridgeTypeToggle = ({ params, searchParams, isEmbedUser, isPublished, isEd
             <InfoTooltip tooltipContent="The API allows users to connect with AI models to perform tasks like generating responses or processing information.">
               <label className="flex items-center cursor-pointer min-w-0">
                 <input
+                  autoComplete="off"
                   data-testid="bridge-type-api-radio"
                   id="bridge-type-api-radio"
                   disabled={isReadOnly}
@@ -97,6 +98,7 @@ const BridgeTypeToggle = ({ params, searchParams, isEmbedUser, isPublished, isEd
               <InfoTooltip tooltipContent="Triggers allows you to create automated workflows that respond to specific events or conditions. Ideal for creating event-driven applications.">
                 <label className="flex items-center cursor-pointer min-w-0">
                   <input
+                    autoComplete="off"
                     data-testid="bridge-type-trigger-radio"
                     id="bridge-type-trigger-radio"
                     type="radio"

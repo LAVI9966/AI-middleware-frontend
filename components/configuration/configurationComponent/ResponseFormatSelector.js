@@ -129,6 +129,7 @@ const ResponseFormatSelector = ({ params, searchParams, isPublished, isEditor = 
         <div className="form-control w-fit" key={value}>
           <label className="label  cursor-pointer mx-w-sm flex items-center gap-5">
             <input
+              autoComplete="off"
               data-testid={`response-format-radio-${value}`}
               id={`response-format-radio-${value}`}
               disabled={isReadOnly}
@@ -150,6 +151,7 @@ const ResponseFormatSelector = ({ params, searchParams, isPublished, isEditor = 
           <label className="form-control w-full mb-4">
             <span className="text-sm block mb-2">Webhook URL</span>
             <input
+              autoComplete="off"
               data-testid="webhook-url-input"
               id="webhook"
               disabled={isReadOnly}

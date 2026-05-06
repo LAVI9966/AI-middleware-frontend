@@ -95,6 +95,7 @@ const DateRangePicker = ({
           From
         </label>
         <input
+          autoComplete="off"
           data-testid="history-date-range-from-input"
           id="from"
           type="datetime-local"
@@ -111,6 +112,7 @@ const DateRangePicker = ({
           To
         </label>
         <input
+          autoComplete="off"
           data-testid="history-date-range-to-input"
           id="to"
           type="datetime-local"

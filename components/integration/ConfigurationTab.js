@@ -109,6 +109,14 @@ const CONFIG_SCHEMA = [
     section: "Interface Options",
   },
   {
+    key: "hidePlayground",
+    type: "toggle",
+    label: "Hide Playground",
+    description: "Hide the playground",
+    defaultValue: false,
+    section: "Interface Options",
+  },
+  {
     key: "slide",
     type: "select",
     label: "Slide Position",
@@ -174,6 +182,14 @@ const CONFIG_SCHEMA = [
     ],
     section: "Display Settings",
   },
+  {
+    key: "showDeleteAgentOption",
+    type: "toggle",
+    label: "Show Delete Agent Option",
+    description: "Show the delete agent option in the agent action menu",
+    defaultValue: false,
+    section: "Interface Options",
+  },
 ];
 
 // Model Customization Component
@@ -231,6 +247,7 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
                   return (
                     <div key={modelName} className="flex items-start gap-2 p-2 bg-base-100 rounded">
                       <input
+                        autoComplete="off"
                         type="checkbox"
                         className="checkbox checkbox-xs mt-1"
                         checked={!modelConfig.hide}
@@ -240,6 +257,7 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
                       <div className="flex flex-col gap-1 flex-1 min-w-0">
                         <span className="text-xs text-base-content/60 truncate">{modelName}</span>
                         <input
+                          autoComplete="off"
                           type="text"
                           className="input input-bordered input-xs w-full bg-base-200"
                           value={modelConfig.value !== undefined ? modelConfig.value : modelName}
@@ -294,6 +312,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
     theme_config: config?.theme_config || defaultUserTheme,
     tools_id: config?.tools_id || [],
     pre_tool_id: config?.pre_tool_id || null,
+    post_tool_id: config?.post_tool_id || null,
     variables_path: config?.variables_path || {},
     models: config?.models || {},
     apikey_object_id: integrationData?.apikey_object_id || {},
@@ -415,17 +434,15 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
           if (configuration.pre_tool_id === matchedId) {
             handleConfigChange("pre_tool_id", null);
           }
+          if (configuration.post_tool_id === matchedId) {
+            handleConfigChange("post_tool_id", null);
+          }
           dispatch(deleteFunctionAction({ script_id: deletedScriptId, orgId: data?.org_id, functionId: matchedId }));
         }
         return;
       }
 
-      if (
-        e?.data?.action === "published" ||
-        e?.data?.action === "paused" ||
-        e?.data?.action === "created" ||
-        e?.data?.action === "updated"
-      ) {
+      if (e?.data?.action === "published" || e?.data?.action === "updated") {
         const dataFromEmbed = {
           url: e?.data?.webhookurl,
           desc: e?.data?.description || e?.data?.title,
@@ -440,7 +457,9 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
 
         if (e?.data?.metadata?.createFrom === "preFunction") {
           handleConfigChange("pre_tool_id", createdTool._id);
-        } else {
+        } else if (e?.data?.metadata?.createFrom === "postFunction") {
+          handleConfigChange("post_tool_id", createdTool._id);
+        } else if (e?.data?.metadata?.createFrom === "tool") {
           const currentTools = configuration.tools_id || [];
           if (!currentTools.includes(createdTool._id)) {
             handleConfigChange("tools_id", [...currentTools, createdTool._id]);
@@ -451,7 +470,14 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [data?.org_id, configuration.tools_id, configuration.pre_tool_id, functionData, dispatch]);
+  }, [
+    data?.org_id,
+    configuration.tools_id,
+    configuration.pre_tool_id,
+    configuration.post_tool_id,
+    functionData,
+    dispatch,
+  ]);
 
   // Manual reload function
   const handleManualReload = () => {
@@ -558,6 +584,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           <span className="text-xs font-medium flex-1">{config.label}</span>
                           {config.type === "toggle" && (
                             <input
+                              autoComplete="off"
                               data-testid={`embed-config-toggle-${config.key}`}
                               type="checkbox"
                               className="toggle toggle-xs"
@@ -654,6 +681,21 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
               onConfigChange={handleConfigChange}
               modalType={MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL}
             />
+
+            {/* Post Tool Configuration */}
+            <div className="divider my-2"></div>
+            <ToolsConfiguration
+              singleToolMode={true}
+              selectedToolId={configuration.post_tool_id}
+              onToolChange={(toolId) => handleConfigChange("post_tool_id", toolId)}
+              orgId={data?.org_id}
+              params={{ org_id: data?.org_id }}
+              configuration={configuration}
+              onConfigChange={handleConfigChange}
+              title="Post-Tool Configuration"
+              modalType={MODAL_TYPE.POST_FUNCTION_PARAMETER_MODAL}
+            />
+            <p className="text-xs text-warning mt-1">⚠️ Post-Tool won't run when streaming is enabled.</p>
 
             {/* Theme Palette Section */}
             <div className="border-t border-base-300 pt-3 mt-3">

@@ -12,6 +12,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { promptObjectToString } from "@/utils/promptUtils";
 import Protected from "@/components/Protected";
 import FullscreenEditorModal, { FullscreenEditorButton } from "../../modals/FullscreenEditorModal";
+import { BrainIcon } from "@/components/Icons";
 
 // Ultra-smooth InputConfigComponent with ref-based approach
 const InputConfigComponent = memo(
@@ -47,6 +48,8 @@ const InputConfigComponent = memo(
     const blurTimerRef = useRef(null);
 
     const [isTextareaFocused, setIsTextareaFocused] = useState(false);
+    const [focusedField, setFocusedField] = useState(null);
+    const [fieldDiffState, setFieldDiffState] = useState(null);
     const [embedFieldValues, setEmbedFieldValues] = useState(null);
     const [fullscreenEditor, setFullscreenEditor] = useState({
       isOpen: false,
@@ -97,7 +100,7 @@ const InputConfigComponent = memo(
           isEmbedCustomPrompt: false,
           hiddenEmbedFields: [],
           isOldEmbedFormat: false,
-          visibleEmbedFields: embedPromptConfig.embedFields,
+          visibleEmbedFields: Array.isArray(embedPromptConfig.embedFields) ? embedPromptConfig.embedFields : [],
           activeEmbedFieldValues: {},
           isEmbedStringPrompt: true,
         };
@@ -106,14 +109,15 @@ const InputConfigComponent = memo(
       const dbValues =
         typeof reduxPrompt === "object" && reduxPrompt !== null && !Array.isArray(reduxPrompt) ? reduxPrompt : {};
 
-      const hidden = embedPromptConfig.embedFields.filter((f) => f.hidden);
+      const embedFields = Array.isArray(embedPromptConfig.embedFields) ? embedPromptConfig.embedFields : [];
+      const hidden = embedFields.filter((f) => f.hidden);
       const oldFormat =
         typeof reduxPrompt === "object" && reduxPrompt !== null && Array.isArray(reduxPrompt.embedFields);
       const dbKeys = oldFormat ? new Set() : new Set(Object.keys(dbValues));
 
-      const fields = embedPromptConfig.embedFields.filter((f) => !f.hidden).map((f) => ({ ...f, deprecated: false }));
+      const fields = embedFields.filter((f) => !f.hidden).map((f) => ({ ...f, deprecated: false }));
       dbKeys.forEach((key) => {
-        const fieldInConfig = embedPromptConfig.embedFields.find((f) => f.name === key);
+        const fieldInConfig = embedFields.find((f) => f.name === key);
 
         // If field exists AND is hidden → ignore completely
         if (fieldInConfig?.hidden) return;
@@ -232,6 +236,7 @@ const InputConfigComponent = memo(
         ? promptObjectToString(structuredFields)
         : textareaRef.current?.value || "";
       setPromptState((prev) => ({ ...prev, newContent: currentValue }));
+      setFieldDiffState(null);
       openModal(MODAL_TYPE?.DIFF_PROMPT);
     }, [setPromptState, isStructuredPrompt, structuredFields]);
 
@@ -240,6 +245,28 @@ const InputConfigComponent = memo(
         updateUiState({ isPromptHelperOpen: true });
       }
     }, [uiState.isPromptHelperOpen, updateUiState]);
+
+    const handleOpenPromptHelperForField = useCallback(
+      (fieldName) => {
+        setPromptState((prev) => ({ ...prev, activeHelperField: fieldName }));
+        if (window.innerWidth > 710) {
+          updateUiState({ isPromptHelperOpen: true });
+        }
+      },
+      [updateUiState, setPromptState]
+    );
+
+    // When PromptHelper applies a result and activeHelperField is set,
+    // route the new content into that specific embed field instead of the main prompt.
+    useEffect(() => {
+      if (!promptState.activeHelperField || !promptState.newContent) return;
+      const value =
+        typeof promptState.newContent === "object"
+          ? (promptState.newContent[promptState.activeHelperField] ?? JSON.stringify(promptState.newContent))
+          : String(promptState.newContent);
+      handleEmbedFieldChange(promptState.activeHelperField, value);
+      setPromptState((prev) => ({ ...prev, newContent: "" }));
+    }, [promptState.newContent, promptState.activeHelperField, handleEmbedFieldChange, setPromptState]);
 
     const handleTextareaFocus = useCallback(() => {
       if (blurTimerRef.current) {
@@ -340,12 +367,77 @@ const InputConfigComponent = memo(
               )}
               {filteredEmbedFields.map((field) => (
                 <div key={field.name} className="form-control">
-                  <label className="label py-0 flex items-center gap-2">
-                    <span className="label-text text-xs font-medium capitalize text-base-content/70 mb-2">
-                      {field.displayValue || field.name}
-                    </span>
-                    {field.deprecated && <span className="badge badge-warning badge-xs text-xs">deprecated</span>}
-                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="label py-0">
+                      <span className="label-text text-xs font-medium capitalize text-base-content/70">
+                        {field.displayValue || field.name}
+                      </span>
+                      {field.deprecated && (
+                        <span className="badge badge-warning badge-xs text-xs ml-2">deprecated</span>
+                      )}
+                    </label>
+                    {focusedField === field.name && (
+                      <div className="flex items-center gap-1">
+                        {!field.deprecated &&
+                          !isPublished &&
+                          isEditor &&
+                          (activeEmbedFieldValues[field.name] ?? "") !==
+                            ((typeof oldContent === "object" && oldContent !== null ? oldContent[field.name] : "") ??
+                              "") && (
+                            <button
+                              type="button"
+                              className="btn btn-xs btn-ghost border border-base-300"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                const savedVal =
+                                  typeof oldContent === "object" && oldContent !== null
+                                    ? (oldContent[field.name] ?? "")
+                                    : "";
+                                setFieldDiffState({
+                                  old: { [field.name]: savedVal },
+                                  new: { [field.name]: activeEmbedFieldValues[field.name] ?? "" },
+                                  label: field.displayValue || field.name,
+                                });
+                                openModal(MODAL_TYPE.DIFF_PROMPT);
+                              }}
+                              title={`Compare changes for ${field.displayValue || field.name}`}
+                            >
+                              Diff
+                            </button>
+                          )}
+                        {field.showPromptHelper && !field.deprecated && !isPublished && isEditor && (
+                          <button
+                            type="button"
+                            className={`btn btn-xs gap-1 ${
+                              promptState.activeHelperField === field.name && uiState.isPromptHelperOpen
+                                ? "btn-primary"
+                                : "btn-ghost border border-base-300"
+                            }`}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              if (promptState.activeHelperField === field.name && uiState.isPromptHelperOpen) {
+                                updateUiState({ isPromptHelperOpen: false });
+                              } else {
+                                handleOpenPromptHelperForField(field.name);
+                              }
+                            }}
+                            title={
+                              promptState.activeHelperField === field.name && uiState.isPromptHelperOpen
+                                ? `Close Prompt Helper`
+                                : `Open Prompt Helper for ${field.displayValue || field.name}`
+                            }
+                          >
+                            <BrainIcon size={12} />
+                            <span>
+                              {promptState.activeHelperField === field.name && uiState.isPromptHelperOpen
+                                ? "Close Helper"
+                                : "Prompt Helper"}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="relative">
                     {field.type === "textarea" ? (
                       <textarea
@@ -355,10 +447,14 @@ const InputConfigComponent = memo(
                         value={activeEmbedFieldValues[field.name] || ""}
                         onChange={(e) => !field.deprecated && handleEmbedFieldChange(field.name, e.target.value)}
                         readOnly={field.deprecated}
-                        onFocus={handleTextareaFocus}
+                        onFocus={(e) => {
+                          handleTextareaFocus(e);
+                          setFocusedField(field.name);
+                        }}
                         onBlur={(e) => {
                           if (field.deprecated) return;
                           handleTextareaBlur(e);
+                          setFocusedField(null);
                           if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
                         disabled={isPublished || !isEditor}
@@ -370,6 +466,7 @@ const InputConfigComponent = memo(
                       />
                     ) : (
                       <input
+                        autoComplete="off"
                         type="text"
                         className={`input input-bordered w-full text-sm input-sm pr-8 ${
                           field.deprecated ? "opacity-60" : ""
@@ -377,10 +474,14 @@ const InputConfigComponent = memo(
                         value={activeEmbedFieldValues[field.name] || ""}
                         onChange={(e) => !field.deprecated && handleEmbedFieldChange(field.name, e.target.value)}
                         readOnly={field.deprecated}
-                        onFocus={handleTextareaFocus}
+                        onFocus={(e) => {
+                          handleTextareaFocus(e);
+                          setFocusedField(field.name);
+                        }}
                         onBlur={(e) => {
                           if (field.deprecated) return;
                           handleTextareaBlur(e);
+                          setFocusedField(null);
                           if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
                         disabled={isPublished || !isEditor}
@@ -449,6 +550,7 @@ const InputConfigComponent = memo(
                       />
                     ) : (
                       <input
+                        autoComplete="off"
                         type="text"
                         className="input input-bordered w-full text-sm input-sm pr-8"
                         value={(structuredFields || {})[key] || ""}
@@ -529,15 +631,17 @@ const InputConfigComponent = memo(
         </div>
 
         <Diff_Modal
-          oldContent={oldContent}
+          oldContent={fieldDiffState ? fieldDiffState.old : oldContent}
           newContent={
-            isEmbedCustomPrompt
-              ? activeEmbedFieldValues
-              : isStructuredPrompt
-                ? structuredFields
-                : textareaRef.current?.value || reduxPrompt
+            fieldDiffState
+              ? fieldDiffState.new
+              : isEmbedCustomPrompt
+                ? activeEmbedFieldValues
+                : isStructuredPrompt
+                  ? structuredFields
+                  : textareaRef.current?.value || reduxPrompt
           }
-          isEmbedCustomPrompt={isEmbedCustomPrompt}
+          isEmbedCustomPrompt={fieldDiffState ? true : isEmbedCustomPrompt}
         />
         <PromptSummaryModal modalType={MODAL_TYPE.PROMPT_SUMMARY} params={params} searchParams={searchParams} />
 

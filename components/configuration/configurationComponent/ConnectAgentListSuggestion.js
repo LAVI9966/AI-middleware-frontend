@@ -91,6 +91,7 @@ function ConnectedAgentListSuggestion({
       <div className="flex flex-col gap-2 w-full">
         <li className="text-sm font-semibold disabled">Available Agents</li>
         <input
+          autoComplete="off"
           data-testid="connect-agent-suggestion-search-input"
           id="connect-agent-suggestion-search-input"
           type="text"

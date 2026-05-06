@@ -57,6 +57,7 @@ function ToolCallCount({ params, searchParams, isPublished, isEditor = true }) {
         </InfoTooltip>
       </div>
       <input
+        autoComplete="off"
         data-testid="tool-call-count-input"
         id="tool-call-count-input"
         disabled={isReadOnly}
