@@ -600,7 +600,7 @@ function Flow({
         name: sel?.name || "",
         description: agent?.connected_agent_details?.description || "",
         fields: agent?.connected_agent_details?.agent_variables?.fields || {},
-        required: agent?.connected_agent_details?.agent_variables?.required || [],
+        required_params: agent?.connected_agent_details?.agent_variables?.required_params || [],
       };
 
       setNodes((currentNodes) => {
@@ -715,7 +715,7 @@ function Flow({
             connected_agent_details: {
               agent_variables: {
                 fields: toolData?.fields,
-                required: toolData?.required,
+                required_params: toolData?.required_params,
               },
               description: toolData?.description
                 ? toolData?.description
