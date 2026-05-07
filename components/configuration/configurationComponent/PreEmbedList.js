@@ -114,7 +114,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
           config: {
             function_id: id,
             script_id: function_data?.[id]?.script_id,
-            required_params: function_data?.[id]?.required_params || [],
+            required: function_data?.[id]?.required || [],
           },
         },
         version_id: searchParams?.version,
@@ -159,7 +159,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
           config: {
             function_id: id,
             script_id: function_data?.[id]?.script_id,
-            required_params: function_data?.[id]?.required_params || [],
+            required: function_data?.[id]?.required || [],
           },
         },
         version_id: searchParams?.version,
