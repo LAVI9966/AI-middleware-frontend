@@ -32,6 +32,10 @@ export default function Page({ params, searchParams }) {
   const [selectedAgent, setSelectedAgent] = useState(null);
   const orgId = resolvedParams?.org_id;
   const bridgeId = resolvedParams?.id;
+  const messageId = resolvedSearchParams?.message_id;
+  const threadId = resolvedSearchParams?.thread_id;
+  const subThreadId = resolvedSearchParams?.subThread_id;
+  const versionId = resolvedSearchParams?.version;
   const { recursiveHistory, recursiveHistoryLoading, embedToken, mainAgentName } = useCustomSelector((state) => {
     const recursiveHistory = state?.historyReducer?.recursiveHistory;
     const recursiveHistoryLoading = state?.historyReducer?.recursiveHistoryLoading;
@@ -50,11 +54,6 @@ export default function Page({ params, searchParams }) {
       mainAgentName,
     };
   });
-
-  const messageId = resolvedSearchParams?.message_id;
-  const threadId = resolvedSearchParams?.thread_id;
-  const subThreadId = resolvedSearchParams?.subThread_id;
-  const versionId = resolvedSearchParams?.version;
 
   useEffect(() => {
     if (typeof window === "undefined") return;

@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 
 const WEB_SEARCH_WARNING_CLASS = "border-warning/40";
 const WEB_SEARCH_TOKEN_WARNING = "Selecting Web Search can cause heavy token utilization and may exceed 10,000 tokens.";
+import { useCustomSelector } from "@/customHooks/customSelector";
 
 const RenderEmbed = ({
   bridgeFunctions,
@@ -19,11 +20,15 @@ const RenderEmbed = ({
   handleChangePreTool,
   name,
   halfLength = 1,
+  versionId,
   isPublished,
   isEditor = true,
 }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
+  const { variablesPath } = useCustomSelector((state) => ({
+    variablesPath: state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[versionId]?.variables_path || {},
+  }));
   // Sort functions first
   const sortedFunctions = useMemo(() => {
     return (
@@ -74,6 +79,9 @@ const RenderEmbed = ({
                   meta: {
                     type: "tool",
                     bridge_id: params?.id,
+                  },
+                  dummy_payload: {
+                    variablesPath,
                   },
                 });
               }
@@ -187,6 +195,7 @@ const RenderEmbed = ({
     handleOpenModal,
     embedToken,
     params,
+    variablesPath,
     handleRemoveEmbed,
     handleChangePreTool,
     name,
