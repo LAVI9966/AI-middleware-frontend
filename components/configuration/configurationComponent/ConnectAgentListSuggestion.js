@@ -10,6 +10,7 @@ function ConnectedAgentListSuggestion({
 }) {
   // Determine if content is read-only (either published or user is not an editor)
   const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const handleInputChange = (e) => {
     setSearchQuery(e?.target?.value || "");
@@ -24,7 +25,7 @@ function ConnectedAgentListSuggestion({
       Object.values(bridges)
         .filter((bridge) => {
           const isActive = bridge?.bridge_status === 1 || bridge?.bridge_status === undefined;
-          const matchesSearch = bridge?.name?.toLowerCase()?.includes(searchQuery?.trim().toLowerCase());
+          const matchesSearch = bridge?.name?.toLowerCase()?.includes(normalizedSearchQuery);
           const isNotConnected =
             connect_agents && Object.values(connect_agents).some((agent) => agent?.bridge_id === bridge?._id);
           const notSameBridge = bridge?._id !== params?.id;
@@ -78,7 +79,7 @@ function ConnectedAgentListSuggestion({
             </li>
           );
         }),
-    [bridges, searchQuery, connect_agents, bridgeData]
+    [bridges, normalizedSearchQuery, connect_agents, bridgeData]
   );
 
   return (
