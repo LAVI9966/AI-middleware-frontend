@@ -77,7 +77,7 @@ const validateAndFormatValue = (rawValue, type, { allowEmpty } = {}) => {
     case "object":
     case "array": {
       try {
-        const parsed = JSON.parse(stringValue);
+        const parsed = JSON.parse(trimmed);
         if (type === "array" && !Array.isArray(parsed)) {
           return { ok: false, error: "Value must be a JSON array" };
         }
@@ -495,7 +495,9 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
   // Function to check if variables have actually changed (only prompt and variables_path variables)
   const hasVariablesChanged = useCallback(
     (currentVariables) => {
-      const dbVariablesMap = new Map((variablesKeyValue || []).map((variable) => [variable.key, variable]));
+      const dbVariablesMap = new Map(
+        (Array.isArray(variablesKeyValue) ? variablesKeyValue : []).map((variable) => [variable.key, variable])
+      );
 
       return currentVariables.some((current) => {
         const key = typeof current?.key === "string" ? current.key.trim() : "";
@@ -538,16 +540,21 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
 
   const updateVersionVariable = useCallback(
     (updatedPairs) => {
+      const pairsToProcess = Array.isArray(updatedPairs)
+        ? updatedPairs
+        : Array.isArray(variablesKeyValue)
+          ? variablesKeyValue
+          : [];
       const filteredPairs =
-        (updatedPairs || variablesKeyValue)
-          ?.filter((pair) => {
+        pairsToProcess
+          .filter((pair) => {
             const key = typeof pair?.key === "string" ? pair.key.trim() : "";
             if (!key) {
               return false;
             }
             return promptKeySet.has(key) || variablesPathKeySet.has(key);
           })
-          ?.map((pair) => {
+          .map((pair) => {
             const key = typeof pair?.key === "string" ? pair.key.trim() : "";
             if (!key) {
               return null;
@@ -886,7 +893,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
 
   const parseJsonToKeyValue = useCallback((jsonText) => {
     try {
-      const parsed = JSON.parse(jsonText);
+      const parsed = JSON.parse(jsonText.trim());
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         return Object.entries(parsed).map(([key, value]) => ({
           key,

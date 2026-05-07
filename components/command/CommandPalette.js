@@ -67,11 +67,13 @@ const CommandPalette = ({ isEmbedUser }) => {
       widgetsData: state?.richUiTemplateReducer?.templates || [],
     })
   );
-  const apiAgents = agentList.filter(
+  const apiAgents = (Array.isArray(agentList) ? agentList : []).filter(
     (agent) =>
       (!agent.deletedAt && agent.bridgeType === "api") || agent.bridgeType === "trigger" || agent.bridgeType === "batch"
   );
-  const chatbotAgents = agentList.filter((agent) => !agent.deletedAt && agent.bridgeType === "chatbot");
+  const chatbotAgents = (Array.isArray(agentList) ? agentList : []).filter(
+    (agent) => !agent.deletedAt && agent.bridgeType === "chatbot"
+  );
 
   const functions = useMemo(() => Object.values(functionData || {}), [functionData]);
 
@@ -132,7 +134,7 @@ const CommandPalette = ({ isEmbedUser }) => {
           }));
 
         case "integrations":
-          return integrationData
+          return (Array.isArray(integrationData) ? integrationData : [])
             .filter((d) => d.type === "embed")
             .map((d) => ({
               id: d._id,
@@ -142,7 +144,7 @@ const CommandPalette = ({ isEmbedUser }) => {
             }));
 
         case "rag_embed":
-          return integrationData
+          return (Array.isArray(integrationData) ? integrationData : [])
             .filter((d) => d.type === "rag_embed")
             .map((d) => ({
               id: d._id,
@@ -274,7 +276,7 @@ const CommandPalette = ({ isEmbedUser }) => {
   }));
 
   const integrationGroup = filterBy(
-    integrationData.filter((d) => d.type === "embed"),
+    (Array.isArray(integrationData) ? integrationData : []).filter((d) => d.type === "embed"),
     ["name", "service", "_id"]
   ).map((d) => ({
     id: d._id,
@@ -291,7 +293,7 @@ const CommandPalette = ({ isEmbedUser }) => {
   }));
 
   const ragEmbedGroup = filterBy(
-    integrationData.filter((d) => d.type === "rag_embed"),
+    (Array.isArray(integrationData) ? integrationData : []).filter((d) => d.type === "rag_embed"),
     ["name", "_id"]
   ).map((d) => ({
     id: d._id,
