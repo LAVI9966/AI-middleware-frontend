@@ -36,11 +36,13 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
 
   const handleTabChange = (tabId) => {
     onTabChange(tabId);
-    const current = new URLSearchParams(Array.from(searchParams.entries()));
-    current.set("tab", tabId);
-    const search = current.toString();
-    const query = search ? `?${search}` : "";
-    window.history.replaceState(null, "", `${window.location.pathname}${query}`);
+    setTimeout(() => {
+      const current = new URLSearchParams(Array.from(searchParams.entries()));
+      current.set("tab", tabId);
+      const search = current.toString();
+      const query = search ? `?${search}` : "";
+      window.history.replaceState(null, "", `${window.location.pathname}${query}`);
+    }, 0);
   };
 
   return (
