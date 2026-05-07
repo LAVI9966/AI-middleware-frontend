@@ -441,7 +441,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
                         config: {
                           function_id: data?._id,
                           script_id: data?.script_id,
-                          required_params: data?.required_params || [],
+                          required: data?.required || [],
                         },
                       },
                       status: "1",
