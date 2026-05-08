@@ -45,6 +45,7 @@ function EmbedListSuggestionDropdownMenu({
   });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const handleInputChange = (e) => {
     setSearchQuery(e.target?.value || ""); // Update search query when the input changes
@@ -69,7 +70,7 @@ function EmbedListSuggestionDropdownMenu({
           const title = value?.title || integrationData?.[fnName]?.title;
           return (
             title !== undefined &&
-            title?.toLowerCase()?.includes(searchQuery?.trim().toLowerCase()) &&
+            title?.toLowerCase()?.includes(normalizedSearchQuery) &&
             !(connectedFunctions || [])?.some((f) => f === value?._id || f?.config?.function_id === value?._id)
           );
         })
@@ -127,7 +128,7 @@ function EmbedListSuggestionDropdownMenu({
             </li>
           );
         }),
-    [integrationData, function_data, searchQuery, getStatusClass, connectedFunctions, searchParams?.version]
+    [integrationData, function_data, normalizedSearchQuery, getStatusClass, connectedFunctions, searchParams?.version]
   );
 
   const availablePrebuiltTools = useMemo(() => {
@@ -136,10 +137,10 @@ function EmbedListSuggestionDropdownMenu({
     return list.filter(
       (t) =>
         !selected.has(t.value) &&
-        t?.name?.toLowerCase()?.includes(searchQuery?.trim().toLowerCase() || "") &&
+        t?.name?.toLowerCase()?.includes(normalizedSearchQuery) &&
         showInbuiltTools?.[t?.value]
     );
-  }, [prebuiltToolsData, toolsVersionData, searchQuery, showInbuiltTools]);
+  }, [prebuiltToolsData, toolsVersionData, normalizedSearchQuery, showInbuiltTools]);
 
   return (
     <>
