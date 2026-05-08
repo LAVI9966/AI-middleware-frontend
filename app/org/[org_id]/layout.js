@@ -368,6 +368,29 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
     }
   }, [isValidOrg, resolvedParams.id, versionData, resolvedSearchParams.get("version"), path, variablesPath]);
   async function handleMessage(e) {
+    if (e.data?.type === "CHATBOT_SHORTCUT") {
+      const dispatchKeyboardShortcut = (key, modifiers = {}) => {
+        window.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key,
+            bubbles: true,
+            cancelable: true,
+            ctrlKey: modifiers.ctrlKey || false,
+            metaKey: modifiers.metaKey || false,
+            shiftKey: modifiers.shiftKey || false,
+            altKey: modifiers.altKey || false,
+          })
+        );
+      };
+
+      if (Array.isArray(e.data.keys) && e.data.keys.length > 0) {
+        e.data.keys.forEach((key) => dispatchKeyboardShortcut(key));
+      } else if (e.data.key) {
+        dispatchKeyboardShortcut(e.data.key, e.data);
+      }
+      return;
+    }
+
     if (e.data?.metadata?.type !== "tool") return;
     // todo: need to make api call to update the name & description
     if (e?.data?.webhookurl) {

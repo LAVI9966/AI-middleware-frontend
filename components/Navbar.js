@@ -339,7 +339,7 @@ const Navbar = ({ isEmbedUser, params }) => {
 
     const handleKeyDown = (e) => {
       const target = e.target;
-      const isInputField = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable;
+      const isInputField = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
 
       if (isInputField) return;
 
