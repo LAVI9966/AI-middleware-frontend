@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { Plus, RefreshCw } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { getAllFunctions, updateFuntionApiAction } from "@/store/action/bridgeAction";
 import { isEqual } from "lodash";
@@ -25,6 +26,7 @@ const ToolsConfiguration = ({
   modalType = MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL,
 }) => {
   const dispatch = useDispatch();
+  const searchParams = useSearchParams();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedFunctionId, setSelectedFunctionId] = useState(null);
   const [selectedFunctionData, setSelectedFunctionData] = useState({});

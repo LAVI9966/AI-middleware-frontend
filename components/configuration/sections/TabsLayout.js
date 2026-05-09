@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const activeContent = tabs.find((tab) => tab.id === activeTab)?.content;
 
   const tabRefs = useRef({});
@@ -35,14 +36,15 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
   }, [activeTab, tabs]);
 
   const handleTabChange = (tabId) => {
+    // Update URL with tab query parameter
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    current.set("tab", tabId);
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    router.push(`${window.location.pathname}${query}`, { scroll: false });
+
+    // Call the original onTabChange callback
     onTabChange(tabId);
-    setTimeout(() => {
-      const current = new URLSearchParams(Array.from(searchParams.entries()));
-      current.set("tab", tabId);
-      const search = current.toString();
-      const query = search ? `?${search}` : "";
-      window.history.replaceState(null, "", `${window.location.pathname}${query}`);
-    }, 0);
   };
 
   return (
