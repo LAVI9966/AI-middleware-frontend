@@ -6,7 +6,7 @@ const AdvancedSettingsButton = ({
   params,
   searchParams,
   isEmbedUser,
-  hideAdvancedParameters = false,
+  showAdvancedParameters = false,
   isPublished = false,
   isEditor = true,
 }) => {
@@ -31,7 +31,7 @@ const AdvancedSettingsButton = ({
     };
   }, [showAdvancedSettings]);
 
-  if (hideAdvancedParameters) {
+  if (!showAdvancedParameters) {
     return null;
   }
 
@@ -63,7 +63,7 @@ const AdvancedSettingsButton = ({
             params={params}
             searchParams={searchParams}
             isEmbedUser={isEmbedUser}
-            hideAdvancedParameters={hideAdvancedParameters}
+            showAdvancedParameters={showAdvancedParameters}
             level={1}
             className="mt-0"
             compact

@@ -28,7 +28,6 @@ const SettingsTab = () => {
     isPublished,
     isEditor,
     cacheOn,
-    statelessConversation,
   } = useConfigurationContext();
 
   const shouldShowTriggers = useMemo(() => bridgeType === "trigger" && !isEmbedUser, [bridgeType, isEmbedUser]);

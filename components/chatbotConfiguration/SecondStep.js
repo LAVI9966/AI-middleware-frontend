@@ -21,7 +21,7 @@ const generateDataObject = (slugName) => ({
       subthreadId: '<subthread_id>',
       parentId: '<parent_container_id>',
       fullScreen: 'true/false',
-      hideCloseButton: 'true/false',
+      showCloseButton: 'true/false',
       hideIcon: 'true/false',
       variables: {}
     });`,
@@ -38,7 +38,7 @@ const data = [
   ["threadId", "string", "The ID corresponding to the chat store.", "true"],
   ["parentId", "string", "The parent container ID in which you want to open chatbot.", "false"],
   ["fullScreen", "boolean", "Whether to open the chatbot in full screen.", "false"],
-  ["hideCloseButton", "boolean", "Whether to hide the close button.", "false"],
+  ["showCloseButton", "boolean", "Whether to show the close button.", "false"],
   ["hideIcon", "boolean", "Whether to hide the chatbot icon.", "false"],
   ["variables", "object", "Additional variables for the chatbot.", "false"],
   ["onOpen", "function", "Callback function triggered when chatbot opens.", "false"],
@@ -46,7 +46,7 @@ const data = [
   ["iconColor", "string", "Color of the chatbot icon.", "false"],
   ["chatTitle", "string", "Title displayed in the chat header.", "false"],
   ["chatIcon", "string", "Icon displayed in the chat header.", "false"],
-  ["hideFullScreenButton", "boolean", "Whether to hide the full screen button.", "false"],
+  ["showFullScreenButton", "boolean", "Whether to show the full screen button.", "false"],
   ["defaultOpen", "boolean", "Whether the chatbot should be open by default.", "false"],
 ];
 
@@ -85,7 +85,7 @@ const SecondStep = ({ slugName, prompt = "" }) => {
       subthreadId: '<subthread_id>',
       parentId: '<parent_container_id>',
       fullScreen: 'true/false',
-      hideCloseButton: 'true/false',
+      showCloseButton: 'true/false',
       hideIcon: 'true/false',
       variables: {
 ${variablesObject}

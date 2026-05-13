@@ -25,8 +25,8 @@ const PromptHeader = memo(
       onOpenDiff?.();
     }, [onOpenDiff]);
 
-    const hidePromptHelper = useCustomSelector(
-      (state) => state.appInfoReducer?.embedUserDetails?.hidePromptHelper || false
+    const showPromptHelper = useCustomSelector(
+      (state) => state.appInfoReducer?.embedUserDetails?.showPromptHelper ?? true
     );
 
     const isStructuredPrompt = typeof prompt === "object" && prompt !== null;
@@ -112,7 +112,7 @@ const PromptHeader = memo(
             </button>
           )}
 
-          {!isPromptHelperOpen && !isEmbedCustomPrompt && ((isEmbedUser && !hidePromptHelper) || !isEmbedUser) && (
+          {!isPromptHelperOpen && !isEmbedCustomPrompt && ((isEmbedUser && showPromptHelper) || !isEmbedUser) && (
             <button
               type="button"
               data-testid="prompt-header-open-helper-button"

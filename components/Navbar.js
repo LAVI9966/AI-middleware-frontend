@@ -75,7 +75,7 @@ const Navbar = ({ isEmbedUser, params }) => {
     isUpdatingBridge,
     activeTab,
     isArchived,
-    hideHomeButton,
+    showHomeButton,
     showHistory,
     bridgeName,
     savingStatus,
@@ -109,7 +109,7 @@ const Navbar = ({ isEmbedUser, params }) => {
           : pathname.includes("testcase")
             ? "testcase"
             : "configure",
-      hideHomeButton: state.appInfoReducer?.embedUserDetails?.hideHomeButton || false,
+      showHomeButton: state.appInfoReducer?.embedUserDetails?.showHomeButton ?? true,
       showHistory: state.appInfoReducer?.embedUserDetails?.showHistory,
       bridgeName: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.name || "",
       publishedVersionId: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.published_version_id || null,
@@ -435,7 +435,7 @@ const Navbar = ({ isEmbedUser, params }) => {
         <div className="flex w-full items-center justify-between px-2 sm:px-4 lg:px-6 h-10 min-w-0">
           {/* Left: Agent Name and Versions */}
           <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0 flex-1">
-            {isEmbedUser && !hideHomeButton && (
+            {isEmbedUser && showHomeButton && (
               <button
                 onClick={handleHomeClick}
                 className="btn btn-xs sm:btn-sm gap-1 sm:gap-2 hover:bg-base-200 px-2 sm:px-3"

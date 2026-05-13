@@ -135,7 +135,7 @@ const ModelDropdown = ({
   isPublished,
   isEditor = true,
   isEmbedUser = false,
-  hideAdvancedConfigurations = false,
+  showAdvancedConfigurations = false,
 }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
@@ -332,7 +332,7 @@ const ModelDropdown = ({
   const handleAddModelClick = useCallback(() => {
     openModal(MODAL_TYPE.ADD_NEW_MODEL_MODAL);
   }, []);
-  const showFallbackModelHint = ((isEmbedUser && !hideAdvancedConfigurations) || !isEmbedUser) && modelType !== "image";
+  const showFallbackModelHint = ((isEmbedUser && showAdvancedConfigurations) || !isEmbedUser) && modelType !== "image";
 
   return (
     <>
