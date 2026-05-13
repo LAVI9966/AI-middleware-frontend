@@ -27,7 +27,7 @@ const AdvancedParameters = ({
   params,
   searchParams,
   isEmbedUser,
-  hideAdvancedParameters,
+  showAdvancedParameters,
   className = "",
   level = 1,
   compact = false,
@@ -1261,7 +1261,7 @@ const AdvancedParameters = ({
     );
   };
 
-  const shouldShowLevel1 = level1Parameters.length > 0 && (!isEmbedUser || (isEmbedUser && !hideAdvancedParameters));
+  const shouldShowLevel1 = level1Parameters.length > 0 && (!isEmbedUser || (isEmbedUser && showAdvancedParameters));
 
   if (level === 2) {
     if (level2Parameters.length === 0) {
