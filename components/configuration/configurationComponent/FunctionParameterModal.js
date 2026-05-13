@@ -46,6 +46,7 @@ const normalizeToolData = (toolData = {}) => ({
 });
 
 const buildFlowEmbedFieldSchema = (field = {}) => {
+  console.log("Building schema for field:", field);
   const type = field?.type || "string";
   const schema = {
     type,

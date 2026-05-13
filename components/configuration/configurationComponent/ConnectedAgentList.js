@@ -50,14 +50,17 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
       variables_path: isPublished ? bridgeDataFromState?.variables_path || {} : versionData?.variables_path || {},
     };
   });
-  const handleSaveAgent = (overrideBridge = null, bridgeData) => {
+  const handleSaveAgent = (overrideBridge = null, bridgeCollection = bridgeData, nextDescription = description) => {
     try {
       const sb = overrideBridge ? overrideBridge : selectedBridge;
-      if (!description && !sb?.bridge_summary && !sb?.connected_agent_details?.description) {
+      const selectedDescription =
+        nextDescription || sb?.connected_agent_details?.description || sb?.bridge_summary || "";
+
+      if (!selectedDescription) {
         toast?.error("Description Required");
         return;
       }
-      const bridgeItem = bridgeData?.find((bridge) => {
+      const bridgeItem = bridgeCollection?.find((bridge) => {
         if (bridge?._id === sb?._id) {
           return bridge;
         }
@@ -84,11 +87,7 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
           dataToSend: {
             connected_agent_details: {
               ...bridgeItem?.connected_agent_details,
-              description: description
-                ? description
-                : sb?.bridge_summary
-                  ? sb?.bridge_summary
-                  : sb?.connected_agent_details?.description,
+              description: selectedDescription,
             },
           },
         })
@@ -104,11 +103,8 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
   };
   const handleSelectAgents = (bridge, bridgeData) => {
     setSelectedBridge(bridge);
-    if (!bridge?.connected_agent_details?.description && !bridge?.bridge_summary) {
-      openModal(MODAL_TYPE?.AGENT_DESCRIPTION_MODAL);
-      return;
-    }
-    handleSaveAgent(bridge, bridgeData);
+    setDescription(bridge?.connected_agent_details?.description || bridge?.bridge_summary || "");
+    openModal(MODAL_TYPE?.AGENT_DESCRIPTION_MODAL);
   };
   const handleOpenDeleteModal = (name, item) => {
     setSelectedBridge({ name: name, ...item });

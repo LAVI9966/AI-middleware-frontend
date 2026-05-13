@@ -1,16 +1,35 @@
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Modal from "../UI/Modal";
 
 const AgentDescriptionModal = ({ setDescription, handleSaveAgent, description, isAgentToAgentConnect = true }) => {
+  const [draftDescription, setDraftDescription] = useState(description || "");
+
+  useEffect(() => {
+    setDraftDescription(description || "");
+  }, [description]);
+
+  const handleDescriptionChange = (value) => {
+    setDraftDescription(value);
+    setDescription(value?.trim());
+  };
+
+  const handleSave = () => {
+    const nextDescription = draftDescription.trim();
+    setDescription(nextDescription);
+    handleSaveAgent(undefined, undefined, nextDescription);
+  };
+
   return (
     <Modal
       MODAL_ID={MODAL_TYPE?.AGENT_DESCRIPTION_MODAL}
       onClose={() => closeModal(MODAL_TYPE.AGENT_DESCRIPTION_MODAL)}
     >
       <div id="agent-description-modal-box" className="modal-box max-w-2xl">
-        <h3 className="font-bold text-lg">Add Agent Description</h3>
+        <h3 className="font-bold text-lg">
+          {isAgentToAgentConnect ? "Review Agent Description" : "Add Agent Description"}
+        </h3>
         <div className="py-4">
           <label className="label">
             <span className="label-text">Description</span>
@@ -21,10 +40,9 @@ const AgentDescriptionModal = ({ setDescription, handleSaveAgent, description, i
             id="agent-description-textarea"
             className="textarea bg-base-100 textarea-bordered w-full h-32"
             placeholder="Enter description for the agent..."
-            defaultValue={description}
-            key={description}
+            value={draftDescription}
             required
-            onBlur={(e) => setDescription(e.target.value?.trim())}
+            onChange={(e) => handleDescriptionChange(e.target.value)}
           ></textarea>
         </div>
         <div className="modal-action">
@@ -40,9 +58,10 @@ const AgentDescriptionModal = ({ setDescription, handleSaveAgent, description, i
             data-testid="agent-description-save-button"
             id="agent-description-save-button"
             className="btn btn-sm btn-primary"
-            onClick={() => handleSaveAgent()}
+            onClick={handleSave}
+            disabled={!draftDescription.trim()}
           >
-            {isAgentToAgentConnect ? "Save" : "Add Agent"}
+            {isAgentToAgentConnect ? "Continue" : "Add Agent"}
           </button>
         </div>
       </div>

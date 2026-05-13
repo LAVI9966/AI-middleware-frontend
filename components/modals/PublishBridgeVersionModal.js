@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo, useEffect, useRef } from "react";
+import React, { useCallback, useState, useMemo, useEffect } from "react";
 import { X, AlertTriangle, Settings, CircleX, ArrowRightLeft, Check, Bot } from "lucide-react";
 import {
   getAllBridgesAction,
@@ -17,7 +17,6 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import Protected from "../Protected";
 import PublishVersionDataComparisonView from "../comparison/PublishVersionDataComparisonView";
 import { DIFFERNCE_DATA_DISPLAY_NAME, KEYS_TO_COMPARE } from "@/jsonFiles/bridgeParameter";
-import { AgentSummaryContent } from "./PromptSummaryModal";
 import PostPublishFeedbackModal from "./PostPublishFeedbackModal";
 
 function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_description, isEmbedUser }) {
@@ -29,21 +28,14 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const [selectedAgentsToPublish, setSelectedAgentsToPublish] = useState(new Set());
   const [allConnectedAgents, setAllConnectedAgents] = useState([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
-  const [showSummaryValidation, setShowSummaryValidation] = useState(false);
-  const [summaryAccordionOpen, setSummaryAccordionOpen] = useState(false);
-  const [summaryAutoGenerateTrigger, setSummaryAutoGenerateTrigger] = useState(0);
   const [convertToTemplate, setConvertToTemplate] = useState(false);
-  const publishDropdownRef = useRef(null);
-  const lastSummaryAutoGenerateVersionRef = useRef(null);
 
   const {
     bridge,
     versionData,
     bridgeData,
     agentList,
-    bridge_summary,
     allBridgesMap,
-    prompt,
     isEditor,
     activeService,
     hasApiKeyForActiveService,
@@ -91,11 +83,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       versionData: versionDataFromState,
       bridgeData: bridgeDataFromState,
       agentList: state.bridgeReducer.org[params.org_id]?.orgs || [],
-      bridge_summary: state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridge_summary,
       allBridgesMap: state.bridgeReducer.allBridgesMap || {},
-      prompt: isPublished
-        ? bridgeDataFromState?.configuration?.prompt || ""
-        : versionDataFromState?.configuration?.prompt || "",
       isEditor: isEmbedUser ? true : canEdit,
       activeService: serviceKey,
       hasApiKeyForActiveService: hasApiKey,
@@ -117,8 +105,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     !hasApiKeyForActiveService &&
     !(isEmbedUser && showDefaultApikeys) &&
     !isChatbotWithGpt5Nano;
-  const activeVersionId = searchParams?.get("version");
-
   // Memoized form data initialization
   const [formData, setFormData] = useState(() => ({
     url_slugname: "",
@@ -336,14 +322,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           if (isOpen) {
             // Modal just opened, fetch connected agents
             fetchConnectedAgents();
-            if (
-              (!bridge_summary || bridge_summary.trim() === "") &&
-              lastSummaryAutoGenerateVersionRef.current !== activeVersionId
-            ) {
-              lastSummaryAutoGenerateVersionRef.current = activeVersionId;
-              setSummaryAccordionOpen(true);
-              setSummaryAutoGenerateTrigger((prev) => prev + 1);
-            }
           }
         }
       });
@@ -357,13 +335,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
 
     // Cleanup observer on unmount
     return () => observer.disconnect();
-  }, [activeVersionId, bridge_summary, fetchConnectedAgents]);
-
-  useEffect(() => {
-    if (bridge_summary?.trim()) {
-      lastSummaryAutoGenerateVersionRef.current = null;
-    }
-  }, [bridge_summary]);
+  }, [fetchConnectedAgents]);
 
   const { filteredBridgeData, filteredVersionData } = useMemo(() => {
     const normalizeConnectedAgents = (data) => {
@@ -487,17 +459,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       ...Object.fromEntries(Object.entries(extractedConfigChanges).map(([key, value]) => [key, value.status])),
     };
   }, [differences, extractedConfigChanges, hasAdditionalConfigurationChanges]);
-
-  // Event handlers
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (publishDropdownRef.current && !publishDropdownRef.current.contains(e.target)) {
-        setShowPublishDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handleCloseModal = useCallback((e) => {
     e?.preventDefault();
@@ -727,22 +688,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       setError(null);
 
       try {
-        // Require a summary before publishing
-        if (!bridge_summary || (typeof bridge_summary === "string" && bridge_summary.trim().length === 0)) {
-          // Show validation error and redirect to summary section
-          setShowSummaryValidation(true);
-          setSummaryAccordionOpen(true);
-          setIsLoading(false);
-          // Scroll to summary section
-          setTimeout(() => {
-            const summarySection = document.querySelector(".summary-accordion");
-            if (summarySection) {
-              summarySection.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          }, 100);
-          return;
-        }
-
         if (isPublicAgent) {
           if (!formData.url_slugname.trim()) {
             toast.error("Slug Name is required.");
@@ -846,7 +791,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       agent_description,
       isEmbedUser,
       selectedAgentsToPublish,
-      bridge_summary,
     ]
   );
 
@@ -878,47 +822,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
               >
                 <X size={18} />
               </button>
-            </div>
-          </div>
-
-          {/* Agent Summary Accordion */}
-          <div
-            className={`collapse collapse-arrow border bg-base-100 rounded-lg mb-6 summary-accordion ${
-              showSummaryValidation && (!bridge_summary || bridge_summary.trim() === "")
-                ? "border-red-500"
-                : "border-base-300"
-            }`}
-          >
-            <input
-              autoComplete="off"
-              id="publish-summary-accordion-toggle"
-              type="checkbox"
-              className="peer"
-              checked={summaryAccordionOpen}
-              onChange={(e) => setSummaryAccordionOpen(e.target.checked)}
-            />
-            <div className="collapse-title font-medium flex items-center">
-              <Bot className="w-5 h-5 mr-2" />
-              Agent Summary
-              {showSummaryValidation && (!bridge_summary || bridge_summary.trim() === "") && (
-                <span className="text-red-500 ml-2">*</span>
-              )}
-            </div>
-            <div className="collapse-content">
-              <AgentSummaryContent
-                params={params}
-                prompt={prompt}
-                versionId={activeVersionId}
-                showTitle={false}
-                showButtons={true}
-                onSave={() => setShowSummaryValidation(false)}
-                isMandatory={showSummaryValidation}
-                showValidationError={showSummaryValidation}
-                isEditor={isEditor}
-                showSaveButton={false}
-                autoSave={true}
-                autoGenerateOnEmptyTrigger={summaryAutoGenerateTrigger}
-              />
             </div>
           </div>
 
@@ -1231,9 +1134,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                 data-testid="publish-version-publish-button"
                 className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => handlePublishBridge(convertToTemplate)}
-                disabled={
-                  isLoading || !bridge_summary?.trim() || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly
-                }
+                disabled={isLoading || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly}
                 title={isReadOnly ? "You don't have permission to publish" : ""}
               >
                 {isLoading ? (
