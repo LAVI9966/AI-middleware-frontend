@@ -10,6 +10,7 @@ const CustomTable = ({
   keysToExtractOnRowClick = [],
   keysToWrap = [],
   handleRowClick = () => {},
+  handleRowHover = () => {},
   handleRowSelection = () => {},
   endComponent = null,
   customGetColumnLabel = null,
@@ -261,6 +262,7 @@ const CustomTable = ({
                     }, {})
                   )
                 }
+                onMouseEnter={() => handleRowHover(row)}
               >
                 {/* Card Header with selection */}
                 {showRowSelection && (
@@ -399,6 +401,7 @@ const CustomTable = ({
                       }, {})
                     )
                   }
+                  onMouseEnter={() => handleRowHover(row)}
                 >
                   {showRowSelection && (
                     <td className="px-4 py-2 text-left">
