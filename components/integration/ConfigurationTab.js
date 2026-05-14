@@ -302,7 +302,17 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
   const generateInitialConfig = () => {
     const initial = {};
     CONFIG_SCHEMA.forEach((cfg) => {
-      initial[cfg.key] = config[cfg.key] ?? cfg.defaultValue;
+      if (cfg.key === "showPlayground") {
+        if (config?.showPlayground !== undefined) {
+          initial.showPlayground = config.showPlayground;
+        } else if (config?.hideplayground !== undefined) {
+          initial.showPlayground = !config.hideplayground;
+        } else {
+          initial.showPlayground = cfg.defaultValue;
+        }
+      } else {
+        initial[cfg.key] = config[cfg.key] ?? cfg.defaultValue;
+      }
     });
     return initial;
   };
@@ -339,12 +349,18 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
       try {
         setIsSaving(true);
         const { apikey_object_id, ...restConfig } = configToSave;
+        // Preserve compatibility with old `hideplayground` key by also writing its inverse
+        const configForSend = { ...restConfig };
+        if (configForSend.showPlayground !== undefined) {
+          configForSend.hideplayground = !configForSend.showPlayground;
+        }
+
         const dataToSend = {
           folder_id: data?.folder_id,
           orgId: data?.org_id,
           ...(apikey_object_id !== undefined && { apikey_object_id }),
           config: {
-            ...restConfig,
+            ...configForSend,
             theme_config: themeToSave,
           },
         };
@@ -615,7 +631,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                         )}
                       </div>
                       {/* Pre-Tool config inline after showPreTool toggle */}
-                      {config.key === "showPreTool" && configuration.showPreTool && (
+                      {config.key === "showPreTool" && !configuration.showPreTool && (
                         <div className="p-2 bg-base-200 rounded-lg border border-base-300">
                           <ToolsConfiguration
                             singleToolMode={true}
