@@ -4,6 +4,7 @@ import Wrapper from "@/wrapper/Wrapper";
 import { GoogleTagManager } from "@next/third-parties/google";
 import { DM_Sans } from "next/font/google";
 import NetworkStatus from "@/components/NetworkStatus";
+import PaletteFocusGuard from "@/components/PaletteFocusGuard";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
       <GoogleTagManager gtmId="GTM-PXRN8T45" />
       <script src={`https://main.d2f49esifpcbwh.amplifyapp.com/tracker.js`} async />
       <body suppressHydrationWarning className={dmSans.className}>
+        <PaletteFocusGuard />
         <Wrapper>{children}</Wrapper>
         <NetworkStatus />
       </body>
