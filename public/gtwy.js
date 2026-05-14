@@ -433,10 +433,10 @@
                     if (iframe) {
                         Object.assign(iframe.style, {
                             marginTop: show ? '5vh' : '0px',
-                            maxHeight: hide ? '100vh' : '95vh'
+                            maxHeight: show ? '100vh' : '95vh'
                         });
                     }
-                    container.classList.toggle('with-header', !hide);
+                    container.classList.toggle('with-header', !show);
                 }
 
                 if (config.slide) this.props.slide = config.slide;
