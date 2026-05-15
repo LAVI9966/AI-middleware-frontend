@@ -1208,6 +1208,7 @@ function FunctionParameterModal({
 
       // Convert object → formatted JSON string for textarea
       setObjectFieldValue(JSON.stringify(parsed, null, 4));
+      setIsModified(true);
     } catch (error) {
       console.error("Optimization Error:", error);
     } finally {
