@@ -17,6 +17,8 @@ const PromptHeader = memo(
     isFocused = false,
     setIsTextareaFocused = () => {},
     showDiffButton = true,
+    onSavePrompt,
+    isSaveDisabled = false,
     onMigratePrompt = () => {},
     isEmbedCustomPrompt = false,
     isEmbedUser = false,
@@ -50,6 +52,19 @@ const PromptHeader = memo(
               >
                 <FileDiff size={12} />
                 Diff
+              </button>
+            )}
+            {canEdit && onSavePrompt && (
+              <button
+                type="button"
+                data-testid="prompt-header-save-button-open"
+                className="btn btn-xs btn-primary"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={onSavePrompt}
+                disabled={isSaveDisabled}
+                title={isSaveDisabled ? "No prompt changes to save" : "Save prompt"}
+              >
+                Save Prompt
               </button>
             )}
             <button
@@ -144,6 +159,20 @@ const PromptHeader = memo(
             >
               <Upload size={11} />
               Migrate Prompt
+            </button>
+          )}
+
+          {canEdit && onSavePrompt && (
+            <button
+              type="button"
+              data-testid="prompt-header-save-button"
+              className="btn btn-xs btn-primary"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={onSavePrompt}
+              disabled={isSaveDisabled}
+              title={isSaveDisabled ? "No prompt changes to save" : "Save prompt"}
+            >
+              Save Prompt
             </button>
           )}
         </div>
