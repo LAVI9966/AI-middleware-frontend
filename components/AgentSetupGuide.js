@@ -273,14 +273,16 @@ const AgentSetupGuide = ({
                           </div>
                           {step === "1" && isEmbedUser && embedFields.length > 0 ? (
                             <div className="flex flex-wrap gap-1 mb-2">
-                              {embedFields.map((field) => (
-                                <span
-                                  key={field.name}
-                                  className="badge badge-sm bg-base-300 border-base-300 text-base-content font-mono"
-                                >
-                                  {field.displayValue || field.name}
-                                </span>
-                              ))}
+                              {embedFields
+                                .filter((item) => !item.hidden)
+                                .map((field) => (
+                                  <span
+                                    key={field.name}
+                                    className="badge badge-sm bg-base-300 border-base-300 text-base-content font-mono"
+                                  >
+                                    {field.displayValue || field.name}
+                                  </span>
+                                ))}
                             </div>
                           ) : (
                             <p className={`text-sm mb-2 ${isCompleted ? "text-success/70" : "text-base-content/70"}`}>
