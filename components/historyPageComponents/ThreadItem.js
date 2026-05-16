@@ -202,6 +202,34 @@ const ThreadItem = ({
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
+
+  // Handle click-outside and ESC key to close viasocket embed
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const viasocketContainer = document.getElementById("iframe-viasocket-embed-parent-container");
+      if (viasocketContainer && !viasocketContainer.contains(event.target)) {
+        if (typeof window.handleclose === "function") {
+          window.handleclose();
+        }
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === "Escape") {
+        if (typeof window.handleclose === "function") {
+          window.handleclose();
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscapeKey);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscapeKey);
+    };
+  }, []);
   const batchStatus = item?.batch_data?.status;
   const isBatchResponse = Boolean(item?.batch_data?.batch_id);
   const getBatchStatusMeta = (status) => {
