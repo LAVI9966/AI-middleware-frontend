@@ -3,7 +3,7 @@ import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
 import { generateRandomID, getToolName, openModal, trimPropertyNames } from "@/utils/utility";
-import { generateCombinedSchema } from "@/utils/defaultJsonSchemas";
+import { buildJsonSchemaResponseType, generateCombinedSchema, isEmptyJsonSchema } from "@/utils/defaultJsonSchemas";
 import { ChevronDownIcon, ChevronUpIcon, SettingsIcon } from "@/components/Icons";
 import JsonSchemaModal from "@/components/modals/JsonSchemaModal";
 import JsonSchemaBuilderModal from "@/components/modals/JsonSchemaBuilderModal";
@@ -147,12 +147,30 @@ const AdvancedParameters = ({
   const level2Parameters = getParametersByLevel(2); // Outside accordion parameters
 
   useEffect(() => {
-    setObjectFieldValue(
-      configuration?.response_type?.json_schema
-        ? JSON.stringify(configuration?.response_type?.json_schema, undefined, 4)
-        : null
-    );
+    const schema = configuration?.response_type?.json_schema;
+    setObjectFieldValue(!isEmptyJsonSchema(schema) ? JSON.stringify(schema, undefined, 4) : null);
   }, [configuration?.response_type?.json_schema]);
+
+  const getJsonSchemaEditorValue = (paramKey) => {
+    if (objectFieldValue != null) return objectFieldValue;
+    const schema = configuration?.[paramKey]?.json_schema ?? configuration?.[paramKey]?.value;
+    return !isEmptyJsonSchema(schema) ? JSON.stringify(schema, null, 2) : "";
+  };
+
+  const dispatchResponseTypeUpdate = (responseTypePayload, { localOnly = false } = {}) => {
+    dispatch(
+      updateBridgeVersionAction({
+        bridgeId: params?.id,
+        versionId: searchParams?.version,
+        dataToSend: {
+          configuration: { response_type: responseTypePayload },
+          service,
+          model,
+        },
+        localOnly,
+      })
+    );
+  };
 
   useEffect(() => {
     if (
@@ -247,13 +265,43 @@ const AdvancedParameters = ({
       } else {
         newValue = Objectvalue || {};
       }
-      setObjectFieldValue(JSON.stringify(newValue, undefined, 4));
+      if (!isEmptyJsonSchema(newValue)) {
+        setObjectFieldValue(JSON.stringify(newValue, undefined, 4));
+      } else {
+        setObjectFieldValue(null);
+      }
     } catch {
       toast.error("Invalid JSON provided");
       return;
     }
     const existingValue =
       typeof configuration?.[key] === "object" && configuration?.[key] !== null ? configuration?.[key] : {};
+
+    const parsedObjectValue = typeof newValue === "string" ? JSON.parse(newValue) : newValue;
+    const typeKey = defaultValue?.key || "type";
+
+    if (e.target.value === "json_schema") {
+      if (isEmptyJsonSchema(parsedObjectValue)) {
+        const hadPersistedSchema = !isEmptyJsonSchema(configuration?.response_type?.json_schema);
+        dispatchResponseTypeUpdate(
+          buildJsonSchemaResponseType({
+            is_template: existingValue?.is_template ?? false,
+            template_id: existingValue?.template_id,
+          }),
+          { localOnly: !hadPersistedSchema }
+        );
+        return;
+      }
+
+      dispatchResponseTypeUpdate(
+        buildJsonSchemaResponseType({
+          json_schema: parsedObjectValue,
+          is_template: existingValue?.is_template ?? false,
+          template_id: existingValue?.template_id,
+        })
+      );
+      return;
+    }
 
     let updatedDataToSend = isDeafaultObject
       ? {
@@ -269,13 +317,14 @@ const AdvancedParameters = ({
             [key]: e.target.value,
           },
         };
-    if (Object.entries(newValue).length > 0 || e.target.value === "json_schema") {
+
+    if (Object.entries(newValue).length > 0) {
       updatedDataToSend = {
         configuration: {
           [key]: {
             ...existingValue,
-            [defaultValue?.key || "type"]: e.target.value,
-            [e.target.value]: typeof newValue === "string" ? JSON.parse(newValue) : newValue,
+            [typeKey]: e.target.value,
+            [e.target.value]: parsedObjectValue,
           },
         },
       };
@@ -661,23 +710,10 @@ const AdvancedParameters = ({
                         );
                         return;
                       } else if (selectedValue === "json_schema") {
-                        // Set type to json_schema AND is_template to false
-                        const updatedDataToSend = {
-                          configuration: {
-                            [key]: {
-                              type: "json_schema",
-                              is_template: false,
-                              json_schema: {},
-                            },
-                          },
-                        };
-                        dispatch(
-                          updateBridgeVersionAction({
-                            bridgeId: params?.id,
-                            versionId: searchParams?.version,
-                            dataToSend: { ...updatedDataToSend, service, model },
-                          })
-                        );
+                        setObjectFieldValue(null);
+                        dispatchResponseTypeUpdate(buildJsonSchemaResponseType({ is_template: false }), {
+                          localOnly: true,
+                        });
                         return;
                       } else if (selectedValue === "default") {
                         // Handle default case
@@ -892,28 +928,27 @@ const AdvancedParameters = ({
                         <div className="w-full text-xs font-mono">
                           <CodeMirror
                             id={`advanced-param-json-schema-textarea-${key}`}
-                            value={
-                              objectFieldValue ??
-                              JSON.stringify(
-                                configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
-                                null,
-                                2
-                              )
-                            }
+                            value={getJsonSchemaEditorValue(key)}
                             extensions={[json()]}
                             theme={actualTheme}
                             editable={!isReadOnly}
                             onChange={(val) => setObjectFieldValue(val)}
                             onBlur={() => {
                               try {
-                                const currentValueToParse =
-                                  objectFieldValue ??
-                                  JSON.stringify(
-                                    configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
-                                    null,
-                                    2
-                                  );
-                                const parsedValue = JSON.parse(currentValueToParse.trim());
+                                const currentValueToParse = getJsonSchemaEditorValue(key).trim();
+                                if (!currentValueToParse) {
+                                  if (!isEmptyJsonSchema(configuration?.response_type?.json_schema)) {
+                                    dispatchResponseTypeUpdate(
+                                      buildJsonSchemaResponseType({
+                                        is_template: configuration?.response_type?.is_template ?? false,
+                                        template_id: configuration?.response_type?.template_id,
+                                      })
+                                    );
+                                  }
+                                  setObjectFieldValue(null);
+                                  return;
+                                }
+                                const parsedValue = JSON.parse(currentValueToParse);
 
                                 const trimmedValue = {
                                   ...parsedValue,
@@ -925,6 +960,10 @@ const AdvancedParameters = ({
                                       }
                                     : parsedValue.schema,
                                 };
+
+                                if (isEmptyJsonSchema(trimmedValue)) {
+                                  return;
+                                }
 
                                 handleSelectChange(
                                   { target: { value: "json_schema" } },
@@ -946,14 +985,7 @@ const AdvancedParameters = ({
                       <FullscreenEditorModal
                         modalId={MODAL_TYPE.FULLSCREEN_JSON_SCHEMA}
                         title="JSON Schema"
-                        value={
-                          objectFieldValue ??
-                          JSON.stringify(
-                            configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
-                            null,
-                            2
-                          )
-                        }
+                        value={getJsonSchemaEditorValue(key)}
                         isOpen={jsonSchemaFullscreen}
                         onClose={() => setJsonSchemaFullscreen(false)}
                         onSave={(finalVal) => {

@@ -1,4 +1,5 @@
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
+import { buildJsonSchemaResponseType } from "@/utils/defaultJsonSchemas";
 import { closeModal, trimPropertyNames } from "@/utils/utility";
 import { MODAL_TYPE, ON_CLICK_ACTION_TYPES, PARAMETER_TYPES } from "@/utils/enums";
 import { TrashIcon, ChevronDownIcon, ChevronRightIcon } from "@/components/Icons";
@@ -860,14 +861,15 @@ function JsonSchemaBuilderModal({
           versionId: searchParams?.version,
           dataToSend: {
             configuration: {
-              response_type: {
-                ...response_type,
-                [schemaKey]: {
+              response_type: buildJsonSchemaResponseType({
+                json_schema: {
                   name: schemaName?.trim().replace(/\s+/g, "_"),
                   schema: { ...schemaData, properties: trimmedProperties },
                   strict: true,
                 },
-              },
+                is_template: response_type?.is_template ?? false,
+                template_id: response_type?.template_id,
+              }),
             },
           },
         })
