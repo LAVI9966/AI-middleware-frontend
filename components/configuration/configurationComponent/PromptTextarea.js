@@ -15,7 +15,6 @@ const PromptTextarea = memo(
     placeholder = "",
     isPublished = false,
     isEditor = true,
-    onSave,
     variablesSection,
     readOnly = false,
     fullscreenButton = null,
@@ -108,12 +107,11 @@ const PromptTextarea = memo(
 
     const handleBlur = useCallback(
       (e) => {
-        onSave?.();
         if (!isPromptHelperOpen) {
           onTextAreaBlur?.(e);
         }
       },
-      [onSave, isPromptHelperOpen, onTextAreaBlur]
+      [isPromptHelperOpen, onTextAreaBlur]
     );
 
     return (

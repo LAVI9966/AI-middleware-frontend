@@ -615,8 +615,8 @@ function Home({ params, searchParams, isEmbedUser }) {
       const createdAt = item.created_at || item.createdAt;
       const updatedAt = item.updated_at || item.updatedAt;
       const lastUsed = item.last_used;
-      const promptTotalTokens = item?.prompt_total_tokens;
-      const promptEnhancerPercentage = item?.prompt_enhancer_percentage;
+      const promptTotalTokens = item?.agent_info?.prompt_total_tokens;
+      const promptEnhancerPercentage = item?.ai_updates?.ai_updates?.prompt_enhancer_percentage;
       return {
         _id: item._id,
         model: item.configuration?.model || "",
@@ -722,8 +722,8 @@ function Home({ params, searchParams, isEmbedUser }) {
     const updatedAt = item.updated_at || item.updatedAt;
     const lastUsed = item.last_used;
     // Direct access to metrics data without using helper functions
-    const promptTotalTokens = item?.prompt_total_tokens;
-    const promptEnhancerPercentage = item?.prompt_enhancer_percentage;
+    const promptTotalTokens = item?.agent_info?.prompt_total_tokens;
+    const promptEnhancerPercentage = item?.ai_updates?.ai_updates?.prompt_enhancer_percentage;
 
     return {
       _id: item._id,
@@ -818,7 +818,18 @@ function Home({ params, searchParams, isEmbedUser }) {
     };
   });
 
-  // Helper function to calculate days remaining for deletion (30 days from deletedAt)
+  const prefetchedRoutes = useRef(new Set());
+  const handleRowHover = (row) => {
+    if (!row?._id || !row?.versionId) {
+      return;
+    }
+    const routeKey = `${row._id}-${row.versionId}`;
+    if (!prefetchedRoutes.current.has(routeKey)) {
+      const prefetchUrl = `/org/${resolvedParams.org_id}/agents/configure/${row._id}?version=${row.versionId}&type=${bridgeTypeFilter}`;
+      router.prefetch(prefetchUrl);
+      prefetchedRoutes.current.add(routeKey);
+    }
+  };
 
   const onClickConfigure = (id, versionId) => {
     // Prevent multiple clicks while loading
@@ -1182,6 +1193,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                         "updated_by",
                       ]}
                       handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)}
+                      handleRowHover={handleRowHover}
                       keysToExtractOnRowClick={["_id", "versionId"]}
                       keysToWrap={["name", "model"]}
                       endComponent={EndComponent}

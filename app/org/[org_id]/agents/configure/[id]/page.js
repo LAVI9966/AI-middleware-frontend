@@ -145,7 +145,12 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const { bridgeType, versionService, bridgeName, isFocus, reduxPrompt, bridge, isLoading, hasError, hasData } =
     useConfigurationSelector(resolvedParams, resolvedSearchParams);
 
-  const hidePlayground = useCustomSelector((state) => state?.appInfoReducer?.embedUserDetails?.hidePlayground || false);
+  const showPlayground = useCustomSelector((state) => {
+    const details = state?.appInfoReducer?.embedUserDetails || {};
+    if (details.showPlayground !== undefined) return details.showPlayground;
+    if (details.hideplayground !== undefined) return !details.hideplayground;
+    return true;
+  });
 
   // Separate selector for allbridges to prevent unnecessary re-renders
   const allbridges = useCustomSelector(
@@ -170,7 +175,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const panelSizes = useMemo(() => {
     if (!uiState.isPromptHelperOpen) {
       // Two panel mode: Config + Chat
-      return { config: isEmbedUser && hidePlayground ? 100 : 50, chat: 50 };
+      return { config: isEmbedUser && !showPlayground ? 100 : 50, chat: 50 };
     } else if (isEmbedUser) {
       // Embed users have no Notes panel: Config + PromptHelper 50/50
       return { config: 50, promptHelper: 50, notes: 0 };
@@ -178,7 +183,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       // Three panel mode: Config + PromptHelper + Notes
       return { config: 33.33, promptHelper: 33.33, notes: 33.33 };
     }
-  }, [uiState.isPromptHelperOpen, hidePlayground, isEmbedUser]);
+  }, [uiState.isPromptHelperOpen, showPlayground, isEmbedUser]);
 
   // Optimized UI state updates with throttling for smooth resizing
   const updateUiState = useCallback((updates) => {
@@ -399,7 +404,9 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               configuration: {
                 prompt: newValue,
               },
-              variables_state: variablesState,
+              agent_info: {
+                variables_state: variablesState,
+              },
             },
           })
         );
@@ -718,7 +725,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
             </Panel>
 
             {/* Resizer Handle with Custom Line */}
-            {(!isEmbedUser || (isEmbedUser && !hidePlayground)) && (
+            {(!isEmbedUser || (isEmbedUser && showPlayground)) && (
               <PanelResizeHandle
                 id="main-resize-handle"
                 className="w-2 bg-base-100 hover:bg-primary/50 transition-colors duration-200 relative flex items-center justify-center group"
@@ -735,7 +742,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
             {/* Chat/PromptHelper Panel - Conditional based on focus mode */}
             {!uiState.isPromptHelperOpen || !isFocus ? (
               // Chat Panel (Two-panel mode)
-              (!isEmbedUser || (isEmbedUser && !hidePlayground)) && (
+              (!isEmbedUser || (isEmbedUser && showPlayground)) && (
                 <Panel
                   id="chat-panel"
                   ref={chatPanelRef}
@@ -990,7 +997,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
           </div>
 
           {/* Chat Panel */}
-          {(!isEmbedUser || (isEmbedUser && !hidePlayground)) && (
+          {(!isEmbedUser || (isEmbedUser && showPlayground)) && (
             <div id="parentChatbot" className="min-h-screen">
               <div id="mobile-chat-container" className="h-full flex flex-col">
                 <AgentSetupGuide

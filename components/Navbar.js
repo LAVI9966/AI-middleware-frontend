@@ -14,6 +14,7 @@ import {
   BotIcon,
   ChevronDown,
   RefreshCcw,
+  Settings,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
@@ -33,6 +34,7 @@ const VariableCollectionSlider = dynamic(() => import("./sliders/VariableCollect
 import AccessManagementModal from "./modals/AccessManagementModal";
 import AgentActionMenu from "@/components/agents/AgentActionMenu";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
+const MakePublicAgentModal = dynamic(() => import("./modals/MakePublicAgentModal"), { ssr: false });
 
 const BRIDGE_STATUS = {
   ACTIVE: 1,
@@ -73,21 +75,26 @@ const Navbar = ({ isEmbedUser, params }) => {
     isUpdatingBridge,
     activeTab,
     isArchived,
-    hideHomeButton,
+    showHomeButton,
     showHistory,
     bridgeName,
     savingStatus,
     publishedVersionId,
     showAgentName,
     isAdminOrOwner,
+    hasPageConfig,
+    bridgeSummary,
+    publicAgentConfig,
+    bridgeVersionsArray,
   } = useCustomSelector((state) => {
     const orgRole = state?.userDetailsReducer?.organizations?.[orgId]?.role_name;
     const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
+    const bridgeData =
+      state?.bridgeReducer?.org?.[orgId]?.orgs?.find((bridge) => bridge._id === bridgeId) ||
+      state.bridgeReducer.allBridgesMap[bridgeId] ||
+      {};
     return {
-      bridgeData:
-        state?.bridgeReducer?.org?.[orgId]?.orgs?.find((bridge) => bridge._id === bridgeId) ||
-        state.bridgeReducer.allBridgesMap[bridgeId] ||
-        {},
+      bridgeData,
       bridge: state.bridgeReducer.allBridgesMap[bridgeId] || {},
       publishedVersion: state.bridgeReducer.allBridgesMap?.[bridgeId]?.published_version_id ?? null,
       isDrafted: state.bridgeReducer.bridgeVersionMapping?.[bridgeId]?.[versionId]?.is_drafted ?? false,
@@ -103,7 +110,7 @@ const Navbar = ({ isEmbedUser, params }) => {
           : pathname.includes("testcase")
             ? "testcase"
             : "configure",
-      hideHomeButton: state.appInfoReducer?.embedUserDetails?.hideHomeButton || false,
+      showHomeButton: state.appInfoReducer?.embedUserDetails?.showHomeButton ?? true,
       showHistory: state.appInfoReducer?.embedUserDetails?.showHistory,
       bridgeName: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.name || "",
       publishedVersionId: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.published_version_id || null,
@@ -112,6 +119,10 @@ const Navbar = ({ isEmbedUser, params }) => {
       isAdminOrOwner,
       currentOrgRole: orgRole || "",
       currentUser: state?.userDetailsReducer?.userDetails || {},
+      hasPageConfig: !!state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.settings?.publicAgentConfig,
+      bridgeSummary: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.bridge_summary || "",
+      publicAgentConfig: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.settings?.publicAgentConfig,
+      bridgeVersionsArray: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.versions || [],
     };
   });
   // Define tabs based on user type
@@ -139,6 +150,13 @@ const Navbar = ({ isEmbedUser, params }) => {
   }, [isEmbedUser, bridgeType]);
 
   const agentName = useMemo(() => bridgeName || bridgeData?.name || "Agent not Found", [bridgeName, bridgeData?.name]);
+
+  // Get published version number (e.g., "V2")
+  const publishedVersionNumber = useMemo(() => {
+    if (!publishedVersion || !bridgeVersionsArray.length) return "";
+    const versionIndex = bridgeVersionsArray.indexOf(publishedVersion);
+    return versionIndex >= 0 ? `V${versionIndex + 1}` : "";
+  }, [publishedVersion, bridgeVersionsArray]);
 
   const [showSavedText, setShowSavedText] = useState(false);
   useEffect(() => {
@@ -426,7 +444,7 @@ const Navbar = ({ isEmbedUser, params }) => {
         <div className="flex w-full items-center justify-between px-2 sm:px-4 lg:px-6 h-10 min-w-0">
           {/* Left: Agent Name and Versions */}
           <div className="flex items-center gap-2 sm:gap-3 lg:gap-5 min-w-0 flex-1">
-            {isEmbedUser && !hideHomeButton && (
+            {isEmbedUser && showHomeButton && (
               <button
                 onClick={handleHomeClick}
                 className="btn btn-xs sm:btn-sm gap-1 sm:gap-2 hover:bg-base-200 px-2 sm:px-3"
@@ -492,8 +510,8 @@ const Navbar = ({ isEmbedUser, params }) => {
                       }`}
                       title={isPublished ? "Currently viewing published version" : "Switch to published version"}
                     >
-                      <span className="hidden sm:inline">Published</span>
-                      <span className="sm:hidden">Pub</span>
+                      <span className="hidden sm:inline">Published ({publishedVersionNumber})</span>
+                      <span className="sm:hidden">Pub ({publishedVersionNumber})</span>
                       {isPublished && (
                         <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0" title="Active"></span>
                       )}
@@ -670,6 +688,27 @@ const Navbar = ({ isEmbedUser, params }) => {
                             <span>Revert</span>
                           </button>
                         </li>
+                        {!isEmbedUser && (
+                          <li>
+                            <button
+                              data-testid="navbar-make-public-agent-button"
+                              id="navbar-make-public-agent-button"
+                              onClick={() => openModal(MODAL_TYPE.MAKE_PUBLIC_AGENT)}
+                              disabled={isPublishing || !publishedVersion}
+                              className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={
+                                !publishedVersion
+                                  ? "Publish a version first to make it public"
+                                  : hasPageConfig
+                                    ? "Update public agent configuration"
+                                    : "Make this agent public"
+                              }
+                            >
+                              <Settings size={14} className="text-primary" />
+                              <span>{hasPageConfig ? "Update Public Agent" : "Make Public Agent"}</span>
+                            </button>
+                          </li>
+                        )}
                       </ul>
                     </div>
                   ) : (
@@ -756,7 +795,7 @@ const Navbar = ({ isEmbedUser, params }) => {
                   }`}
                   title={isPublished ? "Currently viewing published version" : "Switch to published version"}
                 >
-                  <span>Pub</span>
+                  <span>Pub ({publishedVersionNumber})</span>
                   {isPublished && (
                     <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0" title="Active"></span>
                   )}
@@ -893,6 +932,13 @@ const Navbar = ({ isEmbedUser, params }) => {
       />
 
       <AccessManagementModal agent={selectedAgentForAccess} />
+
+      <MakePublicAgentModal
+        bridgeId={bridgeId}
+        agent_name={agentName}
+        pageConfig={publicAgentConfig}
+        agentSummary={bridgeSummary}
+      />
 
       {/* Portal components from hook */}
       <PortalStyles />

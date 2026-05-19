@@ -557,8 +557,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   };
 
   return (
-    <div data-testid="chat-container" id="chat-container" className="px-4 pt-4 bg-base-300">
-      <div data-testid="chat-header" id="chat-header" className="w-full flex justify-between items-center px-2">
+    <div data-testid="chat-container" id="chat-container" className="flex flex-col h-full w-full bg-base-100">
+      <div
+        data-testid="chat-header"
+        id="chat-header"
+        className="w-full flex justify-between items-center px-4 pt-4 pb-2"
+      >
         <button
           data-testid="chat-toggle-testcases-button"
           id="chat-toggle-testcases-button"
@@ -618,7 +622,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       <div
         data-testid="chat-content-wrapper"
         id="chat-content-wrapper"
-        className="flex mt-4 h-[86vh] overflow-hidden relative"
+        className="flex flex-1 overflow-hidden relative px-4"
       >
         {/* Overlay Test Cases Sidebar */}
         {showTestCases && (
@@ -667,7 +671,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               data-testid="chat-messages-container"
               id="chat-messages-container"
               ref={attachScrollListener}
-              className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 mb-4 pr-2"
+              className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 pr-2"
               onClick={handleRichUIActions}
             >
               {messages.map((message, index) => {
@@ -1005,40 +1009,41 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     </div>
                                   )}
 
-                                  {message?.type === "richui_json" && message?.content && (
-                                    <div className="mt-4 richui-container w-full">
-                                      {(() => {
-                                        return (
-                                          <RenderNode
-                                            node={message.content}
-                                            onAction={(action) => {
-                                              if (action?.type === "reply" && action?.text) {
-                                                if (handleSendMessageRef.current && inputRef.current) {
-                                                  // Set the input field value and triggers send
-                                                  inputRef.current.value = action.text;
-                                                  setTimeout(() => {
-                                                    handleSendMessageRef.current(null, true);
-                                                  }, 50);
+                                  {(message?.type === "richui_json" || message?.type === "template") &&
+                                    message?.content && (
+                                      <div className="mt-4 richui-container w-full">
+                                        {(() => {
+                                          return (
+                                            <RenderNode
+                                              node={message.content}
+                                              onAction={(action) => {
+                                                if (action?.type === "reply" && action?.text) {
+                                                  if (handleSendMessageRef.current && inputRef.current) {
+                                                    // Set the input field value and triggers send
+                                                    inputRef.current.value = action.text;
+                                                    setTimeout(() => {
+                                                      handleSendMessageRef.current(null, true);
+                                                    }, 50);
 
-                                                  // Clear the input field after sending
-                                                  setTimeout(() => {
-                                                    if (inputRef.current) {
-                                                      inputRef.current.value = "";
-                                                    }
-                                                  }, 200);
-                                                } else {
-                                                  console.warn("[Chat] handleSendMessageRef or inputRef is missing", {
-                                                    handleSendMessageRef: handleSendMessageRef.current,
-                                                    inputRef: inputRef.current,
-                                                  });
+                                                    // Clear the input field after sending
+                                                    setTimeout(() => {
+                                                      if (inputRef.current) {
+                                                        inputRef.current.value = "";
+                                                      }
+                                                    }, 200);
+                                                  } else {
+                                                    console.warn("[Chat] handleSendMessageRef or inputRef is missing", {
+                                                      handleSendMessageRef: handleSendMessageRef.current,
+                                                      inputRef: inputRef.current,
+                                                    });
+                                                  }
                                                 }
-                                              }
-                                            }}
-                                          />
-                                        );
-                                      })()}
-                                    </div>
-                                  )}
+                                              }}
+                                            />
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
 
                                   {/* Render message attachments (images, etc.) */}
                                   {_renderMessageAttachments(message)}
@@ -1095,7 +1100,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             <div
               data-testid="chat-input-wrapper"
               id="chat-input-wrapper"
-              className=" border-base-content/30 px-4 pt-4 mb-2 sm:mb-0 w-full"
+              className="border-base-content/30 pt-4 pb-4 w-full"
             >
               <div className="relative flex flex-col gap-4 w-full">
                 <div className="flex flex-row gap-2">

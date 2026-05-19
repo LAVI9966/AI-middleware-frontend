@@ -21,11 +21,11 @@ import { getServiceDisplayName } from "@/utils/utility";
 // Configuration Schema
 const CONFIG_SCHEMA = [
   {
-    key: "hideHomeButton",
+    key: "showHomeButton",
     type: "toggle",
-    label: "Hide Home Button",
-    description: "Removes the home navigation button",
-    defaultValue: false,
+    label: "Show Home Button",
+    description: "Show the home navigation button",
+    defaultValue: true,
     section: "Interface Options",
   },
   {
@@ -45,43 +45,43 @@ const CONFIG_SCHEMA = [
     section: "Interface Options",
   },
   {
-    key: "hideAdvancedParameters",
+    key: "showAdvancedParameters",
     type: "toggle",
-    label: "Hide Advanced Parameters",
+    label: "Show Advanced Parameters",
     description: "Display advanced parameters",
     defaultValue: true,
     section: "Interface Options",
   },
   {
-    key: "hideCreateManuallyButton",
+    key: "showCreateManuallyButton",
     type: "toggle",
-    label: "Hide Create Agent Manually Button",
+    label: "Show Create Agent Manually Button",
     description: "Display create agent manually button",
-    defaultValue: false,
+    defaultValue: true,
     section: "Interface Options",
   },
   {
-    key: "hideAdvancedConfigurations",
+    key: "showAdvancedConfigurations",
     type: "toggle",
-    label: "Hide Advanced Configurations",
+    label: "Show Advanced Configurations",
     description: "Display advanced configurations",
-    defaultValue: false,
+    defaultValue: true,
     section: "Interface Options",
   },
   {
-    key: "hidePreTool",
+    key: "showPreTool",
     type: "toggle",
-    label: "Hide Pre Tool",
+    label: "Show Pre Tool",
     description: "Display pre tool",
-    defaultValue: false,
+    defaultValue: true,
     section: "Interface Options",
   },
   {
-    key: "hidePromptHelper",
+    key: "showPromptHelper",
     type: "toggle",
-    label: "Hide Prompt Helper",
-    description: "Hide prompt helper button",
-    defaultValue: false,
+    label: "Show Prompt Helper",
+    description: "Show prompt helper button",
+    defaultValue: true,
     section: "Interface Options",
   },
   {
@@ -109,11 +109,11 @@ const CONFIG_SCHEMA = [
     section: "Interface Options",
   },
   {
-    key: "hidePlayground",
+    key: "showPlayground",
     type: "toggle",
-    label: "Hide Playground",
-    description: "Hide the playground",
-    defaultValue: false,
+    label: "Show Playground",
+    description: "Show the playground",
+    defaultValue: true,
     section: "Interface Options",
   },
   {
@@ -138,27 +138,27 @@ const CONFIG_SCHEMA = [
     section: "Display Settings",
   },
   {
-    key: "hideFullScreenButton",
+    key: "showFullScreenButton",
     type: "toggle",
-    label: "Hide Full Screen",
-    description: "Remove the full screen toggle button",
-    defaultValue: false,
+    label: "Show Full Screen",
+    description: "Show the full screen toggle button",
+    defaultValue: true,
     section: "Display Settings",
   },
   {
-    key: "hideCloseButton",
+    key: "showCloseButton",
     type: "toggle",
-    label: "Hide Close Button",
-    description: "Remove the close button",
-    defaultValue: false,
+    label: "Show Close Button",
+    description: "Show the close button",
+    defaultValue: true,
     section: "Display Settings",
   },
   {
-    key: "hideHeader",
+    key: "showHeader",
     type: "toggle",
-    label: "Hide Header",
-    description: "Hide the header section completely",
-    defaultValue: false,
+    label: "Show Header",
+    description: "Show the header section",
+    defaultValue: true,
     section: "Display Settings",
   },
   {
@@ -302,7 +302,17 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
   const generateInitialConfig = () => {
     const initial = {};
     CONFIG_SCHEMA.forEach((cfg) => {
-      initial[cfg.key] = config[cfg.key] ?? cfg.defaultValue;
+      if (cfg.key === "showPlayground") {
+        if (config?.showPlayground !== undefined) {
+          initial.showPlayground = config.showPlayground;
+        } else if (config?.hideplayground !== undefined) {
+          initial.showPlayground = !config.hideplayground;
+        } else {
+          initial.showPlayground = cfg.defaultValue;
+        }
+      } else {
+        initial[cfg.key] = config[cfg.key] ?? cfg.defaultValue;
+      }
     });
     return initial;
   };
@@ -339,12 +349,18 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
       try {
         setIsSaving(true);
         const { apikey_object_id, ...restConfig } = configToSave;
+        // Preserve compatibility with old `hideplayground` key by also writing its inverse
+        const configForSend = { ...restConfig };
+        if (configForSend.showPlayground !== undefined) {
+          configForSend.hideplayground = !configForSend.showPlayground;
+        }
+
         const dataToSend = {
           folder_id: data?.folder_id,
           orgId: data?.org_id,
           ...(apikey_object_id !== undefined && { apikey_object_id }),
           config: {
-            ...restConfig,
+            ...configForSend,
             theme_config: themeToSave,
           },
         };
@@ -614,8 +630,8 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           </select>
                         )}
                       </div>
-                      {/* Pre-Tool config inline after hidePreTool toggle */}
-                      {config.key === "hidePreTool" && configuration.hidePreTool && (
+                      {/* Pre-Tool config inline after showPreTool toggle */}
+                      {config.key === "showPreTool" && !configuration.showPreTool && (
                         <div className="p-2 bg-base-200 rounded-lg border border-base-300">
                           <ToolsConfiguration
                             singleToolMode={true}

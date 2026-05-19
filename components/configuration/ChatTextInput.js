@@ -95,8 +95,8 @@ function ChatTextInput({
   });
 
   // Redux selectors for chat state
-  const { conversation, loading, uploadedFiles, uploadedImages, storedTestCaseId } = useCustomSelector((state) => ({
-    conversation: state?.chatReducer?.conversationsByChannel?.[channelIdentifier] || [],
+  const { threadId, loading, uploadedFiles, uploadedImages, storedTestCaseId } = useCustomSelector((state) => ({
+    threadId: state?.chatReducer?.threadIdByChannel?.[channelIdentifier] || null,
     loading: state?.chatReducer?.loadingByChannel?.[channelIdentifier] || false,
     uploadedFiles: state?.chatReducer?.uploadedFilesByChannel?.[channelIdentifier] || [],
     uploadedImages: state?.chatReducer?.uploadedImagesByChannel?.[channelIdentifier] || [],
@@ -320,19 +320,16 @@ function ChatTextInput({
               ...(isPublished ? {} : { version_id: versionId }),
               testcase_data,
               configuration: {
-                conversation: conversation,
                 type: modelType,
               },
+              thread_id: threadId,
               user: data.content,
               user_urls: userUrls,
               variables,
+              is_playground: true,
               orchestrator_flag: isOrchestralModel,
-              flag:
-                bridge?.configuration?.stream !== true ||
-                bridge?.configuration?.response_type?.is_template === true ||
-                bridge?.configuration?.type === "image"
-                  ? false
-                  : true,
+              is_stream:
+                bridge?.configuration?.stream !== true || bridge?.configuration?.type === "image" ? false : true,
             },
             bridge_id: params?.id,
           });
@@ -367,12 +364,14 @@ function ChatTextInput({
               ...(isPublished ? {} : { version_id: versionId }),
               testcase_data,
               configuration: {
-                conversation: conversation,
                 type: modelType,
               },
+              thread_id: threadId,
               text: newMessage,
-              flag: bridge?.configuration?.stream !== true ? false : true,
+              is_playground: true,
               orchestrator_flag: isOrchestralModel,
+              is_stream:
+                bridge?.configuration?.stream !== true || bridge?.configuration?.type === "image" ? false : true,
             },
             bridge_id: params?.id,
           });
@@ -406,8 +405,10 @@ function ChatTextInput({
                 ...localDataToSend.configuration,
               },
               input: bridge?.inputConfig?.input?.input,
-              flag: bridge?.configuration?.stream !== true ? false : true,
+              is_playground: true,
               orchestrator_flag: isOrchestralModel,
+              is_stream:
+                bridge?.configuration?.stream !== true || bridge?.configuration?.type === "image" ? false : true,
             },
             bridge_id: params?.id,
           });

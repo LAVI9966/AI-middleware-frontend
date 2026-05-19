@@ -452,7 +452,7 @@ export const updateBridgeAction =
   };
 
 export const updateBridgeVersionAction =
-  ({ versionId, dataToSend, bridgeId }) =>
+  ({ versionId, dataToSend, bridgeId, localOnly = false }) =>
   async (dispatch, getState) => {
     try {
       if (!versionId) {
@@ -477,7 +477,9 @@ export const updateBridgeVersionAction =
         return;
       }
 
-      dispatch(backupBridgeVersionReducer({ bridgeId: parentBridgeId, versionId }));
+      if (!localOnly) {
+        dispatch(backupBridgeVersionReducer({ bridgeId: parentBridgeId, versionId }));
+      }
 
       const currentVersion = getState().bridgeReducer.bridgeVersionMapping[parentBridgeId][versionId];
 
@@ -605,12 +607,32 @@ export const updateBridgeVersionAction =
         };
       }
 
+      // Handle agent_info if present (deep merge)
+      if (dataToSend.agent_info) {
+        optimisticData.agent_info = {
+          ...currentVersion.agent_info,
+          ...dataToSend.agent_info,
+        };
+      }
+
+      // Handle settings if present (deep merge)
+      if (dataToSend.settings) {
+        optimisticData.settings = {
+          ...currentVersion.settings,
+          ...dataToSend.settings,
+        };
+      }
+
       dispatch(
         updateBridgeVersionReducer({
           bridges: optimisticData,
           functionData: dataToSend?.functionData || null,
         })
       );
+
+      if (localOnly) {
+        return;
+      }
 
       // Show saving indi\ation in navbar
       dispatch(setSavingStatus({ status: "saving" }));

@@ -1,11 +1,10 @@
 import React, { useCallback, useState, useMemo, useEffect } from "react";
-import { X, AlertTriangle, Settings, CircleX, ArrowRightLeft, Check, Bot } from "lucide-react";
+import { X, AlertTriangle, ArrowRightLeft, Check, Bot } from "lucide-react";
 import {
   getAllBridgesAction,
   getBridgeVersionAction,
   publishBridgeVersionAction,
   publishBulkVersionAction,
-  updateBridgeAction,
 } from "@/store/action/bridgeAction";
 import { convertAgentToTemplate } from "@/config/bridgeApi";
 import { MODAL_TYPE } from "@/utils/enums";
@@ -22,8 +21,6 @@ import PostPublishFeedbackModal from "./PostPublishFeedbackModal";
 function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_description, isEmbedUser }) {
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
-  const [isPublicAgent] = useState(false);
-  const [error, setError] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
   const [selectedAgentsToPublish, setSelectedAgentsToPublish] = useState(new Set());
   const [allConnectedAgents, setAllConnectedAgents] = useState([]);
@@ -31,7 +28,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const [convertToTemplate, setConvertToTemplate] = useState(false);
 
   const {
-    bridge,
     versionData,
     bridgeData,
     agentList,
@@ -105,28 +101,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     !hasApiKeyForActiveService &&
     !(isEmbedUser && showDefaultApikeys) &&
     !isChatbotWithGpt5Nano;
-  // Memoized form data initialization
-  const [formData, setFormData] = useState(() => ({
-    url_slugname: "",
-    availability: "public",
-    description: "",
-    publicUsers: [],
-    newEmail: "",
-  }));
-
-  // Update form data when bridge data changes
-  useEffect(() => {
-    if (bridge) {
-      setFormData((prev) => ({
-        ...prev,
-        url_slugname: bridge.url_slugname || "",
-        availability: bridge.availability || "public",
-        description: bridge.description || "",
-        publicUsers: bridge.settings?.publicUsers || [],
-      }));
-    }
-  }, [bridge]);
-
   const getAllConnectedAgents = useCallback(
     async (
       agentId,
@@ -466,38 +440,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
     setConvertToTemplate(false);
   }, []);
 
-  const handleChange = useCallback((e) => {
-    const { name, value } = e.target;
-    const processedValue = name === "url_slugname" ? value.replace(/\s+/g, "_") : value;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: processedValue,
-    }));
-  }, []);
-
-  const handleAddEmail = useCallback(() => {
-    if (!formData.newEmail?.includes("@")) return;
-
-    if (formData.publicUsers.includes(formData.newEmail)) {
-      toast.warn("This email has already been added.");
-      return;
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      publicUsers: [...(prev.publicUsers || []), prev.newEmail],
-      newEmail: "",
-    }));
-  }, [formData.newEmail, formData.publicUsers]);
-
-  const handleRemoveUser = useCallback((indexToRemove) => {
-    setFormData((prev) => ({
-      ...prev,
-      publicUsers: prev.publicUsers.filter((_, i) => i !== indexToRemove),
-    }));
-  }, []);
-
   // Helper function to get all agents recursively (flattened for operations)
   const getAllAgentsFlat = useCallback((agents) => {
     const result = [];
@@ -685,42 +627,22 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
   const handlePublishBridge = useCallback(
     async (shouldConvertToTemplate = false) => {
       setIsLoading(true);
-      setError(null);
 
       try {
-        if (isPublicAgent) {
-          if (!formData.url_slugname.trim()) {
-            toast.error("Slug Name is required.");
-            setIsLoading(false);
-            return;
-          }
-
-          const payload = {
-            page_config: {
-              url_slugname: formData.url_slugname,
-              availability: formData.availability,
-              description: formData.description,
-              settings: {
-                publicUsers: formData.availability === "private" ? formData.publicUsers : [],
-              },
-            },
-          };
-
-          try {
-            await dispatch(
-              updateBridgeAction({
-                bridgeId: params?.id,
-                dataToSend: payload,
-              })
-            );
-            toast.success("Configuration saved successfully!");
-          } catch (error) {
-            if (error?.response?.data?.detail?.includes("DuplicateKey")) {
-              setError({ error: "This slug name already exists. Please choose a different one." });
+        // Require a summary before publishing
+        if (!bridge_summary || (typeof bridge_summary === "string" && bridge_summary.trim().length === 0)) {
+          // Show validation error and redirect to summary section
+          setShowSummaryValidation(true);
+          setSummaryAccordionOpen(true);
+          setIsLoading(false);
+          // Scroll to summary section
+          setTimeout(() => {
+            const summarySection = document.querySelector(".summary-accordion");
+            if (summarySection) {
+              summarySection.scrollIntoView({ behavior: "smooth", block: "center" });
             }
-            setIsLoading(false);
-            return;
-          }
+          }, 100);
+          return;
         }
 
         const data = await dispatch(
@@ -728,7 +650,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
             bridgeId: params?.id,
             versionId: searchParams?.get("version"),
             orgId: params?.org_id,
-            isPublic: isPublicAgent,
           })
         );
 
@@ -773,25 +694,12 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
           });
         }
       } catch (error) {
-        if (isPublicAgent) {
-          toast.error("Failed to save configuration. The slug name may already be in use.");
-        }
         console.error("Error publishing bridge:", error);
       } finally {
         setIsLoading(false);
       }
     },
-    [
-      dispatch,
-      params,
-      searchParams,
-      isPublicAgent,
-      formData,
-      agent_name,
-      agent_description,
-      isEmbedUser,
-      selectedAgentsToPublish,
-    ]
+    [dispatch, params, searchParams, agent_name, agent_description, isEmbedUser, selectedAgentsToPublish]
   );
 
   return (
@@ -973,142 +881,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
             </div>
           )}
 
-          <div className="flex flex-col gap-4">
-            {/* Public Agent Configuration Form */}
-            {isPublicAgent && (
-              <div className="bg-base-200/50 p-4 rounded-lg mb-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Settings className="h-5 w-5 text-primary" />
-                  <h4 className="font-medium text-base-content">Public Agent Configuration</h4>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Slug Name Field */}
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text font-medium">
-                        Slug Name <span className="text-error">*</span>
-                      </span>
-                      <span className="label-text-alt text-xs text-base-content/60">Must be globally unique</span>
-                    </label>
-                    <input
-                      autoComplete="off"
-                      id="publish-slug-name-input"
-                      data-testid="publish-version-slug-input"
-                      type="text"
-                      name="url_slugname"
-                      placeholder="Enter a unique slug name"
-                      className={`input input-bordered w-full ${error?.error ? "input-error" : ""}`}
-                      value={formData.url_slugname}
-                      onChange={handleChange}
-                      required
-                    />
-                    {error?.error && (
-                      <label className="label">
-                        <span className="label-text-alt text-error">{error?.error}</span>
-                      </label>
-                    )}
-                  </div>
-
-                  {/* Description Field */}
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text font-medium">Description</span>
-                    </label>
-                    <textarea
-                      id="publish-description-textarea"
-                      data-testid="publish-version-description-textarea"
-                      name="description"
-                      placeholder="Enter a description"
-                      className="textarea bg-base-100 textarea-bordered w-full h-20"
-                      value={formData.description}
-                      onChange={handleChange}
-                    />
-                  </div>
-
-                  {/* Visibility Field */}
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text font-medium">Visibility</span>
-                    </label>
-                    <select
-                      id="publish-visibility-select"
-                      data-testid="publish-version-availability-select"
-                      className="select select-bordered w-full"
-                      name="availability"
-                      value={formData.availability}
-                      onChange={handleChange}
-                    >
-                      <option value="public">Public</option>
-                      <option value="private">Private (Only allowed users can access)</option>
-                    </select>
-                  </div>
-
-                  {/* Allowed Users Field */}
-                  {formData.availability === "private" && (
-                    <div className="form-control w-full">
-                      <label className="label">
-                        <span className="label-text font-medium">Allowed Users</span>
-                      </label>
-
-                      {formData.publicUsers?.length > 0 && (
-                        <div className="mb-3 p-3 bg-base-200/50 rounded-lg min-h-[3rem]">
-                          <div className="flex flex-wrap gap-2">
-                            {formData.publicUsers.map((user, index) => (
-                              <div key={index} className="badge badge-outline gap-2 py-3 px-3">
-                                <span className="text-sm">{user}</span>
-                                <button
-                                  id={`publish-remove-user-${index}`}
-                                  onClick={() => handleRemoveUser(index)}
-                                  className="hover:text-error transition-colors"
-                                  type="button"
-                                >
-                                  <CircleX className="h-4 w-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="join w-full">
-                        <input
-                          autoComplete="off"
-                          id="publish-add-user-email-input"
-                          type="email"
-                          placeholder="Enter email address"
-                          className="input input-bordered join-item flex-1"
-                          value={formData.newEmail || ""}
-                          onChange={(e) => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              newEmail: e.target.value,
-                            }));
-                          }}
-                          onKeyPress={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddEmail();
-                            }
-                          }}
-                        />
-                        <button
-                          id="publish-add-user-button"
-                          type="button"
-                          className="btn btn-sm join-item"
-                          onClick={handleAddEmail}
-                          disabled={!formData.newEmail || !formData.newEmail.includes("@")}
-                        >
-                          Add
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Action Buttons */}
           <div className="flex items-center justify-end pt-4 border-t border-base-300">
             {!isEmbedUser && (
@@ -1134,7 +906,7 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                 data-testid="publish-version-publish-button"
                 className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => handlePublishBridge(convertToTemplate)}
-                disabled={isLoading || (isPublicAgent && !formData.url_slugname.trim()) || isReadOnly}
+                disabled={isLoading || isReadOnly}
                 title={isReadOnly ? "You don't have permission to publish" : ""}
               >
                 {isLoading ? (
@@ -1142,8 +914,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
                     <span className="loading loading-spinner loading-sm"></span>
                     Publishing...
                   </>
-                ) : isPublicAgent ? (
-                  "Save & Publish"
                 ) : (
                   "Publish"
                 )}

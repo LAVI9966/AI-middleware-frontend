@@ -6,6 +6,7 @@ import { Search, X, ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { formatRelativeTime, formatDate, openModal, closeModal } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
 import Protected from "../Protected";
+import { isPaletteOpen } from "@/components/PaletteFocusGuard";
 
 function getOrgIdFromPath(pathname) {
   const parts = (pathname || "").split("/").filter(Boolean);
@@ -446,6 +447,7 @@ const CommandPalette = ({ isEmbedUser }) => {
     const openModals = document.querySelectorAll(".modal-open, dialog[open]");
     if (openModals.length > 0) return;
 
+    isPaletteOpen.current = true;
     setOpen(true);
     setQuery("");
     setActiveIndex(0);
@@ -467,7 +469,10 @@ const CommandPalette = ({ isEmbedUser }) => {
     setCollapsedSearchCategories(new Set());
   }, [categories, currentCategory]);
 
-  const closePalette = useCallback(() => setOpen(false), []);
+  const closePalette = useCallback(() => {
+    isPaletteOpen.current = false;
+    setOpen(false);
+  }, []);
 
   const clearCurrentFilter = useCallback(() => {
     const url = new URL(window.location);

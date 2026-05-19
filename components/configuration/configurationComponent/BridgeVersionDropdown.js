@@ -211,12 +211,23 @@ function BridgeVersionDropdown({
   const handleVersionChange = useCallback(
     (version) => {
       if (currentVersion === version) return;
-      // Close ConfigHistorySlider when version changes (only if it's open)
       closeSidebar("default-config-history-slider", "right");
       router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${version}`);
       fetchVersionData(version);
+
+      const versionData = bridgeVersionMapping?.[version];
+      if (isEmbedUser) {
+        sendDataToParent(
+          "version_changed",
+          {
+            version_id: version,
+            variables: versionData?.variables || [],
+          },
+          "Version changed successfully"
+        );
+      }
     },
-    [currentVersion, params.org_id, params.id, router, fetchVersionData]
+    [currentVersion, params.org_id, params.id, router, fetchVersionData, bridgeVersionMapping, isEmbedUser]
   );
 
   const handleCreateNewVersion = () => {
@@ -248,7 +259,7 @@ function BridgeVersionDropdown({
         },
         (data) => {
           if (data && data.version_id) {
-            isEmbedUser &&
+            if (isEmbedUser) {
               sendDataToParent(
                 "updated",
                 {
@@ -259,6 +270,15 @@ function BridgeVersionDropdown({
                 },
                 "Agent Version Created Successfully"
               );
+              sendDataToParent(
+                "version_changed",
+                {
+                  version_id: data?.version_id,
+                  variables: versionData?.variables || [],
+                },
+                "Version changed successfully"
+              );
+            }
             router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${data.version_id}`);
           } else {
             console.error("Version creation failed - no version_id returned:", data);
