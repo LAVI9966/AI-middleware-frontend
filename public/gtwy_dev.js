@@ -327,8 +327,8 @@
             if (!this.state.hasParentContainer) {
                 const showHeader = ['true', true].includes(this.config.showHeader);
                 Object.assign(iframe.style, {
-                    marginTop: showHeader ? 'calc(5vh + 10px)' : '0vh',
-                    maxHeight: showHeader ? '95vh' : '100vh'
+                    marginTop: showHeader ? '50px' : '0px',
+                    height: showHeader ? 'calc(100% - 50px)' : '100%'
                 });
             }
 
@@ -419,7 +419,7 @@
                     if (key in config) {
                         this.config[key] = config[key];
                         const btn = document.getElementById(key === 'showCloseButton' ? 'gtwy-close-btn' : 'gtwy-fullscreen-btn');
-                        if (btn) btn.style.display = [true, 'true'].includes(config[key]) ? 'none' : 'flex';
+                        if (btn) btn.style.display = [true, 'true'].includes(config[key]) ? 'flex' : 'none';
                     }
                 });
 
@@ -432,11 +432,11 @@
                     if (header) header.style.display = show ? 'flex' : 'none';
                     if (iframe) {
                         Object.assign(iframe.style, {
-                            marginTop: show ? '5vh' : '0px',
-                            maxHeight: show ? '100vh' : '95vh'
+                            marginTop: show ? '50px' : '0px',
+                            height: show ? 'calc(100% - 50px)' : '100%'
                         });
                     }
-                    container.classList.toggle('with-header', !show);
+                    container.classList.toggle('with-header', show);
                 }
 
                 if (config.slide) this.props.slide = config.slide;
