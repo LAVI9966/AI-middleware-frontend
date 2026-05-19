@@ -7,6 +7,7 @@ import { MODAL_TYPE } from "@/utils/enums";
 import { openModal, closeModal, formatRelativeTime, formatDate, generateRandomID } from "@/utils/utility";
 import { PlayIcon, Sparkles, X, SendHorizontal, Send } from "lucide-react";
 import React, { useEffect, useState, use, useRef } from "react";
+import InfoTooltip from "@/components/InfoTooltip";
 import SearchItems from "@/components/UI/SearchItems";
 import TemplatePlayground from "@/components/modals/TemplatePlayground";
 import SaveWidgetModal from "@/components/modals/SaveWidgetModal";
@@ -511,9 +512,11 @@ const TemplatesPage = ({ params }) => {
                       </h3>
                     </div>
 
-                    <p className="text-xs text-base-content/70 mb-3 line-clamp-2 min-h-[2.5em]">
-                      {widget.description || "No description available"}
-                    </p>
+                    <InfoTooltip tooltipContent={widget.description || "No description available"}>
+                      <p className="text-xs text-base-content/70 mb-3 line-clamp-2 min-h-[2.5em]">
+                        {widget.description || "No description available"}
+                      </p>
+                    </InfoTooltip>
 
                     <div className="text-[10px] text-base-content/50 uppercase tracking-wider font-medium group-hover:hidden">
                       {formatRelativeTime(widget.createdAt)}
