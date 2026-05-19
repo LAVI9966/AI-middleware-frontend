@@ -50,10 +50,12 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
       variables_path: isPublished ? bridgeDataFromState?.variables_path || {} : versionData?.variables_path || {},
     };
   });
-  const handleSaveAgent = (overrideBridge = null, bridgeData) => {
+  const handleSaveAgent = (overrideBridge = null, bridgeCollection = bridgeData, nextDescription = description) => {
     try {
       const sb = overrideBridge ? overrideBridge : selectedBridge;
-      if (!description && !sb?.bridge_summary && !sb?.agent_info?.description) {
+      const selectedDescription = nextDescription || sb?.agent_info?.description || sb?.bridge_summary || "";
+
+      if (!selectedDescription) {
         toast?.error("Description Required");
         return;
       }
@@ -98,11 +100,8 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
   };
   const handleSelectAgents = (bridge, bridgeData) => {
     setSelectedBridge(bridge);
-    if (!bridge?.agent_info?.description && !bridge?.bridge_summary) {
-      openModal(MODAL_TYPE?.AGENT_DESCRIPTION_MODAL);
-      return;
-    }
-    handleSaveAgent(bridge, bridgeData);
+    setDescription(bridge?.agent_info?.description || bridge?.bridge_summary || "");
+    openModal(MODAL_TYPE?.AGENT_DESCRIPTION_MODAL);
   };
   const handleOpenDeleteModal = (name, item) => {
     setSelectedBridge({ name: name, ...item });
