@@ -629,22 +629,6 @@ function PublishBridgeVersionModal({ params, searchParams, agent_name, agent_des
       setIsLoading(true);
 
       try {
-        // Require a summary before publishing
-        if (!bridge_summary || (typeof bridge_summary === "string" && bridge_summary.trim().length === 0)) {
-          // Show validation error and redirect to summary section
-          setShowSummaryValidation(true);
-          setSummaryAccordionOpen(true);
-          setIsLoading(false);
-          // Scroll to summary section
-          setTimeout(() => {
-            const summarySection = document.querySelector(".summary-accordion");
-            if (summarySection) {
-              summarySection.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          }, 100);
-          return;
-        }
-
         const data = await dispatch(
           publishBridgeVersionAction({
             bridgeId: params?.id,
