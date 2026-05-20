@@ -260,6 +260,7 @@ function BridgeVersionDropdown({
         (data) => {
           if (data && data.version_id) {
             if (isEmbedUser) {
+              const newVersionData = bridgeVersionMappingRef.current?.[data.version_id];
               sendDataToParent(
                 "updated",
                 {
@@ -274,7 +275,7 @@ function BridgeVersionDropdown({
                 "version_changed",
                 {
                   version_id: data?.version_id,
-                  variables: versionData?.variables || [],
+                  variables: newVersionData?.variables || [],
                 },
                 "Version changed successfully"
               );
