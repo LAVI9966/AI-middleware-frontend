@@ -13,14 +13,18 @@ import {
   updateChatBotReducer,
 } from "../reducer/ChatBotReducer";
 import { updateBridgeActionReducer, updateBridgeReducer } from "../reducer/bridgeReducer";
+import { handleApiError, isNetworkError } from "@/utils/errorHandler";
 
 export const getAllChatBotAction = (orgId) => async (dispatch) => {
   try {
     const response = await getAllChatBot(orgId);
     const chatbot_token = response?.data?.chatbot_token;
-    dispatch(getAllChatBotReducer({ chatbots: response.data.result.chatbots, orgId, chatbot_token }));
+    dispatch(getAllChatBotReducer({ chatbots: response?.data?.result?.chatbots, orgId, chatbot_token }));
     return { chatbot_token };
   } catch (error) {
+    if (isNetworkError(error)) {
+      handleApiError(error, "Failed to load chatbots");
+    }
     console.error(error);
   }
 };
