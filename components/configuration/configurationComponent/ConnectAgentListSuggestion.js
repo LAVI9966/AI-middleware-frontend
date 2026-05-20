@@ -7,10 +7,13 @@ function ConnectedAgentListSuggestion({
   connect_agents = [],
   bridges,
   bridgeData,
+  excludedAgentIds = [],
+  closeOnSelect = false,
 }) {
   // Determine if content is read-only (either published or user is not an editor)
   const [searchQuery, setSearchQuery] = useState("");
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const excludedAgentIdSet = useMemo(() => new Set(excludedAgentIds.filter(Boolean)), [excludedAgentIds]);
 
   const handleInputChange = (e) => {
     setSearchQuery(e?.target?.value || "");
@@ -18,6 +21,10 @@ function ConnectedAgentListSuggestion({
 
   const handleItemClick = (bridge, bridgeData) => {
     handleSelectAgents(bridge, bridgeData);
+    if (closeOnSelect) {
+      setSearchQuery("");
+      document.activeElement?.blur();
+    }
   };
 
   const renderBridgeSuggestions = useMemo(
@@ -30,7 +37,8 @@ function ConnectedAgentListSuggestion({
             connect_agents && Object.values(connect_agents).some((agent) => agent?.bridge_id === bridge?._id);
           const notSameBridge = bridge?._id !== params?.id;
           const isNotDeleted = !bridge?.deletedAt;
-          return isActive && matchesSearch && !isNotConnected && notSameBridge && isNotDeleted;
+          const isNotExcluded = !excludedAgentIdSet.has(bridge?._id);
+          return isActive && matchesSearch && !isNotConnected && notSameBridge && isNotDeleted && isNotExcluded;
         })
         .slice()
         .sort((a, b) => {
@@ -79,7 +87,7 @@ function ConnectedAgentListSuggestion({
             </li>
           );
         }),
-    [bridges, normalizedSearchQuery, connect_agents, bridgeData]
+    [bridges, normalizedSearchQuery, connect_agents, bridgeData, params?.id, excludedAgentIdSet]
   );
 
   return (
