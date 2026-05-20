@@ -1,14 +1,24 @@
 import { getOrCreateNotificationAuthKey } from "@/config/index";
 import { useEffect } from "react";
 
+export const isValidEmbedToken = (token) => {
+  if (typeof token !== "string") return false;
+
+  const normalizedToken = token.trim();
+  return normalizedToken !== "" && normalizedToken !== "undefined" && normalizedToken !== "null";
+};
+
 export const useEmbedScriptLoader = (embedToken = null, isEmbedUser = false, isViewer = false) => {
-  async function embedMaker() {
+  async function embedMaker(token, shouldAppendScript) {
     const pAuthKey =
       !isEmbedUser && !isViewer
         ? await getOrCreateNotificationAuthKey("gtwy_bridge_trigger").then((res) => res?.authkey)
         : null;
+
+    if (!shouldAppendScript()) return;
+
     const script = document.createElement("script");
-    script.setAttribute("embedToken", embedToken);
+    script.setAttribute("embedToken", token);
     script.id = process.env.NEXT_PUBLIC_EMBED_SCRIPT_ID;
     script.src = process.env.NEXT_PUBLIC_EMBED_SCRIPT_SRC;
     script.setAttribute("parentId", "alert-embed-parent");
@@ -37,11 +47,13 @@ export const useEmbedScriptLoader = (embedToken = null, isEmbedUser = false, isV
     document.body.appendChild(script);
   }
   useEffect(() => {
-    // Ensure embedToken is a valid string before proceeding
-    if (embedToken && typeof embedToken === "string" && embedToken.trim() !== "") {
-      embedMaker();
+    let shouldLoadScript = true;
+
+    if (isValidEmbedToken(embedToken)) {
+      embedMaker(embedToken.trim(), () => shouldLoadScript);
 
       return () => {
+        shouldLoadScript = false;
         try {
           const script = document.getElementById(process.env.NEXT_PUBLIC_EMBED_SCRIPT_ID);
           if (script && script.parentNode === document.body) {
@@ -57,5 +69,9 @@ export const useEmbedScriptLoader = (embedToken = null, isEmbedUser = false, isV
         }
       };
     }
-  }, [embedToken, isEmbedUser]);
+
+    return () => {
+      shouldLoadScript = false;
+    };
+  }, [embedToken, isEmbedUser, isViewer]);
 };
