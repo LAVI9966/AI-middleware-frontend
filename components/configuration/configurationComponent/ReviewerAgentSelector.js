@@ -104,6 +104,8 @@ function ReviewerAgentSelector({ params, searchParams, isPublished, isEditor }) 
                   connect_agents={{}}
                   bridges={bridges}
                   bridgeData={bridges}
+                  excludedAgentIds={[reviewerAgentId]}
+                  closeOnSelect
                 />
               </div>
               <button
@@ -140,6 +142,8 @@ function ReviewerAgentSelector({ params, searchParams, isPublished, isEditor }) 
               connect_agents={{}}
               bridges={bridges}
               bridgeData={bridges}
+              excludedAgentIds={[reviewerAgentId]}
+              closeOnSelect
             />
           </div>
         )
