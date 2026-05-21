@@ -23,6 +23,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
   const [preToolData, setPreToolData] = useState(null);
   const [variablesPath, setVariablesPath] = useState({});
   const [showChangePicker, setShowChangePicker] = useState(false);
+  const [isAddPreToolDropdownFocused, setIsAddPreToolDropdownFocused] = useState(false);
   const [selectedPreTool, setSelectedPreTool] = useState(null); // for built-in modal
   const { integrationData, function_data, bridge_pre_tools, model, embedToken, variables_path } = useCustomSelector(
     (state) => {
@@ -205,6 +206,12 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
     setShowChangePicker(true);
   };
 
+  const handleAddPreToolDropdownBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setIsAddPreToolDropdownFocused(false);
+    }
+  };
+
   const handleSavePreFunctionData = () => {
     // Save function schema changes
     if (!isEqual(preToolData, preFunctionData)) {
@@ -303,9 +310,14 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                 data-testid="pre-embed-empty-dropdown"
                 id="pre-embed-empty-dropdown"
                 className={`dropdown dropdown-end w-full max-w-md`}
+                onFocusCapture={() => setIsAddPreToolDropdownFocused(true)}
+                onBlurCapture={handleAddPreToolDropdownBlur}
               >
                 <div className="border-2 border-base-200 border-dashed text-center">
-                  <InfoTooltip tooltipContent="A prefunction prepares data before passing it to the main function for the GPT call.">
+                  <InfoTooltip
+                    tooltipContent="A prefunction prepares data before passing it to the main function for the GPT call."
+                    disabled={isAddPreToolDropdownFocused}
+                  >
                     <button
                       data-testid="pre-embed-add-button"
                       id="pre-embed-add-button"
@@ -357,6 +369,7 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                   handleRemoveEmbed={removePreFunction}
                   handleOpenDeleteModal={handleOpenDeleteModal}
                   handleChangePreTool={handleChangePreTool}
+                  isChangePreToolDropdownOpen={showChangePicker}
                   halfLength={1}
                 />
                 {bridgePreFunctions.length > 0 && (

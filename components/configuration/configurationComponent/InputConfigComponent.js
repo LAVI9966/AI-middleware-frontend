@@ -559,7 +559,7 @@ const InputConfigComponent = memo(
                         onClick={() => {
                           setFullscreenEditor({
                             isOpen: true,
-                            title: `Prompt — ${field.name}`,
+                            title: `Prompt — ${field.displayValue || field.name}`,
                             value: activeEmbedFieldValues[field.name] || "",
                             fieldKey: field.name,
                             fieldType: "embed",

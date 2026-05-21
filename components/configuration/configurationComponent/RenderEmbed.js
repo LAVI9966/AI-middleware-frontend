@@ -23,6 +23,7 @@ const RenderEmbed = ({
   handleRemoveEmbed,
   handleOpenDeleteModal,
   handleChangePreTool,
+  isChangePreToolDropdownOpen = false,
   name,
   halfLength = 1,
   versionId,
@@ -150,7 +151,7 @@ const RenderEmbed = ({
                   handleChangePreTool();
                 }}
                 className="btn btn-ghost btn-sm p-1"
-                title="Change Pre Tool"
+                title={isChangePreToolDropdownOpen ? undefined : "Change Pre Tool"}
                 disabled={isReadOnly}
               >
                 <RefreshIcon size={16} />
