@@ -23,6 +23,7 @@ export const KEYS_TO_COMPARE = [
   "apikey_object_id",
   "gpt_memory",
   "function_ids",
+  "pre_tools",
   "settings",
   "IsstarterQuestionEnable",
   "actions",
@@ -41,6 +42,8 @@ export const DIFFERNCE_DATA_DISPLAY_NAME = (key) => {
       return "Advanced Parameters";
     case "function_ids":
       return "Tools";
+    case "pre_tools":
+      return "Pre Tools";
     case "service":
       return "Service Provider";
     case "cache_on":
