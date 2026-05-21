@@ -319,6 +319,17 @@ function BridgeVersionDropdown({
             ? publishedVersion
             : remainingVersions[0];
         router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${nextVersion}`);
+        if (isEmbedUser) {
+          const nextVersionData = bridgeVersionMapping?.[nextVersion];
+          sendDataToParent(
+            "version_changed",
+            {
+              version_id: nextVersion,
+              variables: nextVersionData?.variables || [],
+            },
+            "Version changed successfully"
+          );
+        }
       }
       setselectedDataToDelete(null);
     });
