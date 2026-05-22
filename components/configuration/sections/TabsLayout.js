@@ -2,6 +2,10 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
+import { openModal, closeModal } from "@/utils/utility";
+import { MODAL_TYPE } from "@/utils/enums";
 
 const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
   const searchParams = useSearchParams();
@@ -11,6 +15,7 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
   const tabRefs = useRef({});
   const listRef = useRef(null);
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+  const pendingTabRef = useRef(null);
 
   // Read tab from URL on component mount/refresh
   useEffect(() => {
@@ -36,6 +41,16 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
   }, [activeTab, tabs]);
 
   const handleTabChange = (tabId) => {
+    // Only guard when leaving the prompt tab
+    if (activeTab === "prompt" && tabId !== "prompt" && unsavedPromptGuard.hasUnsavedChanges) {
+      pendingTabRef.current = tabId;
+      openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+      return;
+    }
+    doTabChange(tabId);
+  };
+
+  const doTabChange = (tabId) => {
     // Update URL with tab query parameter
     const current = new URLSearchParams(Array.from(searchParams.entries()));
     current.set("tab", tabId);
@@ -110,6 +125,30 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
       <div data-testid="tabs-layout-content" id="tabs-layout-content" role="tabpanel" className="pb-6">
         {activeContent}
       </div>
+
+      {/* Unsaved prompt changes guard modal */}
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
+        confirmText="Leave without saving"
+        cancelText="Stay & Save"
+        confirmButtonClass="btn-error"
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          const tab = pendingTabRef.current;
+          pendingTabRef.current = null;
+          if (tab) doTabChange(tab);
+        }}
+        onCancel={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          pendingTabRef.current = null;
+        }}
+        onClose={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          pendingTabRef.current = null;
+        }}
+      />
     </div>
   );
 };

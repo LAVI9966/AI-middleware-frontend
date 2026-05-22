@@ -115,6 +115,32 @@ export const NAV_ITEM_CONFIG = {
   chatbot: { path: "agents", query: { type: "chatbot" } },
 };
 
+/**
+ * Builds a navigation URL for a given nav key and orgId.
+ * Uses NAV_ITEM_CONFIG if a config entry exists, otherwise falls back to `/org/{orgId}/{key}`.
+ */
+export const buildNavUrl = (key, orgId) => {
+  const config = NAV_ITEM_CONFIG[key];
+  if (config) {
+    const query = config.query ? `?${new URLSearchParams(config.query).toString()}` : "";
+    return `/org/${orgId}/${config.path}${query}`;
+  }
+  return `/org/${orgId}/${key}`;
+};
+
+/**
+ * Navigates to `url` via `router.push`, but intercepts when there are unsaved
+ * prompt changes — storing the pending URL and opening the unsaved-changes modal.
+ */
+export const createGuardedNavigate = (router, pendingNavRef, openModalFn, MODAL_TYPE, unsavedPromptGuard) => (url) => {
+  if (unsavedPromptGuard.hasUnsavedChanges) {
+    pendingNavRef.current = url;
+    openModalFn(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+    return;
+  }
+  router.push(url);
+};
+
 export const HRCollapsed = React.memo(() => <hr className="my-2 w-6 border-base-content/30 mx-auto" />);
 
 export const BetaBadge = React.memo(() => (

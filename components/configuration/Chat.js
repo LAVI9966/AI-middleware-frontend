@@ -127,7 +127,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
   );
 }
 
-function Chat({ params, userMessage, isOrchestralModel = false, searchParams, isEmbedUser }) {
+function Chat({ params, userMessage, isOrchestralModel = false, searchParams, isEmbedUser, draftPrompt }) {
   const messagesContainerRef = useRef(null);
   const attachScrollListener = useCallback((el) => {
     if (!el) return;
@@ -1126,6 +1126,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                     selectedStrategy={selectedStrategy}
                     handleSendMessageRef={handleSendMessageRef}
                     showTestCases={showTestCases}
+                    draftPrompt={draftPrompt}
                   />
                 </div>
               </div>
