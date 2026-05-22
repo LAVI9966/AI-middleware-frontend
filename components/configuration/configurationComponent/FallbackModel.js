@@ -131,24 +131,34 @@ const FallbackModel = ({
     return text?.length > maxLength ? text.slice(0, maxLength) + "..." : text;
   };
 
+  const getServiceDefaultFallbackModel = useCallback(
+    (service) => {
+      if (!service) return null;
+      return DefaultModel?.[service]?.default_fallback_model || DefaultModel?.[service]?.model || null;
+    },
+    [DefaultModel]
+  );
+
   // Fallback model + service state and handlers
   const [fallbackService, setFallbackService] = useState(fallbackModel?.service || currentService);
   const [fallbackModelName, setFallbackModelName] = useState(
-    fallbackModel?.model || DefaultModel[currentService]?.model
+    fallbackModel?.model || getServiceDefaultFallbackModel(currentService)
   );
   const [isFallbackEnabled, setIsFallbackEnabled] = useState(fallbackModel?.is_enable || false);
 
   useEffect(() => {
     setFallbackService(fallbackModel?.service || currentService);
-    setFallbackModelName(fallbackModel?.model || DefaultModel[currentService]?.model);
+    setFallbackModelName(
+      fallbackModel?.model || getServiceDefaultFallbackModel(fallbackModel?.service || currentService)
+    );
     setIsFallbackEnabled(fallbackModel?.is_enable || false);
-  }, [fallbackModel]);
+  }, [fallbackModel, currentService, getServiceDefaultFallbackModel]);
 
   // Check if batch API has non-OpenAI service selected and show alert
   useEffect(() => {
     if (bridgeType === "batch" && fallbackService && fallbackService !== "openai") {
       const openaiModels = serviceModels?.openai || {};
-      let selectedModel = DefaultModel["openai"]?.model;
+      let selectedModel = getServiceDefaultFallbackModel("openai");
 
       if (selectedModel === currentModel) {
         // Flatten all models in one array and find the first different one
@@ -161,11 +171,11 @@ const FallbackModel = ({
       }
       handleFallbackServiceChange("openai", selectedModel);
     }
-  }, [bridgeType, fallbackService, currentModel, serviceModels, DefaultModel]);
+  }, [bridgeType, fallbackService, currentModel, serviceModels, DefaultModel, getServiceDefaultFallbackModel]);
 
   const handleFallbackServiceChange = useCallback(
     (service, model) => {
-      const newDefaultModel = model || DefaultModel[service]?.model || null;
+      const newDefaultModel = model || getServiceDefaultFallbackModel(service);
       setFallbackService(service);
       setFallbackModelName(newDefaultModel);
       // Persist immediately using explicit values (avoid stale state)
@@ -186,7 +196,7 @@ const FallbackModel = ({
         })
       );
     },
-    [dispatch, params.id, searchParams?.version, fallbackModel, isFallbackEnabled, fallbackModelName]
+    [dispatch, params.id, searchParams?.version, fallbackModel, isFallbackEnabled, getServiceDefaultFallbackModel]
   );
 
   const handleFallbackModelChange = useCallback(
@@ -217,7 +227,11 @@ const FallbackModel = ({
 
   const handleFallbackModelToggle = useCallback(() => {
     const next = !isFallbackEnabled;
+    const nextService = fallbackService || currentService || null;
+    const resolvedModel = fallbackModelName || getServiceDefaultFallbackModel(nextService);
     setIsFallbackEnabled(next);
+    if (!fallbackService && nextService) setFallbackService(nextService);
+    if (!fallbackModelName && resolvedModel) setFallbackModelName(resolvedModel);
     // Use `next` directly to avoid stale state in dispatch
     dispatch(
       updateBridgeVersionAction({
@@ -228,6 +242,8 @@ const FallbackModel = ({
             fall_back: {
               ...(fallbackModel || {}),
               is_enable: next,
+              service: nextService,
+              model: resolvedModel || null,
             },
           },
         },
@@ -241,6 +257,8 @@ const FallbackModel = ({
     fallbackModel,
     fallbackService,
     fallbackModelName,
+    currentService,
+    getServiceDefaultFallbackModel,
   ]);
 
   const computedModelsList = serviceModels?.[fallbackService] || {};
