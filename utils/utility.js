@@ -434,14 +434,14 @@ export const GetFileTypeIcon = (fileType, height, width) => {
       return <GoogleDocIcon height={height} width={width} />;
   }
 };
-export const GetPreBuiltToolTypeIcon = (preBuiltTools, height, width) => {
+export const GetPreBuiltToolTypeIcon = (preBuiltTools, height = 24, width = 24) => {
   switch (preBuiltTools) {
     case "web_search":
       return <WebSearchIcon height={height} width={width} />;
     case "image_generation":
       return <Image height={height} width={width} alt="image generation icon" />;
     case "Gtwy_Web_Search":
-      return <FavIconSVG height={24} width={24} />;
+      return <FavIconSVG height={height} width={width} />;
     default:
       return null;
   }
