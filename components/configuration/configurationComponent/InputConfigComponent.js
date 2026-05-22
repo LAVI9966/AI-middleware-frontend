@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import { usePromptSelector } from "@/customHooks/useOptimizedSelector";
 import { MODAL_TYPE, PROMPT_SECTION_CONFIG } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 import PromptSummaryModal from "../../modals/PromptSummaryModal";
 import Diff_Modal from "@/components/modals/DiffModal";
 import PromptHeader from "./PromptHeader";
@@ -347,6 +348,15 @@ const InputConfigComponent = memo(
       () => !arePromptValuesEqual(currentPromptValue, savedPromptSnapshot),
       [currentPromptValue, savedPromptSnapshot]
     );
+
+    // Keep the global guard in sync so navigation interceptors can check it
+    useEffect(() => {
+      unsavedPromptGuard.hasUnsavedChanges = hasPromptChanges;
+      return () => {
+        // Clear on unmount (leaving the page)
+        unsavedPromptGuard.hasUnsavedChanges = false;
+      };
+    }, [hasPromptChanges]);
 
     const handleKeyDown = useCallback(
       (event) => {

@@ -22,7 +22,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { updateBridgeAction, dicardBridgeVersionAction, deleteBridgeAction } from "@/store/action/bridgeAction";
 import { updateBridgeVersionReducer } from "@/store/reducer/bridgeReducer";
 import { MODAL_TYPE } from "@/utils/enums";
-import { openModal, toggleSidebar, sendDataToParent } from "@/utils/utility";
+import { openModal, closeModal, toggleSidebar, sendDataToParent } from "@/utils/utility";
 import { toast } from "react-toastify";
 const ChatBotSlider = dynamic(() => import("./sliders/ChatBotSlider"), { ssr: false });
 const ConfigHistorySlider = dynamic(() => import("./sliders/ConfigHistorySlider"), { ssr: false });
@@ -35,6 +35,8 @@ import AccessManagementModal from "./modals/AccessManagementModal";
 import AgentActionMenu from "@/components/agents/AgentActionMenu";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 const MakePublicAgentModal = dynamic(() => import("./modals/MakePublicAgentModal"), { ssr: false });
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import ConfirmationModal from "./UI/ConfirmationModal";
 
 const BRIDGE_STATUS = {
   ACTIVE: 1,
@@ -49,6 +51,7 @@ const Navbar = ({ isEmbedUser, params }) => {
   const { isDeleting: isDiscardingWithHook, executeDelete } = useDeleteOperation();
   const ellipsisMenuRef = useRef(null);
   const [selectedAgentForAccess, setSelectedAgentForAccess] = useState(null);
+  const pendingNavRef = useRef(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -295,26 +298,38 @@ const Navbar = ({ isEmbedUser, params }) => {
 
   const handleTabChange = useCallback(
     (tabId) => {
-      const base = `/org/${orgId}/agents/${tabId}/${bridgeId}`;
+      const navigate = () => {
+        const base = `/org/${orgId}/agents/${tabId}/${bridgeId}`;
 
-      // Get bridge type from Redux and determine correct type parameter
-      let typeValue;
-      if (bridgeType && bridgeType.toLowerCase() === "chatbot") {
-        typeValue = "chatbot";
-      } else {
-        // For 'api', 'batch', or any other type, default to 'api'
-        typeValue = "api";
-      }
-      const typeQueryPart = `&type=${typeValue}`;
+        // Get bridge type from Redux and determine correct type parameter
+        let typeValue;
+        if (bridgeType && bridgeType.toLowerCase() === "chatbot") {
+          typeValue = "chatbot";
+        } else {
+          // For 'api', 'batch', or any other type, default to 'api'
+          typeValue = "api";
+        }
+        const typeQueryPart = `&type=${typeValue}`;
 
-      // If currently in published mode and navigating to testcase or history
-      if (isPublished && (tabId === "testcase" || tabId === "history")) {
-        // Use published version ID and remove isPublished parameter
-        router.push(base + (publishedVersion ? `?version=${publishedVersion}${typeQueryPart}` : `?type=${typeValue}`));
-      } else {
-        // Normal navigation with current version
-        router.push(base + (versionId ? `?version=${versionId}${typeQueryPart}` : `?type=${typeValue}`));
+        // If currently in published mode and navigating to testcase or history
+        if (isPublished && (tabId === "testcase" || tabId === "history")) {
+          // Use published version ID and remove isPublished parameter
+          router.push(
+            base + (publishedVersion ? `?version=${publishedVersion}${typeQueryPart}` : `?type=${typeValue}`)
+          );
+        } else {
+          // Normal navigation with current version
+          router.push(base + (versionId ? `?version=${versionId}${typeQueryPart}` : `?type=${typeValue}`));
+        }
+      };
+
+      if (unsavedPromptGuard.hasUnsavedChanges) {
+        pendingNavRef.current = navigate;
+        openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+        return;
       }
+
+      navigate();
     },
     [router, orgId, bridgeId, versionId, isPublished, publishedVersion, bridgeType]
   );
@@ -943,6 +958,31 @@ const Navbar = ({ isEmbedUser, params }) => {
       {/* Portal components from hook */}
       <PortalStyles />
       <PortalDropdown />
+
+      {/* Unsaved prompt changes guard modal */}
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
+        confirmText="Leave without saving"
+        cancelText="Stay & Save"
+        confirmButtonClass="btn-error"
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          if (pendingNavRef.current) {
+            pendingNavRef.current();
+            pendingNavRef.current = null;
+          }
+        }}
+        onCancel={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          pendingNavRef.current = null;
+        }}
+        onClose={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          pendingNavRef.current = null;
+        }}
+      />
     </div>
   );
 };
