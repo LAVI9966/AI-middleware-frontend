@@ -26,6 +26,8 @@ function FullscreenEditorModal({
   const [localValue, setLocalValue] = useState(value);
   const { actualTheme } = useThemeManager();
   const [errorMsg, setErrorMsg] = useState("");
+  const hasChanges = localValue !== value;
+  const isSaveDisabled = disabled || !hasChanges;
 
   // Sync local copy when parent opens the modal with a new value
   useEffect(() => {
@@ -55,6 +57,7 @@ function FullscreenEditorModal({
   }, [onClose, modalId]);
 
   const handleSave = useCallback(() => {
+    if (!hasChanges) return;
     setErrorMsg("");
     if (isJson) {
       try {
@@ -77,7 +80,7 @@ function FullscreenEditorModal({
       console.error(e);
       setErrorMsg("Invalid JSON schema");
     }
-  }, [localValue, onSave, onClose, modalId, isJson]);
+  }, [localValue, onSave, onClose, modalId, isJson, hasChanges]);
 
   if (!isOpen) return null;
 
@@ -106,6 +109,7 @@ function FullscreenEditorModal({
               onClick={handleSave}
               className="btn btn-primary btn-sm"
               type="button"
+              disabled={isSaveDisabled}
             >
               Save & Close
             </button>
