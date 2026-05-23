@@ -294,6 +294,16 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
     async (id, name) => {
       if (!id || !name) {
         // If no id/name provided, go to org selection page
+        if (unsavedPromptGuard.hasUnsavedChanges) {
+          pendingNavRef.current = () => {
+            router.push("/org?redirection=false");
+            if (isMobile) setIsMobileVisible(false);
+            setIsOrgDropdownExpanded(false);
+            setIsOrgDropdownOpen(false);
+          };
+          openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          return;
+        }
         router.push("/org?redirection=false");
         if (isMobile) setIsMobileVisible(false);
         setIsOrgDropdownExpanded(false);
@@ -301,25 +311,35 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         return;
       }
 
-      try {
-        const response = await switchOrg(id);
-        const localToken = await switchUser({ orgId: id, orgName: name });
-        setInCookies("local_token", localToken.token);
+      const doSwitch = async () => {
+        try {
+          const response = await switchOrg(id);
+          const localToken = await switchUser({ orgId: id, orgName: name });
+          setInCookies("local_token", localToken.token);
 
-        router.push(`/org/${id}/agents`);
-        dispatch(setCurrentOrgIdAction(id));
-        if (isMobile) setIsMobileVisible(false);
-        setIsOrgDropdownExpanded(false);
-        setIsOrgDropdownOpen(false);
+          router.push(`/org/${id}/agents`);
+          dispatch(setCurrentOrgIdAction(id));
+          if (isMobile) setIsMobileVisible(false);
+          setIsOrgDropdownExpanded(false);
+          setIsOrgDropdownOpen(false);
 
-        if (response.status === 200) {
-          console.log("Organization switched successfully", response.data);
-        } else {
-          console.error("Failed to switch organization", response.data);
+          if (response.status === 200) {
+            console.log("Organization switched successfully", response.data);
+          } else {
+            console.error("Failed to switch organization", response.data);
+          }
+        } catch (error) {
+          console.error("Error switching organization", error);
         }
-      } catch (error) {
-        console.error("Error switching organization", error);
+      };
+
+      if (unsavedPromptGuard.hasUnsavedChanges) {
+        pendingNavRef.current = doSwitch;
+        openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+        return;
       }
+
+      doSwitch();
     },
     [dispatch, router, isMobile]
   );
@@ -528,9 +548,9 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-user-details-button"
             onClick={() => {
-              if (targetOrgId) router.push(`/org/${targetOrgId}/userDetails`);
               setIsOrgDropdownOpen(false);
               setIsOrgDropdownExpanded(false);
+              if (targetOrgId) guardedNavigate(`/org/${targetOrgId}/userDetails`);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
           >
@@ -542,9 +562,9 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-org-details-button"
             onClick={() => {
-              if (targetOrgId) router.push(`/org/${targetOrgId}/orgDetails`);
               setIsOrgDropdownOpen(false);
               setIsOrgDropdownExpanded(false);
+              if (targetOrgId) guardedNavigate(`/org/${targetOrgId}/orgDetails`);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
           >
@@ -556,8 +576,8 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-refer-earn-button"
             onClick={() => {
-              if (targetOrgId) router.push(`/org/${targetOrgId}/referAndEarn`);
               setIsOrgDropdownOpen(false);
+              if (targetOrgId) guardedNavigate(`/org/${targetOrgId}/referAndEarn`);
               setIsOrgDropdownExpanded(false);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
@@ -570,9 +590,14 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-logout-button"
             onClick={() => {
-              handleLogout();
               setIsOrgDropdownOpen(false);
               setIsOrgDropdownExpanded(false);
+              if (unsavedPromptGuard.hasUnsavedChanges) {
+                pendingNavRef.current = handleLogout;
+                openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+                return;
+              }
+              handleLogout();
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-error/10 transition-colors text-left text-error"
           >
@@ -1104,13 +1129,17 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           title="Unsaved Prompt Changes"
           message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
           confirmText="Leave without saving"
-          cancelText="Stay & Save"
+          cancelText="Stay"
           confirmButtonClass="btn-error"
           onConfirm={() => {
             closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
-            const url = pendingNavRef.current;
+            const pending = pendingNavRef.current;
             pendingNavRef.current = null;
-            if (url) router.push(url);
+            if (typeof pending === "function") {
+              pending();
+            } else if (pending) {
+              router.push(pending);
+            }
           }}
           onCancel={() => {
             closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);

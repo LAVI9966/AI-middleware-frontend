@@ -44,7 +44,7 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
     // Only guard when leaving the prompt tab
     if (activeTab === "prompt" && tabId !== "prompt" && unsavedPromptGuard.hasUnsavedChanges) {
       pendingTabRef.current = tabId;
-      openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+      openModal(MODAL_TYPE.UNSAVED_CHANGES_TAB_MODAL);
       return;
     }
     doTabChange(tabId);
@@ -128,24 +128,24 @@ const TabsLayout = ({ tabs, activeTab, onTabChange, hideTabs = false }) => {
 
       {/* Unsaved prompt changes guard modal */}
       <ConfirmationModal
-        modalType={MODAL_TYPE.UNSAVED_CHANGES_MODAL}
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_TAB_MODAL}
         title="Unsaved Prompt Changes"
         message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
         confirmText="Leave without saving"
-        cancelText="Stay & Save"
+        cancelText="Stay"
         confirmButtonClass="btn-error"
         onConfirm={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_TAB_MODAL);
           const tab = pendingTabRef.current;
           pendingTabRef.current = null;
           if (tab) doTabChange(tab);
         }}
         onCancel={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_TAB_MODAL);
           pendingTabRef.current = null;
         }}
         onClose={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_TAB_MODAL);
           pendingTabRef.current = null;
         }}
       />
