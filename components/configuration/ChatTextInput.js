@@ -335,8 +335,6 @@ function ChatTextInput({
               testcase_data,
               configuration: {
                 type: modelType,
-                model: modelName,
-                prompt: activePrompt,
               },
               thread_id: threadId,
               user: data.content,
@@ -381,8 +379,6 @@ function ChatTextInput({
               testcase_data,
               configuration: {
                 type: modelType,
-                model: modelName,
-                prompt: activePrompt,
               },
               thread_id: threadId,
               text: newMessage,
@@ -421,7 +417,6 @@ function ChatTextInput({
               testcase_data,
               configuration: {
                 ...localDataToSend.configuration,
-                prompt: activePrompt,
               },
               input: bridge?.inputConfig?.input?.input,
               is_playground: true,
