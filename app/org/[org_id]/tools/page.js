@@ -421,7 +421,7 @@ const ToolsPage = ({ params }) => {
 
             {isOpen && (
               <div
-                className="absolute left-0 top-full mt-1 z-50 bg-base-100 border border-base-300 shadow-lg rounded min-w-[240px]"
+                className="absolute left-0 top-full mt-1 z-50 bg-base-100 border border-base-content/60 shadow-lg rounded min-w-[240px]"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
