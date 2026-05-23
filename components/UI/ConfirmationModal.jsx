@@ -37,7 +37,8 @@ const ConfirmationModal = ({
   const handleClose = onClose || onCancel;
 
   return (
-    <Modal MODAL_ID={modalType}>
+    <Modal MODAL_ID={modalType} onClose={handleClose}>
+      <div className="modal-backdrop" onClick={handleClose} />
       <div
         data-testid="confirmation-modal-container"
         id="confirmation-modal-container"

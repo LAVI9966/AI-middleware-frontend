@@ -11,7 +11,7 @@ import {
   getBridgeVersionAction,
 } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
-import { openModal, sendDataToParent, closeSidebar } from "@/utils/utility";
+import { openModal, closeModal, sendDataToParent, closeSidebar } from "@/utils/utility";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useCallback, useState, useMemo } from "react";
 
@@ -24,6 +24,8 @@ import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { TrashIcon } from "@/components/Icons";
 import DeleteModal from "@/components/UI/DeleteModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
 
 function BridgeVersionDropdown({
   params,
@@ -38,6 +40,7 @@ function BridgeVersionDropdown({
 
   const versionDescriptionRef = useRef("");
   const hasInitialized = useRef(false);
+  const pendingVersionRef = useRef(null);
   const [showVersionDropdown, setShowVersionDropdown] = useState(false);
   const [maxVisibleVersions, setMaxVisibleVersions] = useState(maxVersions);
   const [selectedDataToDelete, setselectedDataToDelete] = useState();
@@ -211,21 +214,32 @@ function BridgeVersionDropdown({
   const handleVersionChange = useCallback(
     (version) => {
       if (currentVersion === version) return;
-      closeSidebar("default-config-history-slider", "right");
-      router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${version}`);
-      fetchVersionData(version);
 
-      const versionData = bridgeVersionMapping?.[version];
-      if (isEmbedUser) {
-        sendDataToParent(
-          "version_changed",
-          {
-            version_id: version,
-            variables: versionData?.variables || [],
-          },
-          "Version changed successfully"
-        );
+      const doChange = () => {
+        closeSidebar("default-config-history-slider", "right");
+        router.push(`/org/${params.org_id}/agents/configure/${params.id}?version=${version}`);
+        fetchVersionData(version);
+
+        const versionData = bridgeVersionMapping?.[version];
+        if (isEmbedUser) {
+          sendDataToParent(
+            "version_changed",
+            {
+              version_id: version,
+              variables: versionData?.variables || [],
+            },
+            "Version changed successfully"
+          );
+        }
+      };
+
+      if (unsavedPromptGuard.hasUnsavedChanges) {
+        pendingVersionRef.current = doChange;
+        openModal(MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL);
+        return;
       }
+
+      doChange();
     },
     [currentVersion, params.org_id, params.id, router, fetchVersionData, bridgeVersionMapping, isEmbedUser]
   );
@@ -638,7 +652,14 @@ function BridgeVersionDropdown({
           <button
             data-testid="create-new-version-button"
             id="create-new-version-button"
-            onClick={() => openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL)}
+            onClick={() => {
+              if (unsavedPromptGuard.hasUnsavedChanges) {
+                pendingVersionRef.current = () => openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL);
+                openModal(MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL);
+                return;
+              }
+              openModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL);
+            }}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-base-100 text-base-content  hover:bg-base-200 rounded-md transition-all duration-200"
             title="Create New Version"
           >
@@ -668,6 +689,28 @@ function BridgeVersionDropdown({
         title="Delete Version"
         loading={isDeleting}
         isAsync={true}
+      />
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. If you switch versions now, your changes will be lost."
+        confirmText="Switch without saving"
+        cancelText="Stay"
+        confirmButtonClass="btn-error"
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL);
+          const pending = pendingVersionRef.current;
+          pendingVersionRef.current = null;
+          if (pending) pending();
+        }}
+        onCancel={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL);
+          pendingVersionRef.current = null;
+        }}
+        onClose={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL);
+          pendingVersionRef.current = null;
+        }}
       />
     </div>
   );

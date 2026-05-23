@@ -1,7 +1,15 @@
 import { logoutUserFromMsg91, switchOrg, switchUser } from "@/config/index";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { setCurrentOrgIdAction } from "@/store/action/orgAction";
-import { clearCookie, filterOrganizations, getFromCookies, openModal, toggleSidebar } from "@/utils/utility";
+import {
+  clearCookie,
+  filterOrganizations,
+  getFromCookies,
+  openModal,
+  closeModal,
+  setInCookies,
+  toggleSidebar,
+} from "@/utils/utility";
 import {
   KeyRoundIcon,
   LogoutIcon,
@@ -13,10 +21,12 @@ import {
   ChevronDownIcon,
 } from "@/components/Icons";
 import { usePathname, useRouter } from "next/navigation";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import CreateOrg from "../CreateNewOrg";
 import { MODAL_TYPE } from "@/utils/enums";
 import { useDispatch } from "react-redux";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
 
 function OrgSlider() {
   const router = useRouter();
@@ -24,6 +34,7 @@ function OrgSlider() {
   const path = pathName.split("?")[0].split("/");
   const [searchQuery, setSearchQuery] = useState("");
   const dispatch = useDispatch();
+  const pendingOrgRef = useRef(null);
   const organizations = useCustomSelector((state) => state.userDetailsReducer.organizations);
   const userdetails = useCustomSelector((state) => state?.userDetailsReducer?.userDetails);
 
@@ -45,21 +56,31 @@ function OrgSlider() {
   };
 
   const handleSwitchOrg = async (id, name) => {
-    try {
-      const response = await switchOrg(id);
-      const localToken = await switchUser({
-        orgId: id,
-        orgName: name,
-      });
-      setInCookies("local_token", localToken.token);
-      router.push(`/org/${id}/agents`);
-      dispatch(setCurrentOrgIdAction(id));
-      if (response.status !== 200) {
-        console.error("Failed to switch organization", response.data);
+    const doSwitch = async () => {
+      try {
+        const response = await switchOrg(id);
+        const localToken = await switchUser({
+          orgId: id,
+          orgName: name,
+        });
+        setInCookies("local_token", localToken.token);
+        router.push(`/org/${id}/agents`);
+        dispatch(setCurrentOrgIdAction(id));
+        if (response.status !== 200) {
+          console.error("Failed to switch organization", response.data);
+        }
+      } catch (error) {
+        console.error("Error switching organization", error);
       }
-    } catch (error) {
-      console.error("Error switching organization", error);
+    };
+
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      pendingOrgRef.current = doSwitch;
+      openModal(MODAL_TYPE.UNSAVED_CHANGES_ORG_SLIDER_MODAL);
+      return;
     }
+
+    doSwitch();
   };
 
   const handleCloseOrgSlider = useCallback(() => {
@@ -182,6 +203,28 @@ function OrgSlider() {
         </details>
       </div>
       <CreateOrg handleSwitchOrg={handleSwitchOrg} />
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_ORG_SLIDER_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. If you switch organization now, your changes will be lost."
+        confirmText="Leave without saving"
+        cancelText="Stay"
+        confirmButtonClass="btn-error"
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_ORG_SLIDER_MODAL);
+          const pending = pendingOrgRef.current;
+          pendingOrgRef.current = null;
+          if (pending) pending();
+        }}
+        onCancel={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_ORG_SLIDER_MODAL);
+          pendingOrgRef.current = null;
+        }}
+        onClose={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_ORG_SLIDER_MODAL);
+          pendingOrgRef.current = null;
+        }}
+      />
     </aside>
   );
 }

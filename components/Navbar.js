@@ -89,6 +89,7 @@ const Navbar = ({ isEmbedUser, params }) => {
     bridgeSummary,
     publicAgentConfig,
     bridgeVersionsArray,
+    statelessConversation,
   } = useCustomSelector((state) => {
     const orgRole = state?.userDetailsReducer?.organizations?.[orgId]?.role_name;
     const isAdminOrOwner = orgRole === "Admin" || orgRole === "Owner";
@@ -126,6 +127,7 @@ const Navbar = ({ isEmbedUser, params }) => {
       bridgeSummary: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.bridge_summary || "",
       publicAgentConfig: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.settings?.publicAgentConfig,
       bridgeVersionsArray: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.versions || [],
+      statelessConversation: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.settings?.stateless_conversation ?? false,
     };
   });
   // Define tabs based on user type
@@ -325,7 +327,7 @@ const Navbar = ({ isEmbedUser, params }) => {
 
       if (unsavedPromptGuard.hasUnsavedChanges) {
         pendingNavRef.current = navigate;
-        openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+        openModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
         return;
       }
 
@@ -340,26 +342,43 @@ const Navbar = ({ isEmbedUser, params }) => {
       return;
     }
 
-    const currentUrl = new URL(window.location);
-    // Don't push versionId when isPublished=true, just set isPublished flag
-    currentUrl.searchParams.delete("version"); // Remove version parameter
-    currentUrl.searchParams.set("isPublished", "true");
+    const navigate = () => {
+      const currentUrl = new URL(window.location);
+      // Don't push versionId when isPublished=true, just set isPublished flag
+      currentUrl.searchParams.delete("version"); // Remove version parameter
+      currentUrl.searchParams.set("isPublished", "true");
 
-    // Ensure the type parameter is set based on the bridge type from Redux
-    let typeValue;
-    if (bridgeType && bridgeType.toLowerCase() === "chatbot") {
-      typeValue = "chatbot";
-    } else {
-      // For 'api', 'batch', or any other type, default to 'api'
-      typeValue = "api";
+      // Ensure the type parameter is set based on the bridge type from Redux
+      let typeValue;
+      if (bridgeType && bridgeType.toLowerCase() === "chatbot") {
+        typeValue = "chatbot";
+      } else {
+        // For 'api', 'batch', or any other type, default to 'api'
+        typeValue = "api";
+      }
+      currentUrl.searchParams.set("type", typeValue);
+
+      router.push(currentUrl.pathname + currentUrl.search);
+    };
+
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      pendingNavRef.current = navigate;
+      openModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
+      return;
     }
-    currentUrl.searchParams.set("type", typeValue);
 
-    router.push(currentUrl.pathname + currentUrl.search);
+    navigate();
   }, [router, publishedVersion, bridgeType]);
 
   const toggleConfigHistorySidebar = useCallback(() => toggleSidebar("default-config-history-slider", "right"), []);
-  const handleHomeClick = useCallback(() => router.push(`/org/${orgId}/agents`), [router, orgId]);
+  const handleHomeClick = useCallback(() => {
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      pendingNavRef.current = () => router.push(`/org/${orgId}/agents`);
+      openModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
+      return;
+    }
+    router.push(`/org/${orgId}/agents`);
+  }, [router, orgId]);
 
   // Keyboard shortcuts for navigation - only enabled on testcases, configuration, or history pages
   useEffect(() => {
@@ -427,6 +446,24 @@ const Navbar = ({ isEmbedUser, params }) => {
     });
   }, [executeDelete, dispatch, bridgeId, orgId, router]);
 
+  const handleStatelessToggle = useCallback(
+    async (nextValue) => {
+      try {
+        const res = await dispatch(
+          updateBridgeAction({
+            bridgeId,
+            dataToSend: { settings: { stateless_conversation: nextValue } },
+          })
+        );
+        return res;
+      } catch (err) {
+        console.error("Navbar.handleStatelessToggle failed", err);
+        throw err;
+      }
+    },
+    [dispatch, bridgeId]
+  );
+
   const EllipsisMenu = () => (
     <AgentActionMenu
       menuRef={ellipsisMenuRef}
@@ -438,6 +475,8 @@ const Navbar = ({ isEmbedUser, params }) => {
       isEmbedUser={isEmbedUser}
       isAdminOrOwner={isAdminOrOwner}
       orgId={orgId}
+      statelessConversation={statelessConversation}
+      onStatelessToggle={handleStatelessToggle}
       onSetSelectedAgent={setSelectedAgentForAccess}
       handlePortalOpen={handlePortalOpen}
       handlePortalCloseImmediate={handlePortalCloseImmediate}
@@ -961,25 +1000,25 @@ const Navbar = ({ isEmbedUser, params }) => {
 
       {/* Unsaved prompt changes guard modal */}
       <ConfirmationModal
-        modalType={MODAL_TYPE.UNSAVED_CHANGES_MODAL}
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL}
         title="Unsaved Prompt Changes"
         message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
         confirmText="Leave without saving"
-        cancelText="Stay & Save"
+        cancelText="Stay"
         confirmButtonClass="btn-error"
         onConfirm={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
           if (pendingNavRef.current) {
             pendingNavRef.current();
             pendingNavRef.current = null;
           }
         }}
         onCancel={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
           pendingNavRef.current = null;
         }}
         onClose={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
           pendingNavRef.current = null;
         }}
       />
