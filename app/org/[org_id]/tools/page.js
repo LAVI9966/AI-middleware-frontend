@@ -454,13 +454,15 @@ const ToolsPage = ({ params }) => {
         </MainLayout>
       </div>
 
-      <div className="px-4 pb-3 flex flex-row gap-4 items-center">
-        {allTools?.length > 5 && <SearchItems data={allTools} setFilterItems={setFilteredTools} item="Tool" />}
-        <button type="button" onClick={handleAddNewTool} className="btn btn-primary btn-sm">
-          <Plus size={16} strokeWidth={2.5} />
-          Create New Tool
-        </button>
-      </div>
+      {allTools.length > 0 && (
+        <div className="px-4 pb-3 flex flex-row gap-4 items-center">
+          {allTools?.length > 5 && <SearchItems data={allTools} setFilterItems={setFilteredTools} item="Tool" />}
+          <button type="button" onClick={handleAddNewTool} className="btn btn-primary btn-sm">
+            <Plus size={16} strokeWidth={2.5} />
+            Create New Tool
+          </button>
+        </div>
+      )}
 
       <div className="px-4 pb-8 flex-1 overflow-y-auto">
         {allTools.length === 0 ? (
