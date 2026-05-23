@@ -22,7 +22,7 @@ const InputSection = memo(() => {
   } = useConfigurationContext();
   return (
     <>
-      {((showPreTool && isEmbedUser) || !isEmbedUser) && (
+      {!uiState?.isPromptHelperOpen && ((showPreTool && isEmbedUser) || !isEmbedUser) && (
         <div
           data-testid="input-section-pre-embed-wrapper"
           id="input-section-pre-embed-wrapper"

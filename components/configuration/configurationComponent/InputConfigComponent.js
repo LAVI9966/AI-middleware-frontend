@@ -562,7 +562,7 @@ const InputConfigComponent = memo(
                         }
                       />
                     )}
-                    {!field.deprecated && (
+                    {!field.deprecated && !uiState.isPromptHelperOpen && (
                       <FullscreenEditorButton
                         tooltip={`Open ${field.name} in fullscreen`}
                         className="absolute top-1 right-1 opacity-50 hover:opacity-100 z-10"
@@ -632,19 +632,21 @@ const InputConfigComponent = memo(
                         placeholder={fieldConfig.placeholder || `Enter ${key}...`}
                       />
                     )}
-                    <FullscreenEditorButton
-                      tooltip={`Open ${fieldConfig.label || key} in fullscreen`}
-                      className="absolute top-1 right-1 opacity-50 hover:opacity-100"
-                      onClick={() => {
-                        setFullscreenEditor({
-                          isOpen: true,
-                          title: `Prompt — ${fieldConfig.label || key}`,
-                          value: (structuredFields || {})[key] || "",
-                          fieldKey: key,
-                          fieldType: "structured",
-                        });
-                      }}
-                    />
+                    {!uiState.isPromptHelperOpen && (
+                      <FullscreenEditorButton
+                        tooltip={`Open ${fieldConfig.label || key} in fullscreen`}
+                        className="absolute top-1 right-1 opacity-50 hover:opacity-100"
+                        onClick={() => {
+                          setFullscreenEditor({
+                            isOpen: true,
+                            title: `Prompt — ${fieldConfig.label || key}`,
+                            value: (structuredFields || {})[key] || "",
+                            fieldKey: key,
+                            fieldType: "structured",
+                          });
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
