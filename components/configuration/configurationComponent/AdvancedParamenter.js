@@ -2,7 +2,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
-import { generateRandomID, getToolName, openModal, trimPropertyNames } from "@/utils/utility";
+import { generateRandomID, getToolName, openModal, closeModal, trimPropertyNames } from "@/utils/utility";
 import { buildJsonSchemaResponseType, generateCombinedSchema, isEmptyJsonSchema } from "@/utils/defaultJsonSchemas";
 import { ChevronDownIcon, ChevronUpIcon, SettingsIcon } from "@/components/Icons";
 import JsonSchemaModal from "@/components/modals/JsonSchemaModal";
@@ -21,6 +21,8 @@ import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/moda
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { useThemeManager } from "@/customHooks/useThemeManager";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 
 const AdvancedParameters = ({
   params,
@@ -52,6 +54,19 @@ const AdvancedParameters = ({
   const dispatch = useDispatch();
   const router = useRouter();
   const { actualTheme } = useThemeManager();
+
+  // Pending action ref for unsaved-prompt guard on response_type changes
+  const pendingResponseTypeActionRef = useRef(null);
+
+  /** Run `action` immediately, or show the unsaved-prompt guard modal first. */
+  const guardedResponseTypeAction = (action) => {
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      pendingResponseTypeActionRef.current = action;
+      openModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+    } else {
+      action();
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -592,7 +607,13 @@ const AdvancedParameters = ({
               id={`advanced-param-set-default-btn-${key}`}
               type="button"
               className="btn btn-xs btn-ghost text-primary hover:bg-primary/10"
-              onClick={() => setSliderValue("default", key, isDeafaultObject)}
+              onClick={() => {
+                if (key === "response_type") {
+                  guardedResponseTypeAction(() => setSliderValue("default", key, isDeafaultObject));
+                } else {
+                  setSliderValue("default", key, isDeafaultObject);
+                }
+              }}
               title="Reset to default value"
             >
               Set Default
@@ -688,53 +709,56 @@ const AdvancedParameters = ({
                   onChange={(e) => {
                     const selectedValue = e.target.value;
                     if (key === "response_type") {
-                      if (selectedValue === "widget") {
-                        // Use generateCombinedSchema with empty array to get normal schema without anyOf
-                        const defaultSchema = generateCombinedSchema([], richUiWidgets);
-                        const updatedDataToSend = {
-                          configuration: {
-                            response_type: {
-                              type: "json_schema",
-                              json_schema: defaultSchema, // Use normal schema without anyOf when no widgets selected
-                              is_template: true,
-                              template_id: [], // Clear existing template IDs
-                            },
-                          },
-                        };
-                        dispatch(
-                          updateBridgeVersionAction({
-                            bridgeId: params?.id,
-                            versionId: searchParams?.version,
-                            dataToSend: { ...updatedDataToSend, service, model },
-                          })
-                        );
-                        return;
-                      } else if (selectedValue === "json_schema") {
-                        setObjectFieldValue(null);
-                        dispatchResponseTypeUpdate(buildJsonSchemaResponseType({ is_template: false }), {
-                          localOnly: true,
-                        });
-                        return;
-                      } else if (selectedValue === "default") {
-                        // Handle default case
-                        setSliderValue("default", key, isDeafaultObject);
-                        return;
-                      } else {
-                        dispatch(
-                          updateBridgeVersionAction({
-                            bridgeId: params?.id,
-                            versionId: searchParams?.version,
-                            dataToSend: {
-                              configuration: {
-                                [key]: { type: selectedValue },
+                      guardedResponseTypeAction(() => {
+                        if (selectedValue === "widget") {
+                          // Use generateCombinedSchema with empty array to get normal schema without anyOf
+                          const defaultSchema = generateCombinedSchema([], richUiWidgets);
+                          const updatedDataToSend = {
+                            configuration: {
+                              response_type: {
+                                type: "json_schema",
+                                json_schema: defaultSchema, // Use normal schema without anyOf when no widgets selected
+                                is_template: true,
+                                template_id: [], // Clear existing template IDs
                               },
-                              service,
-                              model,
                             },
-                          })
-                        );
-                        return;
-                      }
+                          };
+                          dispatch(
+                            updateBridgeVersionAction({
+                              bridgeId: params?.id,
+                              versionId: searchParams?.version,
+                              dataToSend: { ...updatedDataToSend, service, model },
+                            })
+                          );
+                          return;
+                        } else if (selectedValue === "json_schema") {
+                          setObjectFieldValue(null);
+                          dispatchResponseTypeUpdate(buildJsonSchemaResponseType({ is_template: false }), {
+                            localOnly: true,
+                          });
+                          return;
+                        } else if (selectedValue === "default") {
+                          // Handle default case
+                          setSliderValue("default", key, isDeafaultObject);
+                          return;
+                        } else {
+                          dispatch(
+                            updateBridgeVersionAction({
+                              bridgeId: params?.id,
+                              versionId: searchParams?.version,
+                              dataToSend: {
+                                configuration: {
+                                  [key]: { type: selectedValue },
+                                },
+                                service,
+                                model,
+                              },
+                            })
+                          );
+                          return;
+                        }
+                      }); // end guardedResponseTypeAction
+                      return;
                     }
                     // Fallback for other keys or normal types
                     handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject);
@@ -1301,28 +1325,56 @@ const AdvancedParameters = ({
 
   const shouldShowLevel1 = level1Parameters.length > 0 && (!isEmbedUser || (isEmbedUser && showAdvancedParameters));
 
+  const unsavedPromptActionModal = (
+    <ConfirmationModal
+      modalType={MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL}
+      title="Unsaved Prompt Changes"
+      message="You have unsaved changes to your prompt. Save your prompt first, or discard changes and continue."
+      confirmText="Discard & Continue"
+      cancelText="Go Back"
+      confirmButtonClass="btn-error text-white"
+      onConfirm={() => {
+        closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+        const action = pendingResponseTypeActionRef.current;
+        pendingResponseTypeActionRef.current = null;
+        if (action) action();
+      }}
+      onCancel={() => {
+        closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+        pendingResponseTypeActionRef.current = null;
+      }}
+      onClose={() => {
+        closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+        pendingResponseTypeActionRef.current = null;
+      }}
+    />
+  );
+
   if (level === 2) {
     if (level2Parameters.length === 0) {
       return null;
     }
 
     return (
-      <div
-        id="advanced-param-level2-container"
-        className={`z-very-low mt-2 text-base-content w-full ${className}`}
-        tabIndex={0}
-      >
-        {/* Level 2 Parameters - Displayed Outside Accordion */}
-        {level2Parameters.length > 0 && (
-          <div className="w-full gap-4 flex flex-col px-2 py-2 cursor-default items-start">
-            {level2Parameters.map(([key, paramConfig]) => (
-              <div key={key} className="compact-parameter w-full">
-                {renderParameterField(key, paramConfig)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <>
+        <div
+          id="advanced-param-level2-container"
+          className={`z-very-low mt-2 text-base-content w-full ${className}`}
+          tabIndex={0}
+        >
+          {/* Level 2 Parameters - Displayed Outside Accordion */}
+          {level2Parameters.length > 0 && (
+            <div className="w-full gap-4 flex flex-col px-2 py-2 cursor-default items-start">
+              {level2Parameters.map(([key, paramConfig]) => (
+                <div key={key} className="compact-parameter w-full">
+                  {renderParameterField(key, paramConfig)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {unsavedPromptActionModal}
+      </>
     );
   }
 
@@ -1333,34 +1385,37 @@ const AdvancedParameters = ({
 
     // Level 1 parameters now render without accordion
     return (
-      <div
-        id="advanced-param-level1-container"
-        className={`z-very-low mt-4 text-base-content w-full ${className}`}
-        tabIndex={0}
-      >
-        {tutorialState.showSuggestion && (
-          <TutorialSuggestionToast
-            id="advanced-param-tutorial-suggestion"
-            setTutorialState={setTutorialState}
-            flagKey={"AdvanceParameter"}
-            TutorialDetails={"Advanced Parameters"}
-          />
-        )}
-        {tutorialState.showTutorial && (
-          <OnBoarding
-            setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
-            video={getAdvanceParameterVideo()}
-            flagKey={"AdvanceParameter"}
-          />
-        )}
-        <div className={`w-full flex flex-col ${compact ? "gap-3" : "gap-4"} items-start`}>
-          {level1Parameters.map(([key, paramConfig]) => (
-            <div key={key} className="w-full">
-              {renderParameterField(key, paramConfig)}
-            </div>
-          ))}
+      <>
+        <div
+          id="advanced-param-level1-container"
+          className={`z-very-low mt-4 text-base-content w-full ${className}`}
+          tabIndex={0}
+        >
+          {tutorialState.showSuggestion && (
+            <TutorialSuggestionToast
+              id="advanced-param-tutorial-suggestion"
+              setTutorialState={setTutorialState}
+              flagKey={"AdvanceParameter"}
+              TutorialDetails={"Advanced Parameters"}
+            />
+          )}
+          {tutorialState.showTutorial && (
+            <OnBoarding
+              setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
+              video={getAdvanceParameterVideo()}
+              flagKey={"AdvanceParameter"}
+            />
+          )}
+          <div className={`w-full flex flex-col ${compact ? "gap-3" : "gap-4"} items-start`}>
+            {level1Parameters.map(([key, paramConfig]) => (
+              <div key={key} className="w-full">
+                {renderParameterField(key, paramConfig)}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+        {unsavedPromptActionModal}
+      </>
     );
   }
 
