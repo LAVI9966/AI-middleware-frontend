@@ -70,7 +70,7 @@ const IntegrationDetailView = ({ data, onClose }) => {
   const handleBackFromConfig = () => {
     if (hasUnsavedChanges) {
       pendingBackAction.current = doBackFromConfig;
-      openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+      openModal(MODAL_TYPE.UNSAVED_CHANGES_INTEGRATION_MODAL);
     } else {
       doBackFromConfig();
     }
@@ -223,25 +223,25 @@ const IntegrationDetailView = ({ data, onClose }) => {
         </div>
       </div>
       <ConfirmationModal
-        modalType={MODAL_TYPE.UNSAVED_CHANGES_MODAL}
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_INTEGRATION_MODAL}
         title="Unsaved Changes"
         message="You have unsaved changes. What would you like to do?"
         cancelText="Discard Changes"
         confirmText="Save"
-        confirmButtonClass="btn-outline"
-        cancelButtonClass="btn-error"
+        confirmButtonClass="btn-primary"
+        cancelButtonClass="btn-error text-white"
         onClose={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_INTEGRATION_MODAL);
           pendingBackAction.current = null;
         }}
         onCancel={() => {
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_INTEGRATION_MODAL);
           pendingBackAction.current?.();
           pendingBackAction.current = null;
         }}
         onConfirm={async () => {
           await configSaveRef.current?.();
-          closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_INTEGRATION_MODAL);
           pendingBackAction.current?.();
           pendingBackAction.current = null;
         }}

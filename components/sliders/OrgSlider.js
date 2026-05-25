@@ -209,7 +209,7 @@ function OrgSlider() {
         message="You have unsaved changes to your prompt. If you switch organization now, your changes will be lost."
         confirmText="Leave without saving"
         cancelText="Stay"
-        confirmButtonClass="btn-error"
+        confirmButtonClass="btn-error text-white"
         onConfirm={() => {
           closeModal(MODAL_TYPE.UNSAVED_CHANGES_ORG_SLIDER_MODAL);
           const pending = pendingOrgRef.current;

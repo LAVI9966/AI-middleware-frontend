@@ -121,7 +121,7 @@ const ConnectedAgentList = ({ params, searchParams, isPublished, isEditor = true
       const agentData = {
         name: item?.bridge_id,
         description: description,
-        fields: fields,
+        fields: fields || {},
         required: required,
         thread_id: item?.thread_id ?? false,
         version_id: item?.version_id ?? "",
