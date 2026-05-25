@@ -12,6 +12,7 @@ import {
   discardBridgeVersionApi,
   fetchBridgeUsageMetricsApi,
   genrateSummary,
+  getAgentsVersionsByFunctions,
   getAllBridges,
   getAllFunctionsApi,
   getAllResponseTypesApi,
@@ -922,7 +923,6 @@ export const publishBulkVersionAction = (version_ids) => async (dispatch) => {
 
 export const getAgentsVersionsDataAction = (orgId) => async (dispatch) => {
   try {
-    const { getAgentsVersionsByFunctions } = await import("@/config/bridgeApi");
     const data = await getAgentsVersionsByFunctions(orgId);
     dispatch(fetchAgentsVersionsDataReducer({ data }));
     return data;
