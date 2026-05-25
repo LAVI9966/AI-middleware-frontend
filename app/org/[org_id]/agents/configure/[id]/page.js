@@ -675,7 +675,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
         message="You have unsaved changes to your prompt. If you refresh, your changes will be lost."
         confirmText="Refresh anyway"
         cancelText="Stay & Save"
-        confirmButtonClass="btn-error"
+        confirmButtonClass="btn-error text-white"
         onConfirm={() => {
           closeModal(MODAL_TYPE.UNSAVED_REFRESH_MODAL);
           unsavedPromptGuard.hasUnsavedChanges = false;

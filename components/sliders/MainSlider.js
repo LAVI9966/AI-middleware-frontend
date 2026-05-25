@@ -1130,7 +1130,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
           confirmText="Leave without saving"
           cancelText="Stay"
-          confirmButtonClass="btn-error"
+          confirmButtonClass="btn-error text-white"
           onConfirm={() => {
             closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
             const pending = pendingNavRef.current;

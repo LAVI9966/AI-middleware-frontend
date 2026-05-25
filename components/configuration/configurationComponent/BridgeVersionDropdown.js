@@ -696,7 +696,7 @@ function BridgeVersionDropdown({
         message="You have unsaved changes to your prompt. If you switch versions now, your changes will be lost."
         confirmText="Switch without saving"
         cancelText="Stay"
-        confirmButtonClass="btn-error"
+        confirmButtonClass="btn-error text-white"
         onConfirm={() => {
           closeModal(MODAL_TYPE.UNSAVED_CHANGES_VERSION_MODAL);
           const pending = pendingVersionRef.current;

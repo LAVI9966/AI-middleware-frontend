@@ -32,9 +32,9 @@ export const AgentMenuItems = ({
   onStatelessToggle,
   isStatelessReadOnly,
   bridgeType,
+  hideStateless,
 }) => {
   const dispatch = useDispatch();
-
   const getUsageStatsForRow = (row) => {
     const limitValue = Number(row?.agent_limit_original ?? row?.bridge_limit ?? 0);
     const usageValue = Number(row?.agent_usage ?? row?.bridge_usage ?? 0);
@@ -144,7 +144,7 @@ export const AgentMenuItems = ({
 
   return (
     <>
-      {bridgeType !== "chatbot" && (
+      {bridgeType !== "chatbot" && !isEmbedUser && !hideStateless && (
         <div
           data-testid="agent-action-stateless-conversation"
           title="When enabled, the agent responds without carrying previous conversation context forward."

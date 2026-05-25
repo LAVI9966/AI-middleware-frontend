@@ -291,6 +291,10 @@ const Navbar = ({ isEmbedUser, params }) => {
       return;
     }
     try {
+      if (unsavedPromptGuard.hasUnsavedChanges) {
+        openModal(MODAL_TYPE.UNSAVED_CHANGES_PUBLISH_MODAL);
+        return;
+      }
       openModal(MODAL_TYPE?.PUBLISH_BRIDGE_VERSION);
     } catch (err) {
       console.error(err);
@@ -455,9 +459,11 @@ const Navbar = ({ isEmbedUser, params }) => {
             dataToSend: { settings: { stateless_conversation: nextValue } },
           })
         );
+        toast.success(`Stateless conversation ${nextValue ? "enabled" : "disabled"}`);
         return res;
       } catch (err) {
         console.error("Navbar.handleStatelessToggle failed", err);
+        toast.error("Failed to update stateless conversation");
         throw err;
       }
     },
@@ -480,6 +486,7 @@ const Navbar = ({ isEmbedUser, params }) => {
       onSetSelectedAgent={setSelectedAgentForAccess}
       handlePortalOpen={handlePortalOpen}
       handlePortalCloseImmediate={handlePortalCloseImmediate}
+      bridgeType={bridgeType}
     />
   );
   if (!shouldShowNavbar()) return null;
@@ -998,6 +1005,26 @@ const Navbar = ({ isEmbedUser, params }) => {
       <PortalStyles />
       <PortalDropdown />
 
+      {/* Publish guard — blocks publish when prompt has unsaved changes */}
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_CHANGES_PUBLISH_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. Please save your prompt before publishing."
+        confirmText="Got it"
+        cancelText="Cancel"
+        confirmButtonClass="btn-primary"
+        cancelButtonClass=""
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_PUBLISH_MODAL);
+        }}
+        onCancel={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_PUBLISH_MODAL);
+        }}
+        onClose={() => {
+          closeModal(MODAL_TYPE.UNSAVED_CHANGES_PUBLISH_MODAL);
+        }}
+      />
+
       {/* Unsaved prompt changes guard modal */}
       <ConfirmationModal
         modalType={MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL}
@@ -1005,7 +1032,7 @@ const Navbar = ({ isEmbedUser, params }) => {
         message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
         confirmText="Leave without saving"
         cancelText="Stay"
-        confirmButtonClass="btn-error"
+        confirmButtonClass="btn-error text-white"
         onConfirm={() => {
           closeModal(MODAL_TYPE.UNSAVED_CHANGES_NAV_MODAL);
           if (pendingNavRef.current) {
