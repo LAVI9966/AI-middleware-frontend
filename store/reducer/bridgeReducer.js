@@ -19,6 +19,7 @@ const initialState = {
     filterActive: false,
     loading: false, // Track loading state for metrics API
   },
+  agentsVersionsData: {},
 };
 
 export const bridgeReducer = createSlice({
@@ -386,6 +387,11 @@ export const bridgeReducer = createSlice({
       state.loading = false;
       state.isFocus = false;
     },
+
+    fetchAgentsVersionsDataReducer: (state, action) => {
+      const { data } = action.payload;
+      state.agentsVersionsData = data || {};
+    },
   },
 });
 
@@ -423,6 +429,7 @@ export const {
   clearPreviousBridgeDataReducer,
   setBridgeUsageMetricsReducer,
   clearBridgeUsageMetricsReducer,
+  fetchAgentsVersionsDataReducer,
 } = bridgeReducer.actions;
 
 export default bridgeReducer.reducer;

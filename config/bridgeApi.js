@@ -267,3 +267,13 @@ export const convertAgentToTemplate = async (agentId, templateName) => {
     throw error;
   }
 };
+
+export const getAgentsVersionsByFunctions = async (orgId) => {
+  try {
+    const response = await axios.get(`${URL}/api/tools/agents-versions-by-functions`);
+    return response?.data?.data;
+  } catch (error) {
+    console.error("Error fetching agents-versions data:", error);
+    throw error;
+  }
+};

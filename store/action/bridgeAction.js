@@ -44,6 +44,7 @@ import {
   duplicateBridgeReducer,
   fetchAllBridgeReducer,
   fetchAllFunctionsReducer,
+  fetchAgentsVersionsDataReducer,
   fetchSingleBridgeReducer,
   fetchSingleBridgeVersionReducer,
   getPrebuiltToolsReducer,
@@ -915,6 +916,18 @@ export const publishBulkVersionAction = (version_ids) => async (dispatch) => {
     return response;
   } catch (error) {
     toast.error("Failed to publish bulk version");
+    throw error;
+  }
+};
+
+export const getAgentsVersionsDataAction = (orgId) => async (dispatch) => {
+  try {
+    const { getAgentsVersionsByFunctions } = await import("@/config/bridgeApi");
+    const data = await getAgentsVersionsByFunctions(orgId);
+    dispatch(fetchAgentsVersionsDataReducer({ data }));
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch agents-versions data:", error);
     throw error;
   }
 };
