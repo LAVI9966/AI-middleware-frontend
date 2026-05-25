@@ -1958,24 +1958,58 @@ const ThreadItem = ({
         )}
 
         {/* Error message display */}
-        {item?.error && (
-          <div className="chat chat-start break-all break-words">
-            <div>
-              <div className="flex flex-row-reverse items-end justify-end gap-1">
-                <div className="bg-error/10 text-error border border-error/20 pr-10 chat-bubble transition-all ease-in-out duration-300">
+        {item?.error &&
+          (isSingleQuery ? (
+            /* Single-query (stateless) — match the AI Response card style */
+            <div className="flex flex-col items-center py-2 w-full">
+              {/* Arrow connector — same as the non-error path */}
+              <div className="flex flex-row items-center justify-center my-2 w-full max-w-xl gap-3">
+                <ArrowDown size={20} className="text-base-content/50" />
+              </div>
+
+              {/* Error card — mirrors the AI Response card */}
+              <div className="w-full relative">
+                <span className="absolute -top-2 right-2 z-10 text-xs px-2 py-0.5 rounded-full border border-error/30 text-error/70 bg-base-100 whitespace-nowrap flex items-center gap-1">
+                  <CircleAlertIcon className="w-3 h-3" />
+                  Error
+                </span>
+                <div
+                  className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 text-sm text-error relative"
+                  style={{ wordBreak: "break-word" }}
+                >
                   <div className="flex items-center gap-2 mb-2">
-                    <CircleAlertIcon className="w-4 h-4" />
-                    <span className="font-bold">Error</span>
+                    <div className="w-6 h-6 rounded-full bg-error/20 flex items-center justify-center shrink-0">
+                      <BotIcon size={13} className="text-error" />
+                    </div>
+                    <span className="text-xs font-semibold text-error/70 uppercase tracking-wide">AI Response</span>
+                    <span className="badge badge-xs badge-error text-white gap-1">
+                      <CircleAlertIcon className="w-2.5 h-2.5" />
+                      Error
+                    </span>
                   </div>
-                  <p className="text-sm">{item?.error}</p>
-                </div>
-                <div className="p-2 rounded-full bg-error/20 flex justify-center items-center">
-                  <BotIcon className="text-base-content" size={18} />
+                  <p className="text-sm whitespace-pre-wrap">{item?.error}</p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            /* Multi-query (stateful) — keep the original chat-bubble style */
+            <div className="chat chat-start break-all break-words">
+              <div>
+                <div className="flex flex-row-reverse items-end justify-end gap-1">
+                  <div className="bg-error/10 text-error border border-error/20 pr-10 chat-bubble transition-all ease-in-out duration-300">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CircleAlertIcon className="w-4 h-4" />
+                      <span className="font-bold">Error</span>
+                    </div>
+                    <p className="text-sm">{item?.error}</p>
+                  </div>
+                  <div className="p-2 rounded-full bg-error/20 flex justify-center items-center">
+                    <BotIcon className="text-base-content" size={18} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
       </div>
 
       <ToolsDataModal
