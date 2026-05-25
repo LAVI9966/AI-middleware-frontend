@@ -8,7 +8,7 @@ import PageHeader from "@/components/Pageheader";
 import MainLayout from "@/components/layoutComponents/MainLayout";
 import SearchItems from "@/components/UI/SearchItems";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { updateFuntionApiAction } from "@/store/action/bridgeAction";
+import { updateFuntionApiAction, getAgentsVersionsDataAction } from "@/store/action/bridgeAction";
 import { isEqual } from "lodash";
 import FunctionParameterModal from "@/components/configuration/configurationComponent/FunctionParameterModal";
 import { MODAL_TYPE } from "@/utils/enums";
@@ -97,35 +97,45 @@ const ToolsPage = ({ params }) => {
   const searchParams = useSearchParams();
   const filterParam = searchParams?.get("filter");
 
-  const { functionData, integrationData, embedToken, descriptions, linksData, allBridges } = useCustomSelector(
-    (state) => ({
+  const { functionData, integrationData, embedToken, descriptions, linksData, allBridges, agentsVersionsData } =
+    useCustomSelector((state) => ({
       functionData: state?.bridgeReducer?.org?.[orgId]?.functionData || {},
       integrationData: state?.bridgeReducer?.org?.[orgId]?.integrationData || {},
       embedToken: state?.bridgeReducer?.org?.[orgId]?.embed_token,
       descriptions: state.flowDataReducer.flowData?.descriptionsData?.descriptions || {},
       linksData: state.flowDataReducer.flowData.linksData || [],
       allBridges: state?.bridgeReducer?.org?.[orgId]?.orgs || [],
-    })
+      agentsVersionsData: state?.bridgeReducer?.agentsVersionsData || {},
+    }));
+
+  const getAgentInfo = useCallback(
+    (agentId) => {
+      const bridge = (allBridges || []).find((b) => b?._id === agentId);
+      if (!bridge) return null;
+
+      return {
+        bridgeId: bridge._id,
+        bridgeName: bridge.name || "Untitled bridge",
+        published_version_id: bridge?.published_version_id,
+        deletedAt: bridge?.deletedAt,
+      };
+    },
+    [allBridges]
   );
 
-  const idLookup = useMemo(() => {
-    const map = {};
-    (allBridges || []).forEach((bridge) => {
-      if (!bridge?._id) return;
-      map[bridge._id] = { bridgeId: bridge._id, bridgeName: bridge.name || "Untitled bridge", versionLabel: null };
+  const getVersionLabel = useCallback(
+    (agentId, versionId) => {
+      const bridge = (allBridges || []).find((b) => b?._id === agentId);
+      if (!bridge) return "Unknown Version";
+
       const versions = Array.isArray(bridge.versions) ? bridge.versions : [];
-      versions.forEach((versionId, idx) => {
-        if (!versionId) return;
-        map[versionId] = {
-          bridgeId: bridge._id,
-          bridgeName: bridge.name || "Untitled bridge",
-          versionLabel: `version ${idx + 1}`,
-          versionId,
-        };
-      });
-    });
-    return map;
-  }, [allBridges]);
+      const versionIndex = versions.indexOf(versionId);
+
+      if (versionIndex === -1) return "Unknown Version";
+      return `version ${versionIndex + 1}`;
+    },
+    [allBridges]
+  );
 
   const [filteredTools, setFilteredTools] = useState([]);
   const [functionId, setFunctionId] = useState(null);
@@ -163,6 +173,12 @@ const ToolsPage = ({ params }) => {
     };
   }, [openDropdownToolId]);
 
+  useEffect(() => {
+    if (orgId) {
+      dispatch(getAgentsVersionsDataAction(orgId));
+    }
+  }, [orgId, dispatch]);
+
   const allTools = useMemo(() => {
     return Object.values(functionData || {}).filter(Boolean);
   }, [functionData]);
@@ -174,35 +190,61 @@ const ToolsPage = ({ params }) => {
       const title = fn?.title || integration?.title || scriptId || "Untitled tool";
       const icons = integration?.serviceIcons || [];
 
-      const rawConnectionIds = [
-        ...(Array.isArray(fn?.bridge_ids) ? fn.bridge_ids : []),
-        ...(Array.isArray(fn?.version_ids) ? fn.version_ids : []),
-      ];
-
+      const toolAgentsVersions = agentsVersionsData[fn?._id] || {};
+      const seenBridgeIds = new Set();
       const connectionsMap = new Map();
-      rawConnectionIds.forEach((id) => {
-        const info = idLookup[id];
-        if (!info) return;
-        const existing = connectionsMap.get(info.bridgeId);
-        if (existing) {
-          if (info.versionLabel && !existing.versions.some((v) => v.versionId === info.versionId)) {
-            existing.versions.push({ versionLabel: info.versionLabel, versionId: info.versionId });
-          }
-        } else {
-          connectionsMap.set(info.bridgeId, {
-            bridgeId: info.bridgeId,
-            bridgeName: info.bridgeName,
-            versions: info.versionLabel ? [{ versionLabel: info.versionLabel, versionId: info.versionId }] : [],
+
+      Object.entries(toolAgentsVersions).forEach(([agentId, versionIds]) => {
+        const agentInfo = getAgentInfo(agentId);
+        const versionArray = Array.isArray(versionIds) ? versionIds : [];
+
+        // Skip if agent not found
+        if (!agentInfo) return;
+
+        // Use bridgeId as the key to deduplicate - check early
+        const bridgeId = agentInfo.bridgeId;
+        if (seenBridgeIds.has(bridgeId)) return;
+
+        // Skip if no versions and no published version
+        if (agentInfo.deletedAt || (versionArray.length === 0 && !agentInfo?.published_version_id)) return;
+
+        // Mark as seen before adding to map
+        seenBridgeIds.add(bridgeId);
+
+        const agentName = agentInfo?.bridgeName || "Unknown Agent";
+
+        // If version array is empty but agent has published_version_id, use it
+        if (versionArray.length === 0 && agentInfo?.published_version_id) {
+          connectionsMap.set(bridgeId, {
+            bridgeId,
+            bridgeName: agentName,
+            versions: [],
+            isPublished: true,
+          });
+          return;
+        }
+
+        // Only add if there are versions
+        if (versionArray.length > 0) {
+          const versions = versionArray.map((versionId) => {
+            const versionLabel = getVersionLabel(agentId, versionId);
+            return {
+              versionLabel,
+              versionId,
+            };
+          });
+
+          connectionsMap.set(bridgeId, {
+            bridgeId,
+            bridgeName: agentName,
+            versions: versions.sort((a, b) =>
+              (a.versionLabel || "").localeCompare(b.versionLabel || "", undefined, { numeric: true })
+            ),
           });
         }
       });
 
-      const connections = Array.from(connectionsMap.values()).map((c) => ({
-        ...c,
-        versions: c.versions
-          .slice()
-          .sort((a, b) => (a.versionLabel || "").localeCompare(b.versionLabel || "", undefined, { numeric: true })),
-      }));
+      const connections = Array.from(connectionsMap.values());
 
       return {
         _id: fn?._id,
@@ -221,7 +263,7 @@ const ToolsPage = ({ params }) => {
         originalData: fn,
       };
     });
-  }, [allTools, integrationData, idLookup]);
+  }, [allTools, integrationData, agentsVersionsData, getAgentInfo, getVersionLabel]);
 
   useEffect(() => {
     if (filterParam) {
@@ -461,7 +503,8 @@ const ToolsPage = ({ params }) => {
                             if (hasVersions) {
                               setExpandedAgentId(isExpanded ? null : agent.bridgeId);
                             } else {
-                              const url = `/org/${orgId}/agents/configure/${agent.bridgeId}`;
+                              const queryParams = agent.isPublished ? "?isPublished=true" : "";
+                              const url = `/org/${orgId}/agents/configure/${agent.bridgeId}${queryParams}`;
                               setOpenDropdownToolId(null);
                               if (e.metaKey || e.ctrlKey) {
                                 window.open(url, "_blank");
