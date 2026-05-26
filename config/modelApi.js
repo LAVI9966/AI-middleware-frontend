@@ -95,18 +95,16 @@ export const dryRun = async ({ localDataToSend, bridge_id }) => {
   try {
     const modelType = localDataToSend.configuration.type;
     const isChat = modelType !== "completion" && modelType !== "embedding";
-    const isStream = !!localDataToSend.flag;
+    const isStream = !!localDataToSend.is_stream;
+    if (!localDataToSend?.version_id) {
+      localDataToSend.agent_id = bridge_id;
+    }
     let dryRun;
     const axiosConfig = isStream ? { responseType: "stream", adapter: "fetch" } : {};
 
-    if (isChat)
-      dryRun = await axios.post(
-        `${PYTHON_URL}/api/v2/model/playground/chat/completion/${bridge_id}`,
-        localDataToSend,
-        axiosConfig
-      );
+    if (isChat) dryRun = await axios.post(`${PYTHON_URL}/api/v2/model/chat/completion`, localDataToSend, axiosConfig);
     if (modelType === "completion")
-      dryRun = await axios.post(`${URL}/api/v1/model/playground/completion/${bridge_id}`, localDataToSend, axiosConfig);
+      dryRun = await axios.post(`${URL}/api/v1/model/completion`, localDataToSend, axiosConfig);
     if (modelType === "embedding")
       dryRun = await axios.post(
         `${PYTHON_URL}/api/v2/model/playground/chat/completion/${bridge_id}`,
@@ -141,6 +139,20 @@ export const dryRun = async ({ localDataToSend, bridge_id }) => {
     } else {
       toast.error(errorMessage);
     }
+    throw error;
+  }
+};
+
+export const rerunApi = async ({ agent_id, thread_id, sub_thread_id, message_ids }) => {
+  try {
+    const response = await axios.post(`${PYTHON_URL}/api/v2/model/rerun`, {
+      agent_id,
+      message_ids,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error in rerun API:", error);
+    toast.error(error?.response?.data?.detail?.error || error?.response?.data?.error || "Rerun failed");
     throw error;
   }
 };

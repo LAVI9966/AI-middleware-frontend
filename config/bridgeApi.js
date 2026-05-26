@@ -130,9 +130,11 @@ export const updateBridgeVersionApi = async ({ versionId, dataToSend }) => {
   }
 };
 
-export const publishBridgeVersionApi = async ({ versionId }) => {
+export const publishBridgeVersionApi = async ({ versionId, generate_summary = false }) => {
   try {
-    const response = await axios.post(`${URL}/api/versions/publish/${versionId}`);
+    const response = await axios.post(`${URL}/api/versions/publish/${versionId}`, {
+      generate_summary,
+    });
     return response?.data;
   } catch (error) {
     console.error(error);
@@ -262,6 +264,16 @@ export const convertAgentToTemplate = async (agentId, templateName) => {
     return response?.data;
   } catch (error) {
     console.error("Error converting agent to template:", error);
+    throw error;
+  }
+};
+
+export const getAgentsVersionsByFunctions = async (orgId) => {
+  try {
+    const response = await axios.get(`${URL}/api/tools/agents-versions-by-functions`);
+    return response?.data?.data;
+  } catch (error) {
+    console.error("Error fetching agents-versions data:", error);
     throw error;
   }
 };

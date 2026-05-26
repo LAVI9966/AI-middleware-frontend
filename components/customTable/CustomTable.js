@@ -10,9 +10,12 @@ const CustomTable = ({
   keysToExtractOnRowClick = [],
   keysToWrap = [],
   handleRowClick = () => {},
+  handleRowHover = () => {},
   handleRowSelection = () => {},
   endComponent = null,
   customGetColumnLabel = null,
+  customCellRenderers = {},
+  filterFunction = null,
 }) => {
   const keys = useMemo(() => Object.keys(data[0] || {}), [data]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -48,12 +51,13 @@ const CustomTable = ({
 
   // Sort the data based on active column and direction
   const sortedData = useMemo(() => {
+    let processedData = filterFunction ? data.filter(filterFunction) : data;
     if (sorting && activeColumn) {
-      return [...data].sort((a, b) => {
+      return [...processedData].sort((a, b) => {
         const valueA =
           activeColumn === "name"
             ? a.actualName
-            : activeColumn === "createdAt"
+            : activeColumn === "createdAt" || activeColumn === "created"
               ? (a.createdAt_original ?? a.created_at_original)
               : activeColumn === "updatedAt"
                 ? (a.updatedAt_original ?? a.updated_at_original)
@@ -67,7 +71,7 @@ const CustomTable = ({
         const valueB =
           activeColumn === "name"
             ? b.actualName
-            : activeColumn === "createdAt"
+            : activeColumn === "createdAt" || activeColumn === "created"
               ? (b.createdAt_original ?? b.created_at_original)
               : activeColumn === "updatedAt"
                 ? (b.updatedAt_original ?? b.updated_at_original)
@@ -117,13 +121,14 @@ const CustomTable = ({
           return ascending ? limitA - limitB : limitB - limitA;
         }
 
-        // Special handling for date columns (last_used, created_at, createdAt)
-        if (["last_used", "created_at", "createdAt", "updated_at", "updatedAt"].includes(activeColumn)) {
+        // Special handling for date columns (last_used, created_at, createdAt, created)
+        if (["last_used", "created_at", "createdAt", "created", "updated_at", "updatedAt"].includes(activeColumn)) {
           const getOriginalTimestamp = (row) => {
             switch (activeColumn) {
               case "last_used":
                 return row.last_used_original || row.last_used_orignal;
               case "createdAt":
+              case "created":
                 return row.createdAt_original ?? row.created_at_original;
               case "created_at":
                 return row.created_at_original;
@@ -166,8 +171,8 @@ const CustomTable = ({
         return 0;
       });
     }
-    return data;
-  }, [data, sorting, activeColumn, ascending]);
+    return processedData;
+  }, [data, sorting, activeColumn, ascending, filterFunction]);
 
   const sortByColumn = (column) => {
     if (!sorting || !sortableColumns.includes(column)) return;
@@ -261,6 +266,7 @@ const CustomTable = ({
                     }, {})
                   )
                 }
+                onMouseEnter={() => handleRowHover(row)}
               >
                 {/* Card Header with selection */}
                 {showRowSelection && (
@@ -399,6 +405,7 @@ const CustomTable = ({
                       }, {})
                     )
                   }
+                  onMouseEnter={() => handleRowHover(row)}
                 >
                   {showRowSelection && (
                     <td className="px-4 py-2 text-left">
@@ -419,13 +426,15 @@ const CustomTable = ({
                   {visibleColumns?.map((column) => (
                     <td
                       key={column}
-                      className={`px-4 py-2 text-left whitespace-nowrap ${
+                      className={`px-4 py-2 text-left ${
                         ["last_used", "created_at", "createdAt", "updated_at", "updatedAt"].includes(column)
                           ? "w-40 min-w-40 max-w-40"
-                          : ""
+                          : column === "agents"
+                            ? "min-w-64"
+                            : "whitespace-nowrap"
                       }`}
                     >
-                      {getDisplayValue(row, column)}
+                      {customCellRenderers[column] ? customCellRenderers[column](row) : getDisplayValue(row, column)}
                     </td>
                   ))}
                   {endComponent && (

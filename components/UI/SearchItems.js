@@ -2,7 +2,15 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import Protected from "../Protected";
-const SearchItems = ({ data, setFilterItems, item, style = "", isEmbedUser }) => {
+const SearchItems = ({
+  data,
+  setFilterItems,
+  item,
+  style = "",
+  isEmbedUser,
+  containerClass = "",
+  inputContainerClass = "",
+}) => {
   const [searchTerm, setSearchTerm] = useState("");
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -51,13 +59,22 @@ const SearchItems = ({ data, setFilterItems, item, style = "", isEmbedUser }) =>
     if (filterParam && data && !userClearedSearch.current) {
       // Find the item that matches the filter parameter
       const matchedItem = data.find(
-        (item) => item?._id === filterParam || item?.id === filterParam || item?.id?.toString() === filterParam
+        (item) =>
+          item?._id === filterParam ||
+          item?.id === filterParam ||
+          item?.id?.toString() === filterParam ||
+          item?.script_id === filterParam
       );
 
       if (matchedItem) {
         // Prefer human-readable labels (like Knowledge Base title) over IDs.
         const displayName =
-          matchedItem.title || matchedItem.name || matchedItem.slugName || matchedItem._id || matchedItem.id;
+          matchedItem.title ||
+          matchedItem.name ||
+          matchedItem.slugName ||
+          matchedItem.flow_name ||
+          matchedItem._id ||
+          matchedItem.id;
         setSearchTerm(displayName);
       }
     } else if (!filterParam) {
@@ -89,6 +106,7 @@ const SearchItems = ({ data, setFilterItems, item, style = "", isEmbedUser }) =>
           (item?.service && item?.service?.toLowerCase()?.includes(searchTerm.toLowerCase().trim())) ||
           (item?._id && item?._id?.toLowerCase()?.includes(searchTerm.toLowerCase().trim())) ||
           (item?.flow_name && item?.flow_name?.toLowerCase()?.includes(searchTerm.toLowerCase().trim())) ||
+          (item?.script_id && item?.script_id?.toLowerCase()?.includes(searchTerm.toLowerCase().trim())) ||
           (item?.id && item?.id?.toString()?.toLowerCase()?.includes(searchTerm.toLowerCase().trim()))
       ) || [];
     return filtered;
@@ -99,12 +117,13 @@ const SearchItems = ({ data, setFilterItems, item, style = "", isEmbedUser }) =>
     setFilterItems(filtered);
   }, [filterData, setFilterItems]);
 
-  const containerClasses = isWorkspaceItem ? `${item === "org" ? "w-full mt-2" : "max-w-xs ml-2"}` : "max-w-xs ml-2";
+  const containerClasses =
+    containerClass || (isWorkspaceItem ? `${item === "org" ? "w-full mt-2" : "max-w-xs ml-2"}` : "max-w-xs ml-2");
   const inputClasses = style ? style : "input input-sm w-full border bg-base-200 border-base-content/50 pr-16";
 
   return (
     <div className={containerClasses}>
-      <div className="relative mb-2">
+      <div className={inputContainerClass || "relative mb-2"}>
         <input
           autoComplete="off"
           data-testid="search-items-input"

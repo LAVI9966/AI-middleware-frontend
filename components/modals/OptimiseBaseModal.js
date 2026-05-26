@@ -160,7 +160,12 @@ function OptimiseBaseModal({
           <div className="w-full h-full">
             {!diff ? (
               <div className="flex-1 h-full flex flex-col">
-                <Canvas OptimizePrompt={handleOptimize} messages={messages} setMessages={setMessages} />
+                <Canvas
+                  OptimizePrompt={handleOptimize}
+                  messages={messages}
+                  setMessages={setMessages}
+                  apiError={!!errorMessage}
+                />
                 {errorMessage && (
                   <div className="mt-2">
                     <span className="text-red-500">{errorMessage}</span>

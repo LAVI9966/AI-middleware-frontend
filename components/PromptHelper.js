@@ -47,6 +47,10 @@ const PromptHelper = ({
           variables: { variable_key },
         });
 
+        if (response?.isAxiosError || response?.response) {
+          return { description: "Failed to optimize prompt. Please try again." };
+        }
+
         // The API wrapper (`optimizePromptApi`) returns `response.data.result` directly,
         // which may be:
         //   - a stringified JSON object: `{"role": "..."}`            (shapes C/D)

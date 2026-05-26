@@ -9,6 +9,7 @@ import { clearThreadData, clearHistoryData, setSelectedVersion } from "@/store/r
 import Protected from "@/components/Protected";
 import ChatDetails from "@/components/historyPageComponents/ChatDetails";
 import { ChatLoadingSkeleton } from "@/components/historyPageComponents/ChatLayoutLoader";
+import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
 
 // Lazy load the components to reduce initial render time
 const ThreadContainer = React.lazy(() => import("@/components/historyPageComponents/ThreadContainer"));
@@ -44,6 +45,26 @@ function Page({ params, searchParams }) {
   const [threadPage, setThreadPage] = useState(1);
   const [hasMoreThreadData, setHasMoreThreadData] = useState(true);
   const [isErrorTrue, setIsErrorTrue] = useState(false);
+  const [selectedBatchMessageId, setSelectedBatchMessageId] = useState(null);
+
+  useEffect(() => {
+    setSelectedBatchMessageId(null);
+  }, [resolvedSearchParams?.thread_id]);
+
+  useEffect(() => {
+    if (selectedBatchMessageId !== null) return;
+    if (!Array.isArray(thread) || thread.length === 0) return;
+    // Ensure the loaded thread actually belongs to the currently selected thread_id
+    // (prevents auto-selecting a batch from a stale thread when navigating)
+    const currentThreadId = resolvedSearchParams?.thread_id;
+    if (currentThreadId && thread[0]?.thread_id && thread[0].thread_id !== currentThreadId) return;
+    const firstBatch = thread.find((msg) => msg?.batch_data?.batch_id);
+    if (firstBatch) setSelectedBatchMessageId(firstBatch.message_id);
+  }, [thread, selectedBatchMessageId, resolvedSearchParams?.thread_id]);
+
+  const displayThread = selectedBatchMessageId
+    ? thread.filter((msg) => msg?.message_id === selectedBatchMessageId)
+    : thread;
 
   const closeSliderOnEsc = useCallback((event) => {
     if (event.key === "Escape") setIsSliderOpen(false);
@@ -183,49 +204,62 @@ function Page({ params, searchParams }) {
     if (result?.length < 40) setHasMore(false);
   }, [page, resolvedParams.id]);
 
-  if (loading || !historyData)
-    return (
-      <div>
-        <ChatLoadingSkeleton />
-      </div>
-    );
+  const batchPanel = (
+    <BatchSubthreadPanel
+      thread={thread}
+      subThreadIdFromURL={search.get("subThread_id")}
+      selectedBatchMessageId={selectedBatchMessageId}
+      onSelectBatch={(messageId) => setSelectedBatchMessageId((prev) => (prev === messageId ? null : messageId))}
+      onSelectSubThread={(subThreadId) => {
+        setSelectedBatchMessageId(null);
+        const p = new URLSearchParams(search.toString());
+        p.set("subThread_id", encodeURIComponent(subThreadId.replace(/&/g, "%26")));
+        router.push(`${pathName}?${p.toString()}`);
+      }}
+    />
+  );
+
+  const isLoadingState = loading || !historyData;
 
   return (
     <div className="bg-base-100 relative scrollbar-hide text-base-content max-h-[calc(100vh-9rem)]">
       <div className="drawer drawer-open overflow-hidden">
         <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
-        {loading ? (
-          <ChatLoadingSkeleton />
-        ) : (
-          <div className="drawer-content flex flex-col">
-            <React.Suspense>
-              <ThreadContainer
-                key={`thread-container-${resolvedParams.id}-${resolvedParams.version}`}
-                thread={thread}
-                filterOption={filterOption}
-                setFilterOption={setFilterOption}
-                isFetchingMore={isFetchingMore}
-                setIsFetchingMore={setIsFetchingMore}
-                setLoading={setLoading}
-                searchMessageId={searchMessageId}
-                setSearchMessageId={setSearchMessageId}
-                params={resolvedParams}
-                pathName={pathName}
-                search={resolvedSearchParams}
-                historyData={historyData}
-                threadHandler={threadHandler}
-                threadPage={threadPage}
-                setThreadPage={setThreadPage}
-                hasMoreThreadData={hasMoreThreadData}
-                setHasMoreThreadData={setHasMoreThreadData}
-                selectedVersion={selectedVersion}
-                setIsErrorTrue={setIsErrorTrue}
-                isErrorTrue={isErrorTrue}
-                previousPrompt={previousPrompt}
-              />
-            </React.Suspense>
+        <div className="drawer-content flex flex-row overflow-hidden">
+          {batchPanel}
+          <div className="flex-1 overflow-hidden">
+            {isLoadingState ? (
+              <ChatLoadingSkeleton />
+            ) : (
+              <React.Suspense>
+                <ThreadContainer
+                  key={`thread-container-${resolvedParams.id}-${resolvedParams.version}`}
+                  thread={displayThread}
+                  filterOption={filterOption}
+                  setFilterOption={setFilterOption}
+                  isFetchingMore={isFetchingMore}
+                  setIsFetchingMore={setIsFetchingMore}
+                  setLoading={setLoading}
+                  searchMessageId={searchMessageId}
+                  setSearchMessageId={setSearchMessageId}
+                  params={resolvedParams}
+                  pathName={pathName}
+                  search={resolvedSearchParams}
+                  historyData={historyData}
+                  threadHandler={threadHandler}
+                  threadPage={threadPage}
+                  setThreadPage={setThreadPage}
+                  hasMoreThreadData={hasMoreThreadData}
+                  setHasMoreThreadData={setHasMoreThreadData}
+                  selectedVersion={selectedVersion}
+                  setIsErrorTrue={setIsErrorTrue}
+                  isErrorTrue={isErrorTrue}
+                  previousPrompt={previousPrompt}
+                />
+              </React.Suspense>
+            )}
           </div>
-        )}
+        </div>
         <React.Suspense>
           <Sidebar
             historyData={historyData}

@@ -10,8 +10,11 @@ import {
   createTestCaseReducer,
   deleteTestCaseReducer,
   getAllTestCasesReducer,
+  appendTestCasesReducer,
   updateTestCaseReducer,
   runTestCaseReducer,
+  testRunStartedReducer,
+  testRunFailedReducer,
 } from "../reducer/testCasesReducer";
 import { toast } from "react-toastify";
 
@@ -31,16 +34,27 @@ export const createTestCaseAction =
   };
 
 export const getAllTestCasesOfBridgeAction =
-  ({ bridgeId }) =>
+  ({ bridgeId, page = 1, limit = 30, append = false }) =>
   async (dispatch) => {
     try {
-      const response = await getAllTestCasesOfBridgeApi({ bridgeId });
+      const response = await getAllTestCasesOfBridgeApi({ bridgeId, page, limit });
       if (response?.success) {
-        dispatch(getAllTestCasesReducer({ bridgeId, data: response?.data }));
+        const data = Array.isArray(response?.data) ? response.data : [];
+        if (append && page > 1) {
+          dispatch(appendTestCasesReducer({ bridgeId, data }));
+        } else {
+          dispatch(getAllTestCasesReducer({ bridgeId, data }));
+        }
+        // Backend doesn't return pagination metadata — infer hasMore from the
+        // page size: a full page means there might be more, anything less is
+        // the last page.
+        const hasMore = data.length >= limit;
+        return { success: true, data, hasMore, page };
       }
-      return;
+      return { success: false, data: [], hasMore: false, page };
     } catch (error) {
       console.error(error);
+      return { success: false, data: [], hasMore: false, page };
     }
   };
 
@@ -61,7 +75,7 @@ export const deleteTestCaseAction =
 
 export const runTestCaseAction =
   ({
-    versionId = null,
+    versionIds = null,
     bridgeId = null,
     testcase_id = null,
     testCaseData = null,
@@ -70,8 +84,22 @@ export const runTestCaseAction =
   }) =>
   async (dispatch) => {
     try {
+      // Optimistically mark run as started so UI shows running state without waiting
+      // for the run_started RTLayer event (which arrives moments later on the bridge channel).
+      if (bridgeId) {
+        const versionIdsArrayInit = Array.isArray(versionIds) ? versionIds : [versionIds].filter(Boolean);
+        dispatch(
+          testRunStartedReducer({
+            bridgeId,
+            total: 0,
+            versionIds: versionIdsArrayInit,
+            testcaseId: testcase_id || null,
+          })
+        );
+      }
+
       const response = await runTestCaseApi({
-        versionId,
+        versionIds,
         testcase_id,
         testCaseData,
         bridgeId,
@@ -79,41 +107,61 @@ export const runTestCaseAction =
         matching_type,
       });
 
+      // New flow: backend returns immediately with rtlayer_cred and streams results via RTLayer.
+      // The `useRtLayerEventHandler` hook listens on `${orgId}_${bridgeId}` and updates the
+      // store via `testRunResultReducer` / `testRunCompletedReducer`. Nothing else to do here.
+      if (response?.rtlayer_cred && !response?.results) {
+        return response;
+      }
+
+      // Legacy synchronous response path (kept as fallback for ad-hoc / direct testcase_data runs).
       if (response?.success && response?.results) {
         // Transform the results array into the format the reducer expects
-        const testcases_result = {};
-        response.results.forEach((result) => {
-          if (result.testcase_id) {
-            testcases_result[result.testcase_id] = {
-              result: {
-                score: result.score,
-                model_output: result.actual_result,
-                expected: result.expected,
-                matching_type: result.matching_type,
-                metadata: {
-                  bridge_id: result.bridge_id,
+        const versionIdsArray = Array.isArray(versionIds) ? versionIds : [versionIds];
+
+        versionIdsArray.forEach((versionId) => {
+          const testcases_result = {};
+          response.results.forEach((result) => {
+            if (result.testcase_id) {
+              testcases_result[result.testcase_id] = {
+                result: {
+                  score: result.score,
+                  model_output: result.actual_result,
+                  expected: result.expected,
+                  matching_type: result.matching_type,
+                  metadata: {
+                    bridge_id: result.bridge_id,
+                  },
+                  created_at: new Date().toISOString(),
                 },
-                created_at: new Date().toISOString(),
-              },
-            };
+              };
+            }
+          });
+
+          if (Object.keys(testcases_result).length > 0 && bridgeId && versionId) {
+            dispatch(
+              runTestCaseReducer({
+                data: { testcases_result },
+                bridgeId,
+                versionId,
+              })
+            );
           }
         });
-
-        if (Object.keys(testcases_result).length > 0 && bridgeId && versionId) {
-          dispatch(
-            runTestCaseReducer({
-              data: { testcases_result },
-              bridgeId,
-              versionId,
-            })
-          );
-        }
 
         toast.success("Test case run successfully");
       }
       return response;
     } catch (error) {
       console.error(error);
+      if (bridgeId) {
+        dispatch(
+          testRunFailedReducer({
+            bridgeId,
+            error: error?.response?.data?.detail?.error || error?.message || "Failed to start test run",
+          })
+        );
+      }
     }
   };
 
@@ -123,8 +171,8 @@ export const updateTestCaseAction =
     try {
       const response = await updateTestCaseApi({ testCaseId, dataToUpdate });
       if (response?.success) {
-        // Pass testCaseId and update data to the reducer
-        dispatch(updateTestCaseReducer({ testCaseId, dataToUpdate }));
+        // Use the API result so updatedAt and other server-set fields are accurate
+        dispatch(updateTestCaseReducer({ testCaseId, dataToUpdate: response?.result || dataToUpdate }));
         toast.success("Test case updated successfully");
       }
       return;

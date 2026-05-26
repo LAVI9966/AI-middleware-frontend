@@ -8,13 +8,16 @@ import { getAllBridgesAction, getSingleBridgesAction, updateBridgeVersionAction 
 import { useEffect, useRef, useState, use, useCallback, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { setIsFocusReducer, setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
-import { updateTitle, generateRandomID, extractPromptVariables } from "@/utils/utility";
+import { updateTitle, generateRandomID, extractPromptVariables, openModal, closeModal } from "@/utils/utility";
+import { MODAL_TYPE } from "@/utils/enums";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
 import { useRouter } from "next/navigation";
 import Chatbot from "@/components/configuration/Chatbot";
 import AgentSetupGuide from "@/components/AgentSetupGuide";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { RefreshIcon } from "@/components/Icons";
 import { CircleAlert } from "lucide-react";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 const ConfigurationPage = dynamic(() => import("@/components/configuration/ConfigurationPage"));
 const Chat = dynamic(() => import("@/components/configuration/Chat"), { loading: () => null });
 const WebhookForm = dynamic(() => import("@/components/BatchApi"), { ssr: false });
@@ -105,6 +108,11 @@ const NotesBundle = ({ onClick }) => {
   );
 };
 
+const hasDraftPrompt = (draftPrompt, savedPrompt) => {
+  if (draftPrompt === undefined || draftPrompt === null) return false;
+  return JSON.stringify(draftPrompt) !== JSON.stringify(savedPrompt);
+};
+
 const Page = ({ params, searchParams, isEmbedUser }) => {
   const resolvedParams = use(params);
   const resolvedSearchParams = use(searchParams);
@@ -145,7 +153,12 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const { bridgeType, versionService, bridgeName, isFocus, reduxPrompt, bridge, isLoading, hasError, hasData } =
     useConfigurationSelector(resolvedParams, resolvedSearchParams);
 
-  const hidePlayground = useCustomSelector((state) => state?.appInfoReducer?.embedUserDetails?.hidePlayground || false);
+  const showPlayground = useCustomSelector((state) => {
+    const details = state?.appInfoReducer?.embedUserDetails || {};
+    if (details.showPlayground !== undefined) return details.showPlayground;
+    if (details.hideplayground !== undefined) return !details.hideplayground;
+    return true;
+  });
 
   // Separate selector for allbridges to prevent unnecessary re-renders
   const allbridges = useCustomSelector(
@@ -159,6 +172,9 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
     messages: [],
     newContent: "",
   }));
+  const draftPromptForPlayground = hasDraftPrompt(promptState.newContent, promptState.prompt)
+    ? promptState.newContent
+    : undefined;
 
   // Memoized mobile view detection
   const isMobileView = useMemo(
@@ -170,7 +186,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const panelSizes = useMemo(() => {
     if (!uiState.isPromptHelperOpen) {
       // Two panel mode: Config + Chat
-      return { config: isEmbedUser && hidePlayground ? 100 : 50, chat: 50 };
+      return { config: isEmbedUser && !showPlayground ? 100 : 50, chat: 50 };
     } else if (isEmbedUser) {
       // Embed users have no Notes panel: Config + PromptHelper 50/50
       return { config: 50, promptHelper: 50, notes: 0 };
@@ -178,7 +194,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       // Three panel mode: Config + PromptHelper + Notes
       return { config: 33.33, promptHelper: 33.33, notes: 33.33 };
     }
-  }, [uiState.isPromptHelperOpen, hidePlayground, isEmbedUser]);
+  }, [uiState.isPromptHelperOpen, showPlayground, isEmbedUser]);
 
   // Optimized UI state updates with throttling for smooth resizing
   const updateUiState = useCallback((updates) => {
@@ -367,6 +383,24 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
     setIsAgentFlowView(resolvedSearchParams?.view === "agent-flow");
   }, [resolvedSearchParams?.view]);
 
+  // Block browser refresh/tab-close when there are unsaved prompt changes
+  useEffect(() => {
+    // Intercept F5 / Ctrl+R / Cmd+R — show our modal instead
+    const handleKeyDown = (e) => {
+      if (!unsavedPromptGuard.hasUnsavedChanges) return;
+      const isRefresh = e.key === "F5" || ((e.ctrlKey || e.metaKey) && e.key === "r");
+      if (isRefresh) {
+        e.preventDefault();
+        openModal(MODAL_TYPE.UNSAVED_REFRESH_MODAL);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
   const handleViewChange = useCallback((isFlowView) => {
     setIsAgentFlowView(isFlowView);
   }, []);
@@ -399,7 +433,9 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
               configuration: {
                 prompt: newValue,
               },
-              variables_state: variablesState,
+              agent_info: {
+                variables_state: variablesState,
+              },
             },
           })
         );
@@ -632,6 +668,22 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       ref={containerRef}
       className={`w-full bg-base-300 h-full transition-all duration-300 ease-in-out overflow-hidden ${!isFocus ? "max-h-[calc(100vh-2rem)]" : "overflow-y-hidden"} ${uiState.isDesktop ? "flex flex-row" : "overflow-y-auto"}`}
     >
+      {/* Unsaved prompt — refresh guard modal */}
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_REFRESH_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. If you refresh, your changes will be lost."
+        confirmText="Refresh anyway"
+        cancelText="Stay & Save"
+        confirmButtonClass="btn-error text-white"
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_REFRESH_MODAL);
+          unsavedPromptGuard.hasUnsavedChanges = false;
+          window.location.reload();
+        }}
+        onCancel={() => closeModal(MODAL_TYPE.UNSAVED_REFRESH_MODAL)}
+        onClose={() => closeModal(MODAL_TYPE.UNSAVED_REFRESH_MODAL)}
+      />
       {/* Debug Panel States */}
 
       {uiState.isDesktop ? (
@@ -718,7 +770,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
             </Panel>
 
             {/* Resizer Handle with Custom Line */}
-            {(!isEmbedUser || (isEmbedUser && !hidePlayground)) && (
+            {(!isEmbedUser || (isEmbedUser && showPlayground)) && (
               <PanelResizeHandle
                 id="main-resize-handle"
                 className="w-2 bg-base-100 hover:bg-primary/50 transition-colors duration-200 relative flex items-center justify-center group"
@@ -735,7 +787,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
             {/* Chat/PromptHelper Panel - Conditional based on focus mode */}
             {!uiState.isPromptHelperOpen || !isFocus ? (
               // Chat Panel (Two-panel mode)
-              (!isEmbedUser || (isEmbedUser && !hidePlayground)) && (
+              (!isEmbedUser || (isEmbedUser && showPlayground)) && (
                 <Panel
                   id="chat-panel"
                   ref={chatPanelRef}
@@ -787,6 +839,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                                       id="chat-component"
                                       params={resolvedParams}
                                       searchParams={resolvedSearchParams}
+                                      draftPrompt={draftPromptForPlayground}
                                     />
                                   )}
                                 </div>
@@ -796,6 +849,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                                     id="alternative-chat-component"
                                     params={resolvedParams}
                                     searchParams={resolvedSearchParams}
+                                    draftPrompt={draftPromptForPlayground}
                                   />
                                 </div>
                               )}
@@ -990,7 +1044,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
           </div>
 
           {/* Chat Panel */}
-          {(!isEmbedUser || (isEmbedUser && !hidePlayground)) && (
+          {(!isEmbedUser || (isEmbedUser && showPlayground)) && (
             <div id="parentChatbot" className="min-h-screen">
               <div id="mobile-chat-container" className="h-full flex flex-col">
                 <AgentSetupGuide
@@ -1022,6 +1076,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                             id="mobile-chat-component"
                             params={resolvedParams}
                             searchParams={resolvedSearchParams}
+                            draftPrompt={draftPromptForPlayground}
                           />
                         )}
                       </div>
@@ -1031,6 +1086,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                           id="mobile-alternative-chat-component"
                           params={resolvedParams}
                           searchParams={resolvedSearchParams}
+                          draftPrompt={draftPromptForPlayground}
                         />
                       </div>
                     )}

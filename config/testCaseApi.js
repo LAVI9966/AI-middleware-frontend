@@ -5,9 +5,11 @@ const URL = process.env.NEXT_PUBLIC_SERVER_URL;
 const PYTHON_URL = process.env.NEXT_PUBLIC_PYTHON_SERVER_URL;
 
 // Test Case Management APIs
-export const getAllTestCasesOfBridgeApi = async ({ bridgeId }) => {
+export const getAllTestCasesOfBridgeApi = async ({ bridgeId, page = 1, limit = 30 }) => {
   try {
-    const response = await axios.get(`${URL}/api/testcases/${bridgeId}`);
+    const response = await axios.get(`${URL}/api/testcases/${bridgeId}`, {
+      params: { page, limit },
+    });
     return response.data;
   } catch (error) {
     console.error(error);
@@ -45,10 +47,10 @@ export const deleteTestCaseApi = async ({ testCaseId }) => {
   }
 };
 
-export const runTestCaseApi = async ({ versionId, testcase_id, testCaseData, bridgeId, variables, matching_type }) => {
+export const runTestCaseApi = async ({ versionIds, testcase_id, testCaseData, bridgeId, variables, matching_type }) => {
   try {
     const response = await axios.post(`${PYTHON_URL}/api/v2/model/testcases`, {
-      version_id: versionId,
+      version_ids: Array.isArray(versionIds) ? versionIds : [versionIds],
       testcases: true,
       testcase_id: testcase_id,
       testcase_data: testCaseData,
@@ -62,7 +64,7 @@ export const runTestCaseApi = async ({ versionId, testcase_id, testCaseData, bri
       error?.response?.data?.detail?.error ? error?.response?.data?.detail?.error : "Error while running the testcases"
     );
     console.error(error);
-    return error;
+    throw error;
   }
 };
 

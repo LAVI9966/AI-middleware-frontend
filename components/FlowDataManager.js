@@ -525,8 +525,8 @@ export function AgentSidebar({ isOpen, title, agents, onClose, nodes, onChoose, 
     window.closeGtwy();
   };
 
-  const handleAddAgent = () => {
-    selectAgent.description = description;
+  const handleAddAgent = (_overrideBridge, _bridgeData, nextDescription = description) => {
+    selectAgent.description = nextDescription;
     onChoose?.(selectAgent);
     closeModal(MODAL_TYPE?.AGENT_DESCRIPTION_MODAL);
     setDescription("");

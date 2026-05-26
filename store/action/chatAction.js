@@ -25,7 +25,7 @@ import {
   appendReviewDelta,
   setReviewError,
 } from "../reducer/chatReducer";
-import { haveSameItems, buildUserUrls, buildLlmUrls } from "@/utils/attachmentUtils";
+import { haveSameItems, buildUserUrls, buildLlmUrls, extractImageUrlsFromResponse } from "@/utils/attachmentUtils";
 
 const getVideoIdentifier = (video) => {
   if (!video) return null;
@@ -182,17 +182,10 @@ export const loadTestCaseIntoChat = (channelId, testCaseConversation, expected, 
     convertedMessages.push(expectedMessage);
   }
 
-  // Convert to conversation format for the backend
-  const backendConversation = testCaseConversation.map((msg) => ({
-    role: msg.role,
-    content: msg.content,
-  }));
-
   dispatch(
     loadTestCaseMessages({
       channelId,
       messages: convertedMessages,
-      conversation: backendConversation,
       testCaseId,
     })
   );
@@ -294,9 +287,24 @@ export const handleRtLayerStreamChunk = (channelId, messageId, chunk) => (dispat
   dispatch(appendRtLayerMessageChunk({ channelId, messageId, chunk }));
 };
 
+// Helper to handle streaming done event
+const handleStreamingDoneEvent = (dispatch, channelId, streamingState, rafId, parsed) => {
+  // Cancel any pending RAF flush and do a final complete dispatch
+  if (rafId) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+  // Skip streaming update if this was a template response (already rendered)
+  if (!streamingState.isTemplateResponse && streamingState.messageId) {
+    const llmUrls = extractImageUrlsFromResponse(parsed);
+    dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true, llmUrls));
+  }
+  dispatch(setChatLoading(channelId, false));
+};
+
 // Handle RT layer streaming update
 export const handleRtLayerStreamingUpdate =
-  (channelId, messageId, content, isComplete = false) =>
+  (channelId, messageId, content, isComplete = false, llmUrls = []) =>
   (dispatch) => {
     dispatch(
       updateRtLayerMessage({
@@ -304,6 +312,7 @@ export const handleRtLayerStreamingUpdate =
         messageId,
         content,
         isComplete,
+        llmUrls,
       })
     );
 
@@ -337,7 +346,6 @@ export const sendMessageWithRtLayer =
 
       // Make API call (this should trigger RT layer response)
       const response = await apiCall({
-        conversation: [], // Will be populated from Redux state
         user: messageContent,
       });
       return { userMessage, loadingMessage, response };
@@ -363,7 +371,7 @@ export const sendMessageWithApiStreaming =
   async (dispatch) => {
     let userMessage = null;
     let loadingMessage = null;
-    const streamingState = { messageId: null, content: "", isReviewStreaming: false };
+    const streamingState = { messageId: null, content: "", isReviewStreaming: false, isTemplateResponse: false };
     let rafId = null;
 
     try {
@@ -495,6 +503,36 @@ export const sendMessageWithApiStreaming =
                   result: parsed.content,
                 })
               );
+            } else if (parsed.event === "template_response") {
+              // Handle template response with rich UI content
+              if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+              }
+              // Remove loading message since template response is complete
+              if (loadingMessage) {
+                dispatch(removeMessage({ channelId, messageId: loadingMessage.id }));
+                loadingMessage = null;
+              }
+              streamingState.isTemplateResponse = true;
+              dispatch(
+                handleRtLayerMessage(channelId, {
+                  id: parsed.message_id,
+                  content: parsed.content, // Rich UI template structure
+                  role: "assistant",
+                  type: "template",
+                  isLoading: false,
+                  isStreaming: false,
+                  fromRTLayer: true,
+                  response_type: parsed.metadata || { is_template: true },
+                  template_id: parsed.metadata?.template_id,
+                  template_name: parsed.metadata?.template_name,
+                  images: [],
+                  llm_urls: [],
+                  tools_data: {},
+                  annotations: null,
+                })
+              );
             } else if (parsed.event === "error") {
               if (rafId) {
                 cancelAnimationFrame(rafId);
@@ -518,12 +556,7 @@ export const sendMessageWithApiStreaming =
                 return { userMessage, loadingMessage: null, response: { success: false } };
               }
             } else if (parsed.event === "done") {
-              // Cancel any pending RAF flush and do a final complete dispatch
-              if (rafId) {
-                cancelAnimationFrame(rafId);
-                rafId = null;
-              }
-              dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true));
+              handleStreamingDoneEvent(dispatch, channelId, streamingState, rafId, parsed);
             }
           } catch (parseErr) {
             console.debug("[SSE] Skipping non-JSON line:", jsonStr, parseErr);
@@ -536,11 +569,7 @@ export const sendMessageWithApiStreaming =
         try {
           const parsed = JSON.parse(buffer.trim().slice(5).trim());
           if (parsed.event === "done" && streamingState.messageId) {
-            if (rafId) {
-              cancelAnimationFrame(rafId);
-              rafId = null;
-            }
-            dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true));
+            handleStreamingDoneEvent(dispatch, channelId, streamingState, rafId, parsed);
           }
         } catch (parseErr) {
           console.debug("[SSE] Skipping non-JSON buffer remainder:", buffer, parseErr);

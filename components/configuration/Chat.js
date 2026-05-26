@@ -127,7 +127,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
   );
 }
 
-function Chat({ params, userMessage, isOrchestralModel = false, searchParams, isEmbedUser }) {
+function Chat({ params, userMessage, isOrchestralModel = false, searchParams, isEmbedUser, draftPrompt }) {
   const messagesContainerRef = useRef(null);
   const attachScrollListener = useCallback((el) => {
     if (!el) return;
@@ -150,6 +150,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   const [isLoadingTestCase, setIsLoadingTestCase] = useState(false);
   const [editingMessage, setEditingMessage] = useState(null);
   const [editContent, setEditContent] = useState("");
+  const originalEditContentRef = useRef("");
   const testCaseResultRef = useRef(null);
   const [testCaseConversation, setTestCaseConversation] = useState([]);
   const [pendingTestIndex, setPendingTestIndex] = useState(null);
@@ -178,6 +179,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     variablesKeyValue,
     prompt,
     showVariables: showVariablesFromRedux,
+    testRun,
+    testCases,
+    directTestResults,
   } = useCustomSelector((state) => {
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
     return {
@@ -187,6 +191,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
         state?.variableReducer?.VariableMapping?.[params?.id]?.[searchParams?.version]?.variables || [],
       prompt: versionData?.configuration?.prompt,
       showVariables: state?.appInfoReducer?.embedUserDetails?.showVariables || false,
+      testRun: state?.testCasesReducer?.testRuns?.[params?.id] || null,
+      testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
+      directTestResults: state?.testCasesReducer?.directTestResults?.[params?.id] || {},
     };
   });
 
@@ -198,6 +205,101 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   }, [channelIdentifier, dispatch]);
 
   useRtLayerEventHandler(channelIdentifier);
+
+  // Handle testcase results from RT layer
+  useEffect(() => {
+    if (!testRun) return;
+
+    // Find the message that corresponds to this testcase run
+    const messageIndex = messages.findIndex(
+      (msg) =>
+        msg.sender === "assistant" &&
+        isRunningTestCase &&
+        currentRunIndex !== null &&
+        messages.indexOf(msg) === currentRunIndex + 1
+    );
+
+    if (messageIndex === -1) return;
+
+    const { testcaseId, status, perTestcase } = testRun;
+    const versionId = searchParams.version;
+
+    // Try to get result from testcase version_history first (for database testcases)
+    let latestResult = null;
+    if (testcaseId && testCases.length > 0) {
+      const testCase = testCases.find((tc) => tc._id === testcaseId);
+      if (testCase?.version_history?.[versionId]?.length > 0) {
+        latestResult = testCase.version_history[versionId][testCase.version_history[versionId].length - 1];
+      }
+    }
+
+    // If no result from version_history, check directTestResults (for direct testcases)
+    if (!latestResult && testcaseId && directTestResults?.[versionId]?.[testcaseId]) {
+      latestResult = directTestResults[versionId][testcaseId];
+    }
+
+    // For direct testcases where testcaseId is null, check perTestcase and directTestResults
+    if (!latestResult && !testcaseId && perTestcase) {
+      // Get the first testcase_id from perTestcase
+      const tcIds = Object.keys(perTestcase);
+      if (tcIds.length > 0) {
+        const actualTestCaseId = tcIds[0];
+        // Check directTestResults with this testcase_id
+        if (directTestResults?.[versionId]?.[actualTestCaseId]) {
+          latestResult = directTestResults[versionId][actualTestCaseId];
+        }
+      }
+    }
+
+    // If no result yet and run is not completed, wait
+    if (!latestResult && status !== "completed") {
+      return;
+    }
+
+    // If still no result after completion, return
+    if (!latestResult) {
+      return;
+    }
+
+    // Update the message with the test case result
+    const updatedMessages = [...messages];
+    const messageToUpdate = updatedMessages[messageIndex];
+    const updatedMessage = {
+      ...messageToUpdate,
+      testCaseResult: {
+        score: latestResult.score,
+        actual_result: latestResult.actual_result,
+        expected: latestResult.expected,
+        matching_type: latestResult.matching_type,
+        success: latestResult.success,
+        error: latestResult.error,
+      },
+    };
+
+    dispatch(editChatMessage(channelIdentifier, messageToUpdate.id, updatedMessage));
+
+    // Show the test case results card
+    setShowTestCaseResults((prev) => ({
+      ...prev,
+      [messageToUpdate.id]: true,
+    }));
+
+    // Reset running state only when run is completed
+    if (status === "completed") {
+      setIsRunningTestCase(false);
+      setCurrentRunIndex(null);
+    }
+  }, [
+    testRun,
+    testCases,
+    directTestResults,
+    messages,
+    isRunningTestCase,
+    currentRunIndex,
+    searchParams.version,
+    channelIdentifier,
+    dispatch,
+  ]);
 
   // Build variables object from variablesKeyValue (using shared utility)
   const variables = useMemo(() => buildVariablesObject(variablesKeyValue), [variablesKeyValue]);
@@ -273,19 +375,28 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   const handleEditMessage = (messageId, currentContent) => {
     setEditingMessage(messageId);
     setEditContent(currentContent);
+    originalEditContentRef.current = currentContent;
   };
 
   const handleSaveEdit = (messageId) => {
+    if (!editContent.trim()) {
+      return;
+    }
+    if (editContent === originalEditContentRef.current) {
+      return;
+    }
     if (channelIdentifier) {
       dispatch(editChatMessage(channelIdentifier, messageId, editContent));
     }
     setEditingMessage(null);
     setEditContent("");
+    originalEditContentRef.current = "";
   };
 
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setEditContent("");
+    originalEditContentRef.current = "";
   };
 
   const handleTestCaseClick = async (testCaseConversation, expected, testcase_id, matching_type) => {
@@ -382,27 +493,36 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     try {
       const data = await dispatch(
         runTestCaseAction({
-          versionId: searchParams.version,
-          bridgeId: null,
+          versionIds: searchParams.version,
+          bridgeId: params?.id,
           testcase_id: null,
           testCaseData,
           variables,
         })
       );
-      const updatedMessages = [...messages];
-      const nextMessage = updatedMessages[index + 1];
-      const nextMessageId = nextMessage.id;
-      const updatedNextMessage = {
-        ...nextMessage,
-        testCaseResult: data?.results?.[0],
-      };
-      // Automatically show the test case results card after running the test
-      dispatch(editChatMessage(channelIdentifier, nextMessageId, updatedNextMessage));
-      setShowTestCaseResults((prev) => ({
-        ...prev,
-        [nextMessageId]: true,
-      }));
-    } finally {
+      // If we got synchronous results (legacy path), update the message immediately
+      if (data?.results?.[0]) {
+        const updatedMessages = [...messages];
+        const nextMessage = updatedMessages[index + 1];
+        const nextMessageId = nextMessage.id;
+        const updatedNextMessage = {
+          ...nextMessage,
+          testCaseResult: data?.results?.[0],
+        };
+        // Automatically show the test case results card after running the test
+        dispatch(editChatMessage(channelIdentifier, nextMessageId, updatedNextMessage));
+        setShowTestCaseResults((prev) => ({
+          ...prev,
+          [nextMessageId]: true,
+        }));
+        // Reset running state for synchronous response
+        setIsRunningTestCase(false);
+        setCurrentRunIndex(null);
+      }
+      // If no synchronous results, RT layer will handle the result asynchronously
+      // The running state will be reset by the useEffect when RT layer results arrive
+    } catch {
+      // Reset running state on error
       setIsRunningTestCase(false);
       setCurrentRunIndex(null);
     }
@@ -557,8 +677,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   };
 
   return (
-    <div data-testid="chat-container" id="chat-container" className="px-4 pt-4 bg-base-300">
-      <div data-testid="chat-header" id="chat-header" className="w-full flex justify-between items-center px-2">
+    <div data-testid="chat-container" id="chat-container" className="flex flex-col h-full w-full bg-base-100">
+      <div
+        data-testid="chat-header"
+        id="chat-header"
+        className="w-full flex justify-between items-center px-4 pt-4 pb-2"
+      >
         <button
           data-testid="chat-toggle-testcases-button"
           id="chat-toggle-testcases-button"
@@ -618,7 +742,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       <div
         data-testid="chat-content-wrapper"
         id="chat-content-wrapper"
-        className="flex mt-4 h-[86vh] overflow-hidden relative"
+        className="flex flex-1 overflow-hidden relative px-4"
       >
         {/* Overlay Test Cases Sidebar */}
         {showTestCases && (
@@ -667,7 +791,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               data-testid="chat-messages-container"
               id="chat-messages-container"
               ref={attachScrollListener}
-              className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 mb-4 pr-2"
+              className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 pr-2"
               onClick={handleRichUIActions}
             >
               {messages.map((message, index) => {
@@ -906,7 +1030,8 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       data-testid="chat-save-edit-button"
                                       id="chat-save-edit-button"
                                       onClick={() => handleSaveEdit(message.id)}
-                                      className="btn btn-sm btn-success"
+                                      disabled={!editContent.trim() || editContent === originalEditContentRef.current}
+                                      className="btn btn-sm btn-success disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       <Save className="h-3 w-3" />
                                       Save
@@ -1005,40 +1130,41 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     </div>
                                   )}
 
-                                  {message?.type === "richui_json" && message?.content && (
-                                    <div className="mt-4 richui-container w-full">
-                                      {(() => {
-                                        return (
-                                          <RenderNode
-                                            node={message.content}
-                                            onAction={(action) => {
-                                              if (action?.type === "reply" && action?.text) {
-                                                if (handleSendMessageRef.current && inputRef.current) {
-                                                  // Set the input field value and triggers send
-                                                  inputRef.current.value = action.text;
-                                                  setTimeout(() => {
-                                                    handleSendMessageRef.current(null, true);
-                                                  }, 50);
+                                  {(message?.type === "richui_json" || message?.type === "template") &&
+                                    message?.content && (
+                                      <div className="mt-4 richui-container w-full">
+                                        {(() => {
+                                          return (
+                                            <RenderNode
+                                              node={message.content}
+                                              onAction={(action) => {
+                                                if (action?.type === "reply" && action?.text) {
+                                                  if (handleSendMessageRef.current && inputRef.current) {
+                                                    // Set the input field value and triggers send
+                                                    inputRef.current.value = action.text;
+                                                    setTimeout(() => {
+                                                      handleSendMessageRef.current(null, true);
+                                                    }, 50);
 
-                                                  // Clear the input field after sending
-                                                  setTimeout(() => {
-                                                    if (inputRef.current) {
-                                                      inputRef.current.value = "";
-                                                    }
-                                                  }, 200);
-                                                } else {
-                                                  console.warn("[Chat] handleSendMessageRef or inputRef is missing", {
-                                                    handleSendMessageRef: handleSendMessageRef.current,
-                                                    inputRef: inputRef.current,
-                                                  });
+                                                    // Clear the input field after sending
+                                                    setTimeout(() => {
+                                                      if (inputRef.current) {
+                                                        inputRef.current.value = "";
+                                                      }
+                                                    }, 200);
+                                                  } else {
+                                                    console.warn("[Chat] handleSendMessageRef or inputRef is missing", {
+                                                      handleSendMessageRef: handleSendMessageRef.current,
+                                                      inputRef: inputRef.current,
+                                                    });
+                                                  }
                                                 }
-                                              }
-                                            }}
-                                          />
-                                        );
-                                      })()}
-                                    </div>
-                                  )}
+                                              }}
+                                            />
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
 
                                   {/* Render message attachments (images, etc.) */}
                                   {_renderMessageAttachments(message)}
@@ -1095,7 +1221,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             <div
               data-testid="chat-input-wrapper"
               id="chat-input-wrapper"
-              className=" border-base-content/30 px-4 pt-4 mb-2 sm:mb-0 w-full"
+              className="border-base-content/30 pt-4 pb-4 w-full"
             >
               <div className="relative flex flex-col gap-4 w-full">
                 <div className="flex flex-row gap-2">
@@ -1110,6 +1236,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                     selectedStrategy={selectedStrategy}
                     handleSendMessageRef={handleSendMessageRef}
                     showTestCases={showTestCases}
+                    draftPrompt={draftPrompt}
                   />
                 </div>
               </div>

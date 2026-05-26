@@ -63,14 +63,9 @@ const RecommendedModal = ({
         const response = await modelSuggestionApi({ versionId: searchParams?.version });
         if (response?.success) {
           setModelRecommendations({
-            available: {
-              service: response.data.available.service,
-              model: response.data.available.model,
-            },
-            unavailable: {
-              service: response.data.unavailable.service,
-              model: response.data.unavailable.model,
-            },
+            service: response.data.service,
+            model: response.data.model,
+            session_id: response.data.session_id,
           });
         } else {
           setModelRecommendations({ error: "Failed to get model recommendations." });
@@ -113,11 +108,10 @@ const RecommendedModal = ({
                 ) : (
                   <div className="space-y-2">
                     <p className="text-base-content">
-                      <span className="font-medium">Recommended Provider:</span>{" "}
-                      {modelRecommendations?.available?.service}
+                      <span className="font-medium">Recommended Provider:</span> {modelRecommendations?.service}
                     </p>
                     <p className="text-base-content">
-                      <span className="font-medium">Recommended Model:</span> {modelRecommendations?.available?.model}
+                      <span className="font-medium">Recommended Model:</span> {modelRecommendations?.model}
                     </p>
                   </div>
                 )}

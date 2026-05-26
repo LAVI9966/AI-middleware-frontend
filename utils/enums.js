@@ -1,8 +1,15 @@
 import { BookIcon, BotIcon, KeyIcon, SettingsIcon, TestTubeDiagonalIcon, WrenchIcon } from "@/components/Icons";
+import { DollarSign, Star, Gauge } from "lucide-react";
 export const PAUTH_KEY_COLUMNS = ["name", "authkey", "created_at"];
 export const API_KEY_COLUMNS = ["name", "apikey", "apikey_usage", "last_used", "last_used_status"];
 export const WEBHOOKALERT_COLUMNS = ["name", "url", "headers", "alertType", "bridges"];
 export const ALERT_TYPE = ["Error", "Variable"];
+
+export const AUTO_MODEL_TRADEOFF_OPTIONS = [
+  { value: "cost", label: "Cost", icon: DollarSign },
+  { value: "quality", label: "Quality", icon: Star },
+  { value: "speed", label: "Speed", icon: Gauge },
+];
 
 export const AVAILABLE_MODEL_TYPES = {
   API: "api",
@@ -41,6 +48,7 @@ export const MODAL_TYPE = {
   TESTCASE_MODAL: "TESTCASE_MODAL",
   DEMO_MODAL: "DEMO_MODAL",
   ADD_TEST_CASE_MODAL: "ADD_TEST_CASE_MODAL",
+  TEST_CASE_VARIABLES_MODAL: "TEST_CASE_VARIABLES_MODAL",
   HISTORY_PAGE_PROMPT_UPDATE_MODAL: "HISTORY_PAGE_PROMPT_UPDATE_MODAL",
   AGENT_DESCRIPTION_MODAL: "AGENT_DESCRIPTION_MODAL",
   AGENT_VARIABLE_MODAL: "AGENT_VARIABLE_MODAL",
@@ -72,6 +80,15 @@ export const MODAL_TYPE = {
   ORCHESTRAL_DELETE_MODAL: "ORCHESTRAL_DELETE_MODAL",
   ACCESS_MANAGEMENT_MODAL: "ACCESS_MANAGEMENT_MODAL",
   UNSAVED_CHANGES_MODAL: "UNSAVED_CHANGES_MODAL",
+  UNSAVED_CHANGES_INTEGRATION_MODAL: "UNSAVED_CHANGES_INTEGRATION_MODAL", // IntegrationDetailView config guard
+  UNSAVED_CHANGES_PUBLISH_MODAL: "UNSAVED_CHANGES_PUBLISH_MODAL", // Publish button guard
+  UNSAVED_CHANGES_NAV_MODAL: "UNSAVED_CHANGES_NAV_MODAL", // Navbar tab navigation guard
+  UNSAVED_CHANGES_TAB_MODAL: "UNSAVED_CHANGES_TAB_MODAL", // TabsLayout inner-tab guard
+  UNSAVED_CHANGES_VERSION_MODAL: "UNSAVED_CHANGES_VERSION_MODAL", // Version switch guard
+  UNSAVED_CHANGES_ORG_SLIDER_MODAL: "UNSAVED_CHANGES_ORG_SLIDER_MODAL", // OrgSlider switch guard
+  UNSAVED_PROMPT_CHAT_MODAL: "UNSAVED_PROMPT_CHAT_MODAL",
+  UNSAVED_REFRESH_MODAL: "UNSAVED_REFRESH_MODAL",
+  UNSAVED_PROMPT_ACTION_MODAL: "UNSAVED_PROMPT_ACTION_MODAL", // Pre-tool / response-type guard
   RESOURCE_CHUNKS_MODAL: "RESOURCE_CHUNKS_MODAL",
   QUERY_KNOWLEDGE_BASE_MODAL: "QUERY_KNOWLEDGE_BASE_MODAL",
   GTWY_OPEN_WITH_AGENT_MODAL: "GTWY_OPEN_WITH_AGENT_MODAL",
@@ -88,6 +105,7 @@ export const MODAL_TYPE = {
   FULLSCREEN_JSON_SCHEMA: "FULLSCREEN_JSON_SCHEMA",
   CUSTOM_TONE_MODAL: "CUSTOM_TONE_MODAL",
   CUSTOM_RESPONSE_STYLE_MODAL: "CUSTOM_RESPONSE_STYLE_MODAL",
+  MAKE_PUBLIC_AGENT: "MAKE_PUBLIC_AGENT",
 };
 
 export const API_KEY_MODAL_INPUT = ["name", "apikey", "apikey_limit"];

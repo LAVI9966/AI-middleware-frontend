@@ -6,6 +6,7 @@ import { Search, X, ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { formatRelativeTime, formatDate, openModal, closeModal } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
 import Protected from "../Protected";
+import { isPaletteOpen } from "@/components/PaletteFocusGuard";
 
 function getOrgIdFromPath(pathname) {
   const parts = (pathname || "").split("/").filter(Boolean);
@@ -23,6 +24,7 @@ function getCurrentCategoryGroup(currentCategory) {
     integrations: "Integrations",
     rag_embed: "RAG Embeds",
     widgets: "Widgets",
+    tools: "Tools",
   };
   return categoryGroupMap[currentCategory] || null;
 }
@@ -52,6 +54,7 @@ const CommandPalette = ({ isEmbedUser }) => {
     if (parts.includes("integration")) return "integrations";
     if (parts.includes("RAG_embed")) return "rag_embed";
     if (parts.includes("widgets")) return "widgets";
+    if (parts.includes("tools")) return "tools";
     if (parts.includes("orchestratal_model")) return "flows";
     return null;
   }, [pathname]);
@@ -82,7 +85,7 @@ const CommandPalette = ({ isEmbedUser }) => {
     (categoryKey) => {
       switch (categoryKey) {
         case "api-agents":
-          return apiAgents.map((a) => ({
+          return (Array.isArray(apiAgents) ? apiAgents : []).map((a) => ({
             id: a._id,
             title: a.name || a.slugName || a._id,
             subtitle: "API Agent",
@@ -93,7 +96,7 @@ const CommandPalette = ({ isEmbedUser }) => {
           }));
 
         case "chatbot-agents":
-          return chatbotAgents.map((a) => ({
+          return (Array.isArray(chatbotAgents) ? chatbotAgents : []).map((a) => ({
             id: a._id,
             title: a.name || a.slugName || a._id,
             subtitle: "Chatbot Agent",
@@ -104,7 +107,7 @@ const CommandPalette = ({ isEmbedUser }) => {
           }));
 
         case "apikeys":
-          return apikeys.map((k) => ({
+          return (Array.isArray(apikeys) ? apikeys : []).map((k) => ({
             id: k._id,
             title: k.name || k._id,
             subtitle: (
@@ -126,7 +129,7 @@ const CommandPalette = ({ isEmbedUser }) => {
           }));
 
         case "docs":
-          return knowledgeBase.map((d) => ({
+          return (Array.isArray(knowledgeBase) ? knowledgeBase : []).map((d) => ({
             id: d._id,
             title: d.title || d.name || d._id,
             subtitle: "Knowledge Base",
@@ -153,7 +156,7 @@ const CommandPalette = ({ isEmbedUser }) => {
               type: "rag_embed",
             }));
         case "Auths":
-          return authData.map((d) => ({
+          return (Array.isArray(authData) ? authData : []).map((d) => ({
             id: d.id,
             title: d.name || d.id,
             subtitle: "Auth Key",
@@ -161,18 +164,41 @@ const CommandPalette = ({ isEmbedUser }) => {
           }));
 
         case "widgets":
-          return (widgetsData || []).map((d) => ({
+          return (Array.isArray(widgetsData) ? widgetsData : []).map((d) => ({
             id: d._id,
             title: d.name || d._id,
             subtitle: "Widget",
             type: "widgets",
           }));
 
+        case "tools":
+          return (Array.isArray(functions) ? functions : []).map((fn) => ({
+            id: fn._id || fn.script_id,
+            title: fn.title || fn.script_id || "Untitled tool",
+            subtitle: (
+              <div className="flex items-center gap-2">
+                <span>Tool</span>
+                {fn.updatedAt && (
+                  <>
+                    <span>•</span>
+                    <span className="text-xs opacity-70">Updated:</span>
+                    <div className="group cursor-help inline-flex">
+                      <span className="group-hover:hidden">{formatRelativeTime(fn.updatedAt)}</span>
+                      <span className="hidden group-hover:inline text-xs">{formatDate(fn.updatedAt)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            ),
+            type: "tools",
+            script_id: fn.script_id,
+          }));
+
         default:
           return [];
       }
     },
-    [apiAgents, chatbotAgents, apikeys, knowledgeBase, integrationData, authData, widgetsData]
+    [apiAgents, chatbotAgents, apikeys, knowledgeBase, integrationData, authData, widgetsData, functions]
   );
 
   const createAgentItem = (a, type) => ({
@@ -309,6 +335,28 @@ const CommandPalette = ({ isEmbedUser }) => {
     type: "widgets",
   }));
 
+  const toolsGroup = filterBy(functions, ["title", "script_id"]).map((fn) => ({
+    id: fn._id || fn.script_id,
+    title: fn.title || fn.script_id || "Untitled tool",
+    subtitle: (
+      <div className="flex items-center gap-2">
+        <span>Tool</span>
+        {fn.updatedAt && (
+          <>
+            <span>•</span>
+            <span className="text-xs opacity-70">Updated:</span>
+            <div className="group cursor-help inline-flex">
+              <span className="group-hover:hidden">{formatRelativeTime(fn.updatedAt)}</span>
+              <span className="hidden group-hover:inline text-xs">{formatDate(fn.updatedAt)}</span>
+            </div>
+          </>
+        )}
+      </div>
+    ),
+    type: "tools",
+    script_id: fn.script_id,
+  }));
+
   const items = useMemo(
     () => ({
       agents: [...apiAgentsGroup, ...chatbotAgentsGroup, ...agentsVersionMatches],
@@ -319,6 +367,7 @@ const CommandPalette = ({ isEmbedUser }) => {
       auths: authGroup,
       rag_embed: ragEmbedGroup,
       widgets: widgetsGroup,
+      tools: toolsGroup,
     }),
     [query, agentList, apikeys, knowledgeBase, functions, integrationData, authData, widgetsData]
   );
@@ -335,6 +384,7 @@ const CommandPalette = ({ isEmbedUser }) => {
       ...items.auths.map((it) => ({ group: "Auth Keys", ...it })),
       ...items.rag_embed.map((it) => ({ group: "RAG Embeds", ...it })),
       ...items.widgets.map((it) => ({ group: "Widgets", ...it })),
+      ...items.tools.map((it) => ({ group: "Tools", ...it })),
     ],
     [items]
   );
@@ -397,6 +447,7 @@ const CommandPalette = ({ isEmbedUser }) => {
       { key: "integrations", label: "Gtwy as Embed", desc: "Configure integrations" },
       { key: "rag_embed", label: "RAG Embed", desc: "RAG embed integrations" },
       { key: "widgets", label: "Widgets", desc: "Create and manage UI widgets" },
+      { key: "tools", label: "Tools", desc: "Custom tools and integrations" },
     ];
 
     // When on agents page, order based on type query parameter
@@ -446,6 +497,7 @@ const CommandPalette = ({ isEmbedUser }) => {
     const openModals = document.querySelectorAll(".modal-open, dialog[open]");
     if (openModals.length > 0) return;
 
+    isPaletteOpen.current = true;
     setOpen(true);
     setQuery("");
     setActiveIndex(0);
@@ -467,7 +519,10 @@ const CommandPalette = ({ isEmbedUser }) => {
     setCollapsedSearchCategories(new Set());
   }, [categories, currentCategory]);
 
-  const closePalette = useCallback(() => setOpen(false), []);
+  const closePalette = useCallback(() => {
+    isPaletteOpen.current = false;
+    setOpen(false);
+  }, []);
 
   const clearCurrentFilter = useCallback(() => {
     const url = new URL(window.location);
@@ -544,6 +599,9 @@ const CommandPalette = ({ isEmbedUser }) => {
         case "widgets":
           router.push(`/org/${orgId}/widgets${item.id ? `?filter=${item.id}` : ""}`);
           break;
+        case "tools":
+          router.push(`/org/${orgId}/tools${item.id ? `?filter=${item.id}` : ""}`);
+          break;
         default:
           router.push("/");
       }
@@ -567,6 +625,7 @@ const CommandPalette = ({ isEmbedUser }) => {
         rag_embed: `/org/${orgId}/RAG_embed`,
         Auths: `/org/${orgId}/pauthkey`,
         widgets: `/org/${orgId}/widgets`,
+        tools: `/org/${orgId}/tools`,
         flows: `/org/${orgId}/orchestratal_model`,
       };
       router.push(routes[key] || "/");

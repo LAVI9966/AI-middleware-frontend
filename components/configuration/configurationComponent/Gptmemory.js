@@ -76,7 +76,7 @@ const GptMemory = ({ params, searchParams, isPublished, isEditor = true }) => {
       {!gpt_memory && (
         <div className="flex flex-col items-center justify-center py-20">
           <Brain size={48} className="text-base-content/30 mb-4" strokeWidth={1.5} />
-          <p className="text-sm text-base-content/50">Enable memory to configure settings</p>
+          <p className="text-sm text-base-content/50">Turn on memory to save conversation context</p>
         </div>
       )}
 

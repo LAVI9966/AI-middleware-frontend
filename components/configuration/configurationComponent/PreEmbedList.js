@@ -1,7 +1,7 @@
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { updateApiAction, updateBridgeVersionAction, updateFuntionApiAction } from "@/store/action/bridgeAction";
-import { getStatusClass, openModal } from "@/utils/utility";
-import React, { useMemo, useState } from "react";
+import { getStatusClass, openModal, closeModal } from "@/utils/utility";
+import React, { useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import EmbedListSuggestionDropdownMenu from "./EmbedListSuggestionDropdownMenu";
 import FunctionParameterModal from "./FunctionParameterModal";
@@ -13,6 +13,8 @@ import { AddIcon } from "@/components/Icons";
 import DeleteModal from "@/components/UI/DeleteModal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import PrebuiltPreToolConfigModal from "@/components/modals/PrebuiltPreToolConfigModal";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 
 const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEmbedUser = false }) => {
   // Determine if content is read-only (either published or user is not an editor)
@@ -23,7 +25,21 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
   const [preToolData, setPreToolData] = useState(null);
   const [variablesPath, setVariablesPath] = useState({});
   const [showChangePicker, setShowChangePicker] = useState(false);
+  const [isAddPreToolDropdownFocused, setIsAddPreToolDropdownFocused] = useState(false);
   const [selectedPreTool, setSelectedPreTool] = useState(null); // for built-in modal
+
+  // Pending action to run after the user confirms leaving unsaved prompt changes
+  const pendingActionRef = useRef(null);
+
+  /** Run `action` immediately, or show the unsaved-prompt guard modal first. */
+  const guardedAction = (action) => {
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      pendingActionRef.current = action;
+      openModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+    } else {
+      action();
+    }
+  };
   const { integrationData, function_data, bridge_pre_tools, model, embedToken, variables_path } = useCustomSelector(
     (state) => {
       const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
@@ -78,64 +94,72 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
   }, [bridge_pre_tools, function_data]);
 
   const handleOpenModal = (itemId) => {
-    // Find the full tool item from bridgePreFunctions by _id
-    const toolItem = bridgePreFunctions.find((t) => t._id === itemId);
-    if (!toolItem) return;
+    guardedAction(() => {
+      // Find the full tool item from bridgePreFunctions by _id
+      const toolItem = bridgePreFunctions.find((t) => t._id === itemId);
+      if (!toolItem) return;
 
-    const toolType = toolItem._type;
+      const toolType = toolItem._type;
 
-    if (toolType === PRE_TOOL_TYPES.custom_function) {
-      setPreFunctionId(toolItem._id);
-      setPreFunctionName(toolItem.script_id || toolItem.title || "");
-      setPreToolData(function_data?.[toolItem._id]);
-      setPreFunctionData(function_data?.[toolItem._id]);
-      setVariablesPath(toolItem._toolEntry?.args || {});
-      openModal(MODAL_TYPE.PRE_FUNCTION_PARAMETER_MODAL);
-    } else {
-      setSelectedPreTool(toolItem._toolEntry);
-      openModal(MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL);
-    }
+      if (toolType === PRE_TOOL_TYPES.custom_function) {
+        setPreFunctionId(toolItem._id);
+        setPreFunctionName(toolItem.script_id || toolItem.title || "");
+        setPreToolData(function_data?.[toolItem._id]);
+        setPreFunctionData(function_data?.[toolItem._id]);
+        setVariablesPath(toolItem._toolEntry?.args || {});
+        openModal(MODAL_TYPE.PRE_FUNCTION_PARAMETER_MODAL);
+      } else {
+        setSelectedPreTool(toolItem._toolEntry);
+        openModal(MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL);
+      }
+    });
   };
 
   const handleOpenDeleteModal = (itemId, itemScriptId) => {
-    const toolItem = bridgePreFunctions.find((t) => t._id === itemId);
-    if (!toolItem) return;
+    guardedAction(() => {
+      const toolItem = bridgePreFunctions.find((t) => t._id === itemId);
+      if (!toolItem) return;
 
-    setPreFunctionId(itemId);
-    setPreFunctionName(toolItem._type !== PRE_TOOL_TYPES.custom_function ? toolItem._type : itemScriptId || itemId);
-    openModal(MODAL_TYPE.DELETE_PRE_TOOL_MODAL);
+      setPreFunctionId(itemId);
+      setPreFunctionName(toolItem._type !== PRE_TOOL_TYPES.custom_function ? toolItem._type : itemScriptId || itemId);
+      openModal(MODAL_TYPE.DELETE_PRE_TOOL_MODAL);
+    });
   };
 
   const onFunctionSelect = (id) => {
-    dispatch(
-      updateApiAction(params.id, {
-        pre_tools: {
-          type: PRE_TOOL_TYPES.custom_function,
-          config: {
-            function_id: id,
-            script_id: function_data?.[id]?.script_id,
-            required_params: function_data?.[id]?.required_params || [],
+    guardedAction(() => {
+      dispatch(
+        updateApiAction(params.id, {
+          pre_tools: {
+            type: PRE_TOOL_TYPES.custom_function,
+            config: {
+              function_id: id,
+              script_id: function_data?.[id]?.script_id,
+              required: function_data?.[id]?.required || [],
+            },
           },
-        },
-        version_id: searchParams?.version,
-        status: "1",
-      })
-    );
+          version_id: searchParams?.version,
+          status: "1",
+        })
+      );
+    });
   };
 
   const onBuiltInPreToolSelect = (type) => {
-    dispatch(
-      updateApiAction(params.id, {
-        pre_tools: { type },
-        version_id: searchParams?.version,
-        status: "1",
-      })
-    );
-    setSelectedPreTool({ type, config: {}, args: {} });
-    openModal(MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL);
-    setTimeout(() => {
-      if (typeof document !== "undefined") document.activeElement?.blur?.();
-    }, 0);
+    guardedAction(() => {
+      dispatch(
+        updateApiAction(params.id, {
+          pre_tools: { type },
+          version_id: searchParams?.version,
+          status: "1",
+        })
+      );
+      setSelectedPreTool({ type, config: {}, args: {} });
+      openModal(MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL);
+      setTimeout(() => {
+        if (typeof document !== "undefined") document.activeElement?.blur?.();
+      }, 0);
+    });
   };
 
   const disableAllPreTools = async () => {
@@ -151,36 +175,40 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
   };
 
   const onChangeFunctionSelect = async (id) => {
-    await disableAllPreTools();
-    dispatch(
-      updateApiAction(params.id, {
-        pre_tools: {
-          type: PRE_TOOL_TYPES.custom_function,
-          config: {
-            function_id: id,
-            script_id: function_data?.[id]?.script_id,
-            required_params: function_data?.[id]?.required_params || [],
+    guardedAction(async () => {
+      await disableAllPreTools();
+      dispatch(
+        updateApiAction(params.id, {
+          pre_tools: {
+            type: PRE_TOOL_TYPES.custom_function,
+            config: {
+              function_id: id,
+              script_id: function_data?.[id]?.script_id,
+              required: function_data?.[id]?.required || [],
+            },
           },
-        },
-        version_id: searchParams?.version,
-        status: "1",
-      })
-    );
-    setShowChangePicker(false);
+          version_id: searchParams?.version,
+          status: "1",
+        })
+      );
+      setShowChangePicker(false);
+    });
   };
 
   const onChangeBuiltInPreToolSelect = async (type) => {
-    await disableAllPreTools();
-    dispatch(
-      updateApiAction(params.id, {
-        pre_tools: { type },
-        version_id: searchParams?.version,
-        status: "1",
-      })
-    );
-    setShowChangePicker(false);
-    setSelectedPreTool({ type, config: {}, args: {} });
-    openModal(MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL);
+    guardedAction(async () => {
+      await disableAllPreTools();
+      dispatch(
+        updateApiAction(params.id, {
+          pre_tools: { type },
+          version_id: searchParams?.version,
+          status: "1",
+        })
+      );
+      setShowChangePicker(false);
+      setSelectedPreTool({ type, config: {}, args: {} });
+      openModal(MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL);
+    });
   };
 
   const removePreFunction = async () => {
@@ -202,7 +230,15 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
   };
 
   const handleChangePreTool = () => {
-    setShowChangePicker(true);
+    guardedAction(() => {
+      setShowChangePicker(true);
+    });
+  };
+
+  const handleAddPreToolDropdownBlur = (event) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setIsAddPreToolDropdownFocused(false);
+    }
   };
 
   const handleSavePreFunctionData = () => {
@@ -303,9 +339,14 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                 data-testid="pre-embed-empty-dropdown"
                 id="pre-embed-empty-dropdown"
                 className={`dropdown dropdown-end w-full max-w-md`}
+                onFocusCapture={() => setIsAddPreToolDropdownFocused(true)}
+                onBlurCapture={handleAddPreToolDropdownBlur}
               >
                 <div className="border-2 border-base-200 border-dashed text-center">
-                  <InfoTooltip tooltipContent="A prefunction prepares data before passing it to the main function for the GPT call.">
+                  <InfoTooltip
+                    tooltipContent="A prefunction prepares data before passing it to the main function for the GPT call."
+                    disabled={isAddPreToolDropdownFocused}
+                  >
                     <button
                       data-testid="pre-embed-add-button"
                       id="pre-embed-add-button"
@@ -352,10 +393,12 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
                   handleOpenModal={handleOpenModal}
                   embedToken={embedToken}
                   params={params}
+                  versionId={searchParams?.version}
                   name="preFunction"
                   handleRemoveEmbed={removePreFunction}
                   handleOpenDeleteModal={handleOpenDeleteModal}
                   handleChangePreTool={handleChangePreTool}
+                  isChangePreToolDropdownOpen={showChangePicker}
                   halfLength={1}
                 />
                 {bridgePreFunctions.length > 0 && (
@@ -390,6 +433,29 @@ const PreEmbedList = ({ params, searchParams, isPublished, isEditor = true, isEm
           </div>
         </div>
       </div>
+      {/* Unsaved prompt guard modal for pre-tool actions */}
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. Save your prompt first, or discard changes and continue."
+        confirmText="Discard & Continue"
+        cancelText="Go Back"
+        confirmButtonClass="btn-error text-white"
+        onConfirm={() => {
+          closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+          const action = pendingActionRef.current;
+          pendingActionRef.current = null;
+          if (action) action();
+        }}
+        onCancel={() => {
+          closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+          pendingActionRef.current = null;
+        }}
+        onClose={() => {
+          closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+          pendingActionRef.current = null;
+        }}
+      />
     </>
   );
 };

@@ -2,6 +2,7 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "
 import { usePromptSelector } from "@/customHooks/useOptimizedSelector";
 import { MODAL_TYPE, PROMPT_SECTION_CONFIG } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 import PromptSummaryModal from "../../modals/PromptSummaryModal";
 import Diff_Modal from "@/components/modals/DiffModal";
 import PromptHeader from "./PromptHeader";
@@ -13,6 +14,26 @@ import { promptObjectToString } from "@/utils/promptUtils";
 import Protected from "@/components/Protected";
 import FullscreenEditorModal, { FullscreenEditorButton } from "../../modals/FullscreenEditorModal";
 import { BrainIcon } from "@/components/Icons";
+
+const sortPromptValue = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sortPromptValue);
+  }
+
+  if (value && typeof value === "object") {
+    return Object.keys(value)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = sortPromptValue(value[key]);
+        return acc;
+      }, {});
+  }
+
+  return typeof value === "string" ? value.trim() : value;
+};
+
+const arePromptValuesEqual = (first, second) =>
+  JSON.stringify(sortPromptValue(first)) === JSON.stringify(sortPromptValue(second));
 
 // Ultra-smooth InputConfigComponent with ref-based approach
 const InputConfigComponent = memo(
@@ -51,6 +72,8 @@ const InputConfigComponent = memo(
     const [focusedField, setFocusedField] = useState(null);
     const [fieldDiffState, setFieldDiffState] = useState(null);
     const [embedFieldValues, setEmbedFieldValues] = useState(null);
+    const [savedPromptSnapshot, setSavedPromptSnapshot] = useState(reduxPrompt);
+    const [plainPromptDraft, setPlainPromptDraft] = useState(typeof reduxPrompt === "string" ? reduxPrompt : "");
     const [fullscreenEditor, setFullscreenEditor] = useState({
       isOpen: false,
       title: "Prompt",
@@ -65,6 +88,8 @@ const InputConfigComponent = memo(
     useEffect(() => {
       setStructuredFields(isStructuredPrompt ? reduxPrompt : null);
       setEmbedFieldValues(null);
+      setSavedPromptSnapshot(reduxPrompt);
+      setPlainPromptDraft(typeof reduxPrompt === "string" ? reduxPrompt : "");
     }, [reduxPrompt]);
     const {
       isEmbedCustomPrompt,
@@ -156,6 +181,7 @@ const InputConfigComponent = memo(
         valueToSave[f.name] = activeEmbedFieldValues[f.name] ?? "";
       });
       savePrompt(valueToSave);
+      setSavedPromptSnapshot(valueToSave);
       setEmbedFieldValues(null);
       setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
     }, [isEmbedCustomPrompt, visibleEmbedFields, activeEmbedFieldValues, savePrompt, setPromptState]);
@@ -174,6 +200,7 @@ const InputConfigComponent = memo(
           valueToSave[f.name] = activeEmbedFieldValues[f.name] ?? "";
         });
         savePrompt(valueToSave);
+        setSavedPromptSnapshot(valueToSave);
         setEmbedFieldValues(null);
         setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
       },
@@ -182,6 +209,7 @@ const InputConfigComponent = memo(
 
     const handlePromptChange = useCallback(
       (value) => {
+        setPlainPromptDraft(value);
         if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
         debounceTimerRef.current = setTimeout(() => {
           setPromptState((prev) => ({ ...prev, newContent: value }));
@@ -210,6 +238,10 @@ const InputConfigComponent = memo(
         valueToSave = (textareaRef.current?.value || "").trim();
       }
       savePrompt(valueToSave);
+      setSavedPromptSnapshot(valueToSave);
+      if (!isStructuredPrompt) {
+        setPlainPromptDraft(valueToSave);
+      }
       setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
     }, [savePrompt, setPromptState, isStructuredPrompt, structuredFields]);
 
@@ -217,6 +249,7 @@ const InputConfigComponent = memo(
       (fields) => {
         const valueToSave = { ...fields };
         savePrompt(valueToSave);
+        setSavedPromptSnapshot(valueToSave);
         setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "", messages: [] }));
       },
       [savePrompt, setPromptState]
@@ -226,6 +259,7 @@ const InputConfigComponent = memo(
       (fields) => {
         const valueToSave = { ...fields };
         savePrompt(valueToSave);
+        setSavedPromptSnapshot(valueToSave);
         setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "", messages: [] }));
       },
       [savePrompt, setPromptState]
@@ -287,6 +321,43 @@ const InputConfigComponent = memo(
       return old.trim() !== currentValue.trim();
     }, [oldContent, reduxPrompt, isStructuredPrompt, structuredFields]);
 
+    const currentPromptValue = useMemo(() => {
+      if (isEmbedCustomPrompt) {
+        const value = {};
+        visibleEmbedFields.forEach((field) => {
+          value[field.name] = activeEmbedFieldValues[field.name] ?? "";
+        });
+        return value;
+      }
+
+      if (isStructuredPrompt) {
+        return { ...(structuredFields || {}) };
+      }
+
+      return plainPromptDraft;
+    }, [
+      activeEmbedFieldValues,
+      isEmbedCustomPrompt,
+      isStructuredPrompt,
+      plainPromptDraft,
+      structuredFields,
+      visibleEmbedFields,
+    ]);
+
+    const hasPromptChanges = useMemo(
+      () => !arePromptValuesEqual(currentPromptValue, savedPromptSnapshot),
+      [currentPromptValue, savedPromptSnapshot]
+    );
+
+    // Keep the global guard in sync so navigation interceptors can check it
+    useEffect(() => {
+      unsavedPromptGuard.hasUnsavedChanges = hasPromptChanges;
+      return () => {
+        // Clear on unmount (leaving the page)
+        unsavedPromptGuard.hasUnsavedChanges = false;
+      };
+    }, [hasPromptChanges]);
+
     const handleKeyDown = useCallback(
       (event) => {
         if (event.key === "Tab" && uiState.isPromptHelperOpen) {
@@ -316,6 +387,8 @@ const InputConfigComponent = memo(
           isFocused={isTextareaFocused}
           showDiffButton={showDiffButton}
           isEmbedCustomPrompt={isEmbedCustomPrompt}
+          onSavePrompt={isEmbedCustomPrompt ? handleSaveEmbedFields : handleSavePrompt}
+          isSaveDisabled={!hasPromptChanges}
           onMigratePrompt={() => openModal(MODAL_TYPE.MIGRATE_PROMPT_MODAL)}
         />
 
@@ -331,7 +404,6 @@ const InputConfigComponent = memo(
                 onKeyDown={handleKeyDown}
                 isPublished={isPublished}
                 isEditor={isEditor}
-                onSave={handleSavePrompt}
                 onFocus={handleTextareaFocus}
                 onTextAreaBlur={handleTextareaBlur}
                 fullscreenButton={
@@ -455,7 +527,6 @@ const InputConfigComponent = memo(
                           if (field.deprecated) return;
                           handleTextareaBlur(e);
                           setFocusedField(null);
-                          if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
                         disabled={isPublished || !isEditor}
                         placeholder={
@@ -482,7 +553,6 @@ const InputConfigComponent = memo(
                           if (field.deprecated) return;
                           handleTextareaBlur(e);
                           setFocusedField(null);
-                          if (!isPublished && isEditor) handleSaveEmbedFields();
                         }}
                         disabled={isPublished || !isEditor}
                         placeholder={
@@ -492,14 +562,14 @@ const InputConfigComponent = memo(
                         }
                       />
                     )}
-                    {!field.deprecated && (
+                    {!field.deprecated && !uiState.isPromptHelperOpen && (
                       <FullscreenEditorButton
                         tooltip={`Open ${field.name} in fullscreen`}
                         className="absolute top-1 right-1 opacity-50 hover:opacity-100 z-10"
                         onClick={() => {
                           setFullscreenEditor({
                             isOpen: true,
-                            title: `Prompt — ${field.name}`,
+                            title: `Prompt — ${field.displayValue || field.name}`,
                             value: activeEmbedFieldValues[field.name] || "",
                             fieldKey: field.name,
                             fieldType: "embed",
@@ -543,7 +613,6 @@ const InputConfigComponent = memo(
                         onFocus={handleTextareaFocus}
                         onBlur={(e) => {
                           handleTextareaBlur(e);
-                          if (!isPublished && isEditor) handleSavePrompt();
                         }}
                         disabled={isPublished || !isEditor}
                         placeholder={fieldConfig.placeholder || `Enter ${key}...`}
@@ -558,64 +627,66 @@ const InputConfigComponent = memo(
                         onFocus={handleTextareaFocus}
                         onBlur={(e) => {
                           handleTextareaBlur(e);
-                          if (!isPublished && isEditor) handleSavePrompt();
                         }}
                         disabled={isPublished || !isEditor}
                         placeholder={fieldConfig.placeholder || `Enter ${key}...`}
                       />
                     )}
-                    <FullscreenEditorButton
-                      tooltip={`Open ${fieldConfig.label || key} in fullscreen`}
-                      className="absolute top-1 right-1 opacity-50 hover:opacity-100"
-                      onClick={() => {
-                        setFullscreenEditor({
-                          isOpen: true,
-                          title: `Prompt — ${fieldConfig.label || key}`,
-                          value: (structuredFields || {})[key] || "",
-                          fieldKey: key,
-                          fieldType: "structured",
-                        });
-                      }}
-                    />
+                    {!uiState.isPromptHelperOpen && (
+                      <FullscreenEditorButton
+                        tooltip={`Open ${fieldConfig.label || key} in fullscreen`}
+                        className="absolute top-1 right-1 opacity-50 hover:opacity-100"
+                        onClick={() => {
+                          setFullscreenEditor({
+                            isOpen: true,
+                            title: `Prompt — ${fieldConfig.label || key}`,
+                            value: (structuredFields || {})[key] || "",
+                            fieldKey: key,
+                            fieldType: "structured",
+                          });
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             /* PLAIN STRING or ADVANCED VIEW: single textarea */
-            <PromptTextarea
-              textareaRef={textareaRef}
-              initialValue={reduxPrompt}
-              onChange={handlePromptChange}
-              isPromptHelperOpen={uiState.isPromptHelperOpen}
-              onKeyDown={handleKeyDown}
-              isPublished={isPublished}
-              isEditor={isEditor}
-              onSave={handleSavePrompt}
-              onFocus={handleTextareaFocus}
-              onTextAreaBlur={handleTextareaBlur}
-              readOnly={false}
-              fullscreenButton={
-                !uiState.isPromptHelperOpen ? (
-                  <FullscreenEditorButton
-                    tooltip="Open prompt in fullscreen"
-                    className="opacity-50 hover:opacity-100"
-                    onClick={() => {
-                      const currentVal =
-                        textareaRef.current?.value ||
-                        (typeof reduxPrompt === "string" ? reduxPrompt : promptObjectToString(reduxPrompt));
-                      setFullscreenEditor({
-                        isOpen: true,
-                        title: "Prompt",
-                        value: currentVal,
-                        fieldKey: null,
-                        fieldType: null,
-                      });
-                    }}
-                  />
-                ) : null
-              }
-            />
+            <>
+              <PromptTextarea
+                textareaRef={textareaRef}
+                initialValue={reduxPrompt}
+                onChange={handlePromptChange}
+                isPromptHelperOpen={uiState.isPromptHelperOpen}
+                onKeyDown={handleKeyDown}
+                isPublished={isPublished}
+                isEditor={isEditor}
+                onFocus={handleTextareaFocus}
+                onTextAreaBlur={handleTextareaBlur}
+                readOnly={false}
+                fullscreenButton={
+                  !uiState.isPromptHelperOpen ? (
+                    <FullscreenEditorButton
+                      tooltip="Open prompt in fullscreen"
+                      className="opacity-50 hover:opacity-100"
+                      onClick={() => {
+                        const currentVal =
+                          textareaRef.current?.value ||
+                          (typeof reduxPrompt === "string" ? reduxPrompt : promptObjectToString(reduxPrompt));
+                        setFullscreenEditor({
+                          isOpen: true,
+                          title: "Prompt",
+                          value: currentVal,
+                          fieldKey: null,
+                          fieldType: null,
+                        });
+                      }}
+                    />
+                  ) : null
+                }
+              />
+            </>
           )}
 
           {((isEmbedUser && showVariables) || !isEmbedUser) && (
@@ -666,6 +737,7 @@ const InputConfigComponent = memo(
                 valueToSave[f.name] = updatedValues[f.name] ?? "";
               });
               savePrompt(valueToSave);
+              setSavedPromptSnapshot(valueToSave);
               setEmbedFieldValues(null);
               setPromptState((prev) => ({ ...prev, prompt: valueToSave, newContent: "" }));
             } else if (fullscreenEditor.fieldType === "structured") {
@@ -675,12 +747,15 @@ const InputConfigComponent = memo(
               };
               handleFieldChange(fullscreenEditor.fieldKey, finalVal);
               savePrompt(updatedStructuredFields);
+              setSavedPromptSnapshot(updatedStructuredFields);
               setPromptState((prev) => ({ ...prev, prompt: updatedStructuredFields, newContent: "" }));
             } else {
               if (textareaRef.current) {
                 textareaRef.current.value = finalVal;
               }
               savePrompt(finalVal);
+              setSavedPromptSnapshot(finalVal);
+              setPlainPromptDraft(finalVal);
               setPromptState((prev) => ({ ...prev, prompt: finalVal, newContent: "" }));
             }
           }}

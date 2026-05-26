@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { Plus, RefreshCw } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { getAllFunctions, updateFuntionApiAction } from "@/store/action/bridgeAction";
 import { isEqual } from "lodash";
@@ -25,6 +26,7 @@ const ToolsConfiguration = ({
   modalType = MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL,
 }) => {
   const dispatch = useDispatch();
+  const searchParams = useSearchParams();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedFunctionId, setSelectedFunctionId] = useState(null);
   const [selectedFunctionData, setSelectedFunctionData] = useState({});
@@ -219,6 +221,7 @@ const ToolsConfiguration = ({
           handleOpenModal={handleOpenConfigModal}
           embedToken={embedToken}
           params={params}
+          versionId={searchParams?.version}
           handleRemoveEmbed={handleRemoveFunction}
           handleOpenDeleteModal={(functionId) => handleRemoveFunction(functionId)}
           handleChangePreTool={null}
@@ -226,6 +229,7 @@ const ToolsConfiguration = ({
           halfLength={selectedFunctionsData.length}
           isPublished={false}
           isEditor={true}
+          maxTitleLength={20}
         />
       ) : (
         <div className="bg-base-200 rounded-lg p-4 text-center" data-testid="no-tools-added-message">

@@ -5,7 +5,7 @@ import Tutorial from "./Tutorial";
 import { ExternalLinkIcon } from "./Icons";
 import SmartLink from "./SmartLink";
 
-const InfoTooltip = ({ video = "", children, tooltipContent, docLink }) => {
+const InfoTooltip = ({ video = "", children, tooltipContent, docLink, disabled = false }) => {
   const [open, setOpen] = useState(false); // for hover state
   const [showTutorial, setShowTutorial] = useState(false);
   const delayTimeout = useRef(null);
@@ -31,6 +31,13 @@ const InfoTooltip = ({ video = "", children, tooltipContent, docLink }) => {
   };
 
   useEffect(() => {
+    if (!disabled) return;
+
+    clearTimeout(delayTimeout.current);
+    setOpen(false);
+  }, [disabled]);
+
+  useEffect(() => {
     if (open && refs.reference.current && refs.floating.current) {
       const cleanup = autoUpdate(refs.reference.current, refs.floating.current, update);
       return () => cleanup();
@@ -43,23 +50,27 @@ const InfoTooltip = ({ video = "", children, tooltipContent, docLink }) => {
         data-testid="info-tooltip-trigger"
         id="info-tooltip-trigger"
         ref={refs.setReference}
-        onMouseEnter={handleOpenWithDelay}
-        onMouseLeave={handleClose}
+        onMouseEnter={disabled ? undefined : handleOpenWithDelay}
+        onMouseLeave={disabled ? undefined : handleClose}
         className="inline-block "
       >
         {children}
 
-        {open && (
+        {open && !disabled && (
           <div
             data-testid="info-tooltip-content"
             id="info-tooltip-content"
             ref={refs.setFloating}
             style={floatingStyles}
-            onMouseEnter={() => {
-              clearTimeout(delayTimeout.current);
-              setOpen(true);
-            }}
-            onMouseLeave={handleClose}
+            onMouseEnter={
+              disabled
+                ? undefined
+                : () => {
+                    clearTimeout(delayTimeout.current);
+                    setOpen(true);
+                  }
+            }
+            onMouseLeave={disabled ? undefined : handleClose}
             className="
               z-low-medium w-64 p-3 ml-3 bg-base-300 text-base-content text-primary-foreground
               rounded-md shadow-xl text-xs animate-in fade-in zoom-in

@@ -14,6 +14,7 @@ function Canvas({
   handleApplyOptimizedPrompt = () => {},
   label = "prompt",
   onResetThreadId = () => {},
+  apiError = false,
 }) {
   const safeMessages = Array.isArray(messages) ? messages : [];
   const messagesEndRef = useRef(null);
@@ -23,6 +24,7 @@ function Canvas({
   const [loading, setLoading] = useState(false);
   const [appliedMessages, setAppliedMessages] = useState("");
   const [copiedMessageId, setCopiedMessageId] = useState(null);
+  const [showActions, setShowActions] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -36,6 +38,7 @@ function Canvas({
     setMessages([]);
     setInstruction("");
     setAppliedMessages("");
+    setShowActions(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -112,6 +115,7 @@ function Canvas({
     });
     setInstruction("");
     setErrorMessage("");
+    setShowActions(false);
     setLoading(true);
     try {
       const response = await OptimizePrompt(instruction);
@@ -121,26 +125,28 @@ function Canvas({
       } else if (label === "prompt") {
         result = typeof response === "string" ? JSON.parse(response) : response;
       }
-      // Ensure content is always a string
       let contentString = "";
       if (result && result.updated !== undefined) {
-        contentString = typeof result.updated === "string" ? result.updated : JSON.stringify(result.updated, null, 2); // Format JSON with indentation
+        contentString = typeof result.updated === "string" ? result.updated : JSON.stringify(result.updated, null, 2);
+        setShowActions(true);
       } else {
         contentString = "No content returned from optimization.";
+        setShowActions(false);
       }
 
-      const assistantMessage = {
-        id: Date.now() + 1,
-        sender: "assistant",
-        content: contentString,
-        optimized: result.updated, // Keep the original format for functionality
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-      setMessages((prev) => {
-        return [...prev, assistantMessage];
-      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: "assistant",
+          content: contentString,
+          optimized: result?.updated,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
     } catch (err) {
       console.error("OptimizePrompt call failed", err);
+      setShowActions(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -225,7 +231,7 @@ function Canvas({
                   )}
 
                   {/* Action Buttons - Inside chat bubble */}
-                  {message.sender === "assistant" && message.optimized && (
+                  {showActions && !apiError && message.sender === "assistant" && message.optimized && (
                     <div className="mt-4 flex justify-start">
                       <div className="flex items-center gap-2">
                         {appliedMessages === message.id ? (
@@ -265,7 +271,7 @@ function Canvas({
                     </div>
                   )}
                 </div>
-                {message.sender === "assistant" && message.optimized && (
+                {showActions && !apiError && message.sender === "assistant" && message.optimized && (
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                 )}
               </div>

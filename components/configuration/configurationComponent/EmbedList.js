@@ -374,6 +374,7 @@ const EmbedList = ({ params, searchParams, isPublished, isEditor = true }) => {
                         handleOpenModal={handleOpenModal}
                         embedToken={embedToken}
                         params={params}
+                        versionId={searchParams?.version}
                         name="function"
                         handleRemoveEmbed={handleRemoveFunctionFromBridge}
                         handleOpenDeleteModal={handleOpenDeleteModal}

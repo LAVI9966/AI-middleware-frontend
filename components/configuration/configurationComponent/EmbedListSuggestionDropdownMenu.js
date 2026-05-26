@@ -31,18 +31,21 @@ function EmbedListSuggestionDropdownMenu({
   // Determine if content is read-only (either published or user is not an editor)
   // Use the tutorial videos hook
   const { getFunctionCreationVideo } = useTutorialVideos();
+  const versionId = searchParams?.version;
 
-  const { integrationData, function_data, embedToken } = useCustomSelector((state) => {
+  const { integrationData, function_data, embedToken, variablesPath } = useCustomSelector((state) => {
     const orgId = Number(params?.org_id);
     const orgData = state?.bridgeReducer?.org?.[orgId] || {};
     return {
       integrationData: orgData.integrationData,
       function_data: orgData.functionData,
       embedToken: orgData.embed_token,
+      variablesPath: state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[versionId]?.variables_path || {},
     };
   });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const handleInputChange = (e) => {
     setSearchQuery(e.target?.value || ""); // Update search query when the input changes
@@ -67,7 +70,7 @@ function EmbedListSuggestionDropdownMenu({
           const title = value?.title || integrationData?.[fnName]?.title;
           return (
             title !== undefined &&
-            title?.toLowerCase()?.includes(searchQuery?.trim().toLowerCase()) &&
+            title?.toLowerCase()?.includes(normalizedSearchQuery) &&
             !(connectedFunctions || [])?.some((f) => f === value?._id || f?.config?.function_id === value?._id)
           );
         })
@@ -125,7 +128,7 @@ function EmbedListSuggestionDropdownMenu({
             </li>
           );
         }),
-    [integrationData, function_data, searchQuery, getStatusClass, connectedFunctions, searchParams?.version]
+    [integrationData, function_data, normalizedSearchQuery, getStatusClass, connectedFunctions, searchParams?.version]
   );
 
   const availablePrebuiltTools = useMemo(() => {
@@ -134,10 +137,10 @@ function EmbedListSuggestionDropdownMenu({
     return list.filter(
       (t) =>
         !selected.has(t.value) &&
-        t?.name?.toLowerCase()?.includes(searchQuery?.trim().toLowerCase() || "") &&
+        t?.name?.toLowerCase()?.includes(normalizedSearchQuery) &&
         showInbuiltTools?.[t?.value]
     );
-  }, [prebuiltToolsData, toolsVersionData, searchQuery, showInbuiltTools]);
+  }, [prebuiltToolsData, toolsVersionData, normalizedSearchQuery, showInbuiltTools]);
 
   return (
     <>
@@ -236,16 +239,20 @@ function EmbedListSuggestionDropdownMenu({
                 data-testid="embed-suggestion-add-new-button"
                 id="embed-suggestion-add-new-button"
                 className="border-t border-base-300 w-full sticky bottom-0 bg-base-100 py-2"
-                onClick={() =>
-                  openViasocket(undefined, {
+                onClick={() => {
+                  const payload = {
                     embedToken,
                     meta: {
                       createFrom: name,
                       type: "tool",
                       bridge_id: params?.id,
                     },
-                  })
-                }
+                    dummy_payload: {
+                      variablesPath,
+                    },
+                  };
+                  openViasocket(undefined, payload);
+                }}
               >
                 <div>
                   <AddIcon size={16} />

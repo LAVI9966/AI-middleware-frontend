@@ -6,6 +6,12 @@ import { AlertTriangle } from "lucide-react";
 
 const WEB_SEARCH_WARNING_CLASS = "border-warning/40";
 const WEB_SEARCH_TOKEN_WARNING = "Selecting Web Search can cause heavy token utilization and may exceed 10,000 tokens.";
+import { useCustomSelector } from "@/customHooks/customSelector";
+
+const truncateTitle = (text, maxLength) => {
+  if (!maxLength || typeof text !== "string") return text;
+  return text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}…` : text;
+};
 
 const RenderEmbed = ({
   bridgeFunctions,
@@ -17,13 +23,19 @@ const RenderEmbed = ({
   handleRemoveEmbed,
   handleOpenDeleteModal,
   handleChangePreTool,
+  isChangePreToolDropdownOpen = false,
   name,
   halfLength = 1,
+  versionId,
   isPublished,
   isEditor = true,
+  maxTitleLength,
 }) => {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
+  const { variablesPath } = useCustomSelector((state) => ({
+    variablesPath: state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[versionId]?.variables_path || {},
+  }));
   // Sort functions first
   const sortedFunctions = useMemo(() => {
     return (
@@ -48,7 +60,9 @@ const RenderEmbed = ({
   const renderEmbed = useMemo(() => {
     const embedItems = displayItems?.map((value) => {
       const functionName = value?.script_id;
-      const title = value?.title || integrationData?.[functionName]?.title;
+      const rawTitle = value?.title || integrationData?.[functionName]?.title;
+      const title = truncateTitle(rawTitle, maxTitleLength);
+      const isTitleTruncated = !!maxTitleLength && typeof rawTitle === "string" && rawTitle.length > maxTitleLength;
       const isWebSearchPreTool = value?._type === "gtwy_web_search";
 
       return (
@@ -75,6 +89,9 @@ const RenderEmbed = ({
                     type: "tool",
                     bridge_id: params?.id,
                   },
+                  dummy_payload: {
+                    variablesPath,
+                  },
                 });
               }
             }}
@@ -99,8 +116,8 @@ const RenderEmbed = ({
               ) : (
                 <SquareFunctionIcon className="w-6 h-6 shrink-0" />
               )}
-              {title?.length > 24 ? (
-                <div className="tooltip tooltip-top min-w-0 flex-1 overflow-hidden" data-tip={title}>
+              {isTitleTruncated || (title?.length || 0) > 24 ? (
+                <div className="tooltip tooltip-top min-w-0 flex-1 overflow-hidden" data-tip={rawTitle}>
                   <span className="block text-sm font-normal truncate text-left">{title}</span>
                 </div>
               ) : (
@@ -134,7 +151,7 @@ const RenderEmbed = ({
                   handleChangePreTool();
                 }}
                 className="btn btn-ghost btn-sm p-1"
-                title="Change Pre Tool"
+                title={isChangePreToolDropdownOpen ? undefined : "Change Pre Tool"}
                 disabled={isReadOnly}
               >
                 <RefreshIcon size={16} />
@@ -187,6 +204,7 @@ const RenderEmbed = ({
     handleOpenModal,
     embedToken,
     params,
+    variablesPath,
     handleRemoveEmbed,
     handleChangePreTool,
     name,
@@ -195,6 +213,7 @@ const RenderEmbed = ({
     toggleExpanded,
     hiddenItemsCount,
     isReadOnly,
+    maxTitleLength,
   ]);
 
   return renderEmbed;

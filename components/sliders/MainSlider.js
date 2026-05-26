@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useDispatch } from "react-redux";
 import {
   ChevronDown,
@@ -18,7 +18,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { logoutUserFromMsg91, switchOrg, switchUser } from "@/config/index";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { truncate } from "@/components/historyPageComponents/AssistFile";
-import { clearCookie, getFromCookies, openModal, setInCookies } from "@/utils/utility";
+import { clearCookie, getFromCookies, openModal, closeModal, setInCookies } from "@/utils/utility";
 import { setCurrentOrgIdAction } from "@/store/action/orgAction";
 import OrgSlider from "./OrgSlider";
 import TutorialModal from "@/components/modals/TutorialModal";
@@ -28,14 +28,17 @@ import Protected from "../Protected";
 import BridgeSlider from "./BridgeSlider";
 import {
   BetaBadge,
+  buildNavUrl,
+  createGuardedNavigate,
   DISPLAY_NAMES,
   HRCollapsed,
   ITEM_ICONS,
-  NAV_ITEM_CONFIG,
   NAV_SECTIONS,
 } from "@/utils/mainSliderHelper";
 import InviteUserModal from "../modals/InviteuserModal";
 import { logoutUser } from "../../config/authApi";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
 
 /* -------------------------------------------------------------------------- */
 /*                                  Component                                 */
@@ -80,6 +83,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
   const [isMobileVisible, setIsMobileVisible] = useState(false); // New state for mobile visibility
   const [showContent, setShowContent] = useState(isSideBySideMode); // Control content visibility with delay
   const [isAdminMode, setIsAdminMode] = useState(false); // New state for admin settings mode
+  const pendingNavRef = useRef(null);
   // Theme detection placeholder (not actively used)
 
   const dispatchInviteDialog = useCallback(() => {
@@ -290,6 +294,16 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
     async (id, name) => {
       if (!id || !name) {
         // If no id/name provided, go to org selection page
+        if (unsavedPromptGuard.hasUnsavedChanges) {
+          pendingNavRef.current = () => {
+            router.push("/org?redirection=false");
+            if (isMobile) setIsMobileVisible(false);
+            setIsOrgDropdownExpanded(false);
+            setIsOrgDropdownOpen(false);
+          };
+          openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+          return;
+        }
         router.push("/org?redirection=false");
         if (isMobile) setIsMobileVisible(false);
         setIsOrgDropdownExpanded(false);
@@ -297,25 +311,35 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         return;
       }
 
-      try {
-        const response = await switchOrg(id);
-        const localToken = await switchUser({ orgId: id, orgName: name });
-        setInCookies("local_token", localToken.token);
+      const doSwitch = async () => {
+        try {
+          const response = await switchOrg(id);
+          const localToken = await switchUser({ orgId: id, orgName: name });
+          setInCookies("local_token", localToken.token);
 
-        router.push(`/org/${id}/agents`);
-        dispatch(setCurrentOrgIdAction(id));
-        if (isMobile) setIsMobileVisible(false);
-        setIsOrgDropdownExpanded(false);
-        setIsOrgDropdownOpen(false);
+          router.push(`/org/${id}/agents`);
+          dispatch(setCurrentOrgIdAction(id));
+          if (isMobile) setIsMobileVisible(false);
+          setIsOrgDropdownExpanded(false);
+          setIsOrgDropdownOpen(false);
 
-        if (response.status === 200) {
-          console.log("Organization switched successfully", response.data);
-        } else {
-          console.error("Failed to switch organization", response.data);
+          if (response.status === 200) {
+            console.log("Organization switched successfully", response.data);
+          } else {
+            console.error("Failed to switch organization", response.data);
+          }
+        } catch (error) {
+          console.error("Error switching organization", error);
         }
-      } catch (error) {
-        console.error("Error switching organization", error);
+      };
+
+      if (unsavedPromptGuard.hasUnsavedChanges) {
+        pendingNavRef.current = doSwitch;
+        openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+        return;
       }
+
+      doSwitch();
     },
     [dispatch, router, isMobile]
   );
@@ -357,6 +381,14 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
     setIsAdminMode((prev) => !prev);
   }, []);
 
+  const buildNavUrlForOrg = useCallback((key) => buildNavUrl(key, orgId), [orgId]);
+
+  // Guard navigation when there are unsaved prompt changes
+  const guardedNavigate = useCallback(
+    createGuardedNavigate(router, pendingNavRef, openModal, MODAL_TYPE, unsavedPromptGuard),
+    [router]
+  );
+
   // Get settings menu items for sidebar
   const settingsMenuItems = useMemo(
     () => [
@@ -368,7 +400,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
           if (isMobile) setIsMobileVisible(false);
-          router.push(`/org/${orgId}/workspaceSetting`);
+          guardedNavigate(`/org/${orgId}/workspaceSetting`);
         },
       },
       {
@@ -379,7 +411,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
           if (isMobile) setIsMobileVisible(false);
-          router.push(`/org/${orgId}/invite`);
+          guardedNavigate(`/org/${orgId}/invite`);
         },
       },
       {
@@ -389,7 +421,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         onClick: () => {
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
-          router.push(`/org/${orgId}/auth_route`);
+          guardedNavigate(`/org/${orgId}/auth_route`);
         },
       },
       {
@@ -399,7 +431,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         onClick: () => {
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
-          router.push(`/org/${orgId}/addNewModel`);
+          guardedNavigate(`/org/${orgId}/addNewModel`);
         },
       },
       {
@@ -410,11 +442,11 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           setIsOrgDropdownExpanded(false);
           setIsOrgDropdownOpen(false);
           if (isMobile) setIsMobileVisible(false);
-          router.push(`/org/${orgId}/prebuilt-prompts`);
+          guardedNavigate(`/org/${orgId}/prebuilt-prompts`);
         },
       },
     ],
-    [router, orgId, isMobile]
+    [guardedNavigate, orgId, isMobile]
   );
 
   // Mobile menu toggle handler
@@ -516,9 +548,9 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-user-details-button"
             onClick={() => {
-              if (targetOrgId) router.push(`/org/${targetOrgId}/userDetails`);
               setIsOrgDropdownOpen(false);
               setIsOrgDropdownExpanded(false);
+              if (targetOrgId) guardedNavigate(`/org/${targetOrgId}/userDetails`);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
           >
@@ -530,9 +562,9 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-org-details-button"
             onClick={() => {
-              if (targetOrgId) router.push(`/org/${targetOrgId}/orgDetails`);
               setIsOrgDropdownOpen(false);
               setIsOrgDropdownExpanded(false);
+              if (targetOrgId) guardedNavigate(`/org/${targetOrgId}/orgDetails`);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
           >
@@ -544,8 +576,8 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-refer-earn-button"
             onClick={() => {
-              if (targetOrgId) router.push(`/org/${targetOrgId}/referAndEarn`);
               setIsOrgDropdownOpen(false);
+              if (targetOrgId) guardedNavigate(`/org/${targetOrgId}/referAndEarn`);
               setIsOrgDropdownExpanded(false);
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-base-200 transition-colors text-left mb-1"
@@ -558,9 +590,14 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
           <button
             id="main-slider-logout-button"
             onClick={() => {
-              handleLogout();
               setIsOrgDropdownOpen(false);
               setIsOrgDropdownExpanded(false);
+              if (unsavedPromptGuard.hasUnsavedChanges) {
+                pendingNavRef.current = handleLogout;
+                openModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+                return;
+              }
+              handleLogout();
             }}
             className="w-full flex items-center gap-3 px-3 py-2 hover:bg-error/10 transition-colors text-left text-error"
           >
@@ -599,18 +636,6 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
     }
     return pathParts[3];
   }, [pathParts, sidebarAgentType, allBridges]);
-  const buildNavUrl = useCallback(
-    (key) => {
-      const config = NAV_ITEM_CONFIG[key];
-      if (config) {
-        const query = config.query ? `?${new URLSearchParams(config.query).toString()}` : "";
-        return `/org/${orgId}/${config.path}${query}`;
-      }
-      return `/org/${orgId}/${key}`;
-    },
-    [orgId]
-  );
-
   // Determine positioning based on mode
   const sidebarPositioning = isSideBySideMode && !shouldCollapse ? "relative" : "fixed";
   const sidebarZIndex = isMobile || isMobileVisible ? "z-50" : "z-30";
@@ -814,7 +839,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                               id={`main-slider-nav-${key}`}
                               key={key}
                               onClick={() => {
-                                router.push(buildNavUrl(key));
+                                guardedNavigate(buildNavUrlForOrg(key));
                                 if (isMobile) setIsMobileVisible(false);
                               }}
                               onMouseEnter={(e) => onItemEnter(key, e)}
@@ -902,7 +927,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                     <button
                       id="main-slider-lifetime-access-button"
                       onClick={() => {
-                        router.push(`/org/${orgId}/lifetime-access`);
+                        guardedNavigate(`/org/${orgId}/lifetime-access`);
                         if (isMobile) setIsMobileVisible(false);
                       }}
                       onMouseEnter={(e) => onItemEnter("lifetimeAccess", e)}
@@ -964,7 +989,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                         id="main-slider-feedback-button"
                         type="button"
                         onClick={() => {
-                          router.push(`/org/${orgId}/feedback`);
+                          guardedNavigate(`/org/${orgId}/feedback`);
                           if (isMobile) setIsMobileVisible(false);
                         }}
                         onMouseEnter={(e) => onItemEnter("feedback", e)}
@@ -1022,7 +1047,7 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
                       id="main-slider-feedback-button"
                       type="button"
                       onClick={() => {
-                        router.push(`/org/${orgId}/feedback`);
+                        guardedNavigate(`/org/${orgId}/feedback`);
                         if (isMobile) setIsMobileVisible(false);
                       }}
                       onMouseEnter={(e) => onItemEnter("feedback", e)}
@@ -1097,6 +1122,34 @@ function MainSlider({ isEmbedUser, openDetails, userdetailsfromOrg, orgIdFromHea
         <TutorialModal />
         <DemoModal speakToUs />
         <InviteUserModal />
+
+        {/* Unsaved prompt changes guard modal */}
+        <ConfirmationModal
+          modalType={MODAL_TYPE.UNSAVED_CHANGES_MODAL}
+          title="Unsaved Prompt Changes"
+          message="You have unsaved changes to your prompt. If you leave now, your changes will be lost."
+          confirmText="Leave without saving"
+          cancelText="Stay"
+          confirmButtonClass="btn-error text-white"
+          onConfirm={() => {
+            closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+            const pending = pendingNavRef.current;
+            pendingNavRef.current = null;
+            if (typeof pending === "function") {
+              pending();
+            } else if (pending) {
+              router.push(pending);
+            }
+          }}
+          onCancel={() => {
+            closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+            pendingNavRef.current = null;
+          }}
+          onClose={() => {
+            closeModal(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+            pendingNavRef.current = null;
+          }}
+        />
       </div>
     </>
   );

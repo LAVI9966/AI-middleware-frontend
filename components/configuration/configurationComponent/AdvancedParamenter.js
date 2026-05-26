@@ -1,10 +1,9 @@
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { ADVANCED_BRIDGE_PARAMETERS } from "@/jsonFiles/bridgeParameter";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
-import { generateRandomID, getToolName, openModal, trimPropertyNames } from "@/utils/utility";
-import { getDefaultJsonSchema, generateCombinedSchema } from "@/utils/defaultJsonSchemas";
+import { generateRandomID, getToolName, openModal, closeModal, trimPropertyNames } from "@/utils/utility";
+import { buildJsonSchemaResponseType, generateCombinedSchema, isEmptyJsonSchema } from "@/utils/defaultJsonSchemas";
 import { ChevronDownIcon, ChevronUpIcon, SettingsIcon } from "@/components/Icons";
 import JsonSchemaModal from "@/components/modals/JsonSchemaModal";
 import JsonSchemaBuilderModal from "@/components/modals/JsonSchemaBuilderModal";
@@ -22,12 +21,14 @@ import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/moda
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
 import { useThemeManager } from "@/customHooks/useThemeManager";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 
 const AdvancedParameters = ({
   params,
   searchParams,
   isEmbedUser,
-  hideAdvancedParameters,
+  showAdvancedParameters,
   className = "",
   level = 1,
   compact = false,
@@ -53,6 +54,19 @@ const AdvancedParameters = ({
   const dispatch = useDispatch();
   const router = useRouter();
   const { actualTheme } = useThemeManager();
+
+  // Pending action ref for unsaved-prompt guard on response_type changes
+  const pendingResponseTypeActionRef = useRef(null);
+
+  /** Run `action` immediately, or show the unsaved-prompt guard modal first. */
+  const guardedResponseTypeAction = (action) => {
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      pendingResponseTypeActionRef.current = action;
+      openModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+    } else {
+      action();
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -148,12 +162,30 @@ const AdvancedParameters = ({
   const level2Parameters = getParametersByLevel(2); // Outside accordion parameters
 
   useEffect(() => {
-    setObjectFieldValue(
-      configuration?.response_type?.json_schema
-        ? JSON.stringify(configuration?.response_type?.json_schema, undefined, 4)
-        : null
-    );
+    const schema = configuration?.response_type?.json_schema;
+    setObjectFieldValue(!isEmptyJsonSchema(schema) ? JSON.stringify(schema, undefined, 4) : null);
   }, [configuration?.response_type?.json_schema]);
+
+  const getJsonSchemaEditorValue = (paramKey) => {
+    if (objectFieldValue != null) return objectFieldValue;
+    const schema = configuration?.[paramKey]?.json_schema ?? configuration?.[paramKey]?.value;
+    return !isEmptyJsonSchema(schema) ? JSON.stringify(schema, null, 2) : "";
+  };
+
+  const dispatchResponseTypeUpdate = (responseTypePayload, { localOnly = false } = {}) => {
+    dispatch(
+      updateBridgeVersionAction({
+        bridgeId: params?.id,
+        versionId: searchParams?.version,
+        dataToSend: {
+          configuration: { response_type: responseTypePayload },
+          service,
+          model,
+        },
+        localOnly,
+      })
+    );
+  };
 
   useEffect(() => {
     if (
@@ -224,7 +256,7 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: { ...updatedDataToSend },
+          dataToSend: { ...updatedDataToSend, service, model },
         })
       );
     }
@@ -248,13 +280,43 @@ const AdvancedParameters = ({
       } else {
         newValue = Objectvalue || {};
       }
-      setObjectFieldValue(JSON.stringify(newValue, undefined, 4));
+      if (!isEmptyJsonSchema(newValue)) {
+        setObjectFieldValue(JSON.stringify(newValue, undefined, 4));
+      } else {
+        setObjectFieldValue(null);
+      }
     } catch {
       toast.error("Invalid JSON provided");
       return;
     }
     const existingValue =
       typeof configuration?.[key] === "object" && configuration?.[key] !== null ? configuration?.[key] : {};
+
+    const parsedObjectValue = typeof newValue === "string" ? JSON.parse(newValue) : newValue;
+    const typeKey = defaultValue?.key || "type";
+
+    if (e.target.value === "json_schema") {
+      if (isEmptyJsonSchema(parsedObjectValue)) {
+        const hadPersistedSchema = !isEmptyJsonSchema(configuration?.response_type?.json_schema);
+        dispatchResponseTypeUpdate(
+          buildJsonSchemaResponseType({
+            is_template: existingValue?.is_template ?? false,
+            template_id: existingValue?.template_id,
+          }),
+          { localOnly: !hadPersistedSchema }
+        );
+        return;
+      }
+
+      dispatchResponseTypeUpdate(
+        buildJsonSchemaResponseType({
+          json_schema: parsedObjectValue,
+          is_template: existingValue?.is_template ?? false,
+          template_id: existingValue?.template_id,
+        })
+      );
+      return;
+    }
 
     let updatedDataToSend = isDeafaultObject
       ? {
@@ -270,13 +332,14 @@ const AdvancedParameters = ({
             [key]: e.target.value,
           },
         };
-    if (Object.entries(newValue).length > 0 || e.target.value === "json_schema") {
+
+    if (Object.entries(newValue).length > 0) {
       updatedDataToSend = {
         configuration: {
           [key]: {
             ...existingValue,
-            [defaultValue?.key || "type"]: e.target.value,
-            [e.target.value]: typeof newValue === "string" ? JSON.parse(newValue) : newValue,
+            [typeKey]: e.target.value,
+            [e.target.value]: parsedObjectValue,
           },
         },
       };
@@ -286,7 +349,7 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: { ...updatedDataToSend },
+          dataToSend: { ...updatedDataToSend, service, model },
         })
       );
     }
@@ -322,7 +385,7 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: updatedDataToSend,
+          dataToSend: { ...updatedDataToSend, service, model },
         })
       );
     }
@@ -340,11 +403,11 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: updatedDataToSend,
+          dataToSend: { ...updatedDataToSend, service, model },
         })
       );
     },
-    [dispatch, params?.id, searchParams?.version]
+    [dispatch, params?.id, searchParams?.version, service, model]
   );
 
   // State for selected widgets (indices)
@@ -453,14 +516,18 @@ const AdvancedParameters = ({
     });
   }, []);
   // Helper function to render parameter fields
-  const renderParameterField = (key, { field, min = 0, max, step, default: defaultValue, options }) => {
+  const renderParameterField = (
+    key,
+    { field, min = 0, max, step, default: defaultValue, options, name, description }
+  ) => {
     const isDeafaultObject = typeof modelInfoData?.[key]?.default === "object";
     if (key === "response_type" && isEmbedUser && !showResponseType) {
       return null;
     }
 
-    const name = ADVANCED_BRIDGE_PARAMETERS?.[key]?.name || key;
-    const description = ADVANCED_BRIDGE_PARAMETERS?.[key]?.description || "";
+    // Use name and description from modelInfoData instead of static file
+    const displayName = name || modelInfoData?.[key]?.name || key;
+    const displayDescription = description || modelInfoData?.[key]?.description || "";
     const isDefaultValue = configuration?.[key] === "default" || configuration?.[key] === undefined;
     // Check if this parameter has a default value defined in model info
     const hasDefaultValue = modelInfoData?.[key]?.default !== undefined;
@@ -502,9 +569,9 @@ const AdvancedParameters = ({
       >
         <div className="flex items-center justify-between gap-2 mb-1 min-h-[32px]">
           <div className="flex items-center gap-2">
-            <span className={labelTextClass}>{name || key}</span>
-            {description && (
-              <InfoTooltip tooltipContent={description}>
+            <span className={labelTextClass}>{displayName}</span>
+            {displayDescription && (
+              <InfoTooltip tooltipContent={displayDescription}>
                 <CircleQuestionMark size={14} className="text-gray-500 hover:text-gray-700 cursor-help" />
               </InfoTooltip>
             )}
@@ -524,8 +591,9 @@ const AdvancedParameters = ({
                     onChange={(e) => {
                       if (isDefaultValue) {
                         setSliderValue(e.target.checked, key, isDeafaultObject);
+                      } else {
+                        handleInputChange(e, key);
                       }
-                      handleInputChange(e, key);
                     }}
                     disabled={isReadOnly}
                   />
@@ -539,7 +607,13 @@ const AdvancedParameters = ({
               id={`advanced-param-set-default-btn-${key}`}
               type="button"
               className="btn btn-xs btn-ghost text-primary hover:bg-primary/10"
-              onClick={() => setSliderValue("default", key, isDeafaultObject)}
+              onClick={() => {
+                if (key === "response_type") {
+                  guardedResponseTypeAction(() => setSliderValue("default", key, isDeafaultObject));
+                } else {
+                  setSliderValue("default", key, isDeafaultObject);
+                }
+              }}
               title="Reset to default value"
             >
               Set Default
@@ -566,7 +640,7 @@ const AdvancedParameters = ({
                 onBlur={(e) => {
                   if (e.target.value === "") {
                     setSliderValue("default", key, isDeafaultObject);
-                  } else {
+                  } else if (e.target.value !== configuration?.[key]) {
                     handleInputChange(e, key);
                   }
                 }}
@@ -597,7 +671,7 @@ const AdvancedParameters = ({
                 onBlur={(e) => {
                   if (e.target.value === "") {
                     setSliderValue("default", key, isDeafaultObject);
-                  } else {
+                  } else if (e.target.value !== configuration?.[key]?.toString()) {
                     handleInputChange(e, key);
                   }
                 }}
@@ -635,64 +709,56 @@ const AdvancedParameters = ({
                   onChange={(e) => {
                     const selectedValue = e.target.value;
                     if (key === "response_type") {
-                      if (selectedValue === "widget") {
-                        // Remove existing JSON schema and set default schema with anyOf field
-                        const defaultSchema = getDefaultJsonSchema("greeting", true); // true = include anyOf
-                        const updatedDataToSend = {
-                          configuration: {
-                            response_type: {
-                              type: "json_schema",
-                              json_schema: defaultSchema, // Use default schema with anyOf field
-                              is_template: true,
-                              template_id: [], // Clear existing template IDs
-                            },
-                          },
-                        };
-                        dispatch(
-                          updateBridgeVersionAction({
-                            bridgeId: params?.id,
-                            versionId: searchParams?.version,
-                            dataToSend: updatedDataToSend,
-                          })
-                        );
-                        return;
-                      } else if (selectedValue === "json_schema") {
-                        // Set type to json_schema AND is_template to false
-                        const updatedDataToSend = {
-                          configuration: {
-                            [key]: {
-                              type: "json_schema",
-                              is_template: false,
-                              json_schema: {},
-                            },
-                          },
-                        };
-                        dispatch(
-                          updateBridgeVersionAction({
-                            bridgeId: params?.id,
-                            versionId: searchParams?.version,
-                            dataToSend: updatedDataToSend,
-                          })
-                        );
-                        return;
-                      } else if (selectedValue === "default") {
-                        // Handle default case
-                        setSliderValue("default", key, isDeafaultObject);
-                        return;
-                      } else {
-                        dispatch(
-                          updateBridgeVersionAction({
-                            bridgeId: params?.id,
-                            versionId: searchParams?.version,
-                            dataToSend: {
-                              configuration: {
-                                [key]: { type: selectedValue },
+                      guardedResponseTypeAction(() => {
+                        if (selectedValue === "widget") {
+                          // Use generateCombinedSchema with empty array to get normal schema without anyOf
+                          const defaultSchema = generateCombinedSchema([], richUiWidgets);
+                          const updatedDataToSend = {
+                            configuration: {
+                              response_type: {
+                                type: "json_schema",
+                                json_schema: defaultSchema, // Use normal schema without anyOf when no widgets selected
+                                is_template: true,
+                                template_id: [], // Clear existing template IDs
                               },
                             },
-                          })
-                        );
-                        return;
-                      }
+                          };
+                          dispatch(
+                            updateBridgeVersionAction({
+                              bridgeId: params?.id,
+                              versionId: searchParams?.version,
+                              dataToSend: { ...updatedDataToSend, service, model },
+                            })
+                          );
+                          return;
+                        } else if (selectedValue === "json_schema") {
+                          setObjectFieldValue(null);
+                          dispatchResponseTypeUpdate(buildJsonSchemaResponseType({ is_template: false }), {
+                            localOnly: true,
+                          });
+                          return;
+                        } else if (selectedValue === "default") {
+                          // Handle default case
+                          setSliderValue("default", key, isDeafaultObject);
+                          return;
+                        } else {
+                          dispatch(
+                            updateBridgeVersionAction({
+                              bridgeId: params?.id,
+                              versionId: searchParams?.version,
+                              dataToSend: {
+                                configuration: {
+                                  [key]: { type: selectedValue },
+                                },
+                                service,
+                                model,
+                              },
+                            })
+                          );
+                          return;
+                        }
+                      }); // end guardedResponseTypeAction
+                      return;
                     }
                     // Fallback for other keys or normal types
                     handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject);
@@ -773,7 +839,7 @@ const AdvancedParameters = ({
                                   updateBridgeVersionAction({
                                     bridgeId: params?.id,
                                     versionId: searchParams?.version,
-                                    dataToSend: updatedDataToSend,
+                                    dataToSend: { ...updatedDataToSend, service, model },
                                   })
                                 );
 
@@ -886,28 +952,27 @@ const AdvancedParameters = ({
                         <div className="w-full text-xs font-mono">
                           <CodeMirror
                             id={`advanced-param-json-schema-textarea-${key}`}
-                            value={
-                              objectFieldValue ??
-                              JSON.stringify(
-                                configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
-                                null,
-                                2
-                              )
-                            }
+                            value={getJsonSchemaEditorValue(key)}
                             extensions={[json()]}
                             theme={actualTheme}
                             editable={!isReadOnly}
                             onChange={(val) => setObjectFieldValue(val)}
                             onBlur={() => {
                               try {
-                                const currentValueToParse =
-                                  objectFieldValue ??
-                                  JSON.stringify(
-                                    configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
-                                    null,
-                                    2
-                                  );
-                                const parsedValue = JSON.parse(currentValueToParse.trim());
+                                const currentValueToParse = getJsonSchemaEditorValue(key).trim();
+                                if (!currentValueToParse) {
+                                  if (!isEmptyJsonSchema(configuration?.response_type?.json_schema)) {
+                                    dispatchResponseTypeUpdate(
+                                      buildJsonSchemaResponseType({
+                                        is_template: configuration?.response_type?.is_template ?? false,
+                                        template_id: configuration?.response_type?.template_id,
+                                      })
+                                    );
+                                  }
+                                  setObjectFieldValue(null);
+                                  return;
+                                }
+                                const parsedValue = JSON.parse(currentValueToParse);
 
                                 const trimmedValue = {
                                   ...parsedValue,
@@ -919,6 +984,10 @@ const AdvancedParameters = ({
                                       }
                                     : parsedValue.schema,
                                 };
+
+                                if (isEmptyJsonSchema(trimmedValue)) {
+                                  return;
+                                }
 
                                 handleSelectChange(
                                   { target: { value: "json_schema" } },
@@ -940,14 +1009,7 @@ const AdvancedParameters = ({
                       <FullscreenEditorModal
                         modalId={MODAL_TYPE.FULLSCREEN_JSON_SCHEMA}
                         title="JSON Schema"
-                        value={
-                          objectFieldValue ??
-                          JSON.stringify(
-                            configuration?.[key]?.json_schema ?? configuration?.[key]?.value ?? {},
-                            null,
-                            2
-                          )
-                        }
+                        value={getJsonSchemaEditorValue(key)}
                         isOpen={jsonSchemaFullscreen}
                         onClose={() => setJsonSchemaFullscreen(false)}
                         onSave={(finalVal) => {
@@ -1261,7 +1323,32 @@ const AdvancedParameters = ({
     );
   };
 
-  const shouldShowLevel1 = level1Parameters.length > 0 && (!isEmbedUser || (isEmbedUser && !hideAdvancedParameters));
+  const shouldShowLevel1 = level1Parameters.length > 0 && (!isEmbedUser || (isEmbedUser && showAdvancedParameters));
+
+  const unsavedPromptActionModal = (
+    <ConfirmationModal
+      modalType={MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL}
+      title="Unsaved Prompt Changes"
+      message="You have unsaved changes to your prompt. Save your prompt first, or discard changes and continue."
+      confirmText="Discard & Continue"
+      cancelText="Go Back"
+      confirmButtonClass="btn-error text-white"
+      onConfirm={() => {
+        closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+        const action = pendingResponseTypeActionRef.current;
+        pendingResponseTypeActionRef.current = null;
+        if (action) action();
+      }}
+      onCancel={() => {
+        closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+        pendingResponseTypeActionRef.current = null;
+      }}
+      onClose={() => {
+        closeModal(MODAL_TYPE.UNSAVED_PROMPT_ACTION_MODAL);
+        pendingResponseTypeActionRef.current = null;
+      }}
+    />
+  );
 
   if (level === 2) {
     if (level2Parameters.length === 0) {
@@ -1269,22 +1356,25 @@ const AdvancedParameters = ({
     }
 
     return (
-      <div
-        id="advanced-param-level2-container"
-        className={`z-very-low mt-2 text-base-content w-full ${className}`}
-        tabIndex={0}
-      >
-        {/* Level 2 Parameters - Displayed Outside Accordion */}
-        {level2Parameters.length > 0 && (
-          <div className="w-full gap-4 flex flex-col px-2 py-2 cursor-default items-start">
-            {level2Parameters.map(([key, paramConfig]) => (
-              <div key={key} className="compact-parameter w-full">
-                {renderParameterField(key, paramConfig)}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <>
+        <div
+          id="advanced-param-level2-container"
+          className={`z-very-low mt-2 text-base-content w-full ${className}`}
+          tabIndex={0}
+        >
+          {/* Level 2 Parameters - Displayed Outside Accordion */}
+          {level2Parameters.length > 0 && (
+            <div className="w-full gap-4 flex flex-col px-2 py-2 cursor-default items-start">
+              {level2Parameters.map(([key, paramConfig]) => (
+                <div key={key} className="compact-parameter w-full">
+                  {renderParameterField(key, paramConfig)}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {unsavedPromptActionModal}
+      </>
     );
   }
 
@@ -1295,34 +1385,37 @@ const AdvancedParameters = ({
 
     // Level 1 parameters now render without accordion
     return (
-      <div
-        id="advanced-param-level1-container"
-        className={`z-very-low mt-4 text-base-content w-full ${className}`}
-        tabIndex={0}
-      >
-        {tutorialState.showSuggestion && (
-          <TutorialSuggestionToast
-            id="advanced-param-tutorial-suggestion"
-            setTutorialState={setTutorialState}
-            flagKey={"AdvanceParameter"}
-            TutorialDetails={"Advanced Parameters"}
-          />
-        )}
-        {tutorialState.showTutorial && (
-          <OnBoarding
-            setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
-            video={getAdvanceParameterVideo()}
-            flagKey={"AdvanceParameter"}
-          />
-        )}
-        <div className={`w-full flex flex-col ${compact ? "gap-3" : "gap-4"} items-start`}>
-          {level1Parameters.map(([key, paramConfig]) => (
-            <div key={key} className="w-full">
-              {renderParameterField(key, paramConfig)}
-            </div>
-          ))}
+      <>
+        <div
+          id="advanced-param-level1-container"
+          className={`z-very-low mt-4 text-base-content w-full ${className}`}
+          tabIndex={0}
+        >
+          {tutorialState.showSuggestion && (
+            <TutorialSuggestionToast
+              id="advanced-param-tutorial-suggestion"
+              setTutorialState={setTutorialState}
+              flagKey={"AdvanceParameter"}
+              TutorialDetails={"Advanced Parameters"}
+            />
+          )}
+          {tutorialState.showTutorial && (
+            <OnBoarding
+              setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
+              video={getAdvanceParameterVideo()}
+              flagKey={"AdvanceParameter"}
+            />
+          )}
+          <div className={`w-full flex flex-col ${compact ? "gap-3" : "gap-4"} items-start`}>
+            {level1Parameters.map(([key, paramConfig]) => (
+              <div key={key} className="w-full">
+                {renderParameterField(key, paramConfig)}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+        {unsavedPromptActionModal}
+      </>
     );
   }
 

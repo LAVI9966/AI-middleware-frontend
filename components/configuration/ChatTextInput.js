@@ -1,5 +1,6 @@
 import { dryRun } from "@/config/index";
 import { useCustomSelector } from "@/customHooks/customSelector";
+import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 import { uploadImageAction } from "@/store/action/bridgeAction";
 import {
   setChatLoading,
@@ -11,13 +12,15 @@ import {
   setChatTestCaseIdAction,
 } from "@/store/action/chatAction";
 import Image from "next/image";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import { SendHorizontalIcon, UploadIcon, LinkIcon, PlayIcon, CloseCircleIcon } from "@/components/Icons";
 import { Paperclip } from "lucide-react";
 import { PdfIcon } from "@/icons/pdfIcon";
-import { toggleSidebar } from "@/utils/utility";
+import { toggleSidebar, openModal, closeModal } from "@/utils/utility";
+import { MODAL_TYPE } from "@/utils/enums";
+import ConfirmationModal from "@/components/UI/ConfirmationModal";
 import { buildVariablesObject } from "@/utils/variableValidation";
 import { buildUserUrls } from "@/utils/attachmentUtils";
 
@@ -34,6 +37,7 @@ function ChatTextInput({
   selectedStrategy,
   handleSendMessageRef,
   showTestCases,
+  draftPrompt,
 }) {
   // Reset textarea height when test cases are toggled or when the component mounts
   useEffect(() => {
@@ -55,6 +59,11 @@ function ChatTextInput({
   const [mediaUrls, setMediaUrls] = useState(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlInput, setUrlInput] = useState("");
+  // Reactively track unsaved prompt changes
+  const hasUnsavedPrompt = useSyncExternalStore(
+    unsavedPromptGuard.subscribe.bind(unsavedPromptGuard),
+    unsavedPromptGuard.getSnapshot.bind(unsavedPromptGuard)
+  );
   const [validationError, setValidationError] = useState(null);
   const [imagePreviewLoadedKeys, setImagePreviewLoadedKeys] = useState(() => new Set());
   const dispatch = useDispatch();
@@ -95,8 +104,8 @@ function ChatTextInput({
   });
 
   // Redux selectors for chat state
-  const { conversation, loading, uploadedFiles, uploadedImages, storedTestCaseId } = useCustomSelector((state) => ({
-    conversation: state?.chatReducer?.conversationsByChannel?.[channelIdentifier] || [],
+  const { threadId, loading, uploadedFiles, uploadedImages, storedTestCaseId } = useCustomSelector((state) => ({
+    threadId: state?.chatReducer?.threadIdByChannel?.[channelIdentifier] || null,
     loading: state?.chatReducer?.loadingByChannel?.[channelIdentifier] || false,
     uploadedFiles: state?.chatReducer?.uploadedFilesByChannel?.[channelIdentifier] || [],
     uploadedImages: state?.chatReducer?.uploadedImagesByChannel?.[channelIdentifier] || [],
@@ -121,6 +130,8 @@ function ChatTextInput({
 
   const [localDataToSend, setLocalDataToSend] = useState(dataToSend);
 
+  const activePrompt = draftPrompt !== undefined ? draftPrompt : prompt;
+
   const { isVision, isFileSupported, isVideoSupported } = useMemo(() => {
     const validationConfig =
       modelInfo?.[service]?.[configuration?.type]?.[configuration?.model]?.validationConfig || {};
@@ -139,30 +150,30 @@ function ChatTextInput({
 
   // Validate missing variables in prompt
   const validateVariables = useCallback(() => {
-    if (!prompt) return { isValid: true, missingVariables: [] };
+    if (!activePrompt) return { isValid: true, missingVariables: [] };
 
     // Extract variables from prompt using regex
     const regex = /{{(.*?)}}/g;
     // Handle both string and object formats
     let promptText = "";
-    if (typeof prompt === "string") {
-      promptText = prompt;
-    } else if (typeof prompt === "object") {
+    if (typeof activePrompt === "string") {
+      promptText = activePrompt;
+    } else if (typeof activePrompt === "object") {
       // Check if this is embed user format (has customPrompt and useDefaultPrompt is false)
-      const isEmbedFormat = prompt.customPrompt && prompt.useDefaultPrompt === false;
+      const isEmbedFormat = activePrompt.customPrompt && activePrompt.useDefaultPrompt === false;
 
       if (isEmbedFormat) {
         // For embed users: use customPrompt template to find variables, and only check visible embedFields
-        if (prompt.customPrompt) promptText += prompt.customPrompt + " ";
+        if (activePrompt.customPrompt) promptText += activePrompt.customPrompt + " ";
         // Note: We use customPrompt to find variables, but validation will check visible embedFields
       } else {
         // For main users: extract from default fields (role, goal, instruction)
-        if (prompt.role) promptText += prompt.role + " ";
-        if (prompt.goal) promptText += prompt.goal + " ";
-        if (prompt.instruction) promptText += prompt.instruction + " ";
+        if (activePrompt.role) promptText += activePrompt.role + " ";
+        if (activePrompt.goal) promptText += activePrompt.goal + " ";
+        if (activePrompt.instruction) promptText += activePrompt.instruction + " ";
         // Also extract from embedFields if present (for backward compatibility)
-        if (Array.isArray(prompt.embedFields)) {
-          prompt.embedFields.forEach((field) => {
+        if (Array.isArray(activePrompt.embedFields)) {
+          activePrompt.embedFields.forEach((field) => {
             if (field.value) promptText += field.value + " ";
           });
         }
@@ -197,29 +208,32 @@ function ChatTextInput({
       isValid: missingVariables.length === 0,
       missingVariables,
     };
-  }, [prompt, variablesKeyValue]);
+  }, [activePrompt, variablesKeyValue]);
 
   const handleSendMessage = async (e, forceRun = false) => {
     if (loading || uploading) {
       return;
     }
-
+    if (unsavedPromptGuard.hasUnsavedChanges) {
+      openModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL);
+      return;
+    }
     if (inputRef.current) {
       inputRef.current.style.height = "40px"; // Set initial height
     }
     // Skip prompt validation for chat models - they don't require a system prompt
     // Extract text from prompt (handle both string and object formats)
     let promptText = "";
-    if (typeof prompt === "string") {
-      promptText = prompt;
-    } else if (typeof prompt === "object" && prompt !== null) {
+    if (typeof activePrompt === "string") {
+      promptText = activePrompt;
+    } else if (typeof activePrompt === "object" && activePrompt !== null) {
       // Check if this is embed user format (has customPrompt and useDefaultPrompt is false)
-      const isEmbedFormat = prompt.customPrompt && prompt.useDefaultPrompt === false;
+      const isEmbedFormat = activePrompt.customPrompt && activePrompt.useDefaultPrompt === false;
 
       if (isEmbedFormat) {
         // For embed users: only extract from visible embedFields (not hidden)
-        if (Array.isArray(prompt.embedFields)) {
-          prompt.embedFields.forEach((field) => {
+        if (Array.isArray(activePrompt.embedFields)) {
+          activePrompt.embedFields.forEach((field) => {
             // Only include visible fields (not hidden)
             if (!field.hidden && field.value) {
               promptText += field.value + " ";
@@ -228,12 +242,12 @@ function ChatTextInput({
         }
       } else {
         // For main users: extract from default fields (role, goal, instruction)
-        if (prompt.role) promptText += prompt.role + " ";
-        if (prompt.goal) promptText += prompt.goal + " ";
-        if (prompt.instruction) promptText += prompt.instruction + " ";
+        if (activePrompt.role) promptText += activePrompt.role + " ";
+        if (activePrompt.goal) promptText += activePrompt.goal + " ";
+        if (activePrompt.instruction) promptText += activePrompt.instruction + " ";
         // Also extract from embedFields if present (for backward compatibility)
-        if (Array.isArray(prompt.embedFields)) {
-          prompt.embedFields.forEach((field) => {
+        if (Array.isArray(activePrompt.embedFields)) {
+          activePrompt.embedFields.forEach((field) => {
             if (field.value) promptText += field.value + " ";
           });
         }
@@ -320,19 +334,16 @@ function ChatTextInput({
               ...(isPublished ? {} : { version_id: versionId }),
               testcase_data,
               configuration: {
-                conversation: conversation,
                 type: modelType,
               },
+              thread_id: threadId,
               user: data.content,
               user_urls: userUrls,
               variables,
+              is_playground: true,
               orchestrator_flag: isOrchestralModel,
-              flag:
-                bridge?.configuration?.stream !== true ||
-                bridge?.configuration?.response_type?.is_template === true ||
-                bridge?.configuration?.type === "image"
-                  ? false
-                  : true,
+              is_stream:
+                bridge?.configuration?.stream !== true || bridge?.configuration?.type === "image" ? false : true,
             },
             bridge_id: params?.id,
           });
@@ -367,12 +378,14 @@ function ChatTextInput({
               ...(isPublished ? {} : { version_id: versionId }),
               testcase_data,
               configuration: {
-                conversation: conversation,
                 type: modelType,
               },
+              thread_id: threadId,
               text: newMessage,
-              flag: bridge?.configuration?.stream !== true ? false : true,
+              is_playground: true,
               orchestrator_flag: isOrchestralModel,
+              is_stream:
+                bridge?.configuration?.stream !== true || bridge?.configuration?.type === "image" ? false : true,
             },
             bridge_id: params?.id,
           });
@@ -406,8 +419,10 @@ function ChatTextInput({
                 ...localDataToSend.configuration,
               },
               input: bridge?.inputConfig?.input?.input,
-              flag: bridge?.configuration?.stream !== true ? false : true,
+              is_playground: true,
               orchestrator_flag: isOrchestralModel,
+              is_stream:
+                bridge?.configuration?.stream !== true || bridge?.configuration?.type === "image" ? false : true,
             },
             bridge_id: params?.id,
           });
@@ -471,15 +486,17 @@ function ChatTextInput({
         if (event.shiftKey) {
           // Do nothing, let the default behavior create a new line
         } else {
-          // Only prevent default and send if not loading
-          if (!loading && !uploading) {
+          if (hasUnsavedPrompt) {
+            event.preventDefault();
+            openModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL);
+          } else if (!loading && !uploading) {
             event.preventDefault();
             handleSendMessage(event);
           }
         }
       }
     },
-    [loading, uploading, handleSendMessage]
+    [loading, uploading, hasUnsavedPrompt, handleSendMessage]
   );
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
@@ -589,6 +606,19 @@ function ChatTextInput({
       id="chat-text-input-container"
       className="input-group flex justify-end items-end gap-2 w-full relative"
     >
+      {/* Unsaved prompt changes modal */}
+      <ConfirmationModal
+        modalType={MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL}
+        title="Unsaved Prompt Changes"
+        message="You have unsaved changes to your prompt. Please save your prompt first before sending a message."
+        confirmText="Got it"
+        cancelText=""
+        confirmButtonClass="btn-primary"
+        cancelButtonClass="hidden"
+        onConfirm={() => closeModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL)}
+        onCancel={() => closeModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL)}
+        onClose={() => closeModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL)}
+      />
       {/* --- CORRECTED PREVIEW CONTAINER --- */}
       {(uploadedImages.length > 0 || uploadedFiles.length > 0) && (
         <div
@@ -915,7 +945,7 @@ function ChatTextInput({
           </div>
         )}
         {/* Enhanced Send Button */}
-        <div className="tooltip tooltip-top" data-tip="Send message">
+        <div className="tooltip tooltip-top" data-tip={hasUnsavedPrompt ? "Save your prompt first" : "Send message"}>
           <button
             id="chat-send-button"
             className={`btn btn-circle transition-all duration-200 ${

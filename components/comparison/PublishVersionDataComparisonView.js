@@ -198,6 +198,53 @@ const PublishVersionDataComparisonView = ({ oldData, newData, params }) => {
       return JSON.stringify(value);
     }
 
+    const formatPreToolLabel = (tool) => {
+      if (!tool || typeof tool !== "object") return String(tool);
+
+      if (tool.type === "custom_function") {
+        const functionId = tool?.config?.function_id;
+        const functionItem = functionId ? functionData?.[functionId] : null;
+        return functionItem?.title || functionItem?.name || functionId || "Custom Function";
+      }
+
+      if (typeof tool.type === "string" && tool.type.trim()) {
+        return tool.type;
+      }
+
+      return tool?.config?.function_id || tool?.name || "Pre Tool";
+    };
+
+    // Handle pre_tools arrays with a readable old/new breakdown
+    if (rootKey === "pre_tools") {
+      if (!Array.isArray(value)) {
+        return JSON.stringify(value);
+      }
+
+      return (
+        <div className="space-y-2">
+          {value.length === 0 ? (
+            <span className="text-gray-400 italic">No Data Added</span>
+          ) : (
+            value.map((tool, index) => (
+              <div key={index} className="rounded-md border border-base-300 bg-base-100 px-3 py-2 text-xs">
+                <div className="font-medium">{formatPreToolLabel(tool)}</div>
+                <div className="mt-1 text-base-content/70 break-all">
+                  {tool?.type === "custom_function" ? (
+                    <>
+                      function_id: {tool?.config?.function_id || "-"}
+                      {tool?.config?.script_id ? `, script_id: ${tool.config.script_id}` : ""}
+                    </>
+                  ) : (
+                    `type: ${tool?.type || "-"}`
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      );
+    }
+
     // Handle tool_choice values (show tool title instead of tool id)
     if (key.includes("tool_choice")) {
       const resolveToolName = (toolId) => {

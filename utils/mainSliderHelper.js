@@ -19,6 +19,7 @@ import {
   Code2,
   LayoutTemplate,
   Sparkles,
+  Wrench,
 } from "lucide-react";
 import { AddIcon, KeyIcon } from "@/components/Icons";
 import GiftIcon from "@/icons/GiftIcon";
@@ -53,6 +54,7 @@ export const ITEM_ICONS = {
   prebuiltPrompts: <Bot size={15} />,
   widgets: <LayoutTemplate size={15} />,
   "model-garden": <Sparkles size={15} />,
+  tools: <Wrench size={15} />,
 };
 
 export const DISPLAY_NAMES = (key) => {
@@ -93,6 +95,8 @@ export const DISPLAY_NAMES = (key) => {
       return "Keyboard Shortcuts";
     case "model-garden":
       return "Model Garden";
+    case "tools":
+      return "Tools";
     default:
       return key;
   }
@@ -100,7 +104,7 @@ export const DISPLAY_NAMES = (key) => {
 
 export const NAV_SECTIONS = [
   { title: "AGENT TYPES", items: ["api", "chatbot"] },
-  { title: "CONFIGURATION", items: ["chatbotConfig", "knowledge_base", "widgets", "model-garden"] },
+  { title: "CONFIGURATION", items: ["chatbotConfig", "knowledge_base", "widgets", "model-garden", "tools"] },
   { title: "SECURITY & ACCESS", items: ["pauthkey", "apikeys"] },
   { title: "MONITORING & SUPPORT", items: ["alerts", "metrics"] },
   { title: "Developer", items: ["integration", "RAG_embed"] },
@@ -109,6 +113,32 @@ export const NAV_SECTIONS = [
 export const NAV_ITEM_CONFIG = {
   api: { path: "agents", query: { type: "api" } },
   chatbot: { path: "agents", query: { type: "chatbot" } },
+};
+
+/**
+ * Builds a navigation URL for a given nav key and orgId.
+ * Uses NAV_ITEM_CONFIG if a config entry exists, otherwise falls back to `/org/{orgId}/{key}`.
+ */
+export const buildNavUrl = (key, orgId) => {
+  const config = NAV_ITEM_CONFIG[key];
+  if (config) {
+    const query = config.query ? `?${new URLSearchParams(config.query).toString()}` : "";
+    return `/org/${orgId}/${config.path}${query}`;
+  }
+  return `/org/${orgId}/${key}`;
+};
+
+/**
+ * Navigates to `url` via `router.push`, but intercepts when there are unsaved
+ * prompt changes — storing the pending URL and opening the unsaved-changes modal.
+ */
+export const createGuardedNavigate = (router, pendingNavRef, openModalFn, MODAL_TYPE, unsavedPromptGuard) => (url) => {
+  if (unsavedPromptGuard.hasUnsavedChanges) {
+    pendingNavRef.current = url;
+    openModalFn(MODAL_TYPE.UNSAVED_CHANGES_MODAL);
+    return;
+  }
+  router.push(url);
 };
 
 export const HRCollapsed = React.memo(() => <hr className="my-2 w-6 border-base-content/30 mx-auto" />);

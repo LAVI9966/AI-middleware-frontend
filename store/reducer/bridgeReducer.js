@@ -19,6 +19,7 @@ const initialState = {
     filterActive: false,
     loading: false, // Track loading state for metrics API
   },
+  agentsVersionsData: {},
 };
 
 export const bridgeReducer = createSlice({
@@ -162,7 +163,7 @@ export const bridgeReducer = createSlice({
         }
       }
 
-      if (bridges?.connected_agent_details) {
+      if (bridges?.agent_info?.connected_agent_details) {
         const allData = state.org[bridges.org_id]?.orgs;
         if (allData) {
           // Find the index of the bridge to update
@@ -386,6 +387,11 @@ export const bridgeReducer = createSlice({
       state.loading = false;
       state.isFocus = false;
     },
+
+    fetchAgentsVersionsDataReducer: (state, action) => {
+      const { data } = action.payload;
+      state.agentsVersionsData = data || {};
+    },
   },
 });
 
@@ -423,6 +429,7 @@ export const {
   clearPreviousBridgeDataReducer,
   setBridgeUsageMetricsReducer,
   clearBridgeUsageMetricsReducer,
+  fetchAgentsVersionsDataReducer,
 } = bridgeReducer.actions;
 
 export default bridgeReducer.reducer;

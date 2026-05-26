@@ -12,6 +12,7 @@ import {
   discardBridgeVersionApi,
   fetchBridgeUsageMetricsApi,
   genrateSummary,
+  getAgentsVersionsByFunctions,
   getAllBridges,
   getAllFunctionsApi,
   getAllResponseTypesApi,
@@ -31,6 +32,7 @@ import {
 } from "@/config/index";
 import { toast } from "react-toastify";
 import posthog, { trackAgentEvent } from "@/utils/posthog";
+import { handleApiError, isNetworkError } from "@/utils/errorHandler";
 import {
   backupBridgeVersionReducer,
   bridgeVersionRollBackReducer,
@@ -43,6 +45,7 @@ import {
   duplicateBridgeReducer,
   fetchAllBridgeReducer,
   fetchAllFunctionsReducer,
+  fetchAgentsVersionsDataReducer,
   fetchSingleBridgeReducer,
   fetchSingleBridgeVersionReducer,
   getPrebuiltToolsReducer,
@@ -73,7 +76,10 @@ export const getSingleBridgesAction =
       getBridgeVersionAction({ versionId: version || data.data?.agent?.published_version_id })(dispatch);
     } catch (error) {
       dispatch(isError());
-      console.error(error);
+      if (isNetworkError(error)) {
+        handleApiError(error, "Failed to load agent");
+      }
+      console.error("Error in getSingleBridgesAction:", error);
       throw error.response;
     }
   };
@@ -452,7 +458,7 @@ export const updateBridgeAction =
   };
 
 export const updateBridgeVersionAction =
-  ({ versionId, dataToSend, bridgeId }) =>
+  ({ versionId, dataToSend, bridgeId, localOnly = false }) =>
   async (dispatch, getState) => {
     try {
       if (!versionId) {
@@ -477,7 +483,9 @@ export const updateBridgeVersionAction =
         return;
       }
 
-      dispatch(backupBridgeVersionReducer({ bridgeId: parentBridgeId, versionId }));
+      if (!localOnly) {
+        dispatch(backupBridgeVersionReducer({ bridgeId: parentBridgeId, versionId }));
+      }
 
       const currentVersion = getState().bridgeReducer.bridgeVersionMapping[parentBridgeId][versionId];
 
@@ -605,12 +613,32 @@ export const updateBridgeVersionAction =
         };
       }
 
+      // Handle agent_info if present (deep merge)
+      if (dataToSend.agent_info) {
+        optimisticData.agent_info = {
+          ...currentVersion.agent_info,
+          ...dataToSend.agent_info,
+        };
+      }
+
+      // Handle settings if present (deep merge)
+      if (dataToSend.settings) {
+        optimisticData.settings = {
+          ...currentVersion.settings,
+          ...dataToSend.settings,
+        };
+      }
+
       dispatch(
         updateBridgeVersionReducer({
           bridges: optimisticData,
           functionData: dataToSend?.functionData || null,
         })
       );
+
+      if (localOnly) {
+        return;
+      }
 
       // Show saving indi\ation in navbar
       dispatch(setSavingStatus({ status: "saving" }));
@@ -722,10 +750,10 @@ export const updateApiAction = (bridge_id, dataFromEmbed) => async (dispatch) =>
 };
 
 export const publishBridgeVersionAction =
-  ({ bridgeId, versionId, orgId }) =>
+  ({ bridgeId, versionId, orgId, generate_summary = false }) =>
   async (dispatch) => {
     try {
-      const data = await publishBridgeVersionApi({ versionId });
+      const data = await publishBridgeVersionApi({ versionId, generate_summary });
       if (data?.success) {
         dispatch(publishBrigeVersionReducer({ versionId: data?.version_id, bridgeId, orgId }));
         toast.success("Agent Version published successfully");
@@ -889,6 +917,17 @@ export const publishBulkVersionAction = (version_ids) => async (dispatch) => {
     return response;
   } catch (error) {
     toast.error("Failed to publish bulk version");
+    throw error;
+  }
+};
+
+export const getAgentsVersionsDataAction = (orgId) => async (dispatch) => {
+  try {
+    const data = await getAgentsVersionsByFunctions(orgId);
+    dispatch(fetchAgentsVersionsDataReducer({ data }));
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch agents-versions data:", error);
     throw error;
   }
 };

@@ -34,12 +34,13 @@ export const useConfigurationState = (params, searchParams) => {
       bridge_functions: isPublished ? bridgeDataFromState?.function_ids || [] : versionData?.function_ids || [],
       connect_agents: isPublished ? bridgeDataFromState?.connected_agents || {} : versionData?.connected_agents || {},
       knowbaseVersionData: isPublished ? bridgeDataFromState?.doc_ids || [] : versionData?.doc_ids || [],
-      hideAdvancedParameters: state.appInfoReducer.embedUserDetails.hideAdvancedParameters,
-      hideAdvancedConfigurations: state.appInfoReducer.embedUserDetails.hideAdvancedConfigurations,
+      showAdvancedParameters: state.appInfoReducer.embedUserDetails.showAdvancedParameters,
+      showAdvancedConfigurations: state.appInfoReducer.embedUserDetails.showAdvancedConfigurations,
       service: service,
-      hidePreTool: state.appInfoReducer.embedUserDetails.hidePreTool,
+      showPreTool: state.appInfoReducer.embedUserDetails.showPreTool,
       validationConfig: validationConfig, // Expose full validationConfig
       cacheOn: activeData?.cache_on ?? false,
+      statelessConversation: bridgeDataFromState?.settings?.stateless_conversation ?? false,
     };
   });
 };

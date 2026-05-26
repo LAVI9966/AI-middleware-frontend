@@ -125,6 +125,7 @@ export const getWidgetJsonSchema = (fields = {}) => {
 };
 
 export const generateCombinedSchema = (selectedWidgetIds, richUiWidgets) => {
+  // If no widgets are selected, return normal schema without anyOf
   if (!selectedWidgetIds || selectedWidgetIds.length === 0) {
     return {
       name: "event_schema",
@@ -133,19 +134,13 @@ export const generateCombinedSchema = (selectedWidgetIds, richUiWidgets) => {
         properties: {
           item: {
             type: "object",
-            anyOf: [
-              {
-                type: "object",
-                properties: {
-                  response: {
-                    type: "string",
-                    description: "A friendly greeting or response message",
-                  },
-                },
-                required: ["response"],
-                additionalProperties: false,
+            properties: {
+              response: {
+                type: "string",
+                description: "A friendly greeting or response message",
               },
-            ],
+            },
+            required: ["response"],
             additionalProperties: false,
           },
         },
@@ -158,7 +153,7 @@ export const generateCombinedSchema = (selectedWidgetIds, richUiWidgets) => {
 
   const anyOfSchemas = [];
 
-  // Always include plain greeting as first option
+  // Include plain greeting as first option when widgets are selected
   anyOfSchemas.push({
     type: "object",
     properties: {
@@ -212,4 +207,26 @@ export const generateCombinedSchema = (selectedWidgetIds, richUiWidgets) => {
     },
     strict: true,
   };
+};
+
+/** True when schema is missing or an empty object (not valid for the API). */
+export const isEmptyJsonSchema = (schema) => {
+  if (schema == null) return true;
+  if (typeof schema !== "object" || Array.isArray(schema)) return false;
+  return Object.keys(schema).length === 0;
+};
+
+/** Build response_type for json_schema; omits json_schema until the user provides one. */
+export const buildJsonSchemaResponseType = ({ json_schema, is_template = false, template_id } = {}) => {
+  const payload = {
+    type: "json_schema",
+    is_template,
+  };
+  if (template_id !== undefined) {
+    payload.template_id = template_id;
+  }
+  if (!isEmptyJsonSchema(json_schema)) {
+    payload.json_schema = json_schema;
+  }
+  return payload;
 };
