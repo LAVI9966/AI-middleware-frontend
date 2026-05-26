@@ -64,6 +64,16 @@ const RenderEmbed = ({
       const title = truncateTitle(rawTitle, maxTitleLength);
       const isTitleTruncated = !!maxTitleLength && typeof rawTitle === "string" && rawTitle.length > maxTitleLength;
       const isWebSearchPreTool = value?._type === "gtwy_web_search";
+      const status = value?.status || integrationData?.[functionName]?.status;
+      const normalizedStatus = status?.toString().trim().toLowerCase();
+      const statusBadge =
+        normalizedStatus === "drafted"
+          ? { label: "Draft", className: "bg-yellow-100 text-yellow-800 border-yellow-300" }
+          : normalizedStatus === "active" || status === 1
+            ? { label: "Active", className: "bg-green-100 text-green-800 border-green-300" }
+            : normalizedStatus === "paused"
+              ? { label: "Paused", className: "bg-red-100 text-red-800 border-red-300" }
+              : null;
 
       return (
         <div
@@ -122,6 +132,13 @@ const RenderEmbed = ({
                 </div>
               ) : (
                 <span className="block text-sm font-normal truncate flex-1 min-w-0 text-left">{title}</span>
+              )}
+              {statusBadge && (
+                <span
+                  className={`ml-1 flex-shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${statusBadge.className}`}
+                >
+                  {statusBadge.label}
+                </span>
               )}
             </div>
           </div>

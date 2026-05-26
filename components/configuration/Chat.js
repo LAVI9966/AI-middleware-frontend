@@ -811,10 +811,17 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           <span className="text-xs font-semibold capitalize tracking-wide opacity-70">
                             {message.sender === "error"
                               ? "Error"
-                              : message.testCaseResult
-                                ? "Model Answer"
-                                : message.sender}
+                              : message.sender === "expected"
+                                ? "Expected"
+                                : message.testCaseResult
+                                  ? "Model Answer"
+                                  : message.sender}
                           </span>
+                          {message.sender === "expected" && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-warning/20 text-warning border border-warning/40">
+                              Reference Answer
+                            </span>
+                          )}
                           {message.isEdited && <span className="text-xs text-warning font-medium">(edited)</span>}
                           <time className="text-[10px] opacity-40">{message.time}</time>
                         </>
@@ -999,9 +1006,11 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                               className={`break-words gap-0 justify-start relative min-w-0 ${
                                 message.sender === "assistant"
                                   ? `mr-8 w-full rounded-xl ${message.content ? "px-4 py-3 border border-base-content/20" : ""}`
-                                  : message.sender === "error"
-                                    ? "rounded-xl w-fit max-w-[75%] overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
-                                    : "chat-bubble w-fit max-w-[75%] text-sm"
+                                  : message.sender === "expected"
+                                    ? "mr-8 w-full rounded-xl px-4 py-3 border border-warning/60 bg-warning/10 text-sm"
+                                    : message.sender === "error"
+                                      ? "rounded-xl w-fit max-w-[75%] overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
+                                      : "chat-bubble w-fit max-w-[75%] text-sm"
                               } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
                             >
                               {/* Show loader overlay if this is the message being tested */}

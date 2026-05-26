@@ -122,6 +122,7 @@ export const chatReducer = createSlice({
       if (state.messagesByChannel[channelId]) {
         state.messagesByChannel[channelId] = messages;
         state.testCasesByChannel[channelId] = { testCaseId };
+        state.loadingByChannel[channelId] = false;
       }
     },
 
@@ -158,8 +159,10 @@ export const chatReducer = createSlice({
       if (loadingMessageIndex !== -1) {
         // Replace loading message with RT layer response
         messages[loadingMessageIndex] = message;
-      } else {
-        // Add new message if no loading message found
+      } else if (state.loadingByChannel[channelId]) {
+        // Only push if the channel is actually in a loading state (i.e. a message was sent).
+        // This prevents stale in-flight RT layer responses from being appended
+        // after a test case load replaces the messages array.
         messages.push(message);
       }
     },

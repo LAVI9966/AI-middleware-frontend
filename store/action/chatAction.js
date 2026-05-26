@@ -169,17 +169,13 @@ export const loadTestCaseIntoChat = (channelId, testCaseConversation, expected, 
   });
 
   if (expected?.response) {
-    const expectedMessage = {
+    convertedMessages.push({
       id: `testcase_expected_${baseTimestamp}`,
-      sender: "assistant",
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      sender: "expected",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       content: typeof expected.response === "object" ? JSON.stringify(expected.response) : expected.response,
       isExpected: true,
-    };
-    convertedMessages.push(expectedMessage);
+    });
   }
 
   dispatch(
