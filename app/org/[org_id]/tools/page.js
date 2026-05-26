@@ -8,6 +8,7 @@ import PageHeader from "@/components/Pageheader";
 import MainLayout from "@/components/layoutComponents/MainLayout";
 import SearchItems from "@/components/UI/SearchItems";
 import { useCustomSelector } from "@/customHooks/customSelector";
+import InfoTooltip from "@/components/InfoTooltip";
 import { updateFuntionApiAction, getAgentsVersionsDataAction } from "@/store/action/bridgeAction";
 import { isEqual } from "lodash";
 import FunctionParameterModal from "@/components/configuration/configurationComponent/FunctionParameterModal";
@@ -142,6 +143,7 @@ const ToolsPage = ({ params }) => {
   const [functionDetails, setFunctionDetails] = useState({});
   const [toolData, setToolData] = useState({});
   const [functionName, setFunctionName] = useState("");
+  const [selectedToolAgents, setSelectedToolAgents] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [openDropdownToolId, setOpenDropdownToolId] = useState(null);
   const [expandedAgentId, setExpandedAgentId] = useState(null);
@@ -342,6 +344,8 @@ const ToolsPage = ({ params }) => {
   const handleOpenTool = useCallback(
     (fn) => {
       const scriptId = fn?.script_id;
+      const row = tableData.find((r) => r._id === fn?._id);
+      setSelectedToolAgents(row?.agents || []);
       if (typeof window !== "undefined" && typeof window.openViasocket === "function" && scriptId) {
         window.openViasocket(scriptId, {
           embedToken,
@@ -357,16 +361,21 @@ const ToolsPage = ({ params }) => {
       setFunctionName(fn?.script_id);
       openModal(MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL);
     },
-    [embedToken]
+    [embedToken, tableData]
   );
 
-  const handleConfigTool = useCallback((fn) => {
-    setFunctionId(fn?._id);
-    setFunctionDetails(fn);
-    setToolData(fn);
-    setFunctionName(fn?.script_id);
-    openModal(MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL);
-  }, []);
+  const handleConfigTool = useCallback(
+    (fn) => {
+      const row = tableData.find((r) => r._id === fn?._id);
+      setSelectedToolAgents(row?.agents || []);
+      setFunctionId(fn?._id);
+      setFunctionDetails(fn);
+      setToolData(fn);
+      setFunctionName(fn?.script_id);
+      openModal(MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL);
+    },
+    [tableData]
+  );
 
   const handleSaveFunctionData = useCallback(() => {
     if (!functionId) return;
@@ -416,14 +425,13 @@ const ToolsPage = ({ params }) => {
         );
       },
       description: (row) => (
-        <div className="text-sm text-base-content max-w-xs">
+        <div className="text-sm text-base-content max-w-xs min-w-0 overflow-hidden">
           {row?.description && row.description !== "-" ? (
-            <div className="tooltip" data-tip={row.description}>
-              <span className="truncate block">
-                {row.description.split(" ").slice(0, 5).join(" ")}
-                {row.description.split(" ").length > 5 ? "..." : ""}
+            <InfoTooltip tooltipContent={row.description}>
+              <span className="truncate block cursor-help">
+                {row.description.length > 40 ? row.description.slice(0, 40) + "..." : row.description}
               </span>
-            </div>
+            </InfoTooltip>
           ) : (
             <span className="text-gray-400 italic">No description</span>
           )}
@@ -692,6 +700,7 @@ const ToolsPage = ({ params }) => {
         setVariablesPath={() => {}}
         variablesPath={{}}
         disableValuePath={true}
+        connectedAgents={selectedToolAgents}
       />
 
       <PortalDropdown />
