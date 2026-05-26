@@ -999,6 +999,7 @@ function FunctionParameterModal({
   }, [function_details]);
 
   const handleCloseModal = useCallback(() => {
+    setShowNameDescription(false);
     resetModalData();
     closeModal(Model_Name);
   }, [resetModalData, Model_Name]);
