@@ -571,6 +571,7 @@ function FunctionParameterModal({
   params = {},
   tool_name = "",
   disableValuePath = false,
+  connectedAgents = [],
 }) {
   // Determine if content is read-only (either published or user is not an editor)
   const isReadOnly = isPublished || !isEditor;
@@ -1365,8 +1366,8 @@ function FunctionParameterModal({
               <div className="flex flex-row gap-1">
                 <InfoIcon id="function-param-info-icon" size={14} />
                 <div id="function-param-info-text" className="label-text-alt">
-                  Function used in {(function_details?.bridge_ids || [])?.length} versions, changes may affect all
-                  versions.
+                  Function used in {(connectedAgents || function_details?.bridge_ids || [])?.length} versions, changes
+                  may affect all versions.
                 </div>
               </div>
             )}
