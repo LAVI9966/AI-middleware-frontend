@@ -146,6 +146,7 @@ const ToolsPage = ({ params }) => {
   const [selectedToolAgents, setSelectedToolAgents] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [openDropdownToolId, setOpenDropdownToolId] = useState(null);
+  const [agentsDropdownPlacement, setAgentsDropdownPlacement] = useState("down");
   const [expandedAgentId, setExpandedAgentId] = useState(null);
 
   const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown({
@@ -467,6 +468,14 @@ const ToolsPage = ({ params }) => {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                if (!isOpen && typeof window !== "undefined") {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const approxDropdownHeight = 320;
+                  const spaceBelow = window.innerHeight - rect.bottom;
+                  const spaceAbove = rect.top;
+                  const shouldOpenUp = spaceBelow < approxDropdownHeight && spaceAbove > spaceBelow;
+                  setAgentsDropdownPlacement(shouldOpenUp ? "up" : "down");
+                }
                 setOpenDropdownToolId(isOpen ? null : row._id);
                 setExpandedAgentId(null);
               }}
@@ -489,7 +498,9 @@ const ToolsPage = ({ params }) => {
 
             {isOpen && (
               <div
-                className="absolute left-0 top-full mt-1 z-50 bg-base-100 border border-base-content/60 shadow-lg rounded min-w-[240px]"
+                className={`absolute left-0 z-50 bg-base-100 border border-base-content/60 shadow-lg rounded min-w-[240px] ${
+                  agentsDropdownPlacement === "up" ? "bottom-full mb-1" : "top-full mt-1"
+                }`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div
