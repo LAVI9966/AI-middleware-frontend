@@ -253,7 +253,13 @@ function ChatTextInput({
         }
       }
     }
-    if (promptText.trim() === "" && modelType !== "completion" && modelType !== "embedding" && modelType !== "chat") {
+    if (
+      promptText.trim() === "" &&
+      modelType !== "completion" &&
+      modelType !== "embedding" &&
+      modelType !== "chat" &&
+      modelType !== "image"
+    ) {
       dispatch(setChatError(channelIdentifier, "Prompt is required"));
       return;
     }
