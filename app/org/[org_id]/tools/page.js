@@ -13,7 +13,7 @@ import { updateFuntionApiAction, getAgentsVersionsDataAction } from "@/store/act
 import { isEqual } from "lodash";
 import FunctionParameterModal from "@/components/configuration/configurationComponent/FunctionParameterModal";
 import { MODAL_TYPE } from "@/utils/enums";
-import { openModal, formatRelativeTime, formatDate } from "@/utils/utility";
+import { openModal, formatRelativeTime, formatDate, getStatusClass } from "@/utils/utility";
 import CustomTable from "@/components/customTable/CustomTable";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 
@@ -34,6 +34,8 @@ const getColumnLabel = (column) => {
       return "Script ID";
     case "description":
       return "Description";
+    case "status":
+      return "Status";
     case "agents":
       return "Connected Agents";
     case "versions":
@@ -255,6 +257,7 @@ const ToolsPage = ({ params }) => {
         icons, // Service icons passed separately
         script_id: scriptId,
         description: fn?.description || "-",
+        status: fn?.status ?? integration?.status ?? "-",
         agents: connections,
         agentsCount: connections.length,
         createdAt: fn?.createdAt ? formatRelativeTime(fn.createdAt) : "-",
@@ -438,6 +441,30 @@ const ToolsPage = ({ params }) => {
           )}
         </div>
       ),
+      status: (row) => {
+        const status = row?.status;
+        const normalizedStatus = status === 1 ? "Active" : status === 0 ? "Inactive" : status || "-";
+        const statusTone = normalizedStatus.toString().trim().toLowerCase();
+        return (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${getStatusClass(
+              statusTone
+            )} ${
+              statusTone === "active" || statusTone === "published" || statusTone === "1"
+                ? "bg-green-100 text-green-700"
+                : statusTone === "paused"
+                  ? "bg-red-100 text-red-700"
+                  : statusTone === "drafted"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : statusTone === "rejected"
+                      ? "bg-gray-100 text-gray-700"
+                      : "bg-base-200 text-base-content/80"
+            }`}
+          >
+            {normalizedStatus}
+          </span>
+        );
+      },
       createdAt: (row) => (
         <div className="group cursor-help inline-flex items-center gap-1.5 px-2 py-1 rounded transition-colors">
           <div className="flex flex-col min-w-0">
@@ -664,7 +691,7 @@ const ToolsPage = ({ params }) => {
         ) : (
           <CustomTable
             data={filteredTools}
-            columnsToShow={["title", "description", "agents", "createdAt", "updatedAt"]}
+            columnsToShow={["title", "description", "status", "agents", "createdAt", "updatedAt"]}
             sorting
             sortingColumns={["title", "createdAt", "updatedAt"]}
             customGetColumnLabel={getColumnLabel}
