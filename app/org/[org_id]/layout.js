@@ -410,7 +410,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
                 dataToSend: {
                   functionData: {
                     function_id: selectedVersionData._id,
-                    function_name: selectedVersionData.script_id,
+                    script_id: selectedVersionData.script_id,
                   },
                 },
               })
