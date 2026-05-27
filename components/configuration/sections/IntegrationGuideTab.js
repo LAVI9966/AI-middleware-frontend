@@ -8,7 +8,7 @@ import BatchApiGuide from "../configurationComponent/BatchApiGuide";
 import SecondStep from "../../chatbotConfiguration/SecondStep";
 import PrivateFormSection from "../../chatbotConfiguration/FirstStep";
 import SlugNameInput from "../configurationComponent/SlugNameInput";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 
 const IntegrationGuideTab = ({ isPublished }) => {
   const { params } = useConfigurationContext();
@@ -123,6 +123,18 @@ const IntegrationGuideTab = ({ isPublished }) => {
                 {tab.label}
               </button>
             ))}
+          </div>
+        )}
+
+        {activeTab === "batch" && (
+          <div className="alert alert-warning border border-warning/30 bg-warning/10">
+            <Info className="h-5 w-5 text-warning flex-shrink-0 " />
+            <div>
+              <p className="font-medium text-base-content">Batch API Limitations</p>
+              <p className="text-sm text-base-content/80">
+                Tools call, Agent call and Knowledge base call are not supported when using the Batch API.
+              </p>
+            </div>
           </div>
         )}
 
