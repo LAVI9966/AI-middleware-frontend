@@ -458,7 +458,7 @@ export const updateBridgeAction =
   };
 
 export const updateBridgeVersionAction =
-  ({ versionId, dataToSend, bridgeId, localOnly = false }) =>
+  ({ versionId, dataToSend, bridgeId, localOnly = false, skipRollback = false }) =>
   async (dispatch, getState) => {
     try {
       if (!versionId) {
@@ -656,8 +656,11 @@ export const updateBridgeVersionAction =
         dispatch(updateBridgeVersionReducer({ bridges: updatedVersion }));
 
         // Clear the status after 3 seconds
+        return { success: true };
       } else {
-        dispatch(bridgeVersionRollBackReducer({ bridgeId: parentBridgeId, versionId }));
+        if (!skipRollback) {
+          dispatch(bridgeVersionRollBackReducer({ bridgeId: parentBridgeId, versionId }));
+        }
         // Update status to show warning
         dispatch(setSavingStatus({ status: "failed" }));
 
@@ -665,6 +668,7 @@ export const updateBridgeVersionAction =
         setTimeout(() => {
           dispatch(setSavingStatus({ status: null }));
         }, 3000);
+        return { success: false, error: data?.error || "Failed to update version" };
       }
     } catch (error) {
       console.error(error);
@@ -681,7 +685,7 @@ export const updateBridgeVersionAction =
           }
         }
 
-        if (parentBridgeId) {
+        if (parentBridgeId && !skipRollback) {
           dispatch(bridgeVersionRollBackReducer({ bridgeId: parentBridgeId, versionId }));
           toast.error("Failed to update version. Changes have been reverted.");
         }
@@ -692,6 +696,7 @@ export const updateBridgeVersionAction =
       dispatch(setSavingStatus({ status: "failed" }));
 
       // Clear the status after 3 seconds
+      return { success: false, error: error?.message || "Failed to update version" };
     }
   };
 
