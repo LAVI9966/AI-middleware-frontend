@@ -7,6 +7,7 @@ import { AddIcon } from "@/components/Icons";
 import React, { useMemo, useState } from "react";
 import { truncate } from "@/components/historyPageComponents/AssistFile";
 import { PRE_TOOL_TYPES, PRE_TOOL_LABELS } from "@/utils/enums";
+import { getSelectedVariablesPath } from "@/utils/variableValidation";
 
 function EmbedListSuggestionDropdownMenu({
   params,
@@ -240,6 +241,7 @@ function EmbedListSuggestionDropdownMenu({
                 id="embed-suggestion-add-new-button"
                 className="border-t border-base-300 w-full sticky bottom-0 bg-base-100 py-2"
                 onClick={() => {
+                  const selectedVariablesPath = getSelectedVariablesPath(variablesPath);
                   const payload = {
                     embedToken,
                     meta: {
@@ -248,7 +250,7 @@ function EmbedListSuggestionDropdownMenu({
                       bridge_id: params?.id,
                     },
                     dummy_payload: {
-                      variablesPath,
+                      ...selectedVariablesPath,
                     },
                   };
                   openViasocket(undefined, payload);

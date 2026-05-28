@@ -3,6 +3,7 @@ import { SettingsIcon, TrashIcon, RefreshIcon, SquareFunctionIcon } from "@/comp
 import useExpandableList from "@/customHooks/useExpandableList";
 import InfoTooltip from "@/components/InfoTooltip";
 import { AlertTriangle } from "lucide-react";
+import { getSelectedVariablesPath } from "@/utils/variableValidation";
 
 const WEB_SEARCH_WARNING_CLASS = "border-warning/40";
 const WEB_SEARCH_TOKEN_WARNING = "Selecting Web Search can cause heavy token utilization and may exceed 10,000 tokens.";
@@ -82,6 +83,7 @@ const RenderEmbed = ({
             className="p-2 flex-1 flex items-center"
             onClick={() => {
               if (isReadOnly) return;
+              const selectedVariablesPath = getSelectedVariablesPath(variablesPath, functionName);
               if (value?._type === "custom_function" || !value?._type) {
                 openViasocket(functionName, {
                   embedToken,
@@ -90,7 +92,7 @@ const RenderEmbed = ({
                     bridge_id: params?.id,
                   },
                   dummy_payload: {
-                    variablesPath,
+                    ...selectedVariablesPath,
                   },
                 });
               }
