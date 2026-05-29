@@ -11,7 +11,7 @@ import InfoTooltip from "@/components/InfoTooltip";
 import AddNewModelModal from "@/components/modals/AddNewModal";
 
 // Model Preview component to display model specifications
-const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
+export const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
   if (!hoveredModel || !modelSpecs || !dropdownRef?.current) return null;
 
   // Calculate position relative to dropdown with viewport constraints
@@ -21,6 +21,7 @@ const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
   const dropdownMenu = dropdownRef.current?.querySelector(".dropdown-content");
   const targetRect = dropdownMenu ? dropdownMenu.getBoundingClientRect() : dropdownRect;
   const viewportHeight = window.innerHeight;
+  const shouldOpenUp = dropdownRef.current?.classList?.contains("dropdown-top");
 
   const modalWidth = 260;
   const viewportWidth = window.innerWidth;
@@ -40,10 +41,10 @@ const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
 
   const previewStyle = {
     position: "fixed",
-    top: Math.max(20, dropdownRect?.top - 50),
+    top: shouldOpenUp ? Math.max(20, targetRect?.top) : Math.max(20, dropdownRect?.top - 50),
     left: leftPosition,
     zIndex: 99999,
-    maxHeight: `${viewportHeight}px`,
+    maxHeight: shouldOpenUp ? `${Math.max(120, viewportHeight - targetRect?.top - 20)}px` : `${viewportHeight}px`,
     overflowY: "auto",
   };
 
