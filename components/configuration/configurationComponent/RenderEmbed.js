@@ -88,6 +88,7 @@ const RenderEmbed = ({
                 openViasocket(functionName, {
                   embedToken,
                   meta: {
+                    createFrom: name,
                     type: "tool",
                     bridge_id: params?.id,
                   },
