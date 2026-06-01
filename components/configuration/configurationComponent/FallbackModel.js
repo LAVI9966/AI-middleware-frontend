@@ -263,6 +263,9 @@ const FallbackModel = ({
 
   const computedModelsList = serviceModels?.[fallbackService] || {};
 
+  // Normalize primary model for robust comparisons (handles option keys vs default names)
+  const normalizedCurrentModel = String(currentModel || "").toLowerCase();
+
   return (
     <div data-testid="fallback-model-container" id="fallback-model-container" className="space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -418,10 +421,14 @@ const FallbackModel = ({
                   {Object.entries(computedModelsList || {}).map(([group, options]) => {
                     if (group === "image") return null;
 
-                    // 1️⃣ Pre-filter valid models
+                    // 1️⃣ Pre-filter valid models (exclude primary-selected model robustly)
                     const validModels = Object.keys(options || {}).filter((option) => {
                       const modelName = options?.[option]?.configuration?.model?.default || option;
-                      return currentModel !== modelName && currentModel !== option;
+                      const normalizedModelName = String(modelName || "").toLowerCase();
+                      const normalizedOption = String(option || "").toLowerCase();
+                      return (
+                        normalizedModelName !== normalizedCurrentModel && normalizedOption !== normalizedCurrentModel
+                      );
                     });
                     if (validModels.length === 0) return null;
                     return (
@@ -430,9 +437,16 @@ const FallbackModel = ({
                         <ul>
                           {Object.keys(options || {}).map((option) => {
                             const modelName = options?.[option]?.configuration?.model?.default || option;
+                            const normalizedModelName = String(modelName || "").toLowerCase();
+                            const normalizedOption = String(option || "").toLowerCase();
                             const selected = fallbackModelName === modelName || fallbackModelName === option;
 
-                            if (currentModel === modelName || currentModel === option) return null;
+                            // Exclude primary model (by name or option key)
+                            if (
+                              normalizedModelName === normalizedCurrentModel ||
+                              normalizedOption === normalizedCurrentModel
+                            )
+                              return null;
 
                             // Get display name from embedModelsConfig for embed users
                             const serviceConfig = embedModelsConfig?.[fallbackService];
