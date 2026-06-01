@@ -126,6 +126,9 @@ const Layout = ({ children, isEmbedUser }) => {
         const configUpdates = {};
         Object.entries(urlParamsObj.config).forEach(([key, value]) => {
           if (value === undefined) return;
+          if (key === "defaultOpen" && (value === "true" || value === true)) {
+            setOpenGtwyReceived(true);
+          }
           if (key === "theme_config") {
             let parsedTheme = value;
             if (typeof value === "string") {
