@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Modal from "@/components/UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
@@ -13,6 +13,8 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [availableVersions, setAvailableVersions] = useState([]);
+  const [whenErrors, setWhenErrors] = useState({});
+  const initialEnvironments = useRef(null);
 
   useEffect(() => {
     if (bridgeData) {
@@ -21,7 +23,9 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
         when,
         do: versionId,
       }));
-      setEnvironments(environmentsArray.length > 0 ? environmentsArray : [{ when: "", do: "" }]);
+      const initial = environmentsArray.length > 0 ? environmentsArray : [{ when: "", do: "" }];
+      initialEnvironments.current = initial;
+      setEnvironments(initial);
 
       const versions = bridgeData?.versions || [];
       setAvailableVersions([
@@ -49,6 +53,16 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
     const updated = [...environments];
     updated[index][field] = value;
     setEnvironments(updated);
+
+    if (field === "when") {
+      const trimmed = value.trim().toLowerCase();
+      const isDuplicate =
+        trimmed !== "" && updated.some((env, i) => i !== index && env.when.trim().toLowerCase() === trimmed);
+      setWhenErrors((prev) => ({
+        ...prev,
+        [index]: isDuplicate ? `"${value.trim()}" is already defined` : "",
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -56,6 +70,12 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
 
     if (environments.some((env) => !env.when || !env.do)) {
       setError("Please fill in all environment fields");
+      return;
+    }
+
+    const hasDuplicateKeys = Object.values(whenErrors).some(Boolean);
+    if (hasDuplicateKeys) {
+      setError("Please fix duplicate environment keys before saving");
       return;
     }
 
@@ -87,6 +107,10 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
       setIsLoading(false);
     }
   };
+
+  const hasChanges =
+    initialEnvironments.current !== null &&
+    JSON.stringify(environments) !== JSON.stringify(initialEnvironments.current);
 
   return (
     <Modal MODAL_ID={MODAL_TYPE.CONFIGURE_ENVIRONMENT_MODAL} onClose={handleClose}>
@@ -124,53 +148,64 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
                 </div>
               </div>
 
-              {environments.map((env, index) => (
-                <div key={index} className="grid grid-cols-2 gap-4 items-end">
-                  <div className="form-control w-full">
-                    <input
-                      autoComplete="off"
-                      data-testid={`environment-when-input-${index}`}
-                      type="text"
-                      placeholder="e.g., Production, Testing, Staging"
-                      className="input input-bordered w-full input-sm"
-                      value={env.when}
-                      onChange={(e) => handleEnvironmentChange(index, "when", e.target.value)}
-                    />
-                  </div>
+              {environments.map((env, index) => {
+                // Versions already selected in OTHER rows
+                const usedVersionIds = environments
+                  .filter((_, i) => i !== index)
+                  .map((e) => e.do)
+                  .filter(Boolean);
 
-                  <div className="flex gap-2">
+                const filteredVersions = availableVersions.filter((v) => !usedVersionIds.includes(v.value));
+
+                return (
+                  <div key={index} className="grid grid-cols-2 gap-4 items-start">
                     <div className="form-control w-full">
-                      <select
-                        data-testid={`environment-do-select-${index}`}
-                        className="select select-bordered w-full select-sm"
-                        value={env.do}
-                        onChange={(e) => handleEnvironmentChange(index, "do", e.target.value)}
-                      >
-                        <option value="">Select version</option>
-                        {availableVersions.length > 0 ? (
-                          availableVersions.map((version) => (
-                            <option key={version.value} value={version.value}>
-                              {version.label}
-                            </option>
-                          ))
-                        ) : (
-                          <option disabled>No versions available</option>
-                        )}
-                      </select>
+                      <input
+                        autoComplete="off"
+                        data-testid={`environment-when-input-${index}`}
+                        type="text"
+                        placeholder="e.g., Production, Testing, Staging"
+                        className={`input input-bordered w-full input-sm${whenErrors[index] ? " input-error" : ""}`}
+                        value={env.when}
+                        onChange={(e) => handleEnvironmentChange(index, "when", e.target.value)}
+                      />
+                      {whenErrors[index] && <span className="text-error text-xs mt-1">{whenErrors[index]}</span>}
                     </div>
-                    {environments.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveEnvironment(index)}
-                        className="btn btn-ghost btn-sm"
-                        title="Remove environment"
-                      >
-                        <X size={16} className="text-error" />
-                      </button>
-                    )}
+
+                    <div className="flex gap-2">
+                      <div className="form-control w-full">
+                        <select
+                          data-testid={`environment-do-select-${index}`}
+                          className="select select-bordered w-full select-sm"
+                          value={env.do}
+                          onChange={(e) => handleEnvironmentChange(index, "do", e.target.value)}
+                        >
+                          <option value="">Select version</option>
+                          {filteredVersions.length > 0 ? (
+                            filteredVersions.map((version) => (
+                              <option key={version.value} value={version.value}>
+                                {version.label}
+                              </option>
+                            ))
+                          ) : (
+                            <option disabled>No versions available</option>
+                          )}
+                        </select>
+                      </div>
+                      {environments.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEnvironment(index)}
+                          className="btn btn-ghost btn-sm"
+                          title="Remove environment"
+                        >
+                          <X size={16} className="text-error" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {error && <p className="text-error text-sm mt-2">{error}</p>}
             </div>
@@ -196,7 +231,7 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
                 id="configure-environment-save-button"
                 type="submit"
                 className="btn btn-primary btn-sm"
-                disabled={isLoading || !bridgeId}
+                disabled={isLoading || !bridgeId || !hasChanges}
               >
                 {isLoading ? "Saving..." : "Save"}
               </button>
