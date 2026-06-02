@@ -93,7 +93,7 @@ const PromptHelper = ({
           } else {
             const { reason, description, ...rest } = result;
             const keys = Object.keys(rest);
-            if (keys.length === 1 && variable_key) {
+            if (keys.length === 1) {
               result.updated = rest[keys[0]];
             } else if (keys.length > 0) {
               result.updated = rest;

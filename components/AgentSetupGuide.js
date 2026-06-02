@@ -63,7 +63,8 @@ const AgentSetupGuide = ({
   const [isVisible, setIsVisible] = useState(() => {
     if (hasPromptContent(prompt)) return false;
     if (isEmbedUser && showDefaultApikeys) return true;
-    return !bridgeApiKey;
+    const hasFreeApiKey = modelName === "gpt-5-nano" && bridgeType === "chatbot";
+    return !bridgeApiKey && !hasFreeApiKey;
   });
   // Track step completion
   const getStepCompletion = (stepNumber) => {
@@ -95,7 +96,7 @@ const AgentSetupGuide = ({
     }
 
     const hasPrompt = hasPromptContent(prompt);
-    const hasApiKey = !!bridgeApiKey;
+    const hasApiKey = !!bridgeApiKey || (modelName === "gpt-5-nano" && bridgeType === "chatbot");
 
     if (hasPrompt || !shouldPromptShow) {
       setShowError(false);
