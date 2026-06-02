@@ -610,9 +610,15 @@ function FunctionParameterModal({
   const [resetKey, setResetKey] = useState(0);
   const threadIdChecked = Boolean(toolData?.thread_id ?? function_details?.thread_id ?? false);
 
+  const isSyncingRef = useRef(false);
+  const isSyncingVariablesRef = useRef(false);
+  const prevFunctionNameForModifiedRef = useRef(functionName);
+  const prevFunctionDetailsRef = useRef(function_details);
+
   useEffect(() => {
     if (!isEqual(toolData, function_details)) {
       const thread_id = toolData?.thread_id ?? function_details?.thread_id ?? false;
+      isSyncingRef.current = true;
       if (name === "Agent" || name === "orchestralAgent" || name === "Orchestral Agent") {
         const environment = function_details?.environment ?? toolData?.environment;
         setToolData({ ...function_details, thread_id, environment });
@@ -620,6 +626,7 @@ function FunctionParameterModal({
         const version_id = function_details?.version_id ?? toolData?.version_id;
         setToolData({ ...function_details, thread_id, version_id });
       }
+      setIsModified(false);
     }
   }, [function_details, name]);
 
@@ -639,6 +646,7 @@ function FunctionParameterModal({
     if (prevFunctionNameRef.current !== functionName) {
       if (name !== "Pre Tool" && name !== "Post Tool") {
         const newVariablesPath = variables_path[functionName] || {};
+        isSyncingVariablesRef.current = true;
         setVariablesPath(newVariablesPath);
       }
       prevFunctionNameRef.current = functionName;
@@ -650,10 +658,27 @@ function FunctionParameterModal({
       setIsModified(false);
       return;
     }
+    // Reset isModified when a different function/agent is selected
+    const isNewSelection =
+      prevFunctionNameForModifiedRef.current !== functionName || prevFunctionDetailsRef.current !== function_details;
+    if (isNewSelection) {
+      prevFunctionNameForModifiedRef.current = functionName;
+      prevFunctionDetailsRef.current = function_details;
+      setIsModified(false);
+      return;
+    }
+    if (isSyncingRef.current) {
+      isSyncingRef.current = false;
+      return;
+    }
     setIsModified(!isEqual(toolData, normalizeToolData(function_details)));
-  }, [toolData, function_details]);
+  }, [toolData, function_details, functionName]);
 
   useEffect(() => {
+    if (isSyncingVariablesRef.current) {
+      isSyncingVariablesRef.current = false;
+      return;
+    }
     const originalVariablesPath = variables_path[functionName] || {};
     if (!isEqual(variablesPath, originalVariablesPath)) {
       setIsModified(true);
