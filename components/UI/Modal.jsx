@@ -1,41 +1,41 @@
-import React from "react";
+import React, { useEffect } from "react";
 
 const Modal = ({ MODAL_ID, children, onClose }) => {
   const [isOpen, setIsOpen] = React.useState(false);
+  const onCloseRef = React.useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const modalElement = document.getElementById(MODAL_ID);
-
-    const handleDialogOpen = () => {
-      setIsOpen(true);
-    };
+    if (!modalElement) return;
 
     const handleDialogClose = () => {
       setIsOpen(false);
-      // Call onClose callback when modal closes (ESC, backdrop click, etc.)
-      if (onClose && typeof onClose === "function") {
-        onClose();
+      if (typeof onCloseRef.current === "function") {
+        onCloseRef.current();
       }
     };
 
-    if (modalElement) {
-      // Use MutationObserver to detect when the 'open' attribute is added/removed
-      const observer = new MutationObserver(() => {
-        if (modalElement.hasAttribute("open")) {
-          handleDialogOpen();
-        } else {
-          setIsOpen(false);
-        }
-      });
-      observer.observe(modalElement, { attributes: true, attributeFilter: ["open"] });
-      modalElement.addEventListener("close", handleDialogClose);
-
-      return () => {
-        observer.disconnect();
-        modalElement.removeEventListener("close", handleDialogClose);
-      };
+    if (modalElement.hasAttribute("open")) {
+      setIsOpen(true);
     }
-  }, [MODAL_ID, onClose]);
+    const observer = new MutationObserver(() => {
+      if (modalElement.hasAttribute("open")) {
+        setIsOpen(true);
+      } else {
+        setIsOpen(false);
+      }
+    });
+    observer.observe(modalElement, { attributes: true, attributeFilter: ["open"] });
+    modalElement.addEventListener("close", handleDialogClose);
+
+    return () => {
+      observer.disconnect();
+      modalElement.removeEventListener("close", handleDialogClose);
+    };
+  }, [MODAL_ID]);
 
   return (
     <dialog
