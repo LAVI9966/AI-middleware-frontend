@@ -471,9 +471,6 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       const timeoutId = setTimeout(() => {
         scrollToTextarea();
       }, 200);
-      if (scrollContainer) {
-        scrollContainer.style.overflow = "hidden";
-      }
       return () => clearTimeout(timeoutId);
     } else {
       if (scrollContainer) {
