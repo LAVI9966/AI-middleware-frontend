@@ -43,6 +43,7 @@ const normalizeFieldTree = (fields = {}) =>
 
 const normalizeToolData = (toolData = {}) => ({
   ...toolData,
+  thread_id: Boolean(toolData?.thread_id ?? false),
   fields: normalizeFieldTree(toolData.fields || {}),
 });
 
@@ -74,26 +75,6 @@ const buildFlowEmbedProperties = (fields = {}) =>
     properties[key] = buildFlowEmbedFieldSchema(field);
     return properties;
   }, {});
-
-const _buildFlowEmbedPayload = (toolData = {}, variablesPath = {}) => {
-  const rootSchema = {
-    type: "object",
-    description: toolData?.description || "",
-    properties: buildFlowEmbedProperties(toolData?.fields || {}),
-    required: toolData?.required_params || [],
-  };
-
-  return {
-    AISchema: {
-      properties: rootSchema.properties,
-      required: rootSchema.required,
-    },
-    staticVariables: Object.keys(variablesPath || {}).reduce((staticVariables, variableName) => {
-      staticVariables[variableName] = true;
-      return staticVariables;
-    }, {}),
-  };
-};
 
 // Parameter Card Component
 const ParameterCard = ({
@@ -650,15 +631,12 @@ function FunctionParameterModal({
       setIsModified(false);
       return;
     }
-    setIsModified(!isEqual(toolData, normalizeToolData(function_details)));
-  }, [toolData, function_details]);
 
-  useEffect(() => {
+    const toolDataChanged = !isEqual(normalizeToolData(toolData), normalizeToolData(function_details));
     const originalVariablesPath = variables_path[functionName] || {};
-    if (!isEqual(variablesPath, originalVariablesPath)) {
-      setIsModified(true);
-    }
-  }, [variablesPath, variables_path, functionName]);
+    const variablesPathChanged = !isEqual(variablesPath, originalVariablesPath);
+    setIsModified(toolDataChanged || variablesPathChanged);
+  }, [toolData, function_details, variablesPath, variables_path, functionName]);
 
   useEffect(() => {
     if (toolData) {
