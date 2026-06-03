@@ -1,4 +1,6 @@
-import { getStatusClass } from "@/utils/utility";
+import { getStatusClass, openModal } from "@/utils/utility";
+import { MODAL_TYPE } from "@/utils/enums";
+import { AddIcon } from "@/components/Icons";
 import React, { useMemo, useState } from "react";
 
 function ConnectedAgentListSuggestion({
@@ -27,18 +29,28 @@ function ConnectedAgentListSuggestion({
     }
   };
 
+  // First get all available agents (without search filter)
+  const availableAgents = useMemo(
+    () =>
+      Object.values(bridges).filter((bridge) => {
+        const isActive = bridge?.bridge_status === 1 || bridge?.bridge_status === undefined;
+        const isNotConnected =
+          connect_agents && Object.values(connect_agents).some((agent) => agent?.bridge_id === bridge?._id);
+        const notSameBridge = bridge?._id !== params?.id;
+        const isNotDeleted = !bridge?.deletedAt;
+        const isNotExcluded = !excludedAgentIdSet.has(bridge?._id);
+        return isActive && !isNotConnected && notSameBridge && isNotDeleted && isNotExcluded;
+      }),
+    [bridges, connect_agents, params?.id, excludedAgentIdSet]
+  );
+
+  // Then filter by search query and render
   const renderBridgeSuggestions = useMemo(
     () =>
-      Object.values(bridges)
+      availableAgents
         .filter((bridge) => {
-          const isActive = bridge?.bridge_status === 1 || bridge?.bridge_status === undefined;
           const matchesSearch = bridge?.name?.toLowerCase()?.includes(normalizedSearchQuery);
-          const isNotConnected =
-            connect_agents && Object.values(connect_agents).some((agent) => agent?.bridge_id === bridge?._id);
-          const notSameBridge = bridge?._id !== params?.id;
-          const isNotDeleted = !bridge?.deletedAt;
-          const isNotExcluded = !excludedAgentIdSet.has(bridge?._id);
-          return isActive && matchesSearch && !isNotConnected && notSameBridge && isNotDeleted && isNotExcluded;
+          return matchesSearch;
         })
         .slice()
         .sort((a, b) => {
@@ -87,8 +99,11 @@ function ConnectedAgentListSuggestion({
             </li>
           );
         }),
-    [bridges, normalizedSearchQuery, connect_agents, bridgeData, params?.id, excludedAgentIdSet]
+    [availableAgents, normalizedSearchQuery, bridgeData]
   );
+
+  const hasSuggestions = renderBridgeSuggestions?.length > 0;
+  const hasAvailableAgents = availableAgents?.length > 0;
 
   return (
     <ul
@@ -99,17 +114,34 @@ function ConnectedAgentListSuggestion({
     >
       <div className="flex flex-col gap-2 w-full">
         <li className="text-sm font-semibold disabled">Available Agents</li>
-        <input
-          autoComplete="off"
-          data-testid="connect-agent-suggestion-search-input"
-          id="connect-agent-suggestion-search-input"
-          type="text"
-          placeholder="Search Agent"
-          value={searchQuery}
-          onChange={handleInputChange}
-          className="input input-bordered w-full input-sm"
-        />
-        {renderBridgeSuggestions}
+        {hasAvailableAgents && (
+          <input
+            autoComplete="off"
+            data-testid="connect-agent-suggestion-search-input"
+            id="connect-agent-suggestion-search-input"
+            type="text"
+            placeholder="Search Agent"
+            value={searchQuery}
+            onChange={handleInputChange}
+            className="input input-bordered w-full input-sm"
+          />
+        )}
+        {hasSuggestions ? renderBridgeSuggestions : <li className="text-center mt-2">No agents found</li>}
+        <li
+          data-testid="connect-agent-suggestion-add-new-button"
+          id="connect-agent-suggestion-add-new-button"
+          className="border-t border-base-300 w-full sticky bottom-0 bg-base-100 py-2"
+          onClick={() => {
+            openModal(MODAL_TYPE.CREATE_BRIDGE_MODAL);
+            setSearchQuery("");
+            document.activeElement?.blur();
+          }}
+        >
+          <div>
+            <AddIcon size={16} />
+            <p className="font-semibold">Add new Agent</p>
+          </div>
+        </li>
       </div>
     </ul>
   );
