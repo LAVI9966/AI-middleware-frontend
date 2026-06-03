@@ -114,7 +114,7 @@ const PromptHelper = ({
     [params.id, searchParams.version, thread_id, variable_key]
   );
 
-  // Apply optimized prompt and save immediately
+  // Apply optimized prompt - only updates local state, doesn't call API
   const handleApplyOptimizedPrompt = (promptToApply) => {
     const promptContent = promptToApply || optimizedPrompt;
     if (!promptContent) return;
@@ -136,8 +136,9 @@ const PromptHelper = ({
             ? { ...reduxPrompt }
             : {};
         const merged = { ...currentEmbedValues, [variable_key]: promptContent };
-        if (savePrompt) savePrompt(merged);
+        // Only update local state, don't save to API
         if (setNewContent) setNewContent(merged);
+        if (setPrompt) setPrompt(merged);
       } else {
         let toSave;
         if (reduxPrompt && typeof reduxPrompt === "object" && !Array.isArray(reduxPrompt)) {
@@ -145,7 +146,7 @@ const PromptHelper = ({
         } else {
           toSave = { [variable_key]: promptContent };
         }
-        if (savePrompt) savePrompt(toSave);
+        // Only update local state, don't save to API
         if (setNewContent) setNewContent(toSave);
         if (setPrompt) setPrompt(toSave);
       }
@@ -213,8 +214,9 @@ const PromptHelper = ({
           merged[canonical] = parsedOptimized[key];
         }
       });
-      if (savePrompt) savePrompt(merged);
+      // Only update local state, don't save to API
       if (setNewContent) setNewContent(merged);
+      if (setPrompt) setPrompt(merged);
     } else if (parsedOptimized) {
       // Non-embed: merge into existing reduxPrompt if it's an object, else save parsedOptimized directly
       let toSave;
@@ -248,13 +250,13 @@ const PromptHelper = ({
           toSave[canonical] = rest[key];
         });
       }
-      if (savePrompt) savePrompt(toSave);
+      // Only update local state, don't save to API
       if (setNewContent) setNewContent(toSave);
       if (setPrompt) setPrompt(toSave);
-    } else if (setPrompt) {
-      setPrompt(promptContent);
+    } else {
+      // Only update local state, don't save to API
+      if (setPrompt) setPrompt(promptContent);
       if (setNewContent) setNewContent(promptContent);
-      if (savePrompt) savePrompt(promptContent);
     }
   };
 
