@@ -46,6 +46,8 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
     };
 
     const handleClickOutside = (event) => {
+      // Don't close the slider if the click is inside a dialog/modal
+      if (event.target.closest("dialog")) return;
       if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
         setIsSliderOpen(false);
       }
@@ -340,27 +342,33 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
                       // If the value is an object, render each property as separate rows
                       if (typeof value === "object" && value !== null && key !== "createdAt") {
                         return Object.entries(value).map(([objKey, objValue]) => (
-                          <tr key={`${key}-${objKey}`} className="border-b bg-base-100 transition-colors duration-150">
-                            <td className="py-4 px-6 text-sm font-semibold capitalize">
+                          <div
+                            key={`${key}-${objKey}`}
+                            className="border-b border-base-300 bg-base-100 transition-colors duration-150 flex"
+                          >
+                            <div className="py-4 px-6 text-sm font-semibold capitalize w-1/2">
                               {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                            </td>
-                            <td className="py-4 px-6">
+                            </div>
+                            <div className="py-4 px-6 w-1/2">
                               <span className="text-gray-600 break-words">{objValue?.toString()}</span>
-                            </td>
-                          </tr>
+                            </div>
+                          </div>
                         ));
                       }
 
                       // Regular single value display
                       return (
-                        <tr key={key} className="border-b bg-base-100 transition-colors duration-150">
-                          <td className="py-4 px-6 text-sm font-semibold capitalize">{displayKey}</td>
-                          <td className="py-4 px-6">
+                        <div
+                          key={key}
+                          className="border-b border-base-300 bg-base-100 transition-colors duration-150 flex"
+                        >
+                          <div className="py-4 px-6 text-sm font-semibold capitalize w-1/2">{displayKey}</div>
+                          <div className="py-4 px-6 w-1/2">
                             <span className="text-gray-600 break-words">
                               {key === "createdAt" ? new Date(value).toLocaleString() : value?.toString()}
                             </span>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       );
                     })}
                 </div>
