@@ -218,6 +218,14 @@ const CustomTable = ({
     return row[column] || String(row[column]) || "-";
   };
 
+  const renderCellContent = (row, column) => {
+    if (customCellRenderers[column]) {
+      return customCellRenderers[column](row);
+    }
+
+    return <span className="text-base-content mt-1">{getDisplayValue(row, column)}</span>;
+  };
+
   // Sorting controls to display only in card view
   const renderSortingControls = () => {
     if (!sorting || sortableColumns.length === 0 || !isSmallScreen) return null;
@@ -295,7 +303,7 @@ const CustomTable = ({
                         <span className="text-sm font-medium text-base-content/70 capitalize">
                           {customGetColumnLabel ? customGetColumnLabel(column) : formatColumnName(column)}:
                         </span>
-                        <span className="text-base-content mt-1">{getDisplayValue(row, column)}</span>
+                        {renderCellContent(row, column)}
                       </div>
                       {column !== visibleColumns[visibleColumns.length - 1] && (
                         <div className="border-t border-base-200 my-2" />

@@ -111,3 +111,11 @@ export const cleanVariablesPathByFields = (variablesPath = {}, fields = {}) => {
     Object.entries(variablesPath || {}).filter(([pathKey]) => validVariablePathSet.has(pathKey))
   );
 };
+
+export const getSelectedVariablesPath = (variablesPath = {}, scriptId) => {
+  if (!scriptId || typeof variablesPath !== "object" || Array.isArray(variablesPath)) {
+    return {};
+  }
+
+  return variablesPath?.[scriptId] || {};
+};

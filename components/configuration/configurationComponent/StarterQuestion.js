@@ -35,8 +35,8 @@ const StarterQuestionToggle = ({ params, searchParams, isPublished, isEditor = t
       className="flex items-center mt-2 gap-2"
     >
       <div className="flex items-center gap-1 cursor-pointer ml-1">
-        <span className="text-sm font-medium">Starter Question</span>
-        <InfoTooltip tooltipContent={"Toggle to enable/disable starter questions"}>
+        <span className="text-sm font-medium">Starter Question Suggestions</span>
+        <InfoTooltip tooltipContent={"Toggle to enable/disable starter questions suggestions"}>
           <CircleQuestionMark size={14} className="text-gray-500 hover:text-gray-700 cursor-help" />
         </InfoTooltip>
       </div>

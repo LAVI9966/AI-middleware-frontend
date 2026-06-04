@@ -16,7 +16,15 @@ import ApiKeysInput from "../sliders/ApiKeysInput";
 import defaultUserTheme from "@/public/themes/default-user-theme.json";
 import EmbedPreview from "./EmbedPreview";
 import { MODAL_TYPE } from "@/utils/enums";
-import { getServiceDisplayName } from "@/utils/utility";
+import { getServiceDisplayName, openModal, generateRandomID } from "@/utils/utility";
+import CodeMirror from "@uiw/react-codemirror";
+import { json, jsonParseLinter } from "@codemirror/lang-json";
+import { linter, lintGutter } from "@codemirror/lint";
+import { useThemeManager } from "@/customHooks/useThemeManager";
+import JsonSchemaBuilderModal from "@/components/modals/JsonSchemaBuilderModal";
+import JsonSchemaModal from "@/components/modals/JsonSchemaModal";
+import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/modals/FullscreenEditorModal";
+import { setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
 
 // Configuration Schema
 const CONFIG_SCHEMA = [
@@ -114,6 +122,14 @@ const CONFIG_SCHEMA = [
     label: "Show Playground",
     description: "Show the playground",
     defaultValue: true,
+    section: "Interface Options",
+  },
+  {
+    key: "showTestcases",
+    type: "toggle",
+    label: "Show Test Cases",
+    description: "Display test cases tab in the embedded interface",
+    defaultValue: false,
     section: "Interface Options",
   },
   {
@@ -280,9 +296,13 @@ const ModelCustomization = ({ value = {}, onChange, onBlur }) => {
 
 const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) => {
   const dispatch = useDispatch();
+  const { actualTheme } = useThemeManager();
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isJsonSchemaFullscreen, setIsJsonSchemaFullscreen] = useState(false);
+  const [aiMessages, setAiMessages] = useState([]);
+  const [aiThreadId, setAiThreadId] = useState("");
 
   useEffect(() => {
     onUnsavedChanges?.(hasUnsavedChanges);
@@ -327,6 +347,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
     models: config?.models || {},
     apikey_object_id: integrationData?.apikey_object_id || {},
     prompt: config.prompt || {},
+    response_type: config?.response_type || {},
   }));
   const [theme, setTheme] = useState(config?.theme_config || defaultUserTheme);
 
@@ -369,8 +390,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
         setReloadTrigger((prev) => prev + 1);
         toast.success("Configuration saved");
       } catch (error) {
-        console.error("Failed to save configuration:", error);
-        toast.error("Failed to save configuration");
+        console.error(error);
       } finally {
         setIsSaving(false);
       }
@@ -630,6 +650,185 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           </select>
                         )}
                       </div>
+                      {/* JSON Schema textarea when showResponseType is toggled off */}
+                      {config.key === "showResponseType" && !configuration.showResponseType && (
+                        <div className="p-2 bg-base-200 rounded-lg border border-base-300">
+                          <label className="text-xs font-medium block mb-2">JSON Schema</label>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
+                                onClick={() => openModal(MODAL_TYPE.JSON_SCHEMA_VISUAL_BUILDER)}
+                              >
+                                Build Visually
+                              </span>
+                              <span className="text-xs text-base-content/50">|</span>
+                              <span
+                                className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
+                                onClick={() => {
+                                  if (!aiThreadId) {
+                                    const newThreadId = generateRandomID();
+                                    setAiThreadId(newThreadId);
+                                    setThreadIdForVersionReducer &&
+                                      dispatch(
+                                        setThreadIdForVersionReducer({
+                                          bridgeId: data?.folder_id,
+                                          threadId: newThreadId,
+                                        })
+                                      );
+                                  }
+                                  openModal(MODAL_TYPE.JSON_SCHEMA);
+                                }}
+                              >
+                                Build with AI
+                              </span>
+                              <span className="text-xs text-base-content/50">|</span>
+                              <FullscreenEditorButton
+                                tooltip="Open JSON schema in fullscreen"
+                                className=""
+                                onClick={() => setIsJsonSchemaFullscreen(true)}
+                                isjson={true}
+                              />
+                            </div>
+                          </div>
+                          <div
+                            data-testid="embed-config-json-schema-codemirror"
+                            className="border border-base-300 rounded-md overflow-hidden"
+                          >
+                            <CodeMirror
+                              value={(() => {
+                                const schemaValue = configuration?.response_type?.json_schema;
+                                if (schemaValue === undefined || schemaValue === null) return "";
+                                return typeof schemaValue === "object"
+                                  ? JSON.stringify(schemaValue, null, 2)
+                                  : schemaValue;
+                              })()}
+                              height="160px"
+                              extensions={[json(), linter(jsonParseLinter()), lintGutter()]}
+                              theme={actualTheme}
+                              placeholder=""
+                              className="text-xs"
+                              onChange={(val) => {
+                                const raw = val ?? "";
+                                if (raw.trim() === "") {
+                                  // Remove response_type key entirely when empty
+                                  setConfiguration((prev) => {
+                                    const { response_type, ...rest } = prev;
+                                    return rest;
+                                  });
+                                  setHasUnsavedChanges(true);
+                                  window.GtwyEmbed?.sendDataToGtwy({ response_type: undefined });
+                                  return;
+                                }
+                                let schemaToStore = raw;
+                                try {
+                                  schemaToStore = JSON.parse(raw);
+                                } catch {
+                                  // keep raw string while user is typing invalid JSON
+                                }
+                                handleConfigChange("response_type", {
+                                  type: "json_schema",
+                                  json_schema: schemaToStore,
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {/* Visual Builder Modal */}
+                      <JsonSchemaBuilderModal
+                        params={{ id: data?.folder_id }}
+                        searchParams={{ version: "latest" }}
+                        isReadOnly={false}
+                        schemaKey="json_schema"
+                        modalId={MODAL_TYPE.JSON_SCHEMA_VISUAL_BUILDER}
+                        title="Build JSON Schema Visually"
+                        hideName={false}
+                        schema={configuration?.response_type?.json_schema}
+                        responseType={configuration?.response_type}
+                        onSave={(schema) => {
+                          handleConfigChange("response_type", {
+                            type: "json_schema",
+                            json_schema: schema,
+                          });
+                          setHasUnsavedChanges(true);
+                        }}
+                      />
+                      {/* AI Builder Modal - Using JsonSchemaModal */}
+                      <JsonSchemaModal
+                        messages={aiMessages}
+                        setMessages={setAiMessages}
+                        thread_id={aiThreadId}
+                        onResetThreadId={() => setAiThreadId("")}
+                        schema={configuration?.response_type?.json_schema}
+                        onSaveSchema={(schema) => {
+                          handleConfigChange("response_type", {
+                            type: "json_schema",
+                            json_schema: schema,
+                          });
+                          setHasUnsavedChanges(true);
+                        }}
+                      />
+                      {/* Fullscreen JSON Schema Editor Modal */}
+                      {isJsonSchemaFullscreen && (
+                        <FullscreenEditorModal
+                          modalId={MODAL_TYPE.JSON_SCHEMA_FULLSCREEN}
+                          isOpen={isJsonSchemaFullscreen}
+                          onClose={() => setIsJsonSchemaFullscreen(false)}
+                          title="JSON Schema Editor"
+                          value={(() => {
+                            const schemaValue = configuration?.response_type?.json_schema;
+                            if (schemaValue === undefined || schemaValue === null) return "";
+                            return typeof schemaValue === "object" ? JSON.stringify(schemaValue, null, 2) : schemaValue;
+                          })()}
+                          onChange={(val) => {
+                            const raw = val ?? "";
+                            if (raw.trim() === "") {
+                              setConfiguration((prev) => {
+                                const { response_type, ...rest } = prev;
+                                return rest;
+                              });
+                              setHasUnsavedChanges(true);
+                              window.GtwyEmbed?.sendDataToGtwy({ response_type: undefined });
+                              return;
+                            }
+                            let schemaToStore = raw;
+                            try {
+                              schemaToStore = JSON.parse(raw);
+                            } catch {
+                              // keep raw string while user is typing invalid JSON
+                            }
+                            handleConfigChange("response_type", {
+                              type: "json_schema",
+                              json_schema: schemaToStore,
+                            });
+                          }}
+                          onSave={(val) => {
+                            const raw = val ?? "";
+                            if (raw.trim() === "") {
+                              setConfiguration((prev) => {
+                                const { response_type, ...rest } = prev;
+                                return rest;
+                              });
+                              setHasUnsavedChanges(true);
+                              window.GtwyEmbed?.sendDataToGtwy({ response_type: undefined });
+                              return;
+                            }
+                            let schemaToStore = raw;
+                            try {
+                              schemaToStore = JSON.parse(raw);
+                            } catch {
+                              // keep raw string while user is typing invalid JSON
+                            }
+                            handleConfigChange("response_type", {
+                              type: "json_schema",
+                              json_schema: schemaToStore,
+                            });
+                            setHasUnsavedChanges(true);
+                          }}
+                          isJson={true}
+                        />
+                      )}
                       {/* Pre-Tool config inline after showPreTool toggle */}
                       {config.key === "showPreTool" && !configuration.showPreTool && (
                         <div className="p-2 bg-base-200 rounded-lg border border-base-300">

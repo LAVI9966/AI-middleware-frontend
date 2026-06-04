@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { CircleAlertIcon, RocketIcon, SparklesIcon, CheckIcon } from "@/components/Icons";
 import { AGENT_SETUP_GUIDE_STEPS } from "@/utils/enums";
 import { useCustomSelector } from "@/customHooks/customSelector";
@@ -63,7 +63,8 @@ const AgentSetupGuide = ({
   const [isVisible, setIsVisible] = useState(() => {
     if (hasPromptContent(prompt)) return false;
     if (isEmbedUser && showDefaultApikeys) return true;
-    return !bridgeApiKey;
+    const hasFreeApiKey = modelName === "gpt-5-nano" && bridgeType === "chatbot";
+    return !bridgeApiKey && !hasFreeApiKey;
   });
   // Track step completion
   const getStepCompletion = (stepNumber) => {
@@ -95,7 +96,7 @@ const AgentSetupGuide = ({
     }
 
     const hasPrompt = hasPromptContent(prompt);
-    const hasApiKey = !!bridgeApiKey;
+    const hasApiKey = !!bridgeApiKey || (modelName === "gpt-5-nano" && bridgeType === "chatbot");
 
     if (hasPrompt || !shouldPromptShow) {
       setShowError(false);
@@ -127,28 +128,6 @@ const AgentSetupGuide = ({
       setIsVisible(true);
     }
   }, [bridgeApiKey, prompt, shouldPromptShow, showDefaultApikeys]);
-
-  const chatbotTimerRef = useRef(null);
-
-  useEffect(() => {
-    if (chatbotTimerRef.current) clearTimeout(chatbotTimerRef.current);
-
-    const hasPrompt = hasPromptContent(prompt) || !shouldPromptShow;
-    const hasApiKey = bridgeApiKey;
-    const shouldOpen = bridgeType === "chatbot" && hasPrompt && (hasApiKey || modelName === "gpt-5-nano");
-
-    chatbotTimerRef.current = setTimeout(() => {
-      const iframeContainer = document.getElementById("iframe-parent-container");
-      const isChatbotOpen = iframeContainer?.style?.display === "block";
-      if (shouldOpen) {
-        if (!isChatbotOpen) window?.openChatbot();
-      } else {
-        if (isChatbotOpen) window?.closeChatbot();
-      }
-    }, 2000);
-
-    return () => clearTimeout(chatbotTimerRef.current);
-  }, [bridgeApiKey, prompt, shouldPromptShow, modelName, bridgeType]);
 
   useEffect(() => {
     if (typeof onVisibilityChange === "function") {

@@ -10,6 +10,7 @@ import {
   sendMessageWithRtLayer,
   sendMessageWithApiStreaming,
   setChatTestCaseIdAction,
+  clearTestCaseConversationAction,
 } from "@/store/action/chatAction";
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -38,6 +39,7 @@ function ChatTextInput({
   handleSendMessageRef,
   showTestCases,
   draftPrompt,
+  uploadRef,
 }) {
   // Reset textarea height when test cases are toggled or when the component mounts
   useEffect(() => {
@@ -104,13 +106,15 @@ function ChatTextInput({
   });
 
   // Redux selectors for chat state
-  const { threadId, loading, uploadedFiles, uploadedImages, storedTestCaseId } = useCustomSelector((state) => ({
-    threadId: state?.chatReducer?.threadIdByChannel?.[channelIdentifier] || null,
-    loading: state?.chatReducer?.loadingByChannel?.[channelIdentifier] || false,
-    uploadedFiles: state?.chatReducer?.uploadedFilesByChannel?.[channelIdentifier] || [],
-    uploadedImages: state?.chatReducer?.uploadedImagesByChannel?.[channelIdentifier] || [],
-    storedTestCaseId: state?.chatReducer?.testCaseIdByChannel?.[channelIdentifier] || null,
-  }));
+  const { threadId, loading, uploadedFiles, uploadedImages, storedTestCaseId, testCaseConversation } =
+    useCustomSelector((state) => ({
+      threadId: state?.chatReducer?.threadIdByChannel?.[channelIdentifier] || null,
+      loading: state?.chatReducer?.loadingByChannel?.[channelIdentifier] || false,
+      uploadedFiles: state?.chatReducer?.uploadedFilesByChannel?.[channelIdentifier] || [],
+      uploadedImages: state?.chatReducer?.uploadedImagesByChannel?.[channelIdentifier] || [],
+      storedTestCaseId: state?.chatReducer?.testCaseIdByChannel?.[channelIdentifier] || null,
+      testCaseConversation: state?.chatReducer?.testCaseConversationByChannel?.[channelIdentifier] || null,
+    }));
   const dataToSend = useMemo(
     () => ({
       configuration: {
@@ -145,6 +149,18 @@ function ChatTextInput({
   useEffect(() => {
     setLocalDataToSend(dataToSend);
   }, [dataToSend]);
+
+  const [attachmentError, setAttachmentError] = useState(null);
+
+  useEffect(() => {
+    if (!isVision && uploadedImages.length > 0) {
+      setAttachmentError("Images are not supported by the selected model. Please remove the image(s) first.");
+    } else if (!isFileSupported && uploadedFiles.length > 0) {
+      setAttachmentError("Files are not supported by the selected model. Please remove the file(s) first.");
+    } else {
+      setAttachmentError(null);
+    }
+  }, [isVision, isFileSupported, uploadedImages, uploadedFiles]);
 
   const variables = useMemo(() => buildVariablesObject(variablesKeyValue), [variablesKeyValue]);
 
@@ -218,6 +234,9 @@ function ChatTextInput({
       openModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL);
       return;
     }
+    if (attachmentError) {
+      return;
+    }
     if (inputRef.current) {
       inputRef.current.style.height = "40px"; // Set initial height
     }
@@ -253,7 +272,13 @@ function ChatTextInput({
         }
       }
     }
-    if (promptText.trim() === "" && modelType !== "completion" && modelType !== "embedding" && modelType !== "chat") {
+    if (
+      promptText.trim() === "" &&
+      modelType !== "completion" &&
+      modelType !== "embedding" &&
+      modelType !== "chat" &&
+      modelType !== "image"
+    ) {
       dispatch(setChatError(channelIdentifier, "Prompt is required"));
       return;
     }
@@ -335,6 +360,7 @@ function ChatTextInput({
               testcase_data,
               configuration: {
                 type: modelType,
+                ...(testCaseConversation ? { conversation: testCaseConversation } : {}),
               },
               thread_id: threadId,
               user: data.content,
@@ -379,6 +405,7 @@ function ChatTextInput({
               testcase_data,
               configuration: {
                 type: modelType,
+                ...(testCaseConversation ? { conversation: testCaseConversation } : {}),
               },
               thread_id: threadId,
               text: newMessage,
@@ -417,6 +444,7 @@ function ChatTextInput({
               testcase_data,
               configuration: {
                 ...localDataToSend.configuration,
+                ...(testCaseConversation ? { conversation: testCaseConversation } : {}),
               },
               input: bridge?.inputConfig?.input?.input,
               is_playground: true,
@@ -445,6 +473,11 @@ function ChatTextInput({
         if (setTestCaseId) {
           setTestCaseId(responseData?.response?.testcase_id);
         }
+      }
+      // After a successful API call with a loaded test case conversation, clear it
+      // so subsequent user messages don't re-send the same conversation context.
+      if (testCaseConversation) {
+        dispatch(clearTestCaseConversationAction(channelIdentifier));
       }
     } catch {
       dispatch(setChatError(channelIdentifier, "Something went wrong. Please try again."));
@@ -498,6 +531,134 @@ function ChatTextInput({
     },
     [loading, uploading, hasUnsavedPrompt, handleSendMessage]
   );
+
+  const handlePaste = useCallback(
+    async (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+
+      if (files.length === 0) return;
+
+      e.preventDefault();
+
+      if (!isVision) {
+        toast.error("Images are not supported by the selected model.");
+        return;
+      }
+
+      const largeFiles = files.filter((file) => file.size > 35 * 1024 * 1024);
+      if (largeFiles.length > 0) {
+        toast.error("Each file should be less than 35MB.");
+        return;
+      }
+
+      const totalImages = uploadedImages.length + files.length;
+      if (totalImages > 4) {
+        toast.error("Only four images are allowed.");
+        return;
+      }
+
+      setUploading(true);
+
+      let currentImages = [...uploadedImages];
+      for (let file of files) {
+        const formData = new FormData();
+        formData.append("image", file);
+        const result = await dispatch(uploadImageAction(formData));
+
+        if (result.success) {
+          currentImages = [...currentImages, result.image_url];
+          dispatch(setChatUploadedImages(channelIdentifier, currentImages));
+        }
+      }
+
+      setUploading(false);
+    },
+    [dispatch, isVision, uploadedImages, channelIdentifier]
+  );
+
+  const handleFilesUpload = useCallback(
+    async (files) => {
+      if (files.length === 0) return;
+
+      const newImages = files.filter((file) => file.type.startsWith("image/"));
+      const newFiles = files.filter((file) => file.type === "application/pdf");
+
+      if (newImages.length === 0 && newFiles.length === 0) return;
+
+      const largeFiles = files.filter((file) => file.size > 35 * 1024 * 1024);
+      if (largeFiles.length > 0) {
+        toast.error("Each file should be less than 35MB.");
+        return;
+      }
+
+      if (newImages.length > 0) {
+        if (!isVision) {
+          toast.error("Images are not supported by the selected model.");
+          return;
+        }
+        const totalImages = uploadedImages.length + newImages.length;
+        if (totalImages > 4) {
+          toast.error("Only four images are allowed.");
+          return;
+        }
+      }
+
+      if (newFiles.length > 0 && !isFileSupported) {
+        toast.error("Files are not supported by the selected model.");
+        return;
+      }
+
+      setUploading(true);
+
+      let currentImages = [...uploadedImages];
+      let currentFiles = [...uploadedFiles];
+
+      for (let file of files) {
+        const formData = new FormData();
+        formData.append("image", file);
+        const isPdf = file.type === "application/pdf";
+        const result = await dispatch(uploadImageAction(formData, isPdf));
+
+        if (result.success) {
+          if (isPdf) {
+            currentFiles = [...currentFiles, result.image_url];
+            dispatch(setChatUploadedFiles(channelIdentifier, currentFiles));
+          } else {
+            currentImages = [...currentImages, result.image_url];
+            dispatch(setChatUploadedImages(channelIdentifier, currentImages));
+          }
+        }
+      }
+
+      setUploading(false);
+    },
+    [dispatch, isVision, isFileSupported, uploadedImages, uploadedFiles, channelIdentifier]
+  );
+
+  useEffect(() => {
+    if (uploadRef) {
+      uploadRef.current = {
+        uploadFiles: handleFilesUpload,
+      };
+    }
+    return () => {
+      if (uploadRef) {
+        uploadRef.current = null;
+      }
+    };
+  }, [uploadRef, handleFilesUpload]);
+
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
     const largeFiles = files.filter((file) => file.size > 35 * 1024 * 1024);
@@ -600,6 +761,8 @@ function ChatTextInput({
     }
   };
 
+  const hasPreviews = uploadedImages.length > 0 || uploadedFiles.length > 0 || mediaUrls || showUrlInput || uploading;
+
   return (
     <div
       data-testid="chat-text-input-container"
@@ -620,7 +783,7 @@ function ChatTextInput({
         onClose={() => closeModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL)}
       />
       {/* --- CORRECTED PREVIEW CONTAINER --- */}
-      {(uploadedImages.length > 0 || uploadedFiles.length > 0) && (
+      {(uploadedImages.length > 0 || uploadedFiles.length > 0 || uploading) && (
         <div
           data-testid="chat-preview-container"
           id="chat-preview-container"
@@ -707,6 +870,15 @@ function ChatTextInput({
               </button>
             </div>
           ))}
+          {/* Uploading loading spinner placeholder */}
+          {uploading && (
+            <div
+              data-testid="chat-preview-uploading-placeholder"
+              className="relative flex-shrink-0 w-16 h-16 rounded-lg border border-primary/30 border-dashed overflow-hidden bg-base-200/50 flex items-center justify-center"
+            >
+              <span className="loading loading-spinner loading-sm text-primary"></span>
+            </div>
+          )}
         </div>
       )}
 
@@ -773,15 +945,19 @@ function ChatTextInput({
         </div>
       )}
 
-      {/* Validation Error Display */}
-      {validationError && (
+      {/* Validation or Attachment Error Display */}
+      {(validationError || attachmentError) && (
         <div
           data-testid="chat-validation-error"
           id="chat-validation-error"
-          className="absolute bottom-16 left-0 w-full p-3 bg-error/10 border border-error/20 rounded-lg"
+          className={`absolute left-0 w-full p-3 bg-error/10 border border-error/20 rounded-lg z-10 ${
+            hasPreviews ? "bottom-36" : "bottom-16"
+          }`}
         >
-          <p className="text-sm text-error">{validationError}</p>
-          <p className="text-xs text-error/70 mt-1">Please fill in the missing variables in the Variables panel.</p>
+          <p className="text-sm text-error">{validationError || attachmentError}</p>
+          {validationError && (
+            <p className="text-xs text-error/70 mt-1">Please fill in the missing variables in the Variables panel.</p>
+          )}
         </div>
       )}
 
@@ -794,11 +970,12 @@ function ChatTextInput({
             ref={inputRef}
             placeholder="Type here"
             className={`textarea bg-base-100 textarea-bordered w-full max-h-[200px] resize-none overflow-y-auto h-auto ${
-              validationError
+              validationError || attachmentError
                 ? "border-error focus:border-error focus:ring-2 focus:ring-error/20"
                 : "focus:border-primary"
             }`}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             rows={1}
             onInput={(e) => {
               e.target.style.height = "auto"; // Reset height

@@ -8,8 +8,12 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { getChatBotDetailsAction } from "@/store/action/chatBotAction";
 import ChatbotPreview from "./ChatbotPreview";
 import EventLogs, { createAddLog } from "@/components/integration/EventLogs";
-
+import CodeMirror from "@uiw/react-codemirror";
+import { json, jsonParseLinter } from "@codemirror/lang-json";
+import { linter, lintGutter } from "@codemirror/lint";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 const ChatbotTestingControlsInner = ({ chatBotId }) => {
+  const { actualTheme } = useThemeManager();
   const [eventLogs, setEventLogs] = useState([]);
   const addLog = createAddLog(setEventLogs);
   const [sendDataJson, setSendDataJson] = useState();
@@ -163,14 +167,17 @@ const ChatbotTestingControlsInner = ({ chatBotId }) => {
       <div className="card bg-base-200" data-testid="chatbot-testing-send-data">
         <div className="card-body p-3">
           <h4 className="card-title text-sm">Send Data</h4>
-          <textarea
-            data-testid="chatbot-testing-send-data-input"
-            className="textarea textarea-bordered textarea-xs font-mono text-xs w-full"
-            rows={4}
-            value={sendDataJson}
-            onChange={(e) => setSendDataJson(e.target.value)}
-            placeholder="Enter JSON data"
-          />
+          <div data-testid="chatbot-testing-send-data-input" className="border border-base-300 rounded overflow-hidden">
+            <CodeMirror
+              value={sendDataJson ?? "{}"}
+              height="100px"
+              extensions={[json(), linter(jsonParseLinter()), lintGutter()]}
+              onChange={(val) => setSendDataJson(val)}
+              placeholder="Enter JSON data"
+              className="text-xs"
+              theme={actualTheme}
+            />
+          </div>
           <button
             data-testid="chatbot-testing-send-data-button"
             onClick={handleSendData}

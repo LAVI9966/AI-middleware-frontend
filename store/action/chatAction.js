@@ -9,6 +9,7 @@ import {
   setChannelError,
   clearChannelMessages,
   loadTestCaseMessages,
+  clearTestCaseConversation,
   setUploadedFiles,
   setUploadedImages,
   addRtLayerMessage,
@@ -182,13 +183,38 @@ export const loadTestCaseIntoChat = (channelId, testCaseConversation, expected, 
     convertedMessages.push(expectedMessage);
   }
 
+  // Build the raw conversation in the [{role, content}] format expected by the
+  // completion API's configuration.conversation. Include the expected answer as
+  // the last assistant turn so that when the user continues the conversation the
+  // backend receives the full prior context (including the expected response).
+  const rawConversation = testCaseConversation
+    .filter((msg) => msg.content !== null && msg.content !== undefined && msg.content !== "")
+    .map((msg) => ({
+      role: msg.role,
+      content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+    }));
+
+  // Append expected response as the last assistant message in the raw conversation
+  // so the API receives it as prior context when the user sends a follow-up.
+  if (expected?.response) {
+    const expectedContent =
+      typeof expected.response === "object" ? JSON.stringify(expected.response) : expected.response;
+    rawConversation.push({ role: "assistant", content: expectedContent });
+  }
+
   dispatch(
     loadTestCaseMessages({
       channelId,
       messages: convertedMessages,
       testCaseId,
+      rawConversation,
     })
   );
+};
+
+// Clear the stored raw test case conversation for a channel
+export const clearTestCaseConversationAction = (channelId) => (dispatch) => {
+  dispatch(clearTestCaseConversation({ channelId }));
 };
 
 // Set uploaded files
@@ -599,4 +625,59 @@ export const setChatTestCaseIdAction = (channelId, testCaseId) => (dispatch) => 
 // Clear testcase_id for channel (manual clear only)
 export const clearChatTestCaseIdAction = (channelId) => (dispatch) => {
   dispatch(clearChatTestCaseId({ channelId }));
+};
+
+// Handle intermediate RT layer function call / status updates
+export const handleRtLayerFunctionCall = (channelId, response) => (dispatch, getState) => {
+  const state = getState();
+  const messages = state?.chatReducer?.messagesByChannel?.[channelId] || [];
+
+  // Find the last assistant message (which is typically the loading one)
+  const lastAssistantIndex = messages.findLastIndex((msg) => msg.sender === "assistant" || msg.role === "assistant");
+
+  if (lastAssistantIndex !== -1) {
+    const lastAssistantMsg = messages[lastAssistantIndex];
+    const messageId = lastAssistantMsg.id;
+
+    // Create a copy of existing toolCalls or initialize an empty array
+    let updatedToolCalls = lastAssistantMsg.toolCalls ? [...lastAssistantMsg.toolCalls] : [];
+    let updatedContent = lastAssistantMsg.content || "";
+
+    let hasChanges = false;
+
+    if (response.Name && Array.isArray(response.Name)) {
+      response.Name.forEach((name) => {
+        // Check if this toolCall already exists
+        const exists = updatedToolCalls.some((tc) => tc.name === name);
+        if (!exists) {
+          updatedToolCalls.push({
+            call_id: name,
+            name: name,
+            status: "calling",
+            result: null,
+          });
+          hasChanges = true;
+        }
+      });
+    }
+
+    if (response.message) {
+      // Update content to show reasoning status (e.g. "Continuing AI reasoning…")
+      updatedContent = response.message;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      dispatch(
+        editMessage({
+          channelId,
+          messageId,
+          newContent: {
+            content: updatedContent,
+            toolCalls: updatedToolCalls,
+          },
+        })
+      );
+    }
+  }
 };

@@ -15,14 +15,15 @@ import OnBoarding from "@/components/OnBoarding";
 import TutorialSuggestionToast from "@/components/TutorialSuggestoinToast";
 import InfoTooltip from "@/components/InfoTooltip";
 import { setThreadIdForVersionReducer } from "@/store/reducer/bridgeReducer";
-import { Check, CircleQuestionMark, ExternalLink } from "lucide-react";
+import { Check, CircleQuestionMark, CircleX, ExternalLink } from "lucide-react";
 import RenderNode from "@/components/richUI/RenderNode";
 import FullscreenEditorModal, { FullscreenEditorButton } from "@/components/modals/FullscreenEditorModal";
 import CodeMirror from "@uiw/react-codemirror";
-import { json } from "@codemirror/lang-json";
+import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { useThemeManager } from "@/customHooks/useThemeManager";
 import ConfirmationModal from "@/components/UI/ConfirmationModal";
 import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import { linter, lintGutter } from "@codemirror/lint";
 
 const AdvancedParameters = ({
   params,
@@ -50,6 +51,8 @@ const AdvancedParameters = ({
   const [messages, setMessages] = useState([]);
   const [activeWidgetButtons, setActiveWidgetButtons] = useState([]);
   const [jsonSchemaFullscreen, setJsonSchemaFullscreen] = useState(false);
+  const [jsonSchemaError, setJsonSchemaError] = useState(null);
+  const lastSubmittedSchemaRef = useRef(null);
   const dropdownContainerRef = useRef(null);
   const dispatch = useDispatch();
   const router = useRouter();
@@ -164,6 +167,8 @@ const AdvancedParameters = ({
   useEffect(() => {
     const schema = configuration?.response_type?.json_schema;
     setObjectFieldValue(!isEmptyJsonSchema(schema) ? JSON.stringify(schema, undefined, 4) : null);
+    // Reset the last submitted ref when the schema changes externally (e.g. loaded from server)
+    lastSubmittedSchemaRef.current = !isEmptyJsonSchema(schema) ? JSON.stringify(schema) : null;
   }, [configuration?.response_type?.json_schema]);
 
   const getJsonSchemaEditorValue = (paramKey) => {
@@ -172,19 +177,19 @@ const AdvancedParameters = ({
     return !isEmptyJsonSchema(schema) ? JSON.stringify(schema, null, 2) : "";
   };
 
-  const dispatchResponseTypeUpdate = (responseTypePayload, { localOnly = false } = {}) => {
-    dispatch(
+  const dispatchResponseTypeUpdate = async (responseTypePayload, { localOnly = false } = {}) => {
+    const result = await dispatch(
       updateBridgeVersionAction({
         bridgeId: params?.id,
         versionId: searchParams?.version,
         dataToSend: {
           configuration: { response_type: responseTypePayload },
-          service,
-          model,
         },
         localOnly,
+        skipRollback: true,
       })
     );
+    return result;
   };
 
   useEffect(() => {
@@ -256,7 +261,7 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: { ...updatedDataToSend, service, model },
+          dataToSend: { ...updatedDataToSend },
         })
       );
     }
@@ -271,7 +276,7 @@ const AdvancedParameters = ({
     [configuration, params?.id, params?.version]
   );
 
-  const handleSelectChange = (e, key, defaultValue, Objectvalue = {}, isDeafaultObject = true) => {
+  const handleSelectChange = async (e, key, defaultValue, Objectvalue = {}, isDeafaultObject = true) => {
     let newValue;
     try {
       // Check if Objectvalue is already an object or needs parsing
@@ -287,7 +292,7 @@ const AdvancedParameters = ({
       }
     } catch {
       toast.error("Invalid JSON provided");
-      return;
+      return { success: false };
     }
     const existingValue =
       typeof configuration?.[key] === "object" && configuration?.[key] !== null ? configuration?.[key] : {};
@@ -298,24 +303,22 @@ const AdvancedParameters = ({
     if (e.target.value === "json_schema") {
       if (isEmptyJsonSchema(parsedObjectValue)) {
         const hadPersistedSchema = !isEmptyJsonSchema(configuration?.response_type?.json_schema);
-        dispatchResponseTypeUpdate(
+        return await dispatchResponseTypeUpdate(
           buildJsonSchemaResponseType({
             is_template: existingValue?.is_template ?? false,
             template_id: existingValue?.template_id,
           }),
           { localOnly: !hadPersistedSchema }
         );
-        return;
       }
 
-      dispatchResponseTypeUpdate(
+      return await dispatchResponseTypeUpdate(
         buildJsonSchemaResponseType({
           json_schema: parsedObjectValue,
           is_template: existingValue?.is_template ?? false,
           template_id: existingValue?.template_id,
         })
       );
-      return;
     }
 
     let updatedDataToSend = isDeafaultObject
@@ -349,7 +352,7 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: { ...updatedDataToSend, service, model },
+          dataToSend: { ...updatedDataToSend },
         })
       );
     }
@@ -385,7 +388,7 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: { ...updatedDataToSend, service, model },
+          dataToSend: { ...updatedDataToSend },
         })
       );
     }
@@ -403,11 +406,11 @@ const AdvancedParameters = ({
         updateBridgeVersionAction({
           bridgeId: params?.id,
           versionId: searchParams?.version,
-          dataToSend: { ...updatedDataToSend, service, model },
+          dataToSend: { ...updatedDataToSend },
         })
       );
     },
-    [dispatch, params?.id, searchParams?.version, service, model]
+    [dispatch, params?.id, searchParams?.version]
   );
 
   // State for selected widgets (indices)
@@ -727,7 +730,7 @@ const AdvancedParameters = ({
                             updateBridgeVersionAction({
                               bridgeId: params?.id,
                               versionId: searchParams?.version,
-                              dataToSend: { ...updatedDataToSend, service, model },
+                              dataToSend: { ...updatedDataToSend },
                             })
                           );
                           return;
@@ -750,8 +753,6 @@ const AdvancedParameters = ({
                                 configuration: {
                                   [key]: { type: selectedValue },
                                 },
-                                service,
-                                model,
                               },
                             })
                           );
@@ -839,7 +840,7 @@ const AdvancedParameters = ({
                                   updateBridgeVersionAction({
                                     bridgeId: params?.id,
                                     versionId: searchParams?.version,
-                                    dataToSend: { ...updatedDataToSend, service, model },
+                                    dataToSend: { ...updatedDataToSend },
                                   })
                                 );
 
@@ -949,15 +950,23 @@ const AdvancedParameters = ({
                       </div>
 
                       <div className="relative">
-                        <div className="w-full text-xs font-mono">
+                        <div
+                          className={`w-full text-xs font-mono rounded overflow-hidden border transition-colors duration-200 ${
+                            jsonSchemaError ? "border-red-600" : "border-base-300"
+                          }`}
+                        >
                           <CodeMirror
                             id={`advanced-param-json-schema-textarea-${key}`}
                             value={getJsonSchemaEditorValue(key)}
-                            extensions={[json()]}
+                            extensions={[json(), linter(jsonParseLinter()), lintGutter()]}
                             theme={actualTheme}
                             editable={!isReadOnly}
-                            onChange={(val) => setObjectFieldValue(val)}
-                            onBlur={() => {
+                            onChange={(val) => {
+                              setObjectFieldValue(val);
+                              // Clear error when user modifies the schema
+                              if (jsonSchemaError) setJsonSchemaError(null);
+                            }}
+                            onBlur={async () => {
                               try {
                                 const currentValueToParse = getJsonSchemaEditorValue(key).trim();
                                 if (!currentValueToParse) {
@@ -970,6 +979,7 @@ const AdvancedParameters = ({
                                     );
                                   }
                                   setObjectFieldValue(null);
+                                  lastSubmittedSchemaRef.current = null;
                                   return;
                                 }
                                 const parsedValue = JSON.parse(currentValueToParse);
@@ -989,23 +999,43 @@ const AdvancedParameters = ({
                                   return;
                                 }
 
-                                handleSelectChange(
+                                // Skip API call if schema hasn't changed since last successful submission
+                                const schemaKey = JSON.stringify(trimmedValue);
+                                if (lastSubmittedSchemaRef.current === schemaKey) {
+                                  return;
+                                }
+
+                                const result = await handleSelectChange(
                                   { target: { value: "json_schema" } },
                                   key,
                                   defaultValue,
                                   trimmedValue,
                                   true
                                 );
+
+                                if (result?.success === false) {
+                                  setJsonSchemaError("Invalid JSON schema. Please check the schema and try again.");
+                                } else {
+                                  lastSubmittedSchemaRef.current = schemaKey;
+                                  setJsonSchemaError(null);
+                                  toast.success("JSON schema saved successfully");
+                                }
                               } catch (error) {
                                 console.error(error);
-                                toast.error("Invalid JSON schema");
+                                setJsonSchemaError("Invalid JSON schema. Please fix the syntax and try again.");
                               }
                             }}
-                            className="border border-base-300 rounded overflow-hidden"
+                            className="w-full"
                             minHeight="128px"
                           />
                         </div>
                       </div>
+                      {jsonSchemaError && (
+                        <div className="flex items-start gap-1.5 mt-1.5 text-error">
+                          <CircleX className="h-3.5 w-3.5 mt-0.5 shrink-0 text-error" />
+                          <span className="text-xs text-error">{jsonSchemaError}</span>
+                        </div>
+                      )}
                       <FullscreenEditorModal
                         modalId={MODAL_TYPE.FULLSCREEN_JSON_SCHEMA}
                         title="JSON Schema"
@@ -1026,6 +1056,7 @@ const AdvancedParameters = ({
                                 : parsedValue.schema,
                             };
                             setObjectFieldValue(JSON.stringify(parsedValue, undefined, 4));
+                            setJsonSchemaError(null);
                             handleSelectChange(
                               { target: { value: "json_schema" } },
                               key,
@@ -1036,6 +1067,7 @@ const AdvancedParameters = ({
                             return true;
                           } catch (error) {
                             console.error(error);
+                            setJsonSchemaError("Invalid JSON schema. Please fix the syntax and try again.");
                             toast.error("Invalid JSON schema");
                             return false;
                           }

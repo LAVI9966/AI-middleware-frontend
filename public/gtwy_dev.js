@@ -25,7 +25,9 @@
                 fullscreen: false,
                 isInitialized: false,
                 hasParentContainer: false,
-                tempDataToSend: {}
+                tempDataToSend: {},
+                isConfigReady: false,      // ← flag: true once gtwyLoaded/configLoaded fires
+                pendingQueue: []           // ← holds data sent before config is ready
             };
             this.initializeEventListeners();
         }
@@ -76,8 +78,9 @@
                         this.closeGtwy();
                         break;
                     case 'gtwyLoaded':
-                    case 'configLoaded':
-                        this.sendInitialData();
+                        this.flushQueue();   // flush pending queue & set the flag
+                        break;
+                    default:
                         break;
                 }
             });
@@ -86,6 +89,24 @@
         cleanupGtwyEmbed() {
             ['gtwy-iframe-parent-container', 'gtwyInterfaceEmbed', 'gtwyEmbed-style', 'gtwy-embed-header']
                 .forEach(id => document.getElementById(id)?.remove());
+        }
+
+        queueOrSend(messageObj) {
+            if (this.state.isConfigReady) {
+                sendMessageToGtwy(messageObj);
+            } else {
+                this.state.pendingQueue.push(messageObj);
+            }
+        }
+
+        flushQueue() {
+            if ((this.config.defaultOpen === 'true' || this.config.defaultOpen === true) && !this.state.fullscreen) {
+                this.openGtwy();
+            }
+            if (this.state.isConfigReady) return; // already flushed
+            this.state.isConfigReady = true;
+            this.state.pendingQueue.forEach(msg => sendMessageToGtwy(msg));
+            this.state.pendingQueue = [];
         }
 
         createEmbedHeader() {
@@ -461,18 +482,6 @@
             }
             if ('slide' in newProps) this.props.slide = newProps.slide;
         }
-
-        sendInitialData() {
-            setTimeout(() => {
-                if (this.state.tempDataToSend) {
-                    sendMessageToGtwy({ type: 'gtwyInterfaceData', data: this.state.tempDataToSend });
-                    const shouldOpen = [this.state.tempDataToSend?.defaultOpen, this.config.defaultOpen]
-                        .some(val => [true, 'true'].includes(val));
-                    if (shouldOpen) this.openGtwy();
-                    this.state.tempDataToSend = null;
-                }
-            }, 1000);
-        }
     }
 
     const gtwyEmbedManager = new GtwyEmbedManager();
@@ -487,7 +496,6 @@
                 return;
             }
         }
-
         if ('parentId' in dataToSend) {
             const prevParentId = gtwyEmbedManager.props['parentId'];
             const existingParent = document.getElementById(prevParentId);
@@ -510,10 +518,9 @@
 
         if (Object.keys(propsToUpdate).length > 0) gtwyEmbedManager.updateProps(propsToUpdate);
 
-        const iframe = document.getElementById('iframe-component-gtwyInterfaceEmbed');
-        if (iframe?.contentWindow && dataToSend) {
+        if (dataToSend) {
             gtwyEmbedManager.state.tempDataToSend = { ...gtwyEmbedManager.state.tempDataToSend, ...dataToSend };
-            sendMessageToGtwy({ type: 'gtwyInterfaceData', data: dataToSend });
+            gtwyEmbedManager.queueOrSend({ type: 'gtwyInterfaceData', data: dataToSend });
         }
 
         if ('config' in dataToSend && dataToSend.config) {
