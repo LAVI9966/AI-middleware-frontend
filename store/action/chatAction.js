@@ -183,14 +183,24 @@ export const loadTestCaseIntoChat = (channelId, testCaseConversation, expected, 
     convertedMessages.push(expectedMessage);
   }
 
-  // Build the raw conversation (all messages except the expected answer) in the
-  // [{role, content}] format expected by the completion API's configuration.conversation.
+  // Build the raw conversation in the [{role, content}] format expected by the
+  // completion API's configuration.conversation. Include the expected answer as
+  // the last assistant turn so that when the user continues the conversation the
+  // backend receives the full prior context (including the expected response).
   const rawConversation = testCaseConversation
     .filter((msg) => msg.content !== null && msg.content !== undefined && msg.content !== "")
     .map((msg) => ({
       role: msg.role,
       content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
     }));
+
+  // Append expected response as the last assistant message in the raw conversation
+  // so the API receives it as prior context when the user sends a follow-up.
+  if (expected?.response) {
+    const expectedContent =
+      typeof expected.response === "object" ? JSON.stringify(expected.response) : expected.response;
+    rawConversation.push({ role: "assistant", content: expectedContent });
+  }
 
   dispatch(
     loadTestCaseMessages({
