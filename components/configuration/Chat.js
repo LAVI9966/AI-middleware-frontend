@@ -1155,7 +1155,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
                                   {/* Loading state for assistant message */}
                                   {message.isLoading && !message.content && !message.toolCalls?.length ? (
-                                    <div className="py-1">
+                                    <div data-testid="chat-loading-state" className="py-1">
                                       <span className="loading loading-dots loading-sm"></span>
                                     </div>
                                   ) : message.isStreaming && message.content ? (
