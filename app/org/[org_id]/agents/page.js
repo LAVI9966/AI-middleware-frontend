@@ -921,7 +921,7 @@ function Home({ params, searchParams, isEmbedUser }) {
     const dropdownContent = (
       <ul className="menu bg-base-100 rounded-box w-56 p-2 shadow text-sm">
         <li>
-          <button onClick={() => applyPresetUsageFilter(1)}>Last 1 day</button>
+          <button onClick={() => applyPresetUsageFilter(1)}>Last day</button>
         </li>
         <li>
           <button onClick={() => applyPresetUsageFilter(5)}>Last 5 days</button>
