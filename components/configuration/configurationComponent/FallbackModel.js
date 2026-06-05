@@ -6,6 +6,7 @@ import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import InfoTooltip from "@/components/InfoTooltip";
 import { getIconOfService } from "@/utils/utility";
 import { CircleQuestionMark } from "lucide-react";
+import { ModelPreview } from "./ModelDropdown";
 
 const FallbackModel = ({
   params,
@@ -21,6 +22,9 @@ const FallbackModel = ({
   const [showApiKeysToggle, setShowApiKeysToggle] = useState(false);
   const [selectedApiKeys, setSelectedApiKeys] = useState({});
   const dropdownContainerRef = useRef(null);
+  const fallbackModelDropdownRef = useRef(null);
+  const [hoveredModel, setHoveredModel] = useState(null);
+  const [modelSpecs, setModelSpecs] = useState();
 
   const dispatch = useDispatch();
 
@@ -262,6 +266,10 @@ const FallbackModel = ({
   ]);
 
   const computedModelsList = serviceModels?.[fallbackService] || {};
+  const handleModelHover = useCallback((modelName, specs) => {
+    setHoveredModel(modelName);
+    setModelSpecs(specs);
+  }, []);
 
   return (
     <div data-testid="fallback-model-container" id="fallback-model-container" className="space-y-2">
@@ -303,7 +311,7 @@ const FallbackModel = ({
                 <details
                   data-testid="fallback-service-dropdown"
                   id="fallback-service-dropdown"
-                  className="dropdown dropdown-end w-full"
+                  className="dropdown dropdown-top dropdown-end w-full"
                   onToggle={(e) => {
                     if (e.currentTarget.open) {
                       const modelDropdown = document.getElementById("fallback-model-dropdown");
@@ -390,7 +398,12 @@ const FallbackModel = ({
             {/* Fallback Model */}
             <div className="space-y-2">
               <label className="block text-base-content/70 text-xs font-medium">Fallback Model</label>
-              <details data-testid="fallback-model-dropdown" id="fallback-model-dropdown" className="dropdown w-full">
+              <details
+                data-testid="fallback-model-dropdown"
+                id="fallback-model-dropdown"
+                className="dropdown dropdown-top w-full"
+                ref={fallbackModelDropdownRef}
+              >
                 <summary
                   data-testid="fallback-model-dropdown-button"
                   id="fallback-model-dropdown-button"
@@ -414,6 +427,7 @@ const FallbackModel = ({
                   id="fallback-model-dropdown-menu"
                   tabIndex={0}
                   className="dropdown-content mb-6 z-high p-2 shadow bg-base-100 rounded-lg mt-1 max-h-[340px] w-[260px] overflow-y-auto border border-base-300"
+                  onMouseLeave={() => setHoveredModel(null)}
                 >
                   {Object.entries(computedModelsList || {}).map(([group, options]) => {
                     if (group === "image") return null;
@@ -429,7 +443,8 @@ const FallbackModel = ({
                         <span className="text-sm text-base-content">{group}</span>
                         <ul>
                           {Object.keys(options || {}).map((option) => {
-                            const modelName = options?.[option]?.configuration?.model?.default || option;
+                            const optionConfig = options?.[option];
+                            const modelName = optionConfig?.configuration?.model?.default || option;
                             const selected = fallbackModelName === modelName || fallbackModelName === option;
 
                             if (currentModel === modelName || currentModel === option) return null;
@@ -443,8 +458,12 @@ const FallbackModel = ({
                               <li
                                 key={`${group}-${option}`}
                                 className={`hover:bg-base-200 rounded-md py-1 ${selected ? "bg-base-200" : ""}`}
+                                onMouseEnter={() =>
+                                  handleModelHover(modelName, optionConfig?.validationConfig?.specification)
+                                }
                                 onClick={(e) => {
                                   handleFallbackModelChange(modelName);
+                                  setHoveredModel(null);
                                   const details = e.currentTarget.closest("details");
                                   if (details) details.removeAttribute("open");
                                 }}
@@ -462,6 +481,11 @@ const FallbackModel = ({
                   })}
                 </ul>
               </details>
+              <ModelPreview
+                hoveredModel={hoveredModel}
+                modelSpecs={modelSpecs}
+                dropdownRef={fallbackModelDropdownRef}
+              />
             </div>
           </div>
 
