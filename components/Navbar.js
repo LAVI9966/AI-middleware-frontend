@@ -609,13 +609,16 @@ const Navbar = ({ isEmbedUser, params }) => {
 
               {/* Saving Status Indicator */}
               {activeTab === "configure" && (
-                <div className="flex-shrink-0 ml-2 mr-2">
-                  <div className="px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 text-base-content">
+                <div className="flex-shrink-0 ml-2 mr-2" data-testid="navbar-saving-status-container">
+                  <div
+                    className="px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 text-base-content"
+                    data-testid="navbar-saving-status"
+                  >
                     {savingStatus.status === "saving" && (
-                      <>
+                      <span data-testid="navbar-saving-status-saving" className="flex items-center gap-1">
                         <div className="loading loading-spinner loading-xs"></div>
                         <span>Saving</span>
-                      </>
+                      </span>
                     )}
                     {savingStatus.status === "saved" && (
                       <>
@@ -624,10 +627,10 @@ const Navbar = ({ isEmbedUser, params }) => {
                       </>
                     )}
                     {savingStatus.status === "failed" && (
-                      <>
+                      <span data-testid="navbar-saving-status-failed" className="flex items-center gap-1">
                         <ClipboardX size={14} />
                         <span>Failed</span>
-                      </>
+                      </span>
                     )}
                     {savingStatus.status === "warning" && (
                       <>

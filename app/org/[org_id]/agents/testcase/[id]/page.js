@@ -13,7 +13,10 @@ import PageHeader from "@/components/Pageheader";
 import TestCaseDetailsPanel from "@/components/testcaseComponents/TestCaseDetailsPanel";
 
 const TestCaseLoadingSkeleton = () => (
-  <div className="w-full h-full flex flex-col gap-4 px-6 py-4 animate-pulse">
+  <div
+    data-testid="testcase-page-loading-skeleton"
+    className="w-full h-full flex flex-col gap-4 px-6 py-4 animate-pulse"
+  >
     {/* Header skeleton */}
     <div className="h-12 bg-base-200 rounded-lg"></div>
 
@@ -235,8 +238,8 @@ function TestCases({ params }) {
   };
 
   return (
-    <div className="bg-base-50 h-full flex flex-col overflow-hidden">
-      <div className="px-6 pt-4">
+    <div data-testid="testcase-page" className="bg-base-50 h-full flex flex-col overflow-hidden">
+      <div className="px-6 pt-4" data-testid="testcase-page-header">
         <PageHeader
           title="Test Cases"
           description="Test cases are used to compare outputs from different versions with varying prompts and models. You can add test cases from chat history and choose a comparison type - Exact, AI, or Cosine to measure accuracy."
@@ -257,12 +260,15 @@ function TestCases({ params }) {
         <TestCaseLoadingSkeleton />
       ) : Array.isArray(testCases) && testCases.length > 0 ? (
         <>
-          <div className="px-6 pt-3 pb-3">
+          <div className="px-6 pt-3 pb-3" data-testid="testcase-version-controls">
             {/* Versions and Run Button Row */}
             <div className="flex items-center gap-2 flex-wrap justify-between">
-              <span className="text-sm font-medium text-base-content">Versions:</span>
+              <span className="text-sm font-medium text-base-content" data-testid="testcase-version-label">
+                Versions:
+              </span>
               {versions.length > 1 && (
                 <button
+                  data-testid="testcase-version-all-button"
                   className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                     selectedVersions.length === versions.length
                       ? "bg-primary text-primary-content shadow-sm"
@@ -284,6 +290,7 @@ function TestCases({ params }) {
               <div className="flex items-center gap-1.5 flex-wrap">
                 {versions.slice(versionSliderStart, versionSliderStart + 10).map((version, idx) => (
                   <button
+                    data-testid={`testcase-version-button-${versionSliderStart + idx + 1}`}
                     key={versionSliderStart + idx}
                     className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
                       selectedVersions.includes(version)
@@ -308,6 +315,7 @@ function TestCases({ params }) {
               {versions.length > 10 && (
                 <div className="flex items-center gap-1.5">
                   <button
+                    data-testid="testcase-version-prev-button"
                     onClick={() => setVersionSliderStart(Math.max(0, versionSliderStart - 10))}
                     disabled={versionSliderStart === 0}
                     className="px-2 py-1.5 rounded-md text-xs font-semibold bg-base-200 text-base-content hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -319,6 +327,7 @@ function TestCases({ params }) {
                     {versionSliderStart + 1}-{Math.min(versionSliderStart + 10, versions.length)} of {versions.length}
                   </span>
                   <button
+                    data-testid="testcase-version-next-button"
                     onClick={() => setVersionSliderStart(Math.min(versions.length - 10, versionSliderStart + 10))}
                     disabled={versionSliderStart + 10 >= versions.length}
                     className="px-2 py-1.5 rounded-md text-xs font-semibold bg-base-200 text-base-content hover:bg-base-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
@@ -329,6 +338,7 @@ function TestCases({ params }) {
                 </div>
               )}
               <button
+                data-testid="testcase-run-all-button"
                 onClick={handleRunAllTestCases}
                 disabled={
                   !Array.isArray(testCases) || testCases.length === 0 || isloading || selectedVersions.length === 0
@@ -353,8 +363,11 @@ function TestCases({ params }) {
         </>
       ) : (
         /* Empty State - only show when fully loaded and no testcases */
-        <div className="flex-1 flex items-center justify-center px-6 pb-6 pt-6">
-          <div className="flex flex-col items-center justify-center text-center max-w-md py-16 px-8 bg-base-100 border border-dashed border-base-300 rounded-xl w-full">
+        <div className="flex-1 flex items-center justify-center px-6 pb-6 pt-6" data-testid="testcase-empty-state">
+          <div
+            className="flex flex-col items-center justify-center text-center max-w-md py-16 px-8 bg-base-100 border border-dashed border-base-300 rounded-xl w-full"
+            data-testid="testcase-empty-state-card"
+          >
             <div className="w-16 h-16 rounded-full bg-base-200 flex items-center justify-center mb-4">
               <FileText size={28} className="text-base-content/50" />
             </div>
@@ -368,10 +381,13 @@ function TestCases({ params }) {
 
       {/* Main Grid */}
       {Array.isArray(testCases) && testCases.length > 0 && (
-        <div className="flex-1 min-h-0 overflow-hidden px-6 pb-4 pt-3">
+        <div className="flex-1 min-h-0 overflow-hidden px-6 pb-4 pt-3" data-testid="testcase-main-grid-wrapper">
           <div className="grid grid-cols-12 gap-4 h-full relative">
             {/* Left Panel - Test Cases List */}
-            <div className="col-span-4 bg-base-100 border border-base-200 rounded-xl overflow-hidden flex flex-col h-full relative z-10 shadow-lg">
+            <div
+              className="col-span-4 bg-base-100 border border-base-200 rounded-xl overflow-hidden flex flex-col h-full relative z-10 shadow-lg"
+              data-testid="testcase-list-panel"
+            >
               <div
                 id="testcase-list-scrollable"
                 data-testid="testcase-list-scrollable"
@@ -389,8 +405,11 @@ function TestCases({ params }) {
                   scrollableTarget="testcase-list-scrollable"
                   style={{ overflow: "visible" }}
                 >
-                  <table className="w-full border-separate border-spacing-0 bg-base-100">
-                    <thead className="bg-base-50">
+                  <table
+                    className="w-full border-separate border-spacing-0 bg-base-100"
+                    data-testid="testcase-list-table"
+                  >
+                    <thead className="bg-base-50" data-testid="testcase-list-table-head">
                       <tr className="border-b border-base-200">
                         <th
                           style={{ left: 0, width: 48, minWidth: 48 }}
@@ -407,6 +426,7 @@ function TestCases({ params }) {
                         {selectedVersions.map((version, idx) => (
                           <th
                             key={idx}
+                            data-testid={`testcase-list-version-header-${idx}`}
                             className="px-2 py-3 text-center text-xs font-semibold text-base-content uppercase tracking-wider min-w-[60px] bg-base-50 "
                           >
                             v{versions.indexOf(version) + 1}
@@ -414,7 +434,7 @@ function TestCases({ params }) {
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-base-200">
+                    <tbody className="divide-y divide-base-200" data-testid="testcase-list-table-body">
                       {Array.isArray(testCases) &&
                         testCases.map((testCase, index) => {
                           const lastUserMessageRaw = testCase?.conversation
@@ -430,6 +450,7 @@ function TestCases({ params }) {
                           return (
                             <tr
                               key={index}
+                              data-testid={`testcase-row-${testCase?._id || index}`}
                               onClick={() => setSelectedTestCaseIndex(index)}
                               className={`cursor-pointer transition-all ${isSelected ? "bg-base-200" : "bg-base-100 hover:bg-base-50"}`}
                             >
@@ -459,6 +480,7 @@ function TestCases({ params }) {
                                 return (
                                   <td
                                     key={vIdx}
+                                    data-testid={`testcase-row-${testCase?._id || index}-version-${versions.indexOf(version) + 1}`}
                                     className={`px-2 py-3.5 text-center min-w-[60px] ${isSelected ? "bg-base-200" : "bg-base-100"}`}
                                   >
                                     {versionArray &&
@@ -487,13 +509,16 @@ function TestCases({ params }) {
                   </table>
                 </InfiniteScroll>
               </div>
-              <div className="px-4 py-3 border-t border-base-200 text-xs text-base-content/60 bg-base-50">
+              <div
+                className="px-4 py-3 border-t border-base-200 text-xs text-base-content/60 bg-base-50"
+                data-testid="testcase-list-footer"
+              >
                 {testCasesTotal > 0 ? `${testCasesTotal} testcases` : "0 testcases"}
               </div>
             </div>
 
             {/* Right Panel - Details */}
-            <div className="col-span-8 h-full min-h-0 overflow-hidden">
+            <div className="col-span-8 h-full min-h-0 overflow-hidden" data-testid="testcase-details-panel-host">
               <TestCaseDetailsPanel
                 selectedTestCase={selectedTestCase}
                 selectedVersions={selectedVersions}
