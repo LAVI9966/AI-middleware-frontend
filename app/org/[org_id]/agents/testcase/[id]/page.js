@@ -201,11 +201,13 @@ function TestCases({ params }) {
   const [versionSliderStart, setVersionSliderStart] = useState(0);
 
   // Sync local UI state with the RTLayer-driven testRun in redux.
-  // `isloading` represents *any* active run (Run-All or single) so that every
-  // run button stays disabled until the run completes.
+  // `isloading` only represents a Run-All operation (testcaseId is null) so
+  // that the Run All button shows a spinner / is disabled.
+  // `runningTestCaseId` tracks a single test-case run independently.
   useEffect(() => {
     const isRunning = testRun?.status === "running";
-    setIsLoading(isRunning);
+    const isSingleRun = !!testRun?.testcaseId;
+    setIsLoading(isRunning && !isSingleRun);
     setRunningTestCaseId(isRunning ? testRun?.testcaseId || null : null);
   }, [testRun?.status, testRun?.testcaseId]);
 
@@ -346,7 +348,11 @@ function TestCases({ params }) {
                 data-testid="testcase-run-all-button"
                 onClick={handleRunAllTestCases}
                 disabled={
-                  !Array.isArray(testCases) || testCases.length === 0 || isloading || selectedVersions.length === 0
+                  !Array.isArray(testCases) ||
+                  testCases.length === 0 ||
+                  isloading ||
+                  !!runningTestCaseId ||
+                  selectedVersions.length === 0
                 }
                 title={selectedVersions.length === 0 ? "Select at least one version to run" : ""}
                 className="px-5 py-2 bg-primary hover:bg-primary/90 text-primary-content rounded-lg flex items-center gap-2 font-medium transition-all text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap ml-auto"
