@@ -174,6 +174,11 @@ function TestCases({ params }) {
           bridgeId: resolvedParams?.id,
           matching_type: testCaseMatchingType.toLowerCase(),
           variables,
+          testCaseData: {
+            conversation: testCase?.conversation,
+            expected: testCase?.expected,
+            matching_type: testCaseMatchingType.toLowerCase(),
+          },
         })
       );
     } catch (error) {
@@ -452,17 +457,17 @@ function TestCases({ params }) {
                               key={index}
                               data-testid={`testcase-row-${testCase?._id || index}`}
                               onClick={() => setSelectedTestCaseIndex(index)}
-                              className={`cursor-pointer transition-all ${isSelected ? "bg-base-200" : "bg-base-100 hover:bg-base-50"}`}
+                              className={`cursor-pointer transition-all ${isSelected ? "bg-primary/10" : "bg-base-100 hover:bg-base-50"}`}
                             >
                               <td
                                 style={{ left: 0, width: 48, minWidth: 48 }}
-                                className={`px-2 py-3.5 text-sm sticky z-20 ${isSelected ? "bg-base-200 font-semibold" : "bg-base-100 font-medium"} text-base-content`}
+                                className={`px-2 py-3.5 text-sm sticky z-20 ${isSelected ? "bg-primary/10 font-semibold text-primary border-l-2 border-primary" : "bg-base-100 font-medium border-l-2 border-transparent"} text-base-content`}
                               >
                                 {index + 1}
                               </td>
                               <td
                                 style={{ left: 48, width: 140, minWidth: 140 }}
-                                className={`px-2 py-3.5 text-sm sticky z-20 ${isSelected ? "bg-base-200 font-semibold" : "bg-base-100 font-medium"} text-base-content whitespace-nowrap overflow-hidden text-ellipsis`}
+                                className={`px-2 py-3.5 text-sm sticky z-20 ${isSelected ? "bg-primary/10 font-semibold" : "bg-base-100 font-medium"} text-base-content whitespace-nowrap overflow-hidden text-ellipsis`}
                               >
                                 {lastUserMessage?.substring(0, 20)}
                                 {lastUserMessage?.length > 20 ? "..." : ""}
@@ -481,7 +486,7 @@ function TestCases({ params }) {
                                   <td
                                     key={vIdx}
                                     data-testid={`testcase-row-${testCase?._id || index}-version-${versions.indexOf(version) + 1}`}
-                                    className={`px-2 py-3.5 text-center min-w-[60px] ${isSelected ? "bg-base-200" : "bg-base-100"}`}
+                                    className={`px-2 py-3.5 text-center min-w-[60px] ${isSelected ? "bg-primary/10" : "bg-base-100"}`}
                                   >
                                     {versionArray &&
                                       (runErrorMessage ? (

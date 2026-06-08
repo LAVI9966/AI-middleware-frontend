@@ -3,12 +3,14 @@ import { createTestCaseAction } from "@/store/action/testCasesAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { CloseIcon } from "@/components/Icons";
+import { Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import Modal from "../UI/Modal";
 import { clearChatTestCaseIdAction } from "@/store/action/chatAction";
+import AutoResizeTextarea from "@/components/UI/AutoResizeTextarea";
 
 function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, channelIdentifier }) {
   const params = useParams();
@@ -149,8 +151,16 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
     // Auto-resize all textareas on mount and when content changes
     const textareas = document.querySelectorAll("textarea");
     textareas.forEach((textarea) => {
+      const currentHeight = textarea.style.height;
+      const autoHeight = textarea.getAttribute("data-auto-height");
+      if (currentHeight && autoHeight && currentHeight !== autoHeight) {
+        // User manually resized it, skip auto-resizing
+        return;
+      }
       textarea.style.height = "auto";
-      textarea.style.height = textarea.scrollHeight + "px";
+      const newHeight = textarea.scrollHeight + "px";
+      textarea.style.height = newHeight;
+      textarea.setAttribute("data-auto-height", newHeight);
     });
   }, [finalTestCases]);
 
@@ -202,8 +212,17 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
 
   const handleTextareaInput = (e) => {
     // Auto-resize textarea based on content
-    e.target.style.height = "auto";
-    e.target.style.height = e.target.scrollHeight + "px";
+    const textarea = e.target;
+    const currentHeight = textarea.style.height;
+    const autoHeight = textarea.getAttribute("data-auto-height");
+    if (currentHeight && autoHeight && currentHeight !== autoHeight) {
+      // User manually resized it, skip auto-resizing
+      return;
+    }
+    textarea.style.height = "auto";
+    const newHeight = textarea.scrollHeight + "px";
+    textarea.style.height = newHeight;
+    textarea.setAttribute("data-auto-height", newHeight);
   };
 
   const handleVariableChange = (key, newValue) => {
@@ -219,6 +238,10 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
       updatedTestCases[index].tools.splice(childIndex, 1);
       return updatedTestCases;
     });
+  };
+
+  const removeMessage = (index) => {
+    setFinalTestCases((prevTestCases) => prevTestCases.filter((_, i) => i !== index));
   };
   const handleClose = () => {
     closeModal(MODAL_TYPE.ADD_TEST_CASE_MODAL);
@@ -261,12 +284,12 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                         </div>
                         <div>
                           <label className="text-xs font-semibold text-base-content mb-1 block">Value</label>
-                          <input
-                            type="text"
+                          <AutoResizeTextarea
                             value={typeof value === "string" ? value : JSON.stringify(value)}
                             onChange={(e) => handleVariableChange(key, e.target.value)}
-                            className="input input-bordered input-sm bg-base-50 text-sm w-full"
+                            className="textarea textarea-bordered textarea-sm bg-base-50 text-sm w-full leading-relaxed"
                             placeholder="Enter value"
+                            rows={1}
                           />
                         </div>
                       </div>
@@ -307,8 +330,19 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
 
                 {finalTestCases.slice(0, -2).map((message, index) => (
                   <div key={index} id={`add-testcase-conversation-${index}`} className="space-y-2 mb-4">
-                    <div className="text-xs font-medium uppercase text-base-content tracking-wide">
-                      {message?.role?.replace("_", " ") || message?.sender?.replace("_", " ")}
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-medium uppercase text-base-content tracking-wide">
+                        {message?.role?.replace("_", " ") || message?.sender?.replace("_", " ")}
+                      </div>
+                      <button
+                        id={`add-testcase-remove-message-${index}`}
+                        type="button"
+                        onClick={() => removeMessage(index)}
+                        className="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                        title="Remove this message"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                     {message.role === "tools_call" || message.sender === "tools_call" ? (
                       <div className="space-y-3">
@@ -360,8 +394,19 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                   const secondLastIndex = finalTestCases.length - 2;
                   return (
                     <div className="space-y-2">
-                      <div className="text-xs font-medium uppercase text-base-content tracking-wide">
-                        {secondLastMessage?.role?.replace("_", " ") || secondLastMessage?.sender?.replace("_", " ")}
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-medium uppercase text-base-content tracking-wide">
+                          {secondLastMessage?.role?.replace("_", " ") || secondLastMessage?.sender?.replace("_", " ")}
+                        </div>
+                        <button
+                          id="add-testcase-remove-second-last-message"
+                          type="button"
+                          onClick={() => removeMessage(secondLastIndex)}
+                          className="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                          title="Remove this message"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                       {secondLastMessage.role === "tools_call" || secondLastMessage.sender === "tools_call" ? (
                         <div className="space-y-3">

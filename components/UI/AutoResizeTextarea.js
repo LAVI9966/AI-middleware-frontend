@@ -16,8 +16,15 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
   const resize = () => {
     const el = innerRef.current;
     if (!el) return;
+    const currentHeight = el.style.height;
+    const autoHeight = el.getAttribute("data-auto-height");
+    if (currentHeight && autoHeight && currentHeight !== autoHeight) {
+      return;
+    }
     el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+    const newHeight = `${el.scrollHeight}px`;
+    el.style.height = newHeight;
+    el.setAttribute("data-auto-height", newHeight);
   };
 
   useLayoutEffect(() => {
@@ -33,7 +40,7 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
         resize();
       }}
       rows={minRows}
-      className={`resize-none overflow-hidden ${className}`}
+      className={`resize-y overflow-auto ${className}`}
       {...rest}
     />
   );

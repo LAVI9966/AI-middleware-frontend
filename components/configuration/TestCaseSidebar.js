@@ -111,6 +111,7 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
     sessionStorage.removeItem("missingVariables");
 
     setRunningTests((prev) => new Set([...prev, testId]));
+    const testCase = Array.isArray(testCases) && testCases.find((tc) => tc._id === testId);
     try {
       await dispatch(
         runTestCaseAction({
@@ -119,6 +120,11 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
           testcase_id: testId,
           variables,
           matching_type,
+          testCaseData: {
+            conversation: testCase?.conversation,
+            expected: testCase?.expected,
+            matching_type: matching_type.toLowerCase(),
+          },
         })
       );
       // No need to refetch - runTestCaseAction now updates Redux store directly
