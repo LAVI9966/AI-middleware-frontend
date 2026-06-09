@@ -2,7 +2,15 @@
 
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { AlertTriangle, BookOpen, Brackets, ChevronDown, ChevronRight, FileClock, SquareFunction } from "lucide-react";
-import { HUE_THEME, NEUTRAL_HEAD, NEUTRAL_HEAD_OPEN, NEUTRAL_RAIL, agentInitials, resolveAgentHue } from "./traceTheme";
+import {
+  HUE_THEME,
+  NEUTRAL_HEAD,
+  NEUTRAL_HEAD_OPEN,
+  NEUTRAL_RAIL,
+  TRACE_ROW_BORDER,
+  agentInitials,
+  resolveAgentHue,
+} from "./traceTheme";
 
 const TRACE_HIDDEN_VAR_KEYS = new Set(["_user_message"]);
 
@@ -35,8 +43,8 @@ function formatIoValue(value) {
 /** Reference: bordered INPUT / OUTPUT blocks */
 function IoPanel({ label, value }) {
   return (
-    <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-base-300/70 bg-base-100">
-      <div className="border-b border-base-300/50 bg-base-200/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/45">
+    <div className={`mx-2 mb-2 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-base-100`}>
+      <div className="border-b border-base-content/20 bg-base-200/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/45">
         {label}
       </div>
       <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-words bg-[#f6f7f9] px-3 py-2.5 font-mono text-[11px] leading-relaxed text-[#324049]">
@@ -97,7 +105,7 @@ function CaretBox({ open }) {
 function StepRowHeader({ open, inRail, icon, children, onClick, headerClass = "" }) {
   return (
     <div
-      className={`flex min-h-[38px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${headerClass}`}
+      className={`flex min-h-[38px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${TRACE_ROW_BORDER} ${headerClass}`}
       onClick={onClick}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick(e) : undefined}
       role="button"
@@ -180,7 +188,9 @@ function TextStep({ step }) {
           <span className="text-xs font-medium text-base-content/70">Message</span>
         </StepRowHeader>
         {open && (
-          <div className="mt-1 rounded-lg bg-base-200/50 px-3 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-base-content">
+          <div
+            className={`mt-1 rounded-lg ${TRACE_ROW_BORDER} bg-base-200/50 px-3 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-base-content`}
+          >
             {step.text}
           </div>
         )}
@@ -246,11 +256,11 @@ function VariablesBlock({ vars, inRail = true }) {
         {!open && overflow > 0 && <span className="text-[11px] font-mono text-base-content/50">+{overflow}</span>}
       </StepRowHeader>
       {open && (
-        <div className="mt-1.5 overflow-hidden rounded-lg border border-trace-blue/25 bg-trace-blue/[0.06]">
+        <div className={`mt-1.5 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06]`}>
           {entries.map(([k, v]) => (
             <div
               key={k}
-              className="grid grid-cols-[minmax(120px,180px)_1fr] gap-4 border-b border-trace-blue/15 px-4 py-2.5 text-xs last:border-0"
+              className="grid grid-cols-[minmax(120px,180px)_1fr] gap-4 border-b border-base-content/15 px-4 py-2.5 text-xs last:border-0"
             >
               <span className="font-mono font-medium text-trace-blue break-words">{k}</span>
               <span className="font-mono text-base-content break-words">{String(v)}</span>
@@ -272,26 +282,24 @@ function ToolActionButtons({ rawTool, isRag }) {
   return (
     <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
       {!isRag && onToolLogsClick && (
-        <div className="tooltip tooltip-top" data-tip="function logs">
-          <button
-            type="button"
-            className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
-            onClick={(e) => onToolLogsClick(e, rawTool)}
-          >
-            <SquareFunction size={14} />
-          </button>
-        </div>
+        <button
+          type="button"
+          className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
+          title="function logs"
+          onClick={(e) => onToolLogsClick(e, rawTool)}
+        >
+          <SquareFunction size={14} />
+        </button>
       )}
       {onToolDataClick && (
-        <div className="tooltip tooltip-top" data-tip={isRag ? "knowledge base data" : "function data"}>
-          <button
-            type="button"
-            className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
-            onClick={() => onToolDataClick(rawTool)}
-          >
-            <FileClock size={14} />
-          </button>
-        </div>
+        <button
+          type="button"
+          className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
+          title={isRag ? "knowledge base data" : "function data"}
+          onClick={() => onToolDataClick(rawTool)}
+        >
+          <FileClock size={14} />
+        </button>
       )}
     </div>
   );
@@ -304,7 +312,7 @@ function ToolStep({ step, inRail = true }) {
   const isPreFunction = toolKind === "pre_function";
   const isPostFunction = toolKind === "post_function";
   const toolHead = open
-    ? "rounded-lg border border-base-300/30 bg-gradient-to-r from-base-200/80 via-base-200/40 to-transparent"
+    ? "rounded-lg bg-gradient-to-r from-base-200/80 via-base-200/40 to-transparent"
     : isPreFunction
       ? "bg-gradient-to-r from-warning/14 via-warning/6 to-transparent hover:from-warning/20"
       : isPostFunction
@@ -363,7 +371,7 @@ function VarsStep({ step, inRail = true }) {
 function KbQueryBox({ query }) {
   if (!query) return null;
   return (
-    <div className="mx-2 mb-2 rounded-lg border border-trace-blue/25 bg-trace-blue/[0.06] px-3 py-2">
+    <div className={`mx-2 mb-2 rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06] px-3 py-2`}>
       <div className="text-[10px] font-semibold uppercase tracking-wider text-base-content/45">Query</div>
       <div className="mt-1 text-xs leading-relaxed text-base-content/80">{query}</div>
     </div>
@@ -373,8 +381,8 @@ function KbQueryBox({ query }) {
 function KbChunkCard({ chunk, index }) {
   const scorePct = chunk.score != null ? Math.round(Number(chunk.score) * 100) : null;
   return (
-    <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-base-300/60 bg-base-100">
-      <div className="flex items-center justify-between gap-2 border-b border-base-300/50 bg-base-200/50 px-3 py-1.5 text-[11px]">
+    <div className={`mx-2 mb-2 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-base-100`}>
+      <div className="flex items-center justify-between gap-2 border-b border-base-content/20 bg-base-200/50 px-3 py-1.5 text-[11px]">
         <span className="truncate text-base-content/55">{chunk.source || `chunk ${index + 1}`}</span>
         {scorePct != null && (
           <span className="shrink-0 rounded-full bg-trace-blue/10 px-2 py-0.5 font-mono text-[10px] text-trace-blue">
@@ -392,7 +400,7 @@ function KbStep({ step, inRail = true }) {
   const chunks = step.chunks || [];
   const query = step.query || step.input?.query || "";
   const kbHead = open
-    ? "rounded-lg border border-trace-blue/20 bg-gradient-to-r from-trace-blue/14 via-trace-blue/6 to-transparent"
+    ? "rounded-lg bg-gradient-to-r from-trace-blue/14 via-trace-blue/6 to-transparent"
     : "bg-gradient-to-r from-trace-blue/10 via-trace-blue/4 to-transparent hover:from-trace-blue/16";
 
   const body = (
@@ -592,7 +600,7 @@ function StepCountBadges({ stepCounts, responsePreview }) {
 
 /** Parent agent wrapper — gold shell/header, user message + colored rail for children */
 function RootExecutionShell({ node, agents, userMessage }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const steps = node.steps || [];
   const hasUserMessage = Boolean(userMessage?.trim());
   if (steps.length === 0 && !hasUserMessage) return null;
@@ -619,11 +627,6 @@ function RootExecutionShell({ node, agents, userMessage }) {
         <CaretBox open={open} />
         <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large />
         <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
-        <span
-          className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${theme.roleTag}`}
-        >
-          {a.role || "Orchestrator"}
-        </span>
         {a.model && a.model !== "—" && (
           <span className="hidden truncate text-[11px] text-base-content/45 sm:inline">{a.model}</span>
         )}
@@ -643,13 +646,13 @@ function RootExecutionShell({ node, agents, userMessage }) {
 }
 
 function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
-  const { detail } = useContext(TraceCtx);
+  const { detail: _detail } = useContext(TraceCtx);
   const a = agents[node.agent] || {
     name: node.agent,
     model: "—",
     role: "Sub-agent",
   };
-  const [open, setOpen] = useState(root ? detail !== "compact" : false);
+  const [open, setOpen] = useState(false);
   const stepCounts = useMemo(() => countExecutionSteps(node.steps), [node.steps]);
 
   const question = node.question || node.reason;
@@ -743,7 +746,9 @@ export function MessageRunTrace({
 }) {
   if (!run) return null;
   return (
-    <TraceCtx.Provider value={{ detail: "medium", showMeta: true, onToolLogsClick, onToolDataClick, onAgentDataClick }}>
+    <TraceCtx.Provider
+      value={{ detail: "compact", showMeta: true, onToolLogsClick, onToolDataClick, onAgentDataClick }}
+    >
       {embedded ? (
         <RootExecutionShell node={run} agents={agents || {}} userMessage={userMessage} />
       ) : (
