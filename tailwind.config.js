@@ -46,6 +46,7 @@ module.exports = {
         "trace-gold-border": "oklch(var(--trace-gold-border) / <alpha-value>)",
         "trace-blue": "oklch(var(--trace-blue) / <alpha-value>)",
         "trace-green": "oklch(var(--trace-green) / <alpha-value>)",
+        "history-page": "var(--history-page-bg)",
       },
       fontFamily: {
         sans: ['"DM Sans"', "sans-serif"],
@@ -132,6 +133,7 @@ module.exports = {
           "--trace-gold-border": "0.93 0.025 75",
           "--trace-blue": "0.55 0.14 250",
           "--trace-green": "0.52 0.12 165",
+          "--history-page-bg": "#F6F6F4",
         },
         '[data-theme="dark"]': {
           "--base-50": "oklch(0.20 0.002 247.84)",
@@ -140,6 +142,7 @@ module.exports = {
           "--trace-gold-border": "0.36 0.035 70",
           "--trace-blue": "0.70 0.12 250",
           "--trace-green": "0.68 0.11 155",
+          "--history-page-bg": "#1b1b19ff",
         },
         /* Light Theme Scrollbar */
         '[data-theme="light"] ::-webkit-scrollbar': {

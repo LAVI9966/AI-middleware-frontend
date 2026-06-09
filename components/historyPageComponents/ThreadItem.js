@@ -1,12 +1,10 @@
 import {
   CircleAlertIcon,
-  BotIcon,
   FileClockIcon,
   PencilIcon,
   AddIcon,
   SquareFunctionIcon,
   UserIcon,
-  CodeMessageIcon,
   BotMessageIcon,
   FileTextIcon,
 } from "@/components/Icons";
@@ -37,6 +35,7 @@ import { toast } from "react-toastify";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 import CodeBlock from "../codeBlock/CodeBlock";
 import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
+import { agentInitials, HUE_THEME } from "../historyUi/executionTrace/traceTheme";
 import { AgentFullSlider } from "../historyUi/AgentFullSlider";
 import { flattenToolsCallData } from "@/utils/executionTraceTransform";
 
@@ -215,6 +214,8 @@ const ThreadItem = ({
 
   const [isUserQueryExpanded, setIsUserQueryExpanded] = useState(false);
   const [isAiResponseExpanded, setIsAiResponseExpanded] = useState(false);
+  const [isVariablesOpen, setIsVariablesOpen] = useState(false);
+  const [variablesFilter, setVariablesFilter] = useState("");
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
@@ -347,6 +348,8 @@ const ThreadItem = ({
     const bridge = orgBridges.find((b) => b?._id === params?.id || b?.id === params?.id);
     return bridge?.name || bridge?.agent_name || bridge?.bridge_name || item?.name || "Agent";
   }, [orgBridges, params?.id, item?.name]);
+
+  const rootAgentInitials = useMemo(() => agentInitials(rootAgentName), [rootAgentName]);
 
   useEffect(() => {
     setMessageType(getInitialMessageType());
@@ -502,7 +505,11 @@ const ThreadItem = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropupRef.current && !dropupRef.current.contains(event.target) && !event.target.closest(".bot-icon")) {
+      if (
+        dropupRef.current &&
+        !dropupRef.current.contains(event.target) &&
+        !event.target.closest("#thread-item-bot-icon")
+      ) {
         setIsDropupOpen(false);
       }
     };
@@ -869,7 +876,7 @@ const ThreadItem = ({
     >
       {/* Sticky header */}
       {isSingleQuery && (
-        <div className="flex sticky top-0 z-20 bg-base-100 px-4 py-1 mb-3 items-center justify-between gap-2 border-b border-base-300">
+        <div className="flex sticky top-0 z-20 bg-history-page px-4 py-1 mb-3 items-center justify-between gap-2 border-b border-base-300">
           <div
             className="flex items-center gap-2 overflow-x-auto min-w-0"
             style={{
@@ -916,7 +923,7 @@ const ThreadItem = ({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-0.5 bg-base-200 rounded-lg p-1 shrink-0">
+          <div className="flex items-center gap-1.5 bg-base-200 rounded-lg p-1 shrink-0">
             <button
               className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
               onClick={handleRerun}
@@ -952,7 +959,7 @@ const ThreadItem = ({
               onClick={() => handleUserButtonClick("variables")}
             >
               <Braces className="h-3 w-3" />
-              <span>Variables</span>
+              <span>Sent Variables</span>
             </button>
           </div>
         </div>
@@ -1000,9 +1007,8 @@ const ThreadItem = ({
               </div>
             </div>
 
-            {/* Config between user and agent: pre-tool shown in trace when agents/tools exist */}
+            {/* Config between user and agent: pre-tool, system prompt */}
             {isSingleQuery &&
-              !hasAgentsOrTools &&
               item?.tools_call_data?.length > 0 &&
               (() => {
                 const preFunction = item.tools_call_data
@@ -1421,24 +1427,25 @@ const ThreadItem = ({
                 </span>
 
                 <div
-                  className="bg-base-200 rounded-xl px-4 py-3 text-sm text-base-content relative group"
+                  className=" rounded-xl px-4 py-3 text-sm text-base-content relative group"
                   style={{ wordBreak: "break-word" }}
                 >
                   {/* Header row */}
                   <div className="flex items-center gap-2 mb-2">
                     <div
-                      className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center cursor-pointer relative shrink-0"
+                      className="relative shrink-0 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsDropupOpen(!isDropupOpen);
                       }}
                     >
-                      <BotIcon
+                      <span
                         data-testid="thread-item-bot-icon"
                         id="thread-item-bot-icon"
-                        size={13}
-                        className="text-base-content"
-                      />
+                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
+                      >
+                        {rootAgentInitials}
+                      </span>
                       {isDropupOpen && (
                         <div
                           ref={dropupRef}
@@ -1488,9 +1495,7 @@ const ThreadItem = ({
                         </div>
                       )}
                     </div>
-                    <span className="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
-                      AI Response
-                    </span>
+                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
                     {messageType === "updated_llm_message" && (
                       <span className="badge badge-xs badge-outline">Edited</span>
                     )}
@@ -1557,87 +1562,243 @@ const ThreadItem = ({
           /* ── Multi-query chat bubble layout ── */
           <div>
             {/* User message */}
-            <div className="chat group chat-end mb-4">
-              <div className="chat-image avatar flex justify-center items-center">
-                <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
-                  <div className="relative rounded-full bg-base-300 flex justify-center items-center">
-                    <UserIcon size={20} className="text-base-content" />
+            {!isSingleQuery ? (
+              /* ── Stateless: new dark bubble + pill buttons ── */
+              <div className="group mb-2">
+                {/* Bubble row: message left, avatar right */}
+                <div className="flex items-start justify-end gap-3">
+                  <div
+                    className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words"
+                    style={{
+                      background: "#1e1e1e",
+                      color: "#f0f0f0",
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, inline, className, children, ...props }) => (
+                          <CodeBlock className={className} {...props}>
+                            {children}
+                          </CodeBlock>
+                        ),
+                      }}
+                    >
+                      {item.user}
+                    </ReactMarkdown>
+                  </div>
+                  {/* Avatar */}
+                  <div
+                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5"
+                    style={{ background: "#e8e2da", color: "#6b5f52" }}
+                  >
+                    U
+                  </div>
+                </div>
+
+                {/* Below bubble: pill buttons + time */}
+                <div className="flex flex-col gap-1 mt-3 pr-12">
+                  <div className="flex items-center justify-end gap-2">
+                    <div className="flex gap-1.5">
+                      <button
+                        data-testid="thread-item-user-aiconfig-button"
+                        id="thread-item-user-aiconfig-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
+                        style={{ background: "#ebebeb", color: "#967112" }}
+                        onClick={() => handleUserButtonClick("AiConfig")}
+                      >
+                        <SquareFunctionIcon className="h-3 w-3" />
+                        <span>AI Config</span>
+                      </button>
+                      <button
+                        data-testid="thread-item-user-system-prompt-button"
+                        id="thread-item-user-system-prompt-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
+                        style={{ background: "#ebebeb", color: "#967112" }}
+                        onClick={() => handleUserButtonClick("system Prompt")}
+                      >
+                        <FileClockIcon className="h-3 w-3" />
+                        <span>System Prompt</span>
+                      </button>
+                      <button
+                        data-testid="thread-item-user-more-button"
+                        id="thread-item-user-more-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
+                        style={{ background: "#ebebeb", color: "#967112" }}
+                        onClick={() => handleUserButtonClick("more")}
+                      >
+                        <AddIcon className="h-3 w-3" />
+                        <span>More...</span>
+                      </button>
+                    </div>
+
+                    {item?.variables && Object.keys(item.variables).length > 0 && (
+                      <button
+                        data-testid="thread-item-user-variables-button"
+                        id="thread-item-user-variables-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
+                        style={{ background: "#ebebeb", color: "#967112" }}
+                        onClick={() => setIsVariablesOpen((v) => !v)}
+                      >
+                        <Braces className="h-3 w-3" />
+                        <span>Sent Variables</span>
+                        <span
+                          className="rounded-full px-1.5 py-0 text-[10px] font-bold"
+                          style={{ background: "#d6d0c8", color: "#6b5f52" }}
+                        >
+                          {Object.keys(item.variables).length}
+                        </span>
+                        <ChevronDown
+                          className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    )}
+
+                    <time className="text-xs opacity-40 shrink-0">
+                      <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
+                      <span className="hidden group-hover:inline">{formatDateAndTime(item.created_at)}</span>
+                    </time>
+                  </div>
+
+                  {/* Inline Variables Panel */}
+                  {isVariablesOpen && (
+                    <div
+                      className="mt-1 rounded-xl overflow-hidden max-w-[75%] ml-auto"
+                      style={{ background: "#f5f0eb", border: "1px solid #e8d5c4" }}
+                    >
+                      <div className="px-4 py-2.5" style={{ background: "#f5f0eb", borderBottom: "1px solid #e2d8cc" }}>
+                        <input
+                          type="text"
+                          placeholder={`Filter ${Object.keys(item?.variables || {}).length} variables...`}
+                          value={variablesFilter}
+                          onChange={(e) => setVariablesFilter(e.target.value)}
+                          className="w-full text-sm outline-none"
+                          style={{ background: "#f5f0eb", color: "#7a6a55", caretColor: "#c49a3c" }}
+                        />
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {Object.entries(item?.variables || {})
+                          .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+                          .map(([key, value], i) => (
+                            <div
+                              key={key}
+                              className="flex items-start gap-4 px-4 py-2.5"
+                              style={{
+                                borderBottom: "1px solid #e2d8cc",
+                                background: i % 2 === 0 ? "#f5f0eb" : "#edeae4",
+                              }}
+                            >
+                              <span className="text-sm font-medium min-w-[120px] shrink-0" style={{ color: "#967112" }}>
+                                {key}
+                              </span>
+                              <span className="text-sm break-all" style={{ color: "#4a3f30" }}>
+                                {typeof value === "object" ? JSON.stringify(value) : String(value ?? "")}
+                              </span>
+                            </div>
+                          ))}
+                        {Object.keys(item?.variables || {}).length === 0 && (
+                          <div className="px-4 py-4 text-sm text-center" style={{ color: "#b0a090" }}>
+                            No variables
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className="px-4 py-2 text-right text-xs"
+                        style={{ color: "#b8b0a8", borderTop: "1px solid #e2d8cc", background: "#f5f0eb" }}
+                      >
+                        {formatDateAndTime(item.created_at)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ── Stateful: original DaisyUI chat bubble + old buttons ── */
+              <div className="chat group chat-end mb-4">
+                <div className="chat-image avatar flex justify-center items-center">
+                  <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
+                    <div className="relative rounded-full bg-base-300 flex justify-center items-center">
+                      <UserIcon size={20} className="text-base-content" />
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="flex justify-start flex-row-reverse items-center gap-1"
+                  style={{ width: "-webkit-fill-available" }}
+                >
+                  <div
+                    className="chat-bubble-primary chat-bubble transition-all ease-in-out duration-300 relative group break-words"
+                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                  >
+                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, inline, className, children, ...props }) => (
+                          <CodeBlock className={className} {...props}>
+                            {children}
+                          </CodeBlock>
+                        ),
+                      }}
+                    >
+                      {item.user}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+                <div className="flex flex-row-reverse gap-2 m-1 items-center justify-between">
+                  <time className="text-xs opacity-50 chat-end relative w-[140px] inline-block text-right">
+                    <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
+                    <span className="hidden group-hover:inline absolute right-0 top-0">
+                      {formatDateAndTime(item.created_at)}
+                    </span>
+                  </time>
+                  <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
+                    <button
+                      data-testid="thread-item-user-aiconfig-button"
+                      id="thread-item-user-aiconfig-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("AiConfig")}
+                    >
+                      <SquareFunctionIcon className="h-3 w-3" />
+                      <span>AI Config</span>
+                    </button>
+                    <button
+                      data-testid="thread-item-user-variables-button"
+                      id="thread-item-user-variables-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("variables")}
+                    >
+                      <Braces className="h-3 w-3" />
+                      <span>Variables</span>
+                    </button>
+                    <button
+                      data-testid="thread-item-user-system-prompt-button"
+                      id="thread-item-user-system-prompt-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("system Prompt")}
+                    >
+                      <FileClockIcon className="h-3 w-3" />
+                      <span>System Prompt</span>
+                    </button>
+                    <button
+                      data-testid="thread-item-user-more-button"
+                      id="thread-item-user-more-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("more")}
+                    >
+                      <AddIcon className="h-3 w-3" />
+                      <span>More...</span>
+                    </button>
                   </div>
                 </div>
               </div>
-              <div
-                className="flex justify-start flex-row-reverse items-center gap-1"
-                style={{ width: "-webkit-fill-available" }}
-              >
-                <div
-                  className="chat-bubble-primary chat-bubble transition-all ease-in-out duration-300 relative group break-words"
-                  style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
-                >
-                  {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                  <ReactMarkdown
-                    components={{
-                      code: ({ node, inline, className, children, ...props }) => (
-                        <CodeBlock className={className} {...props}>
-                          {children}
-                        </CodeBlock>
-                      ),
-                    }}
-                  >
-                    {item.user}
-                  </ReactMarkdown>
-                </div>
-              </div>
-              <div className="flex flex-row-reverse gap-2 m-1 items-center justify-between">
-                <time className="text-xs opacity-50 chat-end relative w-[140px] inline-block text-right">
-                  <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
-                  <span className="hidden group-hover:inline absolute right-0 top-0">
-                    {formatDateAndTime(item.created_at)}
-                  </span>
-                </time>
-                <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
-                  <button
-                    data-testid="thread-item-user-aiconfig-button"
-                    id="thread-item-user-aiconfig-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("AiConfig")}
-                  >
-                    <SquareFunctionIcon className="h-3 w-3" />
-                    <span>AI Config</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-variables-button"
-                    id="thread-item-user-variables-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("variables")}
-                  >
-                    <Braces className="h-3 w-3" />
-                    <span>Variables</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-system-prompt-button"
-                    id="thread-item-user-system-prompt-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("system Prompt")}
-                  >
-                    <FileClockIcon className="h-3 w-3" />
-                    <span>System Prompt</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-more-button"
-                    id="thread-item-user-more-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("more")}
-                  >
-                    <AddIcon className="h-3 w-3" />
-                    <span>More...</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
 
             {/* Agent execution trace (replaces old tools UI in stateful mode) */}
             {hasAgentsOrTools && (
-              <div className="w-full mt-2 mb-2">
+              <div className="w-full px-2 mt-2 mb-2">
                 <MessageExecutionTrace
                   item={item}
                   bridgeId={params?.id}
@@ -1817,27 +1978,33 @@ const ThreadItem = ({
             {/* Other tools (pre_function, post_function, etc.) rendered using renderToolData */}
 
             {/* 3. Third: Render Assistant Message if exists */}
-            {!item.error && firstAttemptErrorNotice}
             {!item.error && (
-              <div className="chat group chat-start">
-                <div className="chat-image avatar flex justify-center items-center">
-                  <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors mb-7">
-                    <div className="relative rounded-full bg-base-300 flex justify-center items-center">
-                      <BotIcon
+              <div className="w-full relative">
+                {firstAttemptErrorNotice}
+                <div
+                  className="rounded-xl px-4 py-3 text-sm text-base-content relative group"
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                >
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <div
+                      className="relative shrink-0 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDropupOpen(!isDropupOpen);
+                      }}
+                    >
+                      <span
                         data-testid="thread-item-bot-icon"
                         id="thread-item-bot-icon"
-                        className="cursor-pointer bot-icon text-base-content"
-                        size={20}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsDropupOpen(!isDropupOpen);
-                        }}
-                      />
+                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
+                      >
+                        {rootAgentInitials}
+                      </span>
                       {isDropupOpen && (
                         <div
                           ref={dropupRef}
                           className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[140px] p-1"
-                          style={{ zIndex: 9999, top: "-130px", left: "-50px" }}
+                          style={{ zIndex: 9999, top: "28px", left: "0" }}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
@@ -1847,19 +2014,10 @@ const ThreadItem = ({
                                 <button
                                   data-testid="thread-item-select-chatbot-message"
                                   id="thread-item-select-chatbot-message"
-                                  className={`px-2 py-1 rounded-md ${
-                                    messageType === "chatbot_message" || messageType === 0
-                                      ? "bg-primary text-white"
-                                      : "hover:bg-base-200"
-                                  }`}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
                                   onClick={() => selectMessageType("chatbot_message")}
                                 >
-                                  <div className="tooltip tooltip-right" data-tip="Chatbot Response">
-                                    <BotIcon
-                                      className={`${messageType !== "chatbot_message" && messageType !== 0 ? "text-base-content" : "text-white"}`}
-                                      size={16}
-                                    />
-                                  </div>
+                                  Chatbot
                                 </button>
                               </li>
                             )}
@@ -1868,19 +2026,10 @@ const ThreadItem = ({
                                 <button
                                   data-testid="thread-item-select-llm-message"
                                   id="thread-item-select-llm-message"
-                                  className={`px-2 py-1 rounded-md ${
-                                    messageType === "llm_message" || messageType === 1
-                                      ? "bg-primary text-white"
-                                      : "hover:bg-base-200"
-                                  }`}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
                                   onClick={() => selectMessageType("llm_message")}
                                 >
-                                  <div className="tooltip tooltip-right" data-tip="LLM Response">
-                                    <CodeMessageIcon
-                                      className={`${messageType !== "llm_message" && messageType !== 1 ? "text-base-content" : "text-white"}`}
-                                      size={16}
-                                    />
-                                  </div>
+                                  LLM
                                 </button>
                               </li>
                             )}
@@ -1889,19 +2038,10 @@ const ThreadItem = ({
                                 <button
                                   data-testid="thread-item-select-updated-message"
                                   id="thread-item-select-updated-message"
-                                  className={`px-2 py-1 rounded-md ${
-                                    messageType === "updated_llm_message" || messageType === 2
-                                      ? "bg-primary text-white"
-                                      : "hover:bg-base-200"
-                                  }`}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
                                   onClick={() => selectMessageType("updated_llm_message")}
                                 >
-                                  <div className="tooltip tooltip-right" data-tip="Updated Message">
-                                    <PencilIcon
-                                      className={`${messageType !== "updated_llm_message" && messageType !== 2 ? "text-base-content" : "text-white"}`}
-                                      size={16}
-                                    />
-                                  </div>
+                                  Updated
                                 </button>
                               </li>
                             )}
@@ -1909,29 +2049,18 @@ const ThreadItem = ({
                         </div>
                       )}
                     </div>
+                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
+                    {messageType === "updated_llm_message" && (
+                      <span className="badge badge-xs badge-outline">Edited</span>
+                    )}
+                    {isBatchResponse && (
+                      <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
+                        <BatchStatusIcon size={10} />
+                        {batchStatusMeta.label}
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="chat-header flex gap-4 items-center mb-1">
-                  {messageType === "updated_llm_message" && (
-                    <p className="text-xs opacity-50 badge badge-sm badge-outline">Edited</p>
-                  )}
-                  {isBatchResponse && (
-                    <span className={`badge badge-sm gap-1 text-white ${batchStatusMeta.className}`}>
-                      <BatchStatusIcon size={12} />
-                      Batch: {batchStatusMeta.label}
-                    </span>
-                  )}
-                </div>
-                <div
-                  className="flex justify-start items-center gap-1 show-on-hover"
-                  style={{ width: "-webkit-fill-available" }}
-                >
-                  <div
-                    className={`bg-base-200 text-base-content pr-10 chat-bubble transition-all ease-in-out duration-300 relative group break-words overflow-visible border border-base-300 ${
-                      preFunctionEntry ? "min-w-[16rem]" : ""
-                    }`}
-                    style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
-                  >
+                  <div className={`relative pr-10 ${preFunctionEntry ? "min-w-[16rem]" : ""}`}>
                     {preFunctionEntry && (
                       <button
                         type="button"
@@ -1985,28 +2114,26 @@ const ThreadItem = ({
                   </div>
                 </div>
                 {/* Action buttons below AI response — visible on hover */}
-                {!item.error && (
-                  <div className="chat-footer opacity-0 group-hover:opacity-100 transition-opacity mt-1 flex items-center gap-1">
-                    <button
-                      id="thread-item-add-test-case-button"
-                      className="btn text-xs font-normal btn-sm hover:btn-primary"
-                      onClick={() => handleAddTestCase(item, index)}
-                      title="Add Test Case"
-                    >
-                      <AddIcon className="h-3 w-3" />
-                      <span>Test Case</span>
-                    </button>
-                    <button
-                      id="thread-item-debug-agent-button"
-                      className="btn text-xs font-normal btn-sm hover:btn-primary"
-                      onClick={() => handleAskAi(item)}
-                      title="Debug Agent"
-                    >
-                      <BotMessageIcon className="h-3 w-3" />
-                      <span>Debug Agent</span>
-                    </button>
-                  </div>
-                )}
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity mt-1 flex items-center gap-1">
+                  <button
+                    id="thread-item-add-test-case-button"
+                    className="btn text-xs font-normal btn-sm hover:btn-primary"
+                    onClick={() => handleAddTestCase(item, index)}
+                    title="Add Test Case"
+                  >
+                    <AddIcon className="h-3 w-3" />
+                    <span>Test Case</span>
+                  </button>
+                  <button
+                    id="thread-item-debug-agent-button"
+                    className="btn text-xs font-normal btn-sm hover:btn-primary"
+                    onClick={() => handleAskAi(item)}
+                    title="Debug Agent"
+                  >
+                    <BotMessageIcon className="h-3 w-3" />
+                    <span>Debug Agent</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -2033,32 +2160,38 @@ const ThreadItem = ({
                   style={{ wordBreak: "break-word" }}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-error/20 flex items-center justify-center shrink-0">
-                      <BotIcon size={13} className="text-error" />
-                    </div>
-                    <span className="text-xs font-semibold text-error/70 uppercase tracking-wide">AI Response</span>
+                    <span
+                      className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
+                    >
+                      {rootAgentInitials}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{item?.error}</p>
                 </div>
               </div>
             </div>
           ) : (
-            /* Multi-query (stateful) — keep the original chat-bubble style */
-            <div className="chat chat-start break-all break-words">
-              <div>
-                <div className="flex flex-row-reverse items-end justify-end gap-1">
-                  <div className="bg-error/10 text-error border border-error/20 pr-10 chat-bubble transition-all ease-in-out duration-300">
-                    {firstAttemptErrorNotice}
-                    <div className="flex items-center gap-2 mb-2">
-                      <CircleAlertIcon className="w-4 h-4" />
-                      <span className="font-bold">Error</span>
-                    </div>
-                    <p className="text-sm">{item?.error}</p>
-                  </div>
-                  <div className="p-2 rounded-full bg-error/20 flex justify-center items-center">
-                    <BotIcon className="text-base-content" size={18} />
-                  </div>
+            /* Multi-query (stateful) — match stateless error card style */
+            <div className="w-full relative py-2">
+              {firstAttemptErrorNotice}
+              <span className="absolute -top-2 right-2 z-10 text-xs px-2 py-0.5 rounded-full border border-error/30 text-error/70 bg-base-100 whitespace-nowrap flex items-center gap-1">
+                <CircleAlertIcon className="w-3 h-3" />
+                Error
+              </span>
+              <div
+                className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 text-sm text-error relative"
+                style={{ wordBreak: "break-word" }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
+                  >
+                    {rootAgentInitials}
+                  </span>
+                  <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                 </div>
+                <p className="text-sm whitespace-pre-wrap">{item?.error}</p>
               </div>
             </div>
           ))}
