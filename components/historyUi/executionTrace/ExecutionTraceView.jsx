@@ -1,7 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useMemo, useState } from "react";
-import { AlertTriangle, BookOpen, Brackets, ChevronDown, ChevronRight, FileClock, SquareFunction } from "lucide-react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  BookOpen,
+  Brackets,
+  ChevronDown,
+  ChevronRight,
+  FileClock,
+  History,
+  SquareFunction,
+} from "lucide-react";
 import {
   HUE_THEME,
   NEUTRAL_HEAD,
@@ -124,6 +133,7 @@ const TraceCtx = createContext({
   onToolLogsClick: null,
   onToolDataClick: null,
   onAgentDataClick: null,
+  onAgentHistoryClick: null,
 });
 
 function AgentAvatar({ name, hue, glyph, large = false }) {
@@ -439,12 +449,35 @@ function KbStep({ step, inRail = true }) {
   return <TraceRow node={<KbNodeIcon />}>{body}</TraceRow>;
 }
 
+/** ~6 lines at text-xs / leading-snug — matches line-clamp-6 */
+const TRACE_BUBBLE_CLAMP_HEIGHT = 120;
+
 function MessageBubble({ text, align = "left", expandable = true }) {
   const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const contentRef = useRef(null);
+
+  useEffect(() => {
+    setExpanded(false);
+  }, [text]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !expandable || !text) {
+      setOverflows(false);
+      return;
+    }
+    const measure = () => {
+      setOverflows(el.scrollHeight > TRACE_BUBBLE_CLAMP_HEIGHT);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text, expandable]);
+
   if (!text) return null;
 
-  const long = expandable && text.length > 180;
-  const showClamp = long && !expanded;
   const isLeft = align === "left";
 
   return (
@@ -454,12 +487,22 @@ function MessageBubble({ text, align = "left", expandable = true }) {
           isLeft ? "rounded-[4px_12px_12px_12px] text-left" : "rounded-[12px_4px_12px_12px] text-right"
         }`}
       >
-        <div className={`whitespace-pre-wrap ${showClamp ? "line-clamp-6" : ""}`}>{text}</div>
-        {long && (
+        <div
+          ref={contentRef}
+          className={
+            expandable && !expanded ? "line-clamp-6 overflow-hidden whitespace-pre-line" : "whitespace-pre-wrap"
+          }
+        >
+          {text}
+        </div>
+        {expandable && overflows && (
           <button
             type="button"
             className={`mt-1 flex items-center gap-0.5 text-[11px] text-primary hover:underline ${isLeft ? "" : "ml-auto"}`}
-            onClick={() => setExpanded((o) => !o)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((o) => !o);
+            }}
           >
             <ChevronDown size={11} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
             {expanded ? "Show less" : "Show more"}
@@ -475,28 +518,50 @@ function QueryBubble({ text }) {
 }
 
 function ResponseBubble({ text }) {
-  return <MessageBubble text={text} align="left" />;
+  return <MessageBubble text={text} align="left" expandable />;
 }
 
 function UserMessageBubble({ text }) {
   return <MessageBubble text={text} align="left" expandable />;
 }
 
-function AgentDataButton({ payload }) {
-  const { onAgentDataClick } = useContext(TraceCtx);
-  if (!onAgentDataClick || !payload) return null;
+function canOpenAgentHistory(rawTool) {
+  return rawTool?.data?.metadata?.type === "agent" && Boolean(rawTool?.data?.metadata?.agent_id);
+}
+
+const AGENT_ROW_BTN =
+  "grid h-5 w-5 shrink-0 place-items-center rounded text-base-content/60 hover:bg-base-300/50 hover:text-primary";
+
+function AgentActionButtons({ payload, rawTool }) {
+  const { onAgentDataClick, onAgentHistoryClick } = useContext(TraceCtx);
+  const canViewData = Boolean(onAgentDataClick && (rawTool || payload?.functionData));
+  const canHistory = Boolean(onAgentHistoryClick && canOpenAgentHistory(rawTool));
+
+  if (!canViewData && !canHistory) return null;
+
   return (
-    <button
-      type="button"
-      className="grid h-5 w-5 shrink-0 place-items-center rounded text-base-content/60 hover:bg-base-300/50 hover:text-primary"
-      title="View agent data"
-      onClick={(e) => {
-        e.stopPropagation();
-        onAgentDataClick(payload);
-      }}
-    >
-      <FileClock size={14} />
-    </button>
+    <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+      {canViewData && (
+        <button
+          type="button"
+          className={AGENT_ROW_BTN}
+          title="View agent data"
+          onClick={() => onAgentDataClick(rawTool || payload?.functionData)}
+        >
+          <FileClock size={14} />
+        </button>
+      )}
+      {canHistory && (
+        <button
+          type="button"
+          className={AGENT_ROW_BTN}
+          title="Open agent history"
+          onClick={(e) => onAgentHistoryClick(e, rawTool)}
+        >
+          <History size={14} />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -633,7 +698,7 @@ function RootExecutionShell({ node, agents, userMessage }) {
         {!open && <StepCountBadges stepCounts={stepCounts} />}
         <span className="flex-1" />
         <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
-        <AgentDataButton payload={sliderPayload} />
+        <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
       </div>
       {open && hasBody && (
         <AgentBodyRail hue={hue} className="pt-1">
@@ -700,7 +765,7 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
       {!open && stepCountBadges}
       <span className="flex-1" />
       <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
-      <AgentDataButton payload={sliderPayload} />
+      <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
     </div>
   );
 
@@ -743,11 +808,19 @@ export function MessageRunTrace({
   onToolLogsClick,
   onToolDataClick,
   onAgentDataClick,
+  onAgentHistoryClick,
 }) {
   if (!run) return null;
   return (
     <TraceCtx.Provider
-      value={{ detail: "compact", showMeta: true, onToolLogsClick, onToolDataClick, onAgentDataClick }}
+      value={{
+        detail: "compact",
+        showMeta: true,
+        onToolLogsClick,
+        onToolDataClick,
+        onAgentDataClick,
+        onAgentHistoryClick,
+      }}
     >
       {embedded ? (
         <RootExecutionShell node={run} agents={agents || {}} userMessage={userMessage} />
@@ -767,6 +840,7 @@ export default function ExecutionTraceView({
   onToolLogsClick,
   onToolDataClick,
   onAgentDataClick,
+  onAgentHistoryClick,
 }) {
   if (!trace?.turns?.length) {
     return <div className="p-4 text-sm text-base-content/60">No execution trace available.</div>;
@@ -776,7 +850,9 @@ export default function ExecutionTraceView({
 
   if (embedded) {
     return (
-      <TraceCtx.Provider value={{ detail, showMeta, onToolLogsClick, onToolDataClick, onAgentDataClick }}>
+      <TraceCtx.Provider
+        value={{ detail, showMeta, onToolLogsClick, onToolDataClick, onAgentDataClick, onAgentHistoryClick }}
+      >
         <MessageRunTrace
           run={turn.run}
           agents={agents}
@@ -784,6 +860,7 @@ export default function ExecutionTraceView({
           onToolLogsClick={onToolLogsClick}
           onToolDataClick={onToolDataClick}
           onAgentDataClick={onAgentDataClick}
+          onAgentHistoryClick={onAgentHistoryClick}
         />
       </TraceCtx.Provider>
     );
