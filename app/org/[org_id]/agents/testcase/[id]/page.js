@@ -397,11 +397,15 @@ function TestCases({ params }) {
             <button
               onClick={handleRunAllTestCases}
               disabled={
-                !Array.isArray(testCases) || testCases.length === 0 || isloading || selectedVersions.length === 0
+                !Array.isArray(testCases) ||
+                testCases.length === 0 ||
+                isloading ||
+                runningTestCaseId !== null ||
+                selectedVersions.length === 0
               }
               title={selectedVersions.length === 0 ? "Select at least one version to run" : ""}
               className={`flex items-center gap-2 text-primary-content border border-primary rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
-                isloading || selectedVersions.length === 0
+                isloading || runningTestCaseId !== null || selectedVersions.length === 0
                   ? "bg-primary text-base-content/50 cursor-not-allowed shadow-none"
                   : "bg-primary cursor-pointer shadow-[0_4px_12px_rgba(37,99,235,0.3)] hover:bg-primary/90"
               }`}

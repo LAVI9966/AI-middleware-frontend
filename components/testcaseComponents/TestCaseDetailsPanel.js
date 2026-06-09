@@ -352,7 +352,8 @@ const TestCaseDetailsPanel = ({
             <button
               data-testid="testcase-run-button"
               onClick={() => handleRunWithVariableCheck(selectedTestCase?._id)}
-              className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-content border border-primary rounded-lg flex items-center gap-2 font-medium transition-all text-xs"
+              disabled={isloading || runningTestCaseId !== null}
+              className="px-3 py-1.5 bg-primary hover:bg-primary/90 text-primary-content border border-primary rounded-lg flex items-center gap-2 font-medium transition-all text-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isRunningThis ? (
                 <>
