@@ -36,6 +36,9 @@ import { rerunApi } from "@/config/modelApi";
 import { toast } from "react-toastify";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 import CodeBlock from "../codeBlock/CodeBlock";
+import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
+import { AgentFullSlider } from "../historyUi/AgentFullSlider";
+import { flattenToolsCallData } from "@/utils/executionTraceTransform";
 
 // Resolve any possible url shape (string, object with permanent_url, etc.)
 const resolveAttachmentUrl = (rawUrl) => {
@@ -100,7 +103,7 @@ const ImageFallback = ({ type = "large", url = "", error = "failed_to_load" }) =
   );
 };
 
-// Enhanced image component with loading states
+// Enhanced image component with loading states - MOVED OUTSIDE ThreadItem to fix React Hooks ordering
 const EnhancedImage = ({ src, alt, width, height, className, type = "large", onError, onLoad }) => {
   const [imageState, setImageState] = useState("loading");
   const [hasError, setHasError] = useState(false);
@@ -179,6 +182,7 @@ const ThreadItem = ({
 
   const [messageType, setMessageType] = useState(getInitialMessageType());
   const [toolsData, setToolsData] = useState([]);
+  const [selectedTraceAgent, setSelectedTraceAgent] = useState(null);
   const toolsDataModalRef = useRef(null);
   const { embedToken, knowledgeBaseData, isEmbedUser, orgBridges, allBridgesMap, publishedVersionId } =
     useCustomSelector((state) => ({
@@ -257,7 +261,8 @@ const ThreadItem = ({
 
   const batchStatusMeta = getBatchStatusMeta(batchStatus);
   const BatchStatusIcon = batchStatusMeta.icon;
-  const handleVisualizeClick = () => {
+
+  const _handleVisualizeClick = () => {
     if (!params?.org_id || !params?.id) return;
     const searchParams = new URLSearchParams();
     if (item?.message_id) searchParams.set("message_id", item.message_id);
@@ -267,6 +272,81 @@ const ThreadItem = ({
     }
     router.push(`/org/${params.org_id}/agents/history/${params.id}/visualize?${searchParams.toString()}`);
   };
+
+  const getToolNameHelper = useCallback(
+    (tool) => {
+      const toolId = tool?.name;
+      return getToolName(toolId, allBridgesMap, orgBridges, integrationData);
+    },
+    [allBridgesMap, orgBridges, integrationData]
+  );
+
+  const flattenTools = useCallback((toolsData) => {
+    const flattened = [];
+    (toolsData || []).forEach((entry) => {
+      if (!entry || typeof entry !== "object") return;
+
+      // If entry has a type property, it's a flat tool
+      if (entry.type) {
+        flattened.push(entry);
+      } else {
+        // Entry is an object with nested tools, extract all values
+        Object.values(entry).forEach((tool) => {
+          if (tool && typeof tool === "object" && (tool.type || tool.name)) {
+            flattened.push(tool);
+          }
+        });
+      }
+    });
+    return flattened;
+  }, []);
+
+  // Check if a tool exists in integration data (flows) or bridges
+  const isToolAvailable = useCallback(
+    (tool) => {
+      if (!tool) {
+        return false;
+      }
+
+      // Always show RAG/knowledge base tools and agent tools
+      if (tool?.data?.metadata?.type === "RAG" || tool?.data?.metadata?.type === "agent" || !isEmbedUser) {
+        return true;
+      }
+
+      const toolIdentifier = tool.name || tool.id;
+
+      if (!toolIdentifier) {
+        return false;
+      }
+      // Check in integrationData (flows) - integrationData is an object with flow IDs as keys
+      if (integrationData && typeof integrationData === "object") {
+        // Check if the tool identifier matches any flow ID (key)
+        if (integrationData[toolIdentifier]) {
+          return true;
+        }
+
+        // Check if the tool identifier matches any flow title
+        for (const integrationId in integrationData) {
+          const integration = integrationData[integrationId];
+          if (integration?.title === toolIdentifier) {
+            return true;
+          }
+        }
+      }
+      return false;
+    },
+    [integrationData, isEmbedUser]
+  );
+
+  const hasAgentsOrTools = useMemo(
+    () => flattenToolsCallData(item?.tools_call_data).length > 0,
+    [item?.tools_call_data]
+  );
+
+  const rootAgentName = useMemo(() => {
+    const bridge = orgBridges.find((b) => b?._id === params?.id || b?.id === params?.id);
+    return bridge?.name || bridge?.agent_name || bridge?.bridge_name || item?.name || "Agent";
+  }, [orgBridges, params?.id, item?.name]);
 
   useEffect(() => {
     setMessageType(getInitialMessageType());
@@ -337,70 +417,6 @@ const ThreadItem = ({
         return item.llm_message || item.user || "";
     }
   }, [messageType, item]);
-  const getToolNameHelper = useCallback(
-    (tool) => {
-      const toolId = tool?.name;
-      return getToolName(toolId, allBridgesMap, orgBridges, integrationData);
-    },
-    [allBridgesMap, orgBridges, integrationData]
-  );
-
-  const flattenTools = useCallback((toolsData) => {
-    const flattened = [];
-    (toolsData || []).forEach((entry) => {
-      if (!entry || typeof entry !== "object") return;
-
-      // If entry has a type property, it's a flat tool
-      if (entry.type) {
-        flattened.push(entry);
-      } else {
-        // Entry is an object with nested tools, extract all values
-        Object.values(entry).forEach((tool) => {
-          if (tool && typeof tool === "object" && (tool.type || tool.name)) {
-            flattened.push(tool);
-          }
-        });
-      }
-    });
-    return flattened;
-  }, []);
-
-  // Check if a tool exists in integration data (flows) or bridges
-  const isToolAvailable = useCallback(
-    (tool) => {
-      if (!tool) {
-        return false;
-      }
-
-      // Always show RAG/knowledge base tools and agent tools
-      if (tool?.data?.metadata?.type === "RAG" || tool?.data?.metadata?.type === "agent" || !isEmbedUser) {
-        return true;
-      }
-
-      const toolIdentifier = tool.name || tool.id;
-
-      if (!toolIdentifier) {
-        return false;
-      }
-      // Check in integrationData (flows) - integrationData is an object with flow IDs as keys
-      if (integrationData && typeof integrationData === "object") {
-        // Check if the tool identifier matches any flow ID (key)
-        if (integrationData[toolIdentifier]) {
-          return true;
-        }
-
-        // Check if the tool identifier matches any flow title
-        for (const integrationId in integrationData) {
-          const integration = integrationData[integrationId];
-          if (integration?.title === toolIdentifier) {
-            return true;
-          }
-        }
-      }
-      return false;
-    },
-    [integrationData, allBridgesMap, orgBridges]
-  );
 
   const preFunctionEntry = useMemo(() => {
     const allTools = flattenTools(item?.tools_call_data);
@@ -630,6 +646,11 @@ const ThreadItem = ({
     },
     [knowledgeBaseData, openSlider, embedToken, params?.id, params?.org_id, orgBridges, allBridgesMap]
   );
+
+  const handleToolDataClick = useCallback((tool) => {
+    setToolsData(tool);
+    toolsDataModalRef.current?.showModal();
+  }, []);
 
   const _renderToolData = useCallback(
     (tool, index) => (
@@ -937,130 +958,127 @@ const ThreadItem = ({
         </div>
       )}
 
-      {/* Pre Tool Banner - Above System Prompt */}
-      {isSingleQuery &&
-        item?.tools_call_data?.length > 0 &&
-        (() => {
-          // Find the pre_tool from tools_call_data
-          const preFunction = item.tools_call_data
-            .flatMap((tools) => Object.values(tools || {}))
-            .find((tool) => tool?.type === "pre_tool");
-
-          if (!preFunction) return null;
-          return (
-            <div className="mb-2 px-4">
-              <div className="inline-flex items-center gap-2 bg-base-200/30 border border-base-300 rounded-xl px-4 py-2">
-                <span className="text-xs font-medium text-base-content/70 shrink-0">Pre Function:</span>
-                <div
-                  onClick={(e) => handleToolPrimaryClick(e, preFunction)}
-                  className="inline-flex items-center gap-2 bg-base-200 border border-base-300 rounded-md px-4 py-2 text-xs cursor-pointer hover:bg-base-300 transition-colors"
-                >
-                  <span className="font-medium truncate max-w-[120px]" title={getToolNameHelper(preFunction)}>
-                    {truncate(getToolNameHelper(preFunction), 20)}
-                  </span>
-                  <div className="flex gap-1.5">
-                    <div className="tooltip tooltip-top" data-tip="function logs">
-                      <SquareFunctionIcon
-                        size={14}
-                        onClick={(e) => handleToolPrimaryClick(e, preFunction)}
-                        className="opacity-80 cursor-pointer"
-                      />
-                    </div>
-                    <div className="tooltip tooltip-top" data-tip="function data">
-                      <FileClockIcon
-                        size={14}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setToolsData(preFunction);
-                          toolsDataModalRef.current?.showModal();
-                        }}
-                        className="opacity-80 bg-inherit cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* System Prompt Banner - Below Header */}
-      {isSingleQuery && item?.prompt && (
-        <div className="mb-3 px-4">
-          <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20 hover:shadow-sm">
-            <div
-              className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
-              onClick={() => setIsSystemPromptExpanded(!isSystemPromptExpanded)}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
-                <span className="text-xs font-medium text-base-content/70">System Prompt:</span>
-                {!isSystemPromptExpanded && (
-                  <span className="text-xs text-base-content/50 truncate flex-1">{item.prompt}</span>
-                )}
-              </div>
-              <ChevronDown
-                size={16}
-                className={`text-base-content/60 shrink-0 transition-transform duration-0 ${isSystemPromptExpanded ? "rotate-180" : ""}`}
-              />
-            </div>
-            <div
-              className={`overflow-hidden transition-[max-height] duration-200 ease-in-out ${
-                isSystemPromptExpanded ? "max-h-[500px]" : "max-h-0"
-              }`}
-            >
-              <div className="px-3 pb-3 pt-2 border-t border-base-300">
-                <div className="text-xs text-base-content whitespace-pre-wrap max-h-64 overflow-y-auto bg-base-100 rounded p-2.5 border border-base-300 leading-relaxed">
-                  {renderHighlightedSystemPrompt(item.prompt)}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className={isSingleQuery ? "" : "show-on-hover"}>
         {isSingleQuery ? (
           /* ── Single-query vertical flow ── */
-          <div className="flex flex-col items-center py-2">
-            {/* User Query card */}
-            <div className="w-full bg-primary rounded-xl px-4 py-3 text-base-200" style={{ wordBreak: "break-word" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center shrink-0">
-                  <UserIcon size={13} className="text-base-content" />
+          <div className="flex flex-col w-full py-2">
+            {/* User Query card — full width in stateless mode */}
+            <div className="flex justify-start w-full">
+              <div className="w-full bg-primary rounded-xl px-4 py-3 text-base-200" style={{ wordBreak: "break-word" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center shrink-0">
+                    <UserIcon size={13} className="text-base-content" />
+                  </div>
+                  <span className="text-xs font-semibold text-base-200 uppercase tracking-wide">User Query</span>
                 </div>
-                <span className="text-xs font-semibold text-base-200 uppercase tracking-wide">User Query</span>
+                {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                <div className={!isUserQueryExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }) => (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      ),
+                    }}
+                  >
+                    {item.user}
+                  </ReactMarkdown>
+                </div>
+                {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
+                  <button
+                    className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
+                    onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
+                  >
+                    <ChevronDown
+                      size={12}
+                      className={`transition-transform duration-150 ${isUserQueryExpanded ? "rotate-180" : ""}`}
+                    />
+                    {isUserQueryExpanded ? "Show less" : "Show more"}
+                  </button>
+                ) : null}
               </div>
-              {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-              <div className={!isUserQueryExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
-                <ReactMarkdown
-                  components={{
-                    code: ({ node, inline, className, children, ...props }) => (
-                      <CodeBlock className={className} {...props}>
-                        {children}
-                      </CodeBlock>
-                    ),
-                  }}
-                >
-                  {item.user}
-                </ReactMarkdown>
-              </div>
-              {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
-                <button
-                  className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
-                  onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
-                >
-                  <ChevronDown
-                    size={12}
-                    className={`transition-transform duration-150 ${isUserQueryExpanded ? "rotate-180" : ""}`}
-                  />
-                  {isUserQueryExpanded ? "Show less" : "Show more"}
-                </button>
-              ) : null}
             </div>
 
-            {/* Tools — sequential steps from function_time_logs, parallel within each step */}
-            {(item?.tools_call_data?.length > 0 || item?.function) &&
+            {/* Config between user and agent: pre-tool shown in trace when agents/tools exist */}
+            {isSingleQuery &&
+              !hasAgentsOrTools &&
+              item?.tools_call_data?.length > 0 &&
+              (() => {
+                const preFunction = item.tools_call_data
+                  .flatMap((tools) => Object.values(tools || {}))
+                  .find((tool) => tool?.type === "pre_tool");
+                if (!preFunction) return null;
+                return (
+                  <div className="w-full max-w-xl mt-3">
+                    <div className="inline-flex items-center gap-2 bg-base-200/30 border border-base-300 rounded-xl px-4 py-2">
+                      <span className="text-xs font-medium text-base-content/70 shrink-0">Pre Function:</span>
+                      <div
+                        onClick={(e) => handleToolPrimaryClick(e, preFunction)}
+                        className="inline-flex items-center gap-2 bg-base-200 border border-base-300 rounded-md px-4 py-2 text-xs cursor-pointer hover:bg-base-300 transition-colors"
+                      >
+                        <span className="font-medium truncate max-w-[120px]" title={getToolNameHelper(preFunction)}>
+                          {truncate(getToolNameHelper(preFunction), 20)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            {isSingleQuery && item?.prompt && (
+              <div className="w-full mt-3">
+                <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20">
+                  <div
+                    className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
+                    onClick={() => setIsSystemPromptExpanded(!isSystemPromptExpanded)}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
+                      <span className="text-xs font-medium text-base-content/70">System Prompt:</span>
+                      {!isSystemPromptExpanded && (
+                        <span className="text-xs text-base-content/50 truncate flex-1">{item.prompt}</span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`text-base-content/60 shrink-0 transition-transform ${isSystemPromptExpanded ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                  {isSystemPromptExpanded && (
+                    <div className="px-3 pb-3 pt-2 border-t border-base-300">
+                      <div className="text-xs text-base-content whitespace-pre-wrap max-h-64 overflow-y-auto bg-base-100 rounded p-2.5 border border-base-300 leading-relaxed">
+                        {renderHighlightedSystemPrompt(item.prompt)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Agent execution trace (replaces old tools UI) */}
+            {hasAgentsOrTools && (
+              <>
+                <div className="flex flex-row items-center justify-center my-2 w-full gap-3">
+                  <ArrowDown size={20} className="text-base-content/50" />
+                </div>
+                <div className="w-full">
+                  <MessageExecutionTrace
+                    item={item}
+                    bridgeId={params?.id}
+                    rootAgentName={rootAgentName}
+                    formatDateAndTime={formatDateAndTime}
+                    onToolLogsClick={handleToolPrimaryClick}
+                    onToolDataClick={handleToolDataClick}
+                    onAgentDataClick={setSelectedTraceAgent}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Legacy tools UI — only when no nested agent trace */}
+            {!hasAgentsOrTools &&
+              (item?.tools_call_data?.length > 0 || item?.function) &&
               (() => {
                 // Get all tools from tools_call_data
                 const allTools = item?.tools_call_data
@@ -1578,13 +1596,6 @@ const ThreadItem = ({
                 </time>
                 <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
                   <button
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={handleVisualizeClick}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    <span>Visualize</span>
-                  </button>
-                  <button
                     data-testid="thread-item-user-aiconfig-button"
                     id="thread-item-user-aiconfig-button"
                     className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
@@ -1624,8 +1635,24 @@ const ThreadItem = ({
               </div>
             </div>
 
-            {/* Tools section for stateful mode */}
-            {!isSingleQuery &&
+            {/* Agent execution trace (replaces old tools UI in stateful mode) */}
+            {hasAgentsOrTools && (
+              <div className="w-full mt-2 mb-2">
+                <MessageExecutionTrace
+                  item={item}
+                  bridgeId={params?.id}
+                  rootAgentName={rootAgentName}
+                  formatDateAndTime={formatDateAndTime}
+                  onToolLogsClick={handleToolPrimaryClick}
+                  onToolDataClick={handleToolDataClick}
+                  onAgentDataClick={setSelectedTraceAgent}
+                />
+              </div>
+            )}
+
+            {/* Legacy tools section for stateful mode */}
+            {!hasAgentsOrTools &&
+              !isSingleQuery &&
               (item?.tools_call_data?.length > 0 || item?.function) &&
               (() => {
                 // Get all tools from tools_call_data
@@ -2052,6 +2079,8 @@ const ThreadItem = ({
         url={sliderState.url}
         addSourceParam={false}
       />
+
+      <AgentFullSlider agent={selectedTraceAgent} onClose={() => setSelectedTraceAgent(null)} />
     </div>
   );
 };
