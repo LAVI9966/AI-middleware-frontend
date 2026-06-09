@@ -4,7 +4,10 @@ import { UserIcon, BotIcon } from "@/components/Icons";
 
 export const StatelessChatLoadingSkeleton = () => {
   return (
-    <div data-testid="stateless-loading-skeleton" className="w-full h-full overflow-y-auto pb-16 px-3 pt-4">
+    <div
+      data-testid="stateless-loading-skeleton"
+      className="w-full h-full overflow-y-auto pb-16 px-3 pt-4 bg-history-page"
+    >
       <div className="animate-pulse space-y-4 w-full">
         {/* System Prompt Banner Skeleton */}
         <div className="mb-3 px-4">
@@ -91,7 +94,7 @@ export const ChatLoadingSkeleton = ({ isSingleQuery = false }) => {
     return <StatelessChatLoadingSkeleton />;
   }
   return (
-    <div data-testid="chat-loading-skeleton" className="w-full h-full overflow-y-auto pb-16 px-3 pt-4">
+    <div data-testid="chat-loading-skeleton" className="w-full h-full overflow-y-auto pb-16 px-3 pt-4 bg-history-page">
       {[...Array(2)].map((_, index) => (
         <div key={index} className="mb-6 animate-pulse">
           {/* User message skeleton */}

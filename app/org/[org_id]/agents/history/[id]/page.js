@@ -230,12 +230,12 @@ function Page({ params, searchParams }) {
   const isLoadingState = loading || !historyData;
 
   return (
-    <div className="bg-base-100 relative scrollbar-hide text-base-content max-h-[calc(100vh-9rem)]">
-      <div className="drawer drawer-open overflow-hidden">
+    <div className="bg-history-page relative scrollbar-hide text-base-content max-h-[calc(100vh-9rem)]">
+      <div className="drawer drawer-open overflow-hidden bg-history-page">
         <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
-        <div className="drawer-content flex flex-row overflow-hidden">
+        <div className="drawer-content flex flex-row overflow-hidden bg-history-page min-h-full">
           {batchPanel}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden bg-history-page min-h-full">
             {isLoadingState ? (
               <ChatLoadingSkeleton isSingleQuery={isSingleQuery} />
             ) : (

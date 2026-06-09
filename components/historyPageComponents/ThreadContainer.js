@@ -526,15 +526,15 @@ const ThreadContainer = ({
     <div
       data-testid="thread-container"
       id="thread-container"
-      className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-2.5rem)]"
+      className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-2.5rem)] bg-history-page"
     >
-      <div className="w-full flex-1 flex flex-col min-h-0 relative">
+      <div className="w-full flex-1 flex flex-col min-h-0 relative bg-history-page">
         <div
           data-testid="thread-container-scrollable-div"
           id="scrollableDiv"
           ref={historyRef}
           onScroll={onScroll}
-          className="w-full text-start flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative"
+          className="w-full text-start flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative bg-history-page"
           style={{
             overflowY: "auto",
             overflowX: "hidden",
@@ -546,7 +546,7 @@ const ThreadContainer = ({
           {loadingData ? (
             <ChatLoadingSkeleton isSingleQuery={isSingleQuery} />
           ) : !thread || thread.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center h-full bg-history-page">
               <p className="text-gray-500 text-lg">No history present</p>
             </div>
           ) : (
@@ -600,8 +600,8 @@ const ThreadContainer = ({
 
       {/* Debug Agent footer — sticky page footer (single-query / stateless only) */}
       {isSingleQuery && Array.isArray(thread) && thread.length > 0 && (
-        <div className="sticky bottom-0 shrink-0 px-3 py-2 bg-base-100 z-10">
-          <div className="flex items-center gap-2 border border-base-200 rounded-lg px-3 py-2 bg-base-100 focus-within:border-primary/50 transition-colors">
+        <div className="sticky bottom-0 shrink-0 px-3 py-2 bg-history-page z-10">
+          <div className="flex items-center gap-2 border border-base-200 rounded-lg px-3 py-2 bg-history-page focus-within:border-primary/50 transition-colors">
             <BotMessageIcon className="h-3.5 w-3.5 text-base-content/40 shrink-0" />
             <input
               type="text"

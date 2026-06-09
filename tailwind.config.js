@@ -31,13 +31,22 @@ module.exports = {
   safelist: [
     { pattern: /bg-(red|green|yellow|orange|gray)-500\/(20|30)/ },
     { pattern: /border-(red|green|yellow|orange|gray)-500/ },
-    { pattern: /border-l-4/ },
+    { pattern: /border-(trace-gold|trace-blue|trace-green|trace-gold-border)/ },
+    { pattern: /bg-trace-(gold|blue|green|gold-bg)/ },
+    { pattern: /text-trace-(gold|blue|green|gold-bg)/ },
+    { pattern: /from-trace-(gold|blue|green)/ },
     { pattern: /text-(red|green|yellow|orange|gray)-(400|500|600)/ },
   ],
   theme: {
     extend: {
       colors: {
         "base-50": "var(--base-50, oklch(0.985 0.002 247.84))",
+        "trace-gold": "oklch(var(--trace-gold) / <alpha-value>)",
+        "trace-gold-bg": "oklch(var(--trace-gold-bg) / <alpha-value>)",
+        "trace-gold-border": "oklch(var(--trace-gold-border) / <alpha-value>)",
+        "trace-blue": "oklch(var(--trace-blue) / <alpha-value>)",
+        "trace-green": "oklch(var(--trace-green) / <alpha-value>)",
+        "history-page": "var(--history-page-bg)",
       },
       fontFamily: {
         sans: ['"DM Sans"', "sans-serif"],
@@ -118,9 +127,22 @@ module.exports = {
         /* Custom themed tokens */
         ':root, [data-theme="light"]': {
           "--base-50": "oklch(0.985 0.002 247.84)",
+          /* trace accents — oklch components (L C H), used as oklch(var(--token) / α) */
+          "--trace-gold": "0.52 0.11 62",
+          "--trace-gold-bg": "0.98 0.012 75",
+          "--trace-gold-border": "0.93 0.025 75",
+          "--trace-blue": "0.55 0.14 250",
+          "--trace-green": "0.52 0.12 165",
+          "--history-page-bg": "#F6F6F4",
         },
         '[data-theme="dark"]': {
           "--base-50": "oklch(0.20 0.002 247.84)",
+          "--trace-gold": "0.72 0.13 70",
+          "--trace-gold-bg": "0.26 0.025 70",
+          "--trace-gold-border": "0.36 0.035 70",
+          "--trace-blue": "0.70 0.12 250",
+          "--trace-green": "0.68 0.11 155",
+          "--history-page-bg": "#1b1b19ff",
         },
         /* Light Theme Scrollbar */
         '[data-theme="light"] ::-webkit-scrollbar': {

@@ -1,12 +1,10 @@
 import {
   CircleAlertIcon,
-  BotIcon,
   FileClockIcon,
   PencilIcon,
   AddIcon,
   SquareFunctionIcon,
   UserIcon,
-  CodeMessageIcon,
   BotMessageIcon,
   FileTextIcon,
 } from "@/components/Icons";
@@ -36,6 +34,9 @@ import { rerunApi } from "@/config/modelApi";
 import { toast } from "react-toastify";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 import CodeBlock from "../codeBlock/CodeBlock";
+import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
+import { agentInitials, HUE_THEME } from "../historyUi/executionTrace/traceTheme";
+import { flattenToolsCallData } from "@/utils/executionTraceTransform";
 
 // Resolve any possible url shape (string, object with permanent_url, etc.)
 const resolveAttachmentUrl = (rawUrl) => {
@@ -100,7 +101,7 @@ const ImageFallback = ({ type = "large", url = "", error = "failed_to_load" }) =
   );
 };
 
-// Enhanced image component with loading states
+// Enhanced image component with loading states - MOVED OUTSIDE ThreadItem to fix React Hooks ordering
 const EnhancedImage = ({ src, alt, width, height, className, type = "large", onError, onLoad }) => {
   const [imageState, setImageState] = useState("loading");
   const [hasError, setHasError] = useState(false);
@@ -211,6 +212,10 @@ const ThreadItem = ({
 
   const [isUserQueryExpanded, setIsUserQueryExpanded] = useState(false);
   const [isAiResponseExpanded, setIsAiResponseExpanded] = useState(false);
+  const [aiResponseOverflows, setAiResponseOverflows] = useState(false);
+  const aiResponseRef = useRef(null);
+  const [isVariablesOpen, setIsVariablesOpen] = useState(false);
+  const [variablesFilter, setVariablesFilter] = useState("");
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
@@ -257,7 +262,8 @@ const ThreadItem = ({
 
   const batchStatusMeta = getBatchStatusMeta(batchStatus);
   const BatchStatusIcon = batchStatusMeta.icon;
-  const handleVisualizeClick = () => {
+
+  const _handleVisualizeClick = () => {
     if (!params?.org_id || !params?.id) return;
     const searchParams = new URLSearchParams();
     if (item?.message_id) searchParams.set("message_id", item.message_id);
@@ -267,6 +273,83 @@ const ThreadItem = ({
     }
     router.push(`/org/${params.org_id}/agents/history/${params.id}/visualize?${searchParams.toString()}`);
   };
+
+  const getToolNameHelper = useCallback(
+    (tool) => {
+      const toolId = tool?.name;
+      return getToolName(toolId, allBridgesMap, orgBridges, integrationData);
+    },
+    [allBridgesMap, orgBridges, integrationData]
+  );
+
+  const flattenTools = useCallback((toolsData) => {
+    const flattened = [];
+    (toolsData || []).forEach((entry) => {
+      if (!entry || typeof entry !== "object") return;
+
+      // If entry has a type property, it's a flat tool
+      if (entry.type) {
+        flattened.push(entry);
+      } else {
+        // Entry is an object with nested tools, extract all values
+        Object.values(entry).forEach((tool) => {
+          if (tool && typeof tool === "object" && (tool.type || tool.name)) {
+            flattened.push(tool);
+          }
+        });
+      }
+    });
+    return flattened;
+  }, []);
+
+  // Check if a tool exists in integration data (flows) or bridges
+  const isToolAvailable = useCallback(
+    (tool) => {
+      if (!tool) {
+        return false;
+      }
+
+      // Always show RAG/knowledge base tools and agent tools
+      if (tool?.data?.metadata?.type === "RAG" || tool?.data?.metadata?.type === "agent" || !isEmbedUser) {
+        return true;
+      }
+
+      const toolIdentifier = tool.name || tool.id;
+
+      if (!toolIdentifier) {
+        return false;
+      }
+      // Check in integrationData (flows) - integrationData is an object with flow IDs as keys
+      if (integrationData && typeof integrationData === "object") {
+        // Check if the tool identifier matches any flow ID (key)
+        if (integrationData[toolIdentifier]) {
+          return true;
+        }
+
+        // Check if the tool identifier matches any flow title
+        for (const integrationId in integrationData) {
+          const integration = integrationData[integrationId];
+          if (integration?.title === toolIdentifier) {
+            return true;
+          }
+        }
+      }
+      return false;
+    },
+    [integrationData, isEmbedUser]
+  );
+
+  const hasAgentsOrTools = useMemo(
+    () => flattenToolsCallData(item?.tools_call_data).length > 0,
+    [item?.tools_call_data]
+  );
+
+  const rootAgentName = useMemo(() => {
+    const bridge = orgBridges.find((b) => b?._id === params?.id || b?.id === params?.id);
+    return bridge?.name || bridge?.agent_name || bridge?.bridge_name || item?.name || "Agent";
+  }, [orgBridges, params?.id, item?.name]);
+
+  const rootAgentInitials = useMemo(() => agentInitials(rootAgentName), [rootAgentName]);
 
   useEffect(() => {
     setMessageType(getInitialMessageType());
@@ -337,70 +420,6 @@ const ThreadItem = ({
         return item.llm_message || item.user || "";
     }
   }, [messageType, item]);
-  const getToolNameHelper = useCallback(
-    (tool) => {
-      const toolId = tool?.name;
-      return getToolName(toolId, allBridgesMap, orgBridges, integrationData);
-    },
-    [allBridgesMap, orgBridges, integrationData]
-  );
-
-  const flattenTools = useCallback((toolsData) => {
-    const flattened = [];
-    (toolsData || []).forEach((entry) => {
-      if (!entry || typeof entry !== "object") return;
-
-      // If entry has a type property, it's a flat tool
-      if (entry.type) {
-        flattened.push(entry);
-      } else {
-        // Entry is an object with nested tools, extract all values
-        Object.values(entry).forEach((tool) => {
-          if (tool && typeof tool === "object" && (tool.type || tool.name)) {
-            flattened.push(tool);
-          }
-        });
-      }
-    });
-    return flattened;
-  }, []);
-
-  // Check if a tool exists in integration data (flows) or bridges
-  const isToolAvailable = useCallback(
-    (tool) => {
-      if (!tool) {
-        return false;
-      }
-
-      // Always show RAG/knowledge base tools and agent tools
-      if (tool?.data?.metadata?.type === "RAG" || tool?.data?.metadata?.type === "agent" || !isEmbedUser) {
-        return true;
-      }
-
-      const toolIdentifier = tool.name || tool.id;
-
-      if (!toolIdentifier) {
-        return false;
-      }
-      // Check in integrationData (flows) - integrationData is an object with flow IDs as keys
-      if (integrationData && typeof integrationData === "object") {
-        // Check if the tool identifier matches any flow ID (key)
-        if (integrationData[toolIdentifier]) {
-          return true;
-        }
-
-        // Check if the tool identifier matches any flow title
-        for (const integrationId in integrationData) {
-          const integration = integrationData[integrationId];
-          if (integration?.title === toolIdentifier) {
-            return true;
-          }
-        }
-      }
-      return false;
-    },
-    [integrationData, allBridgesMap, orgBridges]
-  );
 
   const preFunctionEntry = useMemo(() => {
     const allTools = flattenTools(item?.tools_call_data);
@@ -486,7 +505,11 @@ const ThreadItem = ({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropupRef.current && !dropupRef.current.contains(event.target) && !event.target.closest(".bot-icon")) {
+      if (
+        dropupRef.current &&
+        !dropupRef.current.contains(event.target) &&
+        !event.target.closest("#thread-item-bot-icon")
+      ) {
         setIsDropupOpen(false);
       }
     };
@@ -506,6 +529,15 @@ const ThreadItem = ({
     setToolsData([]);
     toolsDataModalRef.current?.close();
   }, []);
+
+  // Measure AI response height to show/hide "Show more" button
+  useEffect(() => {
+    const el = aiResponseRef.current;
+    if (!el) return;
+    // MAX_HEIGHT matches line-clamp-5 at ~1.6rem line-height × 5 = ~8rem = 128px
+    const MAX_HEIGHT = 128;
+    setAiResponseOverflows(el.scrollHeight > MAX_HEIGHT);
+  }, [item?.chatbot_message, item?.llm_message, item?.updated_llm_message]);
 
   const messageId = item.message_id;
   useEffect(() => {
@@ -630,6 +662,11 @@ const ThreadItem = ({
     },
     [knowledgeBaseData, openSlider, embedToken, params?.id, params?.org_id, orgBridges, allBridgesMap]
   );
+
+  const handleToolDataClick = useCallback((tool) => {
+    setToolsData(tool);
+    toolsDataModalRef.current?.showModal();
+  }, []);
 
   const _renderToolData = useCallback(
     (tool, index) => (
@@ -848,7 +885,7 @@ const ThreadItem = ({
     >
       {/* Sticky header */}
       {isSingleQuery && (
-        <div className="flex sticky top-0 z-20 bg-base-100 px-4 py-1 mb-3 items-center justify-between gap-2 border-b border-base-300">
+        <div className="flex sticky top-0 z-20 bg-history-page px-4 py-1 mb-3 items-center justify-between gap-2 border-b border-base-300">
           <div
             className="flex items-center gap-2 overflow-x-auto min-w-0"
             style={{
@@ -895,7 +932,7 @@ const ThreadItem = ({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-0.5 bg-base-200 rounded-lg p-1 shrink-0">
+          <div className="flex items-center gap-1.5 bg-base-200 rounded-lg p-1 shrink-0">
             <button
               className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
               onClick={handleRerun}
@@ -931,90 +968,8 @@ const ThreadItem = ({
               onClick={() => handleUserButtonClick("variables")}
             >
               <Braces className="h-3 w-3" />
-              <span>Variables</span>
+              <span>Sent Variables</span>
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Pre Tool Banner - Above System Prompt */}
-      {isSingleQuery &&
-        item?.tools_call_data?.length > 0 &&
-        (() => {
-          // Find the pre_tool from tools_call_data
-          const preFunction = item.tools_call_data
-            .flatMap((tools) => Object.values(tools || {}))
-            .find((tool) => tool?.type === "pre_tool");
-
-          if (!preFunction) return null;
-          return (
-            <div className="mb-2 px-4">
-              <div className="inline-flex items-center gap-2 bg-base-200/30 border border-base-300 rounded-xl px-4 py-2">
-                <span className="text-xs font-medium text-base-content/70 shrink-0">Pre Function:</span>
-                <div
-                  onClick={(e) => handleToolPrimaryClick(e, preFunction)}
-                  className="inline-flex items-center gap-2 bg-base-200 border border-base-300 rounded-md px-4 py-2 text-xs cursor-pointer hover:bg-base-300 transition-colors"
-                >
-                  <span className="font-medium truncate max-w-[120px]" title={getToolNameHelper(preFunction)}>
-                    {truncate(getToolNameHelper(preFunction), 20)}
-                  </span>
-                  <div className="flex gap-1.5">
-                    <div className="tooltip tooltip-top" data-tip="function logs">
-                      <SquareFunctionIcon
-                        size={14}
-                        onClick={(e) => handleToolPrimaryClick(e, preFunction)}
-                        className="opacity-80 cursor-pointer"
-                      />
-                    </div>
-                    <div className="tooltip tooltip-top" data-tip="function data">
-                      <FileClockIcon
-                        size={14}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setToolsData(preFunction);
-                          toolsDataModalRef.current?.showModal();
-                        }}
-                        className="opacity-80 bg-inherit cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* System Prompt Banner - Below Header */}
-      {isSingleQuery && item?.prompt && (
-        <div className="mb-3 px-4">
-          <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20 hover:shadow-sm">
-            <div
-              className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
-              onClick={() => setIsSystemPromptExpanded(!isSystemPromptExpanded)}
-            >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
-                <span className="text-xs font-medium text-base-content/70">System Prompt:</span>
-                {!isSystemPromptExpanded && (
-                  <span className="text-xs text-base-content/50 truncate flex-1">{item.prompt}</span>
-                )}
-              </div>
-              <ChevronDown
-                size={16}
-                className={`text-base-content/60 shrink-0 transition-transform duration-0 ${isSystemPromptExpanded ? "rotate-180" : ""}`}
-              />
-            </div>
-            <div
-              className={`overflow-hidden transition-[max-height] duration-200 ease-in-out ${
-                isSystemPromptExpanded ? "max-h-[500px]" : "max-h-0"
-              }`}
-            >
-              <div className="px-3 pb-3 pt-2 border-t border-base-300">
-                <div className="text-xs text-base-content whitespace-pre-wrap max-h-64 overflow-y-auto bg-base-100 rounded p-2.5 border border-base-300 leading-relaxed">
-                  {renderHighlightedSystemPrompt(item.prompt)}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -1022,45 +977,124 @@ const ThreadItem = ({
       <div className={isSingleQuery ? "" : "show-on-hover"}>
         {isSingleQuery ? (
           /* ── Single-query vertical flow ── */
-          <div className="flex flex-col items-center py-2">
-            {/* User Query card */}
-            <div className="w-full bg-primary rounded-xl px-4 py-3 text-base-200" style={{ wordBreak: "break-word" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center shrink-0">
-                  <UserIcon size={13} className="text-base-content" />
+          <div className="flex flex-col w-full py-2">
+            {/* User Query card — full width in stateless mode */}
+            <div className="flex justify-start w-full">
+              <div className="w-full bg-primary rounded-xl px-4 py-3 text-base-200" style={{ wordBreak: "break-word" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center shrink-0">
+                    <UserIcon size={13} className="text-base-content" />
+                  </div>
+                  <span className="text-xs font-semibold text-base-200 uppercase tracking-wide">User Query</span>
                 </div>
-                <span className="text-xs font-semibold text-base-200 uppercase tracking-wide">User Query</span>
+                {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                <div className={!isUserQueryExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }) => (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      ),
+                    }}
+                  >
+                    {item.user}
+                  </ReactMarkdown>
+                </div>
+                {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
+                  <button
+                    className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
+                    onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
+                  >
+                    <ChevronDown
+                      size={12}
+                      className={`transition-transform duration-150 ${isUserQueryExpanded ? "rotate-180" : ""}`}
+                    />
+                    {isUserQueryExpanded ? "Show less" : "Show more"}
+                  </button>
+                ) : null}
               </div>
-              {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-              <div className={!isUserQueryExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
-                <ReactMarkdown
-                  components={{
-                    code: ({ node, inline, className, children, ...props }) => (
-                      <CodeBlock className={className} {...props}>
-                        {children}
-                      </CodeBlock>
-                    ),
-                  }}
-                >
-                  {item.user}
-                </ReactMarkdown>
-              </div>
-              {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
-                <button
-                  className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
-                  onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
-                >
-                  <ChevronDown
-                    size={12}
-                    className={`transition-transform duration-150 ${isUserQueryExpanded ? "rotate-180" : ""}`}
-                  />
-                  {isUserQueryExpanded ? "Show less" : "Show more"}
-                </button>
-              ) : null}
             </div>
 
-            {/* Tools — sequential steps from function_time_logs, parallel within each step */}
-            {(item?.tools_call_data?.length > 0 || item?.function) &&
+            {/* Config between user and agent: pre-tool, system prompt */}
+            {isSingleQuery &&
+              item?.tools_call_data?.length > 0 &&
+              (() => {
+                const preFunction = item.tools_call_data
+                  .flatMap((tools) => Object.values(tools || {}))
+                  .find((tool) => tool?.type === "pre_tool");
+                if (!preFunction) return null;
+                return (
+                  <div className="w-full max-w-xl mt-3">
+                    <div className="inline-flex items-center gap-2 bg-base-200/30 border border-base-300 rounded-xl px-4 py-2">
+                      <span className="text-xs font-medium text-base-content/70 shrink-0">Pre Function:</span>
+                      <div
+                        onClick={(e) => handleToolPrimaryClick(e, preFunction)}
+                        className="inline-flex items-center gap-2 bg-base-200 border border-base-300 rounded-md px-4 py-2 text-xs cursor-pointer hover:bg-base-300 transition-colors"
+                      >
+                        <span className="font-medium truncate max-w-[120px]" title={getToolNameHelper(preFunction)}>
+                          {truncate(getToolNameHelper(preFunction), 20)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+            {isSingleQuery && item?.prompt && (
+              <div className="w-full mt-3">
+                <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20">
+                  <div
+                    className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
+                    onClick={() => setIsSystemPromptExpanded(!isSystemPromptExpanded)}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
+                      <span className="text-xs font-medium text-base-content/70">System Prompt:</span>
+                      {!isSystemPromptExpanded && (
+                        <span className="text-xs text-base-content/50 truncate flex-1">{item.prompt}</span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`text-base-content/60 shrink-0 transition-transform ${isSystemPromptExpanded ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                  {isSystemPromptExpanded && (
+                    <div className="px-3 pb-3 pt-2 border-t border-base-300">
+                      <div className="text-xs text-base-content whitespace-pre-wrap max-h-64 overflow-y-auto bg-base-100 rounded p-2.5 border border-base-300 leading-relaxed">
+                        {renderHighlightedSystemPrompt(item.prompt)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Agent execution trace (replaces old tools UI) */}
+            {hasAgentsOrTools && (
+              <>
+                <div className="flex flex-row items-center justify-center my-2 w-full gap-3">
+                  <ArrowDown size={20} className="text-base-content/50" />
+                </div>
+                <div className="w-full">
+                  <MessageExecutionTrace
+                    item={item}
+                    bridgeId={params?.id}
+                    rootAgentName={rootAgentName}
+                    formatDateAndTime={formatDateAndTime}
+                    onToolLogsClick={handleToolPrimaryClick}
+                    onToolDataClick={handleToolDataClick}
+                    onAgentDataClick={handleToolDataClick}
+                    onAgentHistoryClick={handleToolPrimaryClick}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Legacy tools UI — only when no nested agent trace */}
+            {!hasAgentsOrTools &&
+              (item?.tools_call_data?.length > 0 || item?.function) &&
               (() => {
                 // Get all tools from tools_call_data
                 const allTools = item?.tools_call_data
@@ -1403,24 +1437,25 @@ const ThreadItem = ({
                 </span>
 
                 <div
-                  className="bg-base-200 rounded-xl px-4 py-3 text-sm text-base-content relative group"
+                  className=" rounded-xl px-4 py-3 text-sm text-base-content relative group"
                   style={{ wordBreak: "break-word" }}
                 >
                   {/* Header row */}
                   <div className="flex items-center gap-2 mb-2">
                     <div
-                      className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center cursor-pointer relative shrink-0"
+                      className="relative shrink-0 cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsDropupOpen(!isDropupOpen);
                       }}
                     >
-                      <BotIcon
+                      <span
                         data-testid="thread-item-bot-icon"
                         id="thread-item-bot-icon"
-                        size={13}
-                        className="text-base-content"
-                      />
+                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
+                      >
+                        {rootAgentInitials}
+                      </span>
                       {isDropupOpen && (
                         <div
                           ref={dropupRef}
@@ -1470,9 +1505,7 @@ const ThreadItem = ({
                         </div>
                       )}
                     </div>
-                    <span className="text-xs font-semibold text-base-content/40 uppercase tracking-wide">
-                      AI Response
-                    </span>
+                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
                     {messageType === "updated_llm_message" && (
                       <span className="badge badge-xs badge-outline">Edited</span>
                     )}
@@ -1484,7 +1517,10 @@ const ThreadItem = ({
                     )}
                   </div>
                   {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
-                  <div className={!isAiResponseExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
+                  <div
+                    ref={aiResponseRef}
+                    className={!isAiResponseExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}
+                  >
                     {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
                       <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
                     ) : (
@@ -1501,10 +1537,7 @@ const ThreadItem = ({
                       </ReactMarkdown>
                     )}
                   </div>
-                  {(() => {
-                    const msg = getMessageToDisplay();
-                    return msg?.split("\n").length > 7 || msg?.length > 400;
-                  })() && (
+                  {aiResponseOverflows && (
                     <button
                       className="mt-1 text-xs text-primary/70 hover:text-primary flex items-center gap-1"
                       onClick={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
@@ -1539,93 +1572,228 @@ const ThreadItem = ({
           /* ── Multi-query chat bubble layout ── */
           <div>
             {/* User message */}
-            <div className="chat group chat-end mb-4">
-              <div className="chat-image avatar flex justify-center items-center">
-                <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
-                  <div className="relative rounded-full bg-base-300 flex justify-center items-center">
-                    <UserIcon size={20} className="text-base-content" />
+            {!isSingleQuery ? (
+              /* ── Stateless: new dark bubble + pill buttons ── */
+              <div className="group mb-2">
+                {/* Bubble row: message left, avatar right */}
+                <div className="flex items-start justify-end gap-3">
+                  <div
+                    className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words bg-neutral text-neutral-content"
+                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                  >
+                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, inline, className, children, ...props }) => (
+                          <CodeBlock className={className} {...props}>
+                            {children}
+                          </CodeBlock>
+                        ),
+                      }}
+                    >
+                      {item.user}
+                    </ReactMarkdown>
+                  </div>
+                  {/* Avatar */}
+                  <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-300 text-base-content/70">
+                    U
+                  </div>
+                </div>
+
+                {/* Below bubble: pill buttons + time */}
+                <div className="flex flex-col gap-1 mt-3 pr-12">
+                  <div className="flex items-center justify-end gap-2 flex-wrap">
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button
+                        data-testid="thread-item-user-aiconfig-button"
+                        id="thread-item-user-aiconfig-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
+                        onClick={() => handleUserButtonClick("AiConfig")}
+                      >
+                        <SquareFunctionIcon className="h-3 w-3" />
+                        <span>AI Config</span>
+                      </button>
+                      <button
+                        data-testid="thread-item-user-system-prompt-button"
+                        id="thread-item-user-system-prompt-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
+                        onClick={() => handleUserButtonClick("system Prompt")}
+                      >
+                        <FileClockIcon className="h-3 w-3" />
+                        <span>System Prompt</span>
+                      </button>
+                      <button
+                        data-testid="thread-item-user-more-button"
+                        id="thread-item-user-more-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
+                        onClick={() => handleUserButtonClick("more")}
+                      >
+                        <AddIcon className="h-3 w-3" />
+                        <span>More...</span>
+                      </button>
+                    </div>
+
+                    {item?.variables && Object.keys(item.variables).length > 0 && (
+                      <button
+                        data-testid="thread-item-user-variables-button"
+                        id="thread-item-user-variables-button"
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
+                        onClick={() => setIsVariablesOpen((v) => !v)}
+                      >
+                        <Braces className="h-3 w-3" />
+                        <span>Sent Variables</span>
+                        <span className="rounded-full px-1.5 py-0 text-[10px] font-bold bg-base-300 text-base-content/60">
+                          {Object.keys(item.variables).length}
+                        </span>
+                        <ChevronDown
+                          className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    )}
+
+                    <time className="text-xs opacity-40 shrink-0">
+                      <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
+                      <span className="hidden group-hover:inline">{formatDateAndTime(item.created_at)}</span>
+                    </time>
+                  </div>
+
+                  {/* Inline Variables Panel */}
+                  {isVariablesOpen && (
+                    <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100">
+                      <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
+                        <input
+                          type="text"
+                          placeholder={`Filter ${Object.keys(item?.variables || {}).length} variables...`}
+                          value={variablesFilter}
+                          onChange={(e) => setVariablesFilter(e.target.value)}
+                          className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40"
+                        />
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {Object.entries(item?.variables || {})
+                          .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+                          .map(([key, value], i) => (
+                            <div
+                              key={key}
+                              className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
+                            >
+                              <span className="text-sm font-medium min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                              <span className="text-sm break-all text-base-content/80">
+                                {typeof value === "object" ? JSON.stringify(value) : String(value ?? "")}
+                              </span>
+                            </div>
+                          ))}
+                        {Object.keys(item?.variables || {}).length === 0 && (
+                          <div className="px-4 py-4 text-sm text-center text-base-content/40">No variables</div>
+                        )}
+                      </div>
+                      <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
+                        {formatDateAndTime(item.created_at)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* ── Stateful: original DaisyUI chat bubble + old buttons ── */
+              <div className="chat group chat-end mb-4">
+                <div className="chat-image avatar flex justify-center items-center">
+                  <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
+                    <div className="relative rounded-full bg-base-300 flex justify-center items-center">
+                      <UserIcon size={20} className="text-base-content" />
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="flex justify-start flex-row-reverse items-center gap-1"
+                  style={{ width: "-webkit-fill-available" }}
+                >
+                  <div
+                    className="chat-bubble-primary chat-bubble transition-all ease-in-out duration-300 relative group break-words"
+                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                  >
+                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, inline, className, children, ...props }) => (
+                          <CodeBlock className={className} {...props}>
+                            {children}
+                          </CodeBlock>
+                        ),
+                      }}
+                    >
+                      {item.user}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+                <div className="flex flex-row-reverse gap-2 m-1 items-center justify-between">
+                  <time className="text-xs opacity-50 chat-end relative w-[140px] inline-block text-right">
+                    <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
+                    <span className="hidden group-hover:inline absolute right-0 top-0">
+                      {formatDateAndTime(item.created_at)}
+                    </span>
+                  </time>
+                  <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
+                    <button
+                      data-testid="thread-item-user-aiconfig-button"
+                      id="thread-item-user-aiconfig-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("AiConfig")}
+                    >
+                      <SquareFunctionIcon className="h-3 w-3" />
+                      <span>AI Config</span>
+                    </button>
+                    <button
+                      data-testid="thread-item-user-variables-button"
+                      id="thread-item-user-variables-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("variables")}
+                    >
+                      <Braces className="h-3 w-3" />
+                      <span>Variables</span>
+                    </button>
+                    <button
+                      data-testid="thread-item-user-system-prompt-button"
+                      id="thread-item-user-system-prompt-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("system Prompt")}
+                    >
+                      <FileClockIcon className="h-3 w-3" />
+                      <span>System Prompt</span>
+                    </button>
+                    <button
+                      data-testid="thread-item-user-more-button"
+                      id="thread-item-user-more-button"
+                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
+                      onClick={() => handleUserButtonClick("more")}
+                    >
+                      <AddIcon className="h-3 w-3" />
+                      <span>More...</span>
+                    </button>
                   </div>
                 </div>
               </div>
-              <div
-                className="flex justify-start flex-row-reverse items-center gap-1"
-                style={{ width: "-webkit-fill-available" }}
-              >
-                <div
-                  className="chat-bubble-primary chat-bubble transition-all ease-in-out duration-300 relative group break-words"
-                  style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
-                >
-                  {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                  <ReactMarkdown
-                    components={{
-                      code: ({ node, inline, className, children, ...props }) => (
-                        <CodeBlock className={className} {...props}>
-                          {children}
-                        </CodeBlock>
-                      ),
-                    }}
-                  >
-                    {item.user}
-                  </ReactMarkdown>
-                </div>
-              </div>
-              <div className="flex flex-row-reverse gap-2 m-1 items-center justify-between">
-                <time className="text-xs opacity-50 chat-end relative w-[140px] inline-block text-right">
-                  <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
-                  <span className="hidden group-hover:inline absolute right-0 top-0">
-                    {formatDateAndTime(item.created_at)}
-                  </span>
-                </time>
-                <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
-                  <button
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={handleVisualizeClick}
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    <span>Visualize</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-aiconfig-button"
-                    id="thread-item-user-aiconfig-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("AiConfig")}
-                  >
-                    <SquareFunctionIcon className="h-3 w-3" />
-                    <span>AI Config</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-variables-button"
-                    id="thread-item-user-variables-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("variables")}
-                  >
-                    <Braces className="h-3 w-3" />
-                    <span>Variables</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-system-prompt-button"
-                    id="thread-item-user-system-prompt-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("system Prompt")}
-                  >
-                    <FileClockIcon className="h-3 w-3" />
-                    <span>System Prompt</span>
-                  </button>
-                  <button
-                    data-testid="thread-item-user-more-button"
-                    id="thread-item-user-more-button"
-                    className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                    onClick={() => handleUserButtonClick("more")}
-                  >
-                    <AddIcon className="h-3 w-3" />
-                    <span>More...</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            )}
 
-            {/* Tools section for stateful mode */}
-            {!isSingleQuery &&
+            {/* Agent execution trace (replaces old tools UI in stateful mode) */}
+            {hasAgentsOrTools && (
+              <div className="w-full px-2 mt-2 mb-2">
+                <MessageExecutionTrace
+                  item={item}
+                  bridgeId={params?.id}
+                  rootAgentName={rootAgentName}
+                  formatDateAndTime={formatDateAndTime}
+                  onToolLogsClick={handleToolPrimaryClick}
+                  onToolDataClick={handleToolDataClick}
+                  onAgentDataClick={handleToolDataClick}
+                  onAgentHistoryClick={handleToolPrimaryClick}
+                />
+              </div>
+            )}
+
+            {/* Legacy tools section for stateful mode */}
+            {!hasAgentsOrTools &&
+              !isSingleQuery &&
               (item?.tools_call_data?.length > 0 || item?.function) &&
               (() => {
                 // Get all tools from tools_call_data
@@ -1790,27 +1958,33 @@ const ThreadItem = ({
             {/* Other tools (pre_function, post_function, etc.) rendered using renderToolData */}
 
             {/* 3. Third: Render Assistant Message if exists */}
-            {!item.error && firstAttemptErrorNotice}
             {!item.error && (
-              <div className="chat group chat-start">
-                <div className="chat-image avatar flex justify-center items-center">
-                  <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors mb-7">
-                    <div className="relative rounded-full bg-base-300 flex justify-center items-center">
-                      <BotIcon
+              <div className="w-full relative">
+                {firstAttemptErrorNotice}
+                <div
+                  className="rounded-xl px-4 py-3 text-sm text-base-content relative group"
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                >
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <div
+                      className="relative shrink-0 cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsDropupOpen(!isDropupOpen);
+                      }}
+                    >
+                      <span
                         data-testid="thread-item-bot-icon"
                         id="thread-item-bot-icon"
-                        className="cursor-pointer bot-icon text-base-content"
-                        size={20}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsDropupOpen(!isDropupOpen);
-                        }}
-                      />
+                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
+                      >
+                        {rootAgentInitials}
+                      </span>
                       {isDropupOpen && (
                         <div
                           ref={dropupRef}
                           className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[140px] p-1"
-                          style={{ zIndex: 9999, top: "-130px", left: "-50px" }}
+                          style={{ zIndex: 9999, top: "28px", left: "0" }}
                           onClick={(e) => e.stopPropagation()}
                         >
                           <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
@@ -1820,19 +1994,10 @@ const ThreadItem = ({
                                 <button
                                   data-testid="thread-item-select-chatbot-message"
                                   id="thread-item-select-chatbot-message"
-                                  className={`px-2 py-1 rounded-md ${
-                                    messageType === "chatbot_message" || messageType === 0
-                                      ? "bg-primary text-white"
-                                      : "hover:bg-base-200"
-                                  }`}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
                                   onClick={() => selectMessageType("chatbot_message")}
                                 >
-                                  <div className="tooltip tooltip-right" data-tip="Chatbot Response">
-                                    <BotIcon
-                                      className={`${messageType !== "chatbot_message" && messageType !== 0 ? "text-base-content" : "text-white"}`}
-                                      size={16}
-                                    />
-                                  </div>
+                                  Chatbot
                                 </button>
                               </li>
                             )}
@@ -1841,19 +2006,10 @@ const ThreadItem = ({
                                 <button
                                   data-testid="thread-item-select-llm-message"
                                   id="thread-item-select-llm-message"
-                                  className={`px-2 py-1 rounded-md ${
-                                    messageType === "llm_message" || messageType === 1
-                                      ? "bg-primary text-white"
-                                      : "hover:bg-base-200"
-                                  }`}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
                                   onClick={() => selectMessageType("llm_message")}
                                 >
-                                  <div className="tooltip tooltip-right" data-tip="LLM Response">
-                                    <CodeMessageIcon
-                                      className={`${messageType !== "llm_message" && messageType !== 1 ? "text-base-content" : "text-white"}`}
-                                      size={16}
-                                    />
-                                  </div>
+                                  LLM
                                 </button>
                               </li>
                             )}
@@ -1862,19 +2018,10 @@ const ThreadItem = ({
                                 <button
                                   data-testid="thread-item-select-updated-message"
                                   id="thread-item-select-updated-message"
-                                  className={`px-2 py-1 rounded-md ${
-                                    messageType === "updated_llm_message" || messageType === 2
-                                      ? "bg-primary text-white"
-                                      : "hover:bg-base-200"
-                                  }`}
+                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
                                   onClick={() => selectMessageType("updated_llm_message")}
                                 >
-                                  <div className="tooltip tooltip-right" data-tip="Updated Message">
-                                    <PencilIcon
-                                      className={`${messageType !== "updated_llm_message" && messageType !== 2 ? "text-base-content" : "text-white"}`}
-                                      size={16}
-                                    />
-                                  </div>
+                                  Updated
                                 </button>
                               </li>
                             )}
@@ -1882,29 +2029,18 @@ const ThreadItem = ({
                         </div>
                       )}
                     </div>
+                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
+                    {messageType === "updated_llm_message" && (
+                      <span className="badge badge-xs badge-outline">Edited</span>
+                    )}
+                    {isBatchResponse && (
+                      <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
+                        <BatchStatusIcon size={10} />
+                        {batchStatusMeta.label}
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="chat-header flex gap-4 items-center mb-1">
-                  {messageType === "updated_llm_message" && (
-                    <p className="text-xs opacity-50 badge badge-sm badge-outline">Edited</p>
-                  )}
-                  {isBatchResponse && (
-                    <span className={`badge badge-sm gap-1 text-white ${batchStatusMeta.className}`}>
-                      <BatchStatusIcon size={12} />
-                      Batch: {batchStatusMeta.label}
-                    </span>
-                  )}
-                </div>
-                <div
-                  className="flex justify-start items-center gap-1 show-on-hover"
-                  style={{ width: "-webkit-fill-available" }}
-                >
-                  <div
-                    className={`bg-base-200 text-base-content pr-10 chat-bubble transition-all ease-in-out duration-300 relative group break-words overflow-visible border border-base-300 ${
-                      preFunctionEntry ? "min-w-[16rem]" : ""
-                    }`}
-                    style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
-                  >
+                  <div className={`relative pr-10 ${preFunctionEntry ? "min-w-[16rem]" : ""}`}>
                     {preFunctionEntry && (
                       <button
                         type="button"
@@ -1957,29 +2093,25 @@ const ThreadItem = ({
                     )}
                   </div>
                 </div>
-                {/* Action buttons below AI response — visible on hover */}
-                {!item.error && (
-                  <div className="chat-footer opacity-0 group-hover:opacity-100 transition-opacity mt-1 flex items-center gap-1">
-                    <button
-                      id="thread-item-add-test-case-button"
-                      className="btn text-xs font-normal btn-sm hover:btn-primary"
-                      onClick={() => handleAddTestCase(item, index)}
-                      title="Add Test Case"
-                    >
-                      <AddIcon className="h-3 w-3" />
-                      <span>Test Case</span>
-                    </button>
-                    <button
-                      id="thread-item-debug-agent-button"
-                      className="btn text-xs font-normal btn-sm hover:btn-primary"
-                      onClick={() => handleAskAi(item)}
-                      title="Debug Agent"
-                    >
-                      <BotMessageIcon className="h-3 w-3" />
-                      <span>Debug Agent</span>
-                    </button>
-                  </div>
-                )}
+                {/* Action buttons below AI response — always visible */}
+                <div className="mt-2 flex items-center gap-1.5">
+                  <button
+                    id="thread-item-add-test-case-button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
+                    onClick={() => handleAddTestCase(item, index)}
+                  >
+                    <AddIcon className="h-3 w-3" />
+                    <span>Test Case</span>
+                  </button>
+                  <button
+                    id="thread-item-debug-agent-button"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
+                    onClick={() => handleAskAi(item)}
+                  >
+                    <BotMessageIcon className="h-3 w-3" />
+                    <span>Debug Agent</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -2006,32 +2138,38 @@ const ThreadItem = ({
                   style={{ wordBreak: "break-word" }}
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-error/20 flex items-center justify-center shrink-0">
-                      <BotIcon size={13} className="text-error" />
-                    </div>
-                    <span className="text-xs font-semibold text-error/70 uppercase tracking-wide">AI Response</span>
+                    <span
+                      className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
+                    >
+                      {rootAgentInitials}
+                    </span>
+                    <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">{item?.error}</p>
                 </div>
               </div>
             </div>
           ) : (
-            /* Multi-query (stateful) — keep the original chat-bubble style */
-            <div className="chat chat-start break-all break-words">
-              <div>
-                <div className="flex flex-row-reverse items-end justify-end gap-1">
-                  <div className="bg-error/10 text-error border border-error/20 pr-10 chat-bubble transition-all ease-in-out duration-300">
-                    {firstAttemptErrorNotice}
-                    <div className="flex items-center gap-2 mb-2">
-                      <CircleAlertIcon className="w-4 h-4" />
-                      <span className="font-bold">Error</span>
-                    </div>
-                    <p className="text-sm">{item?.error}</p>
-                  </div>
-                  <div className="p-2 rounded-full bg-error/20 flex justify-center items-center">
-                    <BotIcon className="text-base-content" size={18} />
-                  </div>
+            /* Multi-query (stateful) — match stateless error card style */
+            <div className="w-full relative py-2">
+              {firstAttemptErrorNotice}
+              <span className="absolute -top-2 right-2 z-10 text-xs px-2 py-0.5 rounded-full border border-error/30 text-error/70 bg-base-100 whitespace-nowrap flex items-center gap-1">
+                <CircleAlertIcon className="w-3 h-3" />
+                Error
+              </span>
+              <div
+                className="bg-error/10 border border-error/20 rounded-xl px-4 py-3 text-sm text-error relative"
+                style={{ wordBreak: "break-word" }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span
+                    className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
+                  >
+                    {rootAgentInitials}
+                  </span>
+                  <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                 </div>
+                <p className="text-sm whitespace-pre-wrap">{item?.error}</p>
               </div>
             </div>
           ))}

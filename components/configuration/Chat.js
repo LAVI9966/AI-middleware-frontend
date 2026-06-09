@@ -8,7 +8,6 @@ import {
   ExternalLink,
   Menu,
   PlayIcon,
-  PlusIcon,
   Zap,
   CheckCircle,
   Target,
@@ -21,14 +20,15 @@ import {
   Wrench,
   ChevronDown,
   ChevronUp,
-  CircleQuestionMark,
+  SquarePen,
 } from "lucide-react";
 import TestCaseSidebar from "./TestCaseSidebar";
 import AddTestCaseModal from "../modals/AddTestCaseModal";
-import InfoTooltip from "../InfoTooltip";
-import { createConversationForTestCase, toggleSidebar } from "@/utils/utility";
+import { createConversationForTestCase, toggleSidebar, openModal } from "@/utils/utility";
+import { MODAL_TYPE, DEFAULT_STARTER_QUESTIONS } from "@/utils/enums";
 import { validatePromptVariables, buildVariablesObject } from "@/utils/variableValidation";
 import { runTestCaseAction } from "@/store/action/testCasesAction";
+import { testRunResetReducer } from "@/store/reducer/testCasesReducer";
 import { useDispatch } from "react-redux";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import Protected from "../Protected";
@@ -89,6 +89,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
   useEffect(() => {
     if (toolCall.status === "done") setOpen(true);
   }, [toolCall.status]);
+
   useEffect(() => {
     if (isMessageComplete) setOpen(false);
   }, [isMessageComplete]);
@@ -186,8 +187,11 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     testRun,
     testCases,
     directTestResults,
+    starterQuestions,
+    bridgeType,
   } = useCustomSelector((state) => {
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
+    const bridgeData = state?.bridgeReducer?.allBridgesMap?.[params?.id];
     return {
       messages: state?.chatReducer?.messagesByChannel?.[channelIdentifier] || [],
       finishReasonDescription: state?.flowDataReducer?.flowData?.finishReasonsData || [],
@@ -198,8 +202,16 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       testRun: state?.testCasesReducer?.testRuns?.[params?.id] || null,
       testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
       directTestResults: state?.testCasesReducer?.directTestResults?.[params?.id] || {},
+      starterQuestions: bridgeData?.starterQuestion || [],
+      bridgeType: bridgeData?.bridgeType || "",
     };
   });
+
+  // Starter questions: use bridge-level configured ones, fall back to defaults
+  const displayStarterQuestions = useMemo(() => {
+    const configured = Array.isArray(starterQuestions) ? starterQuestions.filter((q) => q?.trim()) : [];
+    return configured.length > 0 ? configured : DEFAULT_STARTER_QUESTIONS;
+  }, [starterQuestions]);
 
   // Initialize channel and RT layer
   useEffect(() => {
@@ -215,13 +227,10 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     if (!testRun) return;
 
     // Find the message that corresponds to this testcase run
-    const messageIndex = messages.findIndex(
-      (msg) =>
-        msg.sender === "assistant" &&
-        isRunningTestCase &&
-        currentRunIndex !== null &&
-        messages.indexOf(msg) === currentRunIndex + 1
-    );
+    // Only proceed if we have a valid currentRunIndex
+    if (currentRunIndex === null) return;
+    const expectedIndex = currentRunIndex + 1;
+    const messageIndex = messages.findIndex((msg, idx) => msg.sender === "assistant" && idx === expectedIndex);
 
     if (messageIndex === -1) return;
 
@@ -298,7 +307,6 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     testCases,
     directTestResults,
     messages,
-    isRunningTestCase,
     currentRunIndex,
     searchParams.version,
     channelIdentifier,
@@ -376,6 +384,24 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
         inputRef.current.focus();
       }
     }, 100);
+  };
+
+  // Convert current chat messages to the format expected by AddTestCaseModal
+  const handleAddConversationToTestCase = () => {
+    if (!messages || messages.length === 0) return;
+
+    // Build conversation from current messages (user + assistant only)
+    const conversation = messages
+      .filter((msg) => msg.sender === "user" || msg.sender === "assistant")
+      .map((msg) => ({
+        role: msg.sender,
+        content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
+      }));
+
+    if (conversation.length === 0) return;
+
+    setTestCaseConversation(conversation);
+    openModal(MODAL_TYPE.ADD_TEST_CASE_MODAL);
   };
 
   const handleEditMessage = (messageId, currentContent) => {
@@ -464,13 +490,25 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     return () => window.removeEventListener("runAnyway", handleRunAnyway);
   }, [pendingTestIndex]);
 
-  const handleRunTestCase = async (index, forceRun = false) => {
+  const handleRunTestCase = async (index, strategyOrForceRun = "exact", forceRun = false) => {
+    let strategy = selectedStrategy;
+    let actualForceRun = forceRun;
+    if (typeof strategyOrForceRun === "boolean") {
+      actualForceRun = strategyOrForceRun;
+    } else {
+      strategy = strategyOrForceRun;
+      setSelectedStrategy(strategyOrForceRun);
+    }
+
+    // Reset previous testcase run state in Redux to prevent premature loading updates
+    dispatch(testRunResetReducer({ bridgeId: params?.id }));
+
     // Check if slider auto-open is disabled
     const isSliderAutoOpenDisabled =
       typeof window !== "undefined" && sessionStorage.getItem("variableSliderDisabled") === "true";
 
-    // Validate variables before running test (skip if forceRun is true or slider is disabled)
-    if (!forceRun && !isSliderAutoOpenDisabled) {
+    // Validate variables before running test (skip if actualForceRun is true or slider is disabled)
+    if (!actualForceRun && !isSliderAutoOpenDisabled) {
       const validation = validateVariables();
       const shouldShowVariables = isEmbedUser ? showVariablesFromRedux : true;
       if (!validation.isValid && shouldShowVariables) {
@@ -491,23 +529,37 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     setPendingTestIndex(null);
     sessionStorage.removeItem("missingVariables");
 
+    // Reset previous testcase result if running again
+    const nextMessage = messages[index + 1];
+    if (nextMessage) {
+      const nextMessageId = nextMessage.id;
+      const updatedNextMessage = {
+        ...nextMessage,
+      };
+      delete updatedNextMessage.testCaseResult;
+      dispatch(editChatMessage(channelIdentifier, nextMessageId, updatedNextMessage));
+      setShowTestCaseResults((prev) => ({
+        ...prev,
+        [nextMessageId]: false,
+      }));
+    }
+
     const conversationForTestCase = messages.slice(-6, index + 1);
     conversationForTestCase.push(messages[index + 1]);
     const { conversation, expected } = createConversationForTestCase(conversationForTestCase);
     setCurrentRunIndex(index);
     setIsRunningTestCase(true);
-    const testCaseData = {
-      conversation,
-      expected,
-      matching_type: selectedStrategy,
-    };
     try {
       const data = await dispatch(
         runTestCaseAction({
           versionIds: searchParams.version,
           bridgeId: params?.id,
           testcase_id: null,
-          testCaseData,
+          testCaseData: {
+            conversation,
+            expected,
+            matching_type: strategy.toLowerCase(),
+          },
           variables,
         })
       );
@@ -756,46 +808,37 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
             {showTestCases ? <CloseCircleIcon /> : <Menu />}
           </div>
         </button>
-        <span className="label-text">New Test Case</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
+          {/* New Chat button — only when there are messages */}
           {messages?.length > 0 && (
-            <div className="flex items-center gap-2 justify-center">
-              <InfoTooltip
-                tooltipContent={`Matching strategies:
- - Cosine finds semantically similar responses.
- - Exact matches strict text patterns.
- - AI uses model judgment to pick the best match.`}
-              >
-                <CircleQuestionMark
-                  size={14}
-                  className="text-gray-500 hover:text-gray-700 cursor-help"
-                  aria-label="Matching strategy information"
-                />
-              </InfoTooltip>
-              <select
-                data-testid="chat-strategy-select"
-                id="chat-strategy-select"
-                className="select select-sm select-bordered"
-                value={selectedStrategy}
-                onChange={(e) => setSelectedStrategy(e.target.value)}
-              >
-                <option value="cosine">Cosine</option>
-                <option value="ai">AI</option>
-                <option value="exact">Exact</option>
-              </select>
+            <div className="tooltip tooltip-bottom" data-tip="New Chat">
               <button
-                data-testid="chat-add-testcase-button"
-                id="chat-add-testcase-button"
-                className="btn btn-sm"
+                data-testid="chat-reset-chat-button"
+                id="chat-reset-chat-button"
+                className="btn btn-sm btn-ghost btn-square"
                 onClick={handleResetChat}
               >
-                {" "}
-                <PlusIcon size={14} />
-                Add Test Case
+                <SquarePen size={16} />
               </button>
             </div>
           )}
-          {/* Test Cases Toggle Button */}
+
+          {/* Add to Test Case button — only when there are messages */}
+          {messages?.length > 0 && (
+            <div className="tooltip tooltip-bottom" data-tip="Add to Test Case">
+              <button
+                data-testid="chat-add-conversation-to-testcase-button"
+                id="chat-add-conversation-to-testcase-button"
+                className="btn btn-sm gap-1.5 px-3"
+                onClick={handleAddConversationToTestCase}
+                disabled={
+                  !messages || messages.filter((m) => m.sender === "user" || m.sender === "assistant").length === 0
+                }
+              >
+                + Add To Testcase
+              </button>
+            </div>
+          )}
         </div>
       </div>
       <div
@@ -853,6 +896,45 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto overflow-x-hidden scrollbar-thumb-blue scrollbar-thumb-rounded scrollbar-track-blue-lighter scrollbar-w-1 pr-2"
               onClick={handleRichUIActions}
             >
+              {/* Empty state: full-width vertical starter question list */}
+              {messages.length === 0 &&
+                bridgeType?.toLowerCase() === "chatbot" &&
+                displayStarterQuestions.length > 0 && (
+                  <div
+                    data-testid="chat-starter-questions"
+                    id="chat-starter-questions"
+                    className="flex flex-col justify-center flex-1 gap-3 py-8 px-2"
+                  >
+                    <p className="text-xs font-medium text-base-content/40 uppercase tracking-widest text-center mb-1">
+                      Start a conversation or try one of these examples:
+                    </p>
+                    <div className="flex flex-col gap-2 w-full">
+                      {displayStarterQuestions.slice(0, 4).map((question, i) => (
+                        <button
+                          key={i}
+                          data-testid={`chat-starter-question-${i}`}
+                          id={`chat-starter-question-${i}`}
+                          className="flex items-center justify-between gap-3 w-full px-4 py-3 rounded-xl border border-base-content/10 bg-base-200/40 hover:bg-base-200/80 hover:border-primary/30 transition-all duration-150 text-left group"
+                          onClick={() => {
+                            if (handleSendMessageRef.current && inputRef.current) {
+                              inputRef.current.value = question;
+                              setTimeout(() => handleSendMessageRef.current(null, true), 50);
+                              setTimeout(() => {
+                                if (inputRef.current) inputRef.current.value = "";
+                              }, 200);
+                            }
+                          }}
+                        >
+                          <span className="text-sm text-base-content/75 leading-snug">{question}</span>
+                          <span className="text-base-content/30 group-hover:text-primary/50 transition-colors shrink-0 text-base">
+                            →
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               {messages.map((message, index) => {
                 return (
                   <div
@@ -971,16 +1053,54 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           className={`flex gap-2 show-on-hover ${message.sender === "user" ? "justify-end" : "justify-start"} w-full max-w-[720px] min-w-0 items-center relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
                         >
                           {message?.sender === "user" && message?.content && (
-                            <button
-                              data-testid={`chat-run-test-button-${index}`}
-                              id={`chat-run-test-button-${index}`}
-                              className="btn btn-sm btn-outline hover:btn-primary see-on-hover flex mt-0"
-                              onClick={() => handleRunTestCase(index)}
-                              disabled={isRunningTestCase}
-                            >
-                              <PlayIcon className="h-3 w-3" />
-                              <span>Run</span>
-                            </button>
+                            <div className="dropdown dropdown-end see-on-hover">
+                              <button
+                                tabIndex={0}
+                                role="button"
+                                data-testid={`chat-run-test-button-${index}`}
+                                id={`chat-run-test-button-${index}`}
+                                className="btn btn-sm btn-outline hover:btn-primary flex mt-0"
+                                disabled={isRunningTestCase}
+                              >
+                                <PlayIcon className="h-3 w-3" />
+                                <span>Run</span>
+                              </button>
+                              <ul
+                                tabIndex={0}
+                                className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-28 z-40 text-xs border border-base-200"
+                              >
+                                <li>
+                                  <button
+                                    onClick={() => {
+                                      handleRunTestCase(index, "exact");
+                                      if (document.activeElement) document.activeElement.blur();
+                                    }}
+                                  >
+                                    Exact
+                                  </button>
+                                </li>
+                                <li>
+                                  <button
+                                    onClick={() => {
+                                      handleRunTestCase(index, "ai");
+                                      if (document.activeElement) document.activeElement.blur();
+                                    }}
+                                  >
+                                    AI
+                                  </button>
+                                </li>
+                                <li>
+                                  <button
+                                    onClick={() => {
+                                      handleRunTestCase(index, "cosine");
+                                      if (document.activeElement) document.activeElement.blur();
+                                    }}
+                                  >
+                                    Cosine
+                                  </button>
+                                </li>
+                              </ul>
+                            </div>
                           )}
 
                           {/* Show either assistant message or test case result */}
@@ -1064,15 +1184,18 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     : "chat-bubble w-fit max-w-[75%] text-sm"
                               } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
                             >
-                              {/* Show loader overlay if this is the message being tested */}
-                              {isRunningTestCase && currentRunIndex !== null && index === currentRunIndex + 1 && (
-                                <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10 pointer-events-none">
-                                  <div className="flex items-center gap-2">
-                                    <span className="loading loading-spinner loading-sm"></span>
-                                    <span className="text-sm font-medium">Running Test Case...</span>
+                              {/* Show loader overlay if this is the message being tested and no result yet */}
+                              {isRunningTestCase &&
+                                currentRunIndex !== null &&
+                                index === currentRunIndex + 1 &&
+                                !message.testCaseResult && (
+                                  <div className="absolute inset-0 bg-base-100/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10 pointer-events-none">
+                                    <div className="flex items-center gap-2">
+                                      <span className="loading loading-spinner loading-sm"></span>
+                                      <span className="text-sm font-medium">Running Test Case...</span>
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
 
                               {/* Edit Mode */}
                               {editingMessage === message.id ? (

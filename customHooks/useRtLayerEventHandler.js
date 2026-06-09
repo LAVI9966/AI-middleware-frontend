@@ -125,12 +125,15 @@ function useRtLayerEventHandler(channelIdentifier = "") {
           const runBridgeId = parsedData.bridge_id || bridgeId;
           if (!runBridgeId) return;
           if (event === "run_started") {
+            // Don't overwrite testcaseId if it's already set in the run state
+            // This preserves the original testcase ID sent from the UI
             dispatch(
               testRunStartedReducer({
                 bridgeId: runBridgeId,
                 total: parsedData.total_testcases,
                 versionIds: parsedData.version_ids,
                 testcaseId: parsedData.testcase_id || null,
+                preserveTestcaseId: true, // Flag to preserve existing testcaseId
               })
             );
           } else if (event === "testcase_result") {
@@ -139,6 +142,8 @@ function useRtLayerEventHandler(channelIdentifier = "") {
                 bridgeId: runBridgeId,
                 versionId: parsedData.version_id,
                 result: parsedData.result,
+                model: parsedData.model,
+                service: parsedData.service_name,
               })
             );
             // Also store in direct test results for testcases that don't exist in database

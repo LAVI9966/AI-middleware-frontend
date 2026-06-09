@@ -96,19 +96,21 @@ export const dryRun = async ({ localDataToSend, bridge_id }) => {
     const modelType = localDataToSend.configuration.type;
     const isChat = modelType !== "completion" && modelType !== "embedding";
     const isStream = !!localDataToSend.is_stream;
-    if (!localDataToSend?.version_id) {
-      localDataToSend.agent_id = bridge_id;
+    const payload = { ...localDataToSend };
+    delete payload.is_stream;
+
+    if (!payload?.version_id) {
+      payload.agent_id = bridge_id;
     }
     let dryRun;
     const axiosConfig = isStream ? { responseType: "stream", adapter: "fetch" } : {};
 
-    if (isChat) dryRun = await axios.post(`${PYTHON_URL}/api/v2/model/chat/completion`, localDataToSend, axiosConfig);
-    if (modelType === "completion")
-      dryRun = await axios.post(`${URL}/api/v1/model/completion`, localDataToSend, axiosConfig);
+    if (isChat) dryRun = await axios.post(`${PYTHON_URL}/api/v2/model/chat/completion`, payload, axiosConfig);
+    if (modelType === "completion") dryRun = await axios.post(`${URL}/api/v1/model/completion`, payload, axiosConfig);
     if (modelType === "embedding")
       dryRun = await axios.post(
         `${PYTHON_URL}/api/v2/model/playground/chat/completion/${bridge_id}`,
-        localDataToSend,
+        payload,
         axiosConfig
       );
 
