@@ -359,22 +359,31 @@ const TestCaseDetailsPanel = ({
   };
 
   return (
-    <div className="overflow-hidden h-full min-h-0">
-      <div className="bg-base-100 border border-base-200 rounded-xl overflow-hidden flex flex-col h-full min-h-0">
+    <div className="overflow-hidden h-full min-h-0" data-testid="testcase-details-panel">
+      <div
+        className="bg-base-100 border border-base-200 rounded-xl overflow-hidden flex flex-col h-full min-h-0"
+        data-testid="testcase-details-panel-card"
+      >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-base-200 flex items-center justify-between bg-base-50">
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold text-base-content">
+        <div
+          className="px-6 py-4 border-b border-base-200 flex items-center justify-between bg-base-50"
+          data-testid="testcase-details-header"
+        >
+          <div className="flex-1" data-testid="testcase-details-title-block">
+            <h2 className="text-lg font-semibold text-base-content" data-testid="testcase-details-title">
               {selectedTestCase?.conversation
                 ?.filter((m) => m?.role === "user")
                 ?.pop()
                 ?.content?.substring(0, 50) || "Test Case"}
             </h2>
-            <p className="text-xs text-base-content/60 mt-0.5">Comparison across selected versions</p>
+            <p className="text-xs text-base-content/60 mt-0.5" data-testid="testcase-details-subtitle">
+              Comparison across selected versions
+            </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative" ref={matchingDropdownRef}>
+          <div className="flex items-center gap-2" data-testid="testcase-details-actions">
+            <div className="relative" ref={matchingDropdownRef} data-testid="testcase-matching-dropdown-wrapper">
               <button
+                data-testid="testcase-matching-dropdown-button"
                 onClick={() => setIsMatchingDropdownOpen(!isMatchingDropdownOpen)}
                 className="px-3 py-2 bg-base-100 border border-base-200 hover:border-base-400 text-base-content rounded-lg flex items-center gap-2 transition-all text-sm font-medium"
               >
@@ -385,10 +394,14 @@ const TestCaseDetailsPanel = ({
                 />
               </button>
               {isMatchingDropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 bg-base-100 border border-base-200 rounded-lg shadow-lg z-30 min-w-[140px]">
+                <div
+                  className="absolute top-full right-0 mt-2 bg-base-100 border border-base-200 rounded-lg shadow-lg z-30 min-w-[140px]"
+                  data-testid="testcase-matching-dropdown-menu"
+                >
                   {matchingTypes.map((type) => (
                     <button
                       key={type}
+                      data-testid={`testcase-matching-option-${type.toLowerCase()}`}
                       onClick={() => handleMatchingTypeChange(type)}
                       className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
                         matchingType === type
@@ -403,6 +416,7 @@ const TestCaseDetailsPanel = ({
               )}
             </div>
             <button
+              data-testid="testcase-run-button"
               onClick={() => handleRunWithVariableCheck(selectedTestCase?._id)}
               disabled={isRunningThis || isloading || noVersionsSelected || isRunDisabled}
               title={
@@ -427,6 +441,7 @@ const TestCaseDetailsPanel = ({
               )}
             </button>
             <button
+              data-testid="testcase-edit-variables-button"
               onClick={() => openModal(MODAL_TYPE.TEST_CASE_VARIABLES_MODAL)}
               className="p-2 text-base-content bg-base-200 rounded-lg transition-colors"
               title="Edit variables"
@@ -434,6 +449,7 @@ const TestCaseDetailsPanel = ({
               <Settings size={18} />
             </button>
             <button
+              data-testid="testcase-delete-button"
               onClick={async () => {
                 setIsDeleting(true);
                 try {
@@ -460,11 +476,12 @@ const TestCaseDetailsPanel = ({
         </div>
 
         {/* Content */}
-        <div className="overflow-auto flex-1 p-6">
+        <div className="overflow-auto flex-1 p-6" data-testid="testcase-details-content">
           {/* Conversation History */}
           {editedConversation.slice(0, -1).length > 0 && (
             <div className="mb-6">
               <button
+                data-testid="testcase-conversation-toggle"
                 onClick={() => setIsConversationOpen(!isConversationOpen)}
                 className="w-full flex items-center justify-between bg-base-50 hover:bg-base-100 rounded-lg px-4 py-3 border border-base-200 transition-colors"
               >
@@ -478,13 +495,17 @@ const TestCaseDetailsPanel = ({
                 />
               </button>
               {isConversationOpen && (
-                <div className="mt-3 bg-base-50 rounded-lg px-4 py-3 border border-base-200">
-                  <div className="space-y-3">
+                <div
+                  className="mt-3 bg-base-50 rounded-lg px-4 py-3 border border-base-200"
+                  data-testid="testcase-conversation-history-panel"
+                >
+                  <div className="space-y-3" data-testid="testcase-conversation-history-list">
                     {editedConversation.slice(0, -1).map((message, idx) => {
                       const isStringContent = typeof message?.content === "string";
                       return (
                         <div
                           key={idx}
+                          data-testid={`testcase-conversation-message-${idx}`}
                           className={`p-3 rounded-md ${message?.role === "user" ? "bg-primary/10 border border-primary/20" : "bg-base-100 border border-base-200"}`}
                         >
                           <div className="text-xs font-semibold text-base-content/60 mb-1 uppercase tracking-wide">
@@ -492,6 +513,7 @@ const TestCaseDetailsPanel = ({
                           </div>
                           {isStringContent ? (
                             <AutoResizeTextarea
+                              data-testid={`testcase-conversation-message-input-${idx}`}
                               value={message?.content || ""}
                               onChange={(e) => handleConversationChange(idx, e.target.value)}
                               onBlur={() => handleConversationBlur(idx)}
@@ -521,9 +543,18 @@ const TestCaseDetailsPanel = ({
             const lastUserContent = editedConversation[lastUserIdx]?.content || "";
             return (
               <div className="mb-5">
-                <div className="text-xs font-semibold text-base-content/70 mb-2 uppercase tracking-wide">Input</div>
-                <div className="bg-base-50 rounded-lg px-4 py-3 border border-base-200">
+                <div
+                  className="text-xs font-semibold text-base-content/70 mb-2 uppercase tracking-wide"
+                  data-testid="testcase-input-label"
+                >
+                  Input
+                </div>
+                <div
+                  className="bg-base-50 rounded-lg px-4 py-3 border border-base-200"
+                  data-testid="testcase-input-panel"
+                >
                   <AutoResizeTextarea
+                    data-testid="testcase-input-textarea"
                     value={typeof lastUserContent === "string" ? lastUserContent : JSON.stringify(lastUserContent)}
                     onChange={(e) => handleConversationChange(lastUserIdx, e.target.value)}
                     onBlur={() => handleConversationBlur(lastUserIdx)}
@@ -536,12 +567,19 @@ const TestCaseDetailsPanel = ({
 
           {/* Expected Output (always editable) */}
           <div className="mb-6">
-            <div className="text-xs font-semibold text-success mb-2 uppercase tracking-wide flex items-center gap-1.5">
+            <div
+              className="text-xs font-semibold text-success mb-2 uppercase tracking-wide flex items-center gap-1.5"
+              data-testid="testcase-expected-label"
+            >
               <Check size={12} />
               Expected Output
             </div>
-            <div className="bg-success/10 rounded-lg px-4 py-3 border border-success/30">
+            <div
+              className="bg-success/10 rounded-lg px-4 py-3 border border-success/30"
+              data-testid="testcase-expected-panel"
+            >
               <AutoResizeTextarea
+                data-testid="testcase-expected-textarea"
                 value={editedExpected}
                 onChange={(e) => setEditedExpected(e.target.value)}
                 onBlur={handleExpectedBlur}
@@ -551,18 +589,21 @@ const TestCaseDetailsPanel = ({
             </div>
           </div>
           {/* Version Comparison (independent of run-version selection) */}
-          <div ref={dropdownRef}>
-            <div className="mb-5 flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium text-base-content">Compare:</span>
-              <div className="flex items-center gap-2 flex-wrap">
+          <div ref={dropdownRef} data-testid="testcase-comparison-section">
+            <div className="mb-5 flex items-center gap-2 flex-wrap" data-testid="testcase-comparison-controls">
+              <span className="text-sm font-medium text-base-content" data-testid="testcase-comparison-label">
+                Compare:
+              </span>
+              <div className="flex items-center gap-2 flex-wrap" data-testid="testcase-comparison-version-list">
                 {comparisonVersions.map((version, idx) => {
                   const availableForThisSlot = versions.filter((v) => v === version || !comparisonVersions.includes(v));
                   return (
-                    <div key={idx} className="relative">
-                      <div className="dropdown">
+                    <div key={idx} className="relative" data-testid={`testcase-comparison-version-${idx}`}>
+                      <div className="dropdown" data-testid={`testcase-comparison-dropdown-${idx}`}>
                         <div
                           tabIndex={0}
                           role="button"
+                          data-testid={`testcase-comparison-dropdown-button-${idx}`}
                           className="px-3 py-1.5 bg-base-100 border border-base-200 rounded-md text-sm font-medium text-base-content hover:bg-base-200 flex items-center gap-1.5 transition-all"
                         >
                           V{versions.indexOf(version) + 1}
@@ -571,10 +612,12 @@ const TestCaseDetailsPanel = ({
                         <ul
                           tabIndex={0}
                           className="dropdown-content menu bg-base-100 border border-base-200 rounded-md shadow-lg z-30 min-w-[120px] max-h-60 overflow-y-auto p-1 mt-1 flex-nowrap"
+                          data-testid={`testcase-comparison-dropdown-menu-${idx}`}
                         >
                           {availableForThisSlot.map((v, vIdx) => (
                             <li key={vIdx}>
                               <button
+                                data-testid={`testcase-comparison-version-option-${idx}-${versions.indexOf(v) + 1}`}
                                 onClick={(e) => {
                                   handleVersionChange(idx, v);
                                   e.currentTarget.blur();
@@ -589,6 +632,7 @@ const TestCaseDetailsPanel = ({
                       </div>
                       {comparisonVersions.length > 1 && (
                         <button
+                          data-testid={`testcase-comparison-remove-version-${idx}`}
                           onClick={() => handleRemoveVersion(version)}
                           className="absolute -top-1.5 -right-1.5 p-0.5 bg-base-100 text-base-content/60 hover:text-error border border-base-300 hover:border-error rounded-full transition-colors shadow-sm z-10"
                         >
@@ -600,6 +644,7 @@ const TestCaseDetailsPanel = ({
                 })}
                 {comparisonVersions.length < versions.length && (
                   <button
+                    data-testid="testcase-comparison-add-version"
                     onClick={handleAddVersion}
                     className="px-3 py-1.5 bg-base-100 border border-dashed border-primary/40 rounded-md text-sm font-medium text-primary hover:bg-primary/5 flex items-center gap-1.5 transition-all"
                   >
@@ -614,6 +659,7 @@ const TestCaseDetailsPanel = ({
             {comparisonVersions.length > 0 ? (
               <div
                 className={`grid gap-4 ${comparisonVersions.length === 1 ? "grid-cols-1" : comparisonVersions.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}
+                data-testid="testcase-version-output-grid"
               >
                 {comparisonVersions.map((version, idx) => {
                   const versionArray = selectedTestCase?.version_history?.[version];
@@ -631,15 +677,28 @@ const TestCaseDetailsPanel = ({
                   return (
                     <div
                       key={idx}
+                      data-testid={`testcase-version-output-card-${versions.indexOf(version) + 1}`}
                       className={`bg-base-50 border rounded-lg p-4 h-fit ${runErrorMessage ? "border-error/40" : "border-base-200"}`}
                     >
-                      <div className="flex items-center justify-between mb-3 pb-3 border-b border-base-200">
-                        <div className="text-xs font-bold text-primary uppercase tracking-wide">
+                      <div
+                        className="flex items-center justify-between mb-3 pb-3 border-b border-base-200"
+                        data-testid={`testcase-version-output-card-header-${versions.indexOf(version) + 1}`}
+                      >
+                        <div
+                          className="text-xs font-bold text-primary uppercase tracking-wide"
+                          data-testid={`testcase-version-output-label-${versions.indexOf(version) + 1}`}
+                        >
                           v{versions.indexOf(version) + 1}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div
+                          className="flex items-center gap-2"
+                          data-testid={`testcase-version-output-score-${versions.indexOf(version) + 1}`}
+                        >
                           {!hasRun ? null : runErrorMessage ? (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-error/10 text-error">
+                            <span
+                              className="text-xs font-semibold px-2 py-0.5 rounded-full bg-error/10 text-error"
+                              data-testid={`testcase-version-output-error-${versions.indexOf(version) + 1}`}
+                            >
                               Error
                             </span>
                           ) : (
@@ -653,13 +712,24 @@ const TestCaseDetailsPanel = ({
                         </div>
                       </div>
                       {!hasRun ? (
-                        <div className="text-xs text-base-content/40 italic mb-3">Not run yet</div>
+                        <div
+                          className="text-xs text-base-content/40 italic mb-3"
+                          data-testid={`testcase-version-output-empty-${versions.indexOf(version) + 1}`}
+                        >
+                          Not run yet
+                        </div>
                       ) : runErrorMessage ? (
-                        <div className="text-sm leading-relaxed mb-3 p-3 rounded-md bg-error/5 border border-error/20 text-error break-words">
+                        <div
+                          className="text-sm leading-relaxed mb-3 p-3 rounded-md bg-error/5 border border-error/20 text-error break-words"
+                          data-testid={`testcase-version-output-error-message-${versions.indexOf(version) + 1}`}
+                        >
                           {runErrorMessage}
                         </div>
                       ) : (
-                        <div className="text-sm text-base-content leading-relaxed mb-3">
+                        <div
+                          className="text-sm text-base-content leading-relaxed mb-3"
+                          data-testid={`testcase-version-output-content-${versions.indexOf(version) + 1}`}
+                        >
                           {typeof modelOutput === "string" ? modelOutput : JSON.stringify(modelOutput)}
                         </div>
                       )}
@@ -668,7 +738,10 @@ const TestCaseDetailsPanel = ({
                 })}
               </div>
             ) : (
-              <div className="bg-base-50 border border-dashed border-base-200 rounded-lg px-4 py-8 text-center">
+              <div
+                className="bg-base-50 border border-dashed border-base-200 rounded-lg px-4 py-8 text-center"
+                data-testid="testcase-version-output-empty-state"
+              >
                 <p className="text-sm text-base-content/60">Add a version above to start comparing outputs.</p>
               </div>
             )}

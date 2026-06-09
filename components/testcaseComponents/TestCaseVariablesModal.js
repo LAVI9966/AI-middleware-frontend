@@ -89,17 +89,31 @@ const TestCaseVariablesModal = ({
 
   return (
     <Modal MODAL_ID={MODAL_TYPE.TEST_CASE_VARIABLES_MODAL} onClose={handleClose}>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
-        <div className="bg-base-100 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+        data-testid="testcase-variables-modal-overlay"
+      >
+        <div
+          className="bg-base-100 rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-auto"
+          data-testid="testcase-variables-modal"
+        >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-base-300 sticky top-0 bg-base-100">
-            <h3 className="text-xl font-semibold">Test Case Variables</h3>
+          <div
+            className="flex items-center justify-between p-6 border-b border-base-300 sticky top-0 bg-base-100"
+            data-testid="testcase-variables-modal-header"
+          >
+            <h3 className="text-xl font-semibold" data-testid="testcase-variables-modal-title">
+              Test Case Variables
+            </h3>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4" data-testid="testcase-variables-modal-content">
             {showAlert && (
-              <div className="alert alert-warning bg-warning/10 border border-warning/30 rounded-lg p-4">
+              <div
+                className="alert alert-warning bg-warning/10 border border-warning/30 rounded-lg p-4"
+                data-testid="testcase-variables-modal-alert"
+              >
                 <div className="flex gap-3">
                   <div className="text-warning">
                     <AlertTriangle className="shrink-0 h-6 w-6" />
@@ -115,19 +129,37 @@ const TestCaseVariablesModal = ({
             )}
 
             {Object.keys(editableVariables).length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-3" data-testid="testcase-variables-list">
                 {Object.entries(editableVariables).map(([key, value]) => (
-                  <div key={key} className="bg-base-50 rounded-lg p-4 border border-base-200">
+                  <div
+                    key={key}
+                    className="bg-base-50 rounded-lg p-4 border border-base-200"
+                    data-testid={`testcase-variables-item-${key}`}
+                  >
                     <div className="grid grid-cols-2 gap-3 items-start">
-                      <div>
-                        <label className="text-xs font-semibold text-base-content mb-2 block">Key</label>
-                        <div className="text-sm font-mono bg-base-200 px-3 py-2 rounded text-base-content break-all whitespace-pre-wrap">
+                      <div data-testid={`testcase-variables-key-block-${key}`}>
+                        <label
+                          className="text-xs font-semibold text-base-content mb-2 block"
+                          data-testid={`testcase-variables-key-label-${key}`}
+                        >
+                          Key
+                        </label>
+                        <div
+                          className="text-sm font-mono bg-base-200 px-3 py-2 rounded text-base-content break-all whitespace-pre-wrap"
+                          data-testid={`testcase-variables-key-value-${key}`}
+                        >
                           {key}
                         </div>
                       </div>
-                      <div>
-                        <label className="text-xs font-semibold text-base-content mb-2 block">Value</label>
+                      <div data-testid={`testcase-variables-value-block-${key}`}>
+                        <label
+                          className="text-xs font-semibold text-base-content mb-2 block"
+                          data-testid={`testcase-variables-value-label-${key}`}
+                        >
+                          Value
+                        </label>
                         <AutoResizeTextarea
+                          data-testid={`testcase-variables-value-input-${key}`}
                           value={typeof value === "string" ? value : JSON.stringify(value)}
                           onChange={(e) => handleVariableChange(key, e.target.value)}
                           onBlur={() => handleVariableBlur(key)}
@@ -140,25 +172,41 @@ const TestCaseVariablesModal = ({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8">
+              <div className="text-center py-8" data-testid="testcase-variables-empty-state">
                 <p className="text-base-content/60">No variables available</p>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="flex justify-end gap-2 p-6 border-t border-base-300 sticky bottom-0 bg-base-100">
-            <button onClick={handleClose} className="btn btn-outline btn-sm">
+          <div
+            className="flex justify-end gap-2 p-6 border-t border-base-300 sticky bottom-0 bg-base-100"
+            data-testid="testcase-variables-modal-footer"
+          >
+            <button
+              onClick={handleClose}
+              className="btn btn-outline btn-sm"
+              data-testid="testcase-variables-cancel-button"
+            >
               Cancel
             </button>
             {showAlert &&
               Object.values(editableVariables).some((value) => !value || value.toString().trim() === "") && (
-                <button onClick={handleSave} className="btn btn-warning btn-sm">
+                <button
+                  onClick={handleSave}
+                  className="btn btn-warning btn-sm"
+                  data-testid="testcase-variables-run-anyway-button"
+                >
                   Run Anyway
                 </button>
               )}
             {Object.keys(editableVariables).length > 0 && (
-              <button onClick={handleSave} disabled={!isDirty} className="btn btn-primary btn-sm">
+              <button
+                onClick={handleSave}
+                disabled={!isDirty}
+                className="btn btn-primary btn-sm"
+                data-testid="testcase-variables-save-button"
+              >
                 Save Variables
               </button>
             )}

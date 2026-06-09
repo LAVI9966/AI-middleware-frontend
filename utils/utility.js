@@ -11,11 +11,14 @@ import AIMLIcon from "@/icons/AIMLIcon";
 import AnthropicIcon from "@/icons/AnthropicIcon";
 import CsvIcon from "@/icons/CsvIcon";
 import DeepgramIcon from "@/icons/DeepgramIcon";
+import DeepseekIcon from "@/icons/DeepseekIcon";
 import GeminiIcon from "@/icons/GeminiIcon";
 import GoogleDocIcon from "@/icons/GoogleDocIcon";
 import Grok from "@/icons/Grok";
 import GroqIcon from "@/icons/GroqIcon";
 import MistralIcon from "@/icons/MistralIcon";
+import MoonshotIcon from "@/icons/MoonshotIcon";
+import NeevCloudIcon from "@/icons/NeevCloudIcon";
 import OpenAiIcon from "@/icons/OpenAiIcon";
 import OpenRouter from "@/icons/OpenRouter";
 import { PdfIcon } from "@/icons/pdfIcon";
@@ -302,6 +305,12 @@ export const getIconOfService = (service, height, width) => {
       return <Grok height={height} width={width} />;
     case "deepgram":
       return <DeepgramIcon height={height} width={width} />;
+    case "deepseek":
+      return <DeepseekIcon height={height} width={width} />;
+    case "moonshot":
+      return <MoonshotIcon height={height} width={width} />;
+    case "neev_cloud":
+      return <NeevCloudIcon height={height} width={width} />;
     default:
       return <OpenAiIcon height={height} width={width} />;
   }

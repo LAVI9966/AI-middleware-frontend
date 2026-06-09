@@ -11,7 +11,7 @@ import InfoTooltip from "@/components/InfoTooltip";
 import AddNewModelModal from "@/components/modals/AddNewModal";
 
 // Model Preview component to display model specifications
-const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
+export const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
   if (!hoveredModel || !modelSpecs || !dropdownRef?.current) return null;
 
   // Calculate position relative to dropdown with viewport constraints
@@ -21,6 +21,7 @@ const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
   const dropdownMenu = dropdownRef.current?.querySelector(".dropdown-content");
   const targetRect = dropdownMenu ? dropdownMenu.getBoundingClientRect() : dropdownRect;
   const viewportHeight = window.innerHeight;
+  const shouldOpenUp = dropdownRef.current?.classList?.contains("dropdown-top");
 
   const modalWidth = 260;
   const viewportWidth = window.innerWidth;
@@ -40,10 +41,10 @@ const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
 
   const previewStyle = {
     position: "fixed",
-    top: Math.max(20, dropdownRect?.top - 50),
+    top: shouldOpenUp ? Math.max(20, targetRect?.top) : Math.max(20, dropdownRect?.top - 50),
     left: leftPosition,
     zIndex: 99999,
-    maxHeight: `${viewportHeight}px`,
+    maxHeight: shouldOpenUp ? `${Math.max(120, viewportHeight - targetRect?.top - 20)}px` : `${viewportHeight}px`,
     overflowY: "auto",
   };
 
@@ -383,12 +384,14 @@ const ModelDropdown = ({
                 className="flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm whitespace-nowrap transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 border-base-200 text-base-content h-8 min-w-[150px]"
                 placeholder="Select basis"
                 size="sm"
+                key={selectedAutoModelBasedOn}
               />
             ) : (
               <Dropdown
                 testId="model-dropdown"
                 disabled={isReadOnly || autoModelSelect}
                 options={modelOptions}
+                key={modelOptions}
                 value={model || ""}
                 onChange={handleSelect}
                 onOptionHover={handleOptionHover}

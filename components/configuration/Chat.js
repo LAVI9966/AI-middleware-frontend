@@ -1055,6 +1055,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           ) : (
                             /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
                             <div
+                              data-testid={`playground-ai-response-message-${message.id}`}
                               className={`break-words gap-0 justify-start relative min-w-0 ${
                                 message.sender === "assistant"
                                   ? `mr-8 w-full rounded-xl ${message.content ? "px-4 py-3 border border-base-content/20" : ""}`
@@ -1116,7 +1117,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     message?.type !== "template" &&
                                     !(message?.llm_urls?.length > 0) && (
                                       <button
-                                        data-testid={`chat-edit-message-button-${message.id}`}
+                                        data-testid={`playground-ai-response-pencil-button-${message.id}`}
                                         id={`chat-edit-message-button-${message.id}`}
                                         onClick={() => handleEditMessage(message.id, message.content)}
                                         className="absolute -top-2 -right-5 opacity-0 group-hover:opacity-100 transition-opacity btn btn-sm btn-circle btn-ghost"
@@ -1155,7 +1156,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
                                   {/* Loading state for assistant message */}
                                   {message.isLoading && !message.content && !message.toolCalls?.length ? (
-                                    <div className="py-1">
+                                    <div data-testid="chat-loading-state" className="py-1">
                                       <span className="loading loading-dots loading-sm"></span>
                                     </div>
                                   ) : message.isStreaming && message.content ? (

@@ -915,13 +915,22 @@ const AdvancedParameters = ({
                   !isDefaultValue &&
                   configuration?.[key]?.type === "json_schema" &&
                   !configuration?.[key]?.is_template && (
-                    <div id={`advanced-param-json-schema-${key}`} className="mt-3 space-y-2">
+                    <div
+                      id={`advanced-param-json-schema-${key}`}
+                      data-testid={`advanced-param-json-schema-section-${key}`}
+                      className="mt-3 space-y-2"
+                    >
                       <div
                         id={`advanced-param-json-schema-header-${key}`}
+                        data-testid={`advanced-param-json-schema-header-${key}`}
                         className="flex justify-between items-center"
                       >
-                        <div className="flex gap-2 mt-4 ml-auto items-center">
+                        <div
+                          className="flex gap-2 mt-4 ml-auto items-center"
+                          data-testid={`advanced-param-json-schema-actions-${key}`}
+                        >
                           <span
+                            data-testid={`advanced-param-json-schema-build-visually-${key}`}
                             className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
                             onClick={() => {
                               openModal(MODAL_TYPE.JSON_SCHEMA_BUILDER);
@@ -931,6 +940,7 @@ const AdvancedParameters = ({
                           </span>
                           <span className="text-xs text-base-content/50">|</span>
                           <span
+                            data-testid={`advanced-param-json-schema-build-ai-${key}`}
                             className="label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text cursor-pointer hover:opacity-80 transition-opacity text-xs"
                             onClick={() => {
                               openModal(MODAL_TYPE.JSON_SCHEMA);
@@ -940,6 +950,7 @@ const AdvancedParameters = ({
                           </span>
                           <span className="text-xs text-base-content/50">|</span>
                           <FullscreenEditorButton
+                            data-testid={`advanced-param-json-schema-fullscreen-${key}`}
                             tooltip="Open JSON schema in fullscreen"
                             className=""
                             onClick={() => {
@@ -949,8 +960,9 @@ const AdvancedParameters = ({
                         </div>
                       </div>
 
-                      <div className="relative">
+                      <div className="relative" data-testid={`advanced-param-json-schema-editor-wrapper-${key}`}>
                         <div
+                          data-testid={`advanced-param-json-schema-editor-border-${key}`}
                           className={`w-full text-xs font-mono rounded overflow-hidden border transition-colors duration-200 ${
                             jsonSchemaError ? "border-red-600" : "border-base-300"
                           }`}
@@ -1031,7 +1043,10 @@ const AdvancedParameters = ({
                         </div>
                       </div>
                       {jsonSchemaError && (
-                        <div className="flex items-start gap-1.5 mt-1.5 text-error">
+                        <div
+                          className="flex items-start gap-1.5 mt-1.5 text-error"
+                          data-testid={`advanced-param-json-schema-error-${key}`}
+                        >
                           <CircleX className="h-3.5 w-3.5 mt-0.5 shrink-0 text-error" />
                           <span className="text-xs text-error">{jsonSchemaError}</span>
                         </div>
