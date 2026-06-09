@@ -11,6 +11,7 @@ export default function MessageExecutionTrace({
   bridgeId,
   rootAgentName = "Agent",
   formatDateAndTime,
+  showUserMessageInTrace = false,
   onToolLogsClick,
   onToolDataClick,
   onAgentDataClick,
@@ -116,7 +117,7 @@ export default function MessageExecutionTrace({
         run={display.run}
         agents={display.agents}
         embedded
-        userMessage={item?.user}
+        userMessage={showUserMessageInTrace ? item?.user : undefined}
         onToolLogsClick={onToolLogsClick}
         onToolDataClick={onToolDataClick}
         onAgentDataClick={onAgentDataClick}

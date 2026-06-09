@@ -34,17 +34,13 @@ const Sidebar = memo(
     isErrorTrue,
     activeFilterByRef,
   }) => {
-    const { subThreads, userFeedbackCount, bridgeVersionsArray, allBridgesMap, isEmbedUser } = useCustomSelector(
-      (state) => ({
-        subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
-        userFeedbackCount: state?.historyReducer?.userFeedbackCount,
-        bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
-          ? state.bridgeReducer.allBridgesMap[params.id].versions
-          : [],
-        allBridgesMap: state?.bridgeReducer?.allBridgesMap || {},
-        isEmbedUser: state?.appInfoReducer?.embedUserDetails?.isEmbedUser,
-      })
-    );
+    const { subThreads, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
+      subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
+      userFeedbackCount: state?.historyReducer?.userFeedbackCount,
+      bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
+        ? state.bridgeReducer.allBridgesMap[params.id].versions
+        : [],
+    }));
 
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
     const [expandedThreads, setExpandedThreads] = useState([]);
@@ -52,21 +48,6 @@ const Sidebar = memo(
     const [filterByFields, setFilterByFields] = useState({ ...HISTORY_FILTER_BY_FIELDS, variables: {} });
     const [variableKey, setVariableKey] = useState("");
     const [variableValue, setVariableValue] = useState("");
-    const isBridgeStateless = (bridgeId) => {
-      const bridgeInfo = allBridgesMap?.[bridgeId];
-      return bridgeInfo?.settings?.stateless_conversation === true;
-    };
-
-    const isThreadSingleQuery = (item) => {
-      if (isEmbedUser) return false;
-      if (!isBridgeStateless(params?.id)) return false;
-      // For the currently expanded thread, check actual subthread count from reducer
-      if (decodeURIComponent(searchParams?.thread_id) === item?.thread_id) {
-        return subThreads.length <= 1;
-      }
-      // For other threads, assume single query since we don't have their subthread count
-      return true;
-    };
     const searchQuery = (searchRef?.current && searchRef.current.value) || searchParams?.message_id || "";
     const dispatch = useDispatch();
     const pathName = usePathname();
@@ -383,7 +364,7 @@ const Sidebar = memo(
 
     return (
       <div
-        className="drawer-side justify-items-stretch text-xs bg-base-200 w-[310px] min-w-[310px] max-w-[310px] border-r border-base-300 relative h-screen overflow-y-auto overflow-x-hidden"
+        className="drawer-side justify-items-stretch text-xs bg-base-200 w-[220px] min-w-[220px] max-w-[220px] border-r border-base-300 relative h-screen overflow-y-auto overflow-x-hidden"
         id="sidebar"
       >
         <CreateFineTuneModal params={params} selectedThreadIds={selectedThreadIds} />
@@ -636,18 +617,15 @@ const Sidebar = memo(
                             }
                           }}
                         >
-                          <a className="w-full h-full flex items-center justify-between relative">
-                            {!isThreadSingleQuery(item) && (
-                              <span className="truncate flex-1 mr-1.5 text-xs">{truncate(item?.thread_id, 30)}</span>
-                            )}
-                            <span className="group-hover:hidden">{formatRelativeTime(item?.updated_at)}</span>
-                            <span className="hidden group-hover:inline">{formatDate(item?.updated_at)}</span>
-                            {/* Tooltip for full thread ID on hover */}
-                            {!isThreadSingleQuery(item) && item?.thread_id?.length > 35 && (
-                              <div className="absolute left-0 top-full mt-1 bg-gray-800 text-white text-xs rounded px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-low max-w-[260px] break-words shadow-lg pointer-events-none">
-                                {item?.thread_id}
-                              </div>
-                            )}
+                          <a className="w-full h-full flex items-center relative">
+                            <span className="truncate flex-1 text-xs">
+                              <span className="group-hover:hidden">
+                                {formatRelativeTime(item?.updated_at || item?.created_at)}
+                              </span>
+                              <span className="hidden group-hover:inline">
+                                {formatDate(item?.updated_at || item?.created_at)}
+                              </span>
+                            </span>
                           </a>
                         </li>
                         {decodeURIComponent(searchParams?.thread_id) === item?.thread_id && (
