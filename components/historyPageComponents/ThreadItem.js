@@ -1568,14 +1568,8 @@ const ThreadItem = ({
                 {/* Bubble row: message left, avatar right */}
                 <div className="flex items-start justify-end gap-3">
                   <div
-                    className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words"
-                    style={{
-                      background: "#1e1e1e",
-                      color: "#f0f0f0",
-                      wordBreak: "break-word",
-                      overflowWrap: "break-word",
-                      whiteSpace: "pre-line",
-                    }}
+                    className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words bg-neutral text-neutral-content"
+                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
                   >
                     {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
                     <ReactMarkdown
@@ -1591,10 +1585,7 @@ const ThreadItem = ({
                     </ReactMarkdown>
                   </div>
                   {/* Avatar */}
-                  <div
-                    className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5"
-                    style={{ background: "#e8e2da", color: "#6b5f52" }}
-                  >
+                  <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-300 text-base-content/70">
                     U
                   </div>
                 </div>
@@ -1606,8 +1597,7 @@ const ThreadItem = ({
                       <button
                         data-testid="thread-item-user-aiconfig-button"
                         id="thread-item-user-aiconfig-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
-                        style={{ background: "#ebebeb", color: "#967112" }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
                         onClick={() => handleUserButtonClick("AiConfig")}
                       >
                         <SquareFunctionIcon className="h-3 w-3" />
@@ -1616,8 +1606,7 @@ const ThreadItem = ({
                       <button
                         data-testid="thread-item-user-system-prompt-button"
                         id="thread-item-user-system-prompt-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
-                        style={{ background: "#ebebeb", color: "#967112" }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
                         onClick={() => handleUserButtonClick("system Prompt")}
                       >
                         <FileClockIcon className="h-3 w-3" />
@@ -1626,8 +1615,7 @@ const ThreadItem = ({
                       <button
                         data-testid="thread-item-user-more-button"
                         id="thread-item-user-more-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
-                        style={{ background: "#ebebeb", color: "#967112" }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
                         onClick={() => handleUserButtonClick("more")}
                       >
                         <AddIcon className="h-3 w-3" />
@@ -1639,16 +1627,12 @@ const ThreadItem = ({
                       <button
                         data-testid="thread-item-user-variables-button"
                         id="thread-item-user-variables-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors"
-                        style={{ background: "#ebebeb", color: "#967112" }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
                         onClick={() => setIsVariablesOpen((v) => !v)}
                       >
                         <Braces className="h-3 w-3" />
                         <span>Sent Variables</span>
-                        <span
-                          className="rounded-full px-1.5 py-0 text-[10px] font-bold"
-                          style={{ background: "#d6d0c8", color: "#6b5f52" }}
-                        >
+                        <span className="rounded-full px-1.5 py-0 text-[10px] font-bold bg-base-300 text-base-content/60">
                           {Object.keys(item.variables).length}
                         </span>
                         <ChevronDown
@@ -1665,18 +1649,14 @@ const ThreadItem = ({
 
                   {/* Inline Variables Panel */}
                   {isVariablesOpen && (
-                    <div
-                      className="mt-1 rounded-xl overflow-hidden max-w-[75%] ml-auto"
-                      style={{ background: "#f5f0eb", border: "1px solid #e8d5c4" }}
-                    >
-                      <div className="px-4 py-2.5" style={{ background: "#f5f0eb", borderBottom: "1px solid #e2d8cc" }}>
+                    <div className="mt-1 rounded-xl overflow-hidden max-w-[75%] ml-auto border border-base-300 bg-base-100">
+                      <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
                         <input
                           type="text"
                           placeholder={`Filter ${Object.keys(item?.variables || {}).length} variables...`}
                           value={variablesFilter}
                           onChange={(e) => setVariablesFilter(e.target.value)}
-                          className="w-full text-sm outline-none"
-                          style={{ background: "#f5f0eb", color: "#7a6a55", caretColor: "#c49a3c" }}
+                          className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40"
                         />
                       </div>
                       <div className="max-h-64 overflow-y-auto">
@@ -1685,30 +1665,19 @@ const ThreadItem = ({
                           .map(([key, value], i) => (
                             <div
                               key={key}
-                              className="flex items-start gap-4 px-4 py-2.5"
-                              style={{
-                                borderBottom: "1px solid #e2d8cc",
-                                background: i % 2 === 0 ? "#f5f0eb" : "#edeae4",
-                              }}
+                              className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
                             >
-                              <span className="text-sm font-medium min-w-[120px] shrink-0" style={{ color: "#967112" }}>
-                                {key}
-                              </span>
-                              <span className="text-sm break-all" style={{ color: "#4a3f30" }}>
+                              <span className="text-sm font-medium min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                              <span className="text-sm break-all text-base-content/80">
                                 {typeof value === "object" ? JSON.stringify(value) : String(value ?? "")}
                               </span>
                             </div>
                           ))}
                         {Object.keys(item?.variables || {}).length === 0 && (
-                          <div className="px-4 py-4 text-sm text-center" style={{ color: "#b0a090" }}>
-                            No variables
-                          </div>
+                          <div className="px-4 py-4 text-sm text-center text-base-content/40">No variables</div>
                         )}
                       </div>
-                      <div
-                        className="px-4 py-2 text-right text-xs"
-                        style={{ color: "#b8b0a8", borderTop: "1px solid #e2d8cc", background: "#f5f0eb" }}
-                      >
+                      <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
                         {formatDateAndTime(item.created_at)}
                       </div>
                     </div>
