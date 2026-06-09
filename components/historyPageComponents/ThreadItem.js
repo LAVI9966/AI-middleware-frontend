@@ -36,7 +36,6 @@ import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 import CodeBlock from "../codeBlock/CodeBlock";
 import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
 import { agentInitials, HUE_THEME } from "../historyUi/executionTrace/traceTheme";
-import { AgentFullSlider } from "../historyUi/AgentFullSlider";
 import { flattenToolsCallData } from "@/utils/executionTraceTransform";
 
 // Resolve any possible url shape (string, object with permanent_url, etc.)
@@ -181,7 +180,6 @@ const ThreadItem = ({
 
   const [messageType, setMessageType] = useState(getInitialMessageType());
   const [toolsData, setToolsData] = useState([]);
-  const [selectedTraceAgent, setSelectedTraceAgent] = useState(null);
   const toolsDataModalRef = useRef(null);
   const { embedToken, knowledgeBaseData, isEmbedUser, orgBridges, allBridgesMap, publishedVersionId } =
     useCustomSelector((state) => ({
@@ -214,6 +212,8 @@ const ThreadItem = ({
 
   const [isUserQueryExpanded, setIsUserQueryExpanded] = useState(false);
   const [isAiResponseExpanded, setIsAiResponseExpanded] = useState(false);
+  const [aiResponseOverflows, setAiResponseOverflows] = useState(false);
+  const aiResponseRef = useRef(null);
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, setVariablesFilter] = useState("");
   const { sliderState, openSlider, closeSlider } = useSlider();
@@ -529,6 +529,15 @@ const ThreadItem = ({
     setToolsData([]);
     toolsDataModalRef.current?.close();
   }, []);
+
+  // Measure AI response height to show/hide "Show more" button
+  useEffect(() => {
+    const el = aiResponseRef.current;
+    if (!el) return;
+    // MAX_HEIGHT matches line-clamp-5 at ~1.6rem line-height × 5 = ~8rem = 128px
+    const MAX_HEIGHT = 128;
+    setAiResponseOverflows(el.scrollHeight > MAX_HEIGHT);
+  }, [item?.chatbot_message, item?.llm_message, item?.updated_llm_message]);
 
   const messageId = item.message_id;
   useEffect(() => {
@@ -1076,7 +1085,8 @@ const ThreadItem = ({
                     formatDateAndTime={formatDateAndTime}
                     onToolLogsClick={handleToolPrimaryClick}
                     onToolDataClick={handleToolDataClick}
-                    onAgentDataClick={setSelectedTraceAgent}
+                    onAgentDataClick={handleToolDataClick}
+                    onAgentHistoryClick={handleToolPrimaryClick}
                   />
                 </div>
               </>
@@ -1507,7 +1517,10 @@ const ThreadItem = ({
                     )}
                   </div>
                   {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
-                  <div className={!isAiResponseExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
+                  <div
+                    ref={aiResponseRef}
+                    className={!isAiResponseExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}
+                  >
                     {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
                       <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
                     ) : (
@@ -1524,10 +1537,7 @@ const ThreadItem = ({
                       </ReactMarkdown>
                     )}
                   </div>
-                  {(() => {
-                    const msg = getMessageToDisplay();
-                    return msg?.split("\n").length > 7 || msg?.length > 400;
-                  })() && (
+                  {aiResponseOverflows && (
                     <button
                       className="mt-1 text-xs text-primary/70 hover:text-primary flex items-center gap-1"
                       onClick={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
@@ -1592,8 +1602,8 @@ const ThreadItem = ({
 
                 {/* Below bubble: pill buttons + time */}
                 <div className="flex flex-col gap-1 mt-3 pr-12">
-                  <div className="flex items-center justify-end gap-2">
-                    <div className="flex gap-1.5">
+                  <div className="flex items-center justify-end gap-2 flex-wrap">
+                    <div className="flex gap-1.5 flex-wrap">
                       <button
                         data-testid="thread-item-user-aiconfig-button"
                         id="thread-item-user-aiconfig-button"
@@ -1649,7 +1659,7 @@ const ThreadItem = ({
 
                   {/* Inline Variables Panel */}
                   {isVariablesOpen && (
-                    <div className="mt-1 rounded-xl overflow-hidden max-w-[75%] ml-auto border border-base-300 bg-base-100">
+                    <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100">
                       <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
                         <input
                           type="text"
@@ -1775,7 +1785,8 @@ const ThreadItem = ({
                   formatDateAndTime={formatDateAndTime}
                   onToolLogsClick={handleToolPrimaryClick}
                   onToolDataClick={handleToolDataClick}
-                  onAgentDataClick={setSelectedTraceAgent}
+                  onAgentDataClick={handleToolDataClick}
+                  onAgentHistoryClick={handleToolPrimaryClick}
                 />
               </div>
             )}
@@ -2082,22 +2093,20 @@ const ThreadItem = ({
                     )}
                   </div>
                 </div>
-                {/* Action buttons below AI response — visible on hover */}
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity mt-1 flex items-center gap-1">
+                {/* Action buttons below AI response — always visible */}
+                <div className="mt-2 flex items-center gap-1.5">
                   <button
                     id="thread-item-add-test-case-button"
-                    className="btn text-xs font-normal btn-sm hover:btn-primary"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
                     onClick={() => handleAddTestCase(item, index)}
-                    title="Add Test Case"
                   >
                     <AddIcon className="h-3 w-3" />
                     <span>Test Case</span>
                   </button>
                   <button
                     id="thread-item-debug-agent-button"
-                    className="btn text-xs font-normal btn-sm hover:btn-primary"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
                     onClick={() => handleAskAi(item)}
-                    title="Debug Agent"
                   >
                     <BotMessageIcon className="h-3 w-3" />
                     <span>Debug Agent</span>
@@ -2181,8 +2190,6 @@ const ThreadItem = ({
         url={sliderState.url}
         addSourceParam={false}
       />
-
-      <AgentFullSlider agent={selectedTraceAgent} onClose={() => setSelectedTraceAgent(null)} />
     </div>
   );
 };
