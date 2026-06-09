@@ -338,7 +338,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                   />
                 </button>
                 {showFullConversation && (
-                  <div className="mt-3 bg-white rounded-lg px-6 py-4 border border-base-200 space-y-4">
+                  <div className="mt-3 bg-base-100 rounded-lg px-6 py-4 border border-base-200 space-y-4">
                     {getConversationPairs().map((pair, pairIndex) => (
                       <div key={pairIndex} className="space-y-4">
                         {/* User Message */}

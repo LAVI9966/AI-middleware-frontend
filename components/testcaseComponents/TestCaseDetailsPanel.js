@@ -423,7 +423,7 @@ const TestCaseDetailsPanel = ({
                 />
               </button>
               {isConversationOpen && (
-                <div className="mt-3 bg-white rounded-lg px-6 py-4 border border-base-200 space-y-4">
+                <div className="mt-3 bg-base-100 rounded-lg px-6 py-4 border border-base-200 space-y-4">
                   {editedConversation.slice(0, -1).map((message, idx) => {
                     const isStringContent = typeof message?.content === "string";
                     const isUser = message?.role === "user";
@@ -439,8 +439,8 @@ const TestCaseDetailsPanel = ({
                           <div
                             className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
                               isUser
-                                ? "bg-blue-500 text-white rounded-br-none"
-                                : "bg-gray-100 text-gray-800 rounded-bl-none"
+                                ? "bg-primary text-primary-content rounded-br-none"
+                                : "bg-base-200 text-base-content rounded-bl-none"
                             }`}
                           >
                             {isStringContent ? (
