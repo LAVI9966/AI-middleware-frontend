@@ -188,6 +188,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     testCases,
     directTestResults,
     starterQuestions,
+    bridgeType,
   } = useCustomSelector((state) => {
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
     const bridgeData = state?.bridgeReducer?.allBridgesMap?.[params?.id];
@@ -202,6 +203,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       testCases: state?.testCasesReducer?.testCases?.[params?.id] || [],
       directTestResults: state?.testCasesReducer?.directTestResults?.[params?.id] || {},
       starterQuestions: bridgeData?.starterQuestion || [],
+      bridgeType: bridgeData?.bridgeType || "",
     };
   });
 
@@ -895,41 +897,43 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
               onClick={handleRichUIActions}
             >
               {/* Empty state: full-width vertical starter question list */}
-              {messages.length === 0 && displayStarterQuestions.length > 0 && (
-                <div
-                  data-testid="chat-starter-questions"
-                  id="chat-starter-questions"
-                  className="flex flex-col justify-center flex-1 gap-3 py-8 px-2"
-                >
-                  <p className="text-xs font-medium text-base-content/40 uppercase tracking-widest text-center mb-1">
-                    Start a conversation or try one of these examples:
-                  </p>
-                  <div className="flex flex-col gap-2 w-full">
-                    {displayStarterQuestions.slice(0, 4).map((question, i) => (
-                      <button
-                        key={i}
-                        data-testid={`chat-starter-question-${i}`}
-                        id={`chat-starter-question-${i}`}
-                        className="flex items-center justify-between gap-3 w-full px-4 py-3 rounded-xl border border-base-content/10 bg-base-200/40 hover:bg-base-200/80 hover:border-primary/30 transition-all duration-150 text-left group"
-                        onClick={() => {
-                          if (handleSendMessageRef.current && inputRef.current) {
-                            inputRef.current.value = question;
-                            setTimeout(() => handleSendMessageRef.current(null, true), 50);
-                            setTimeout(() => {
-                              if (inputRef.current) inputRef.current.value = "";
-                            }, 200);
-                          }
-                        }}
-                      >
-                        <span className="text-sm text-base-content/75 leading-snug">{question}</span>
-                        <span className="text-base-content/30 group-hover:text-primary/50 transition-colors shrink-0 text-base">
-                          →
-                        </span>
-                      </button>
-                    ))}
+              {messages.length === 0 &&
+                bridgeType?.toLowerCase() === "chatbot" &&
+                displayStarterQuestions.length > 0 && (
+                  <div
+                    data-testid="chat-starter-questions"
+                    id="chat-starter-questions"
+                    className="flex flex-col justify-center flex-1 gap-3 py-8 px-2"
+                  >
+                    <p className="text-xs font-medium text-base-content/40 uppercase tracking-widest text-center mb-1">
+                      Start a conversation or try one of these examples:
+                    </p>
+                    <div className="flex flex-col gap-2 w-full">
+                      {displayStarterQuestions.slice(0, 4).map((question, i) => (
+                        <button
+                          key={i}
+                          data-testid={`chat-starter-question-${i}`}
+                          id={`chat-starter-question-${i}`}
+                          className="flex items-center justify-between gap-3 w-full px-4 py-3 rounded-xl border border-base-content/10 bg-base-200/40 hover:bg-base-200/80 hover:border-primary/30 transition-all duration-150 text-left group"
+                          onClick={() => {
+                            if (handleSendMessageRef.current && inputRef.current) {
+                              inputRef.current.value = question;
+                              setTimeout(() => handleSendMessageRef.current(null, true), 50);
+                              setTimeout(() => {
+                                if (inputRef.current) inputRef.current.value = "";
+                              }, 200);
+                            }
+                          }}
+                        >
+                          <span className="text-sm text-base-content/75 leading-snug">{question}</span>
+                          <span className="text-base-content/30 group-hover:text-primary/50 transition-colors shrink-0 text-base">
+                            →
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {messages.map((message, index) => {
                 return (

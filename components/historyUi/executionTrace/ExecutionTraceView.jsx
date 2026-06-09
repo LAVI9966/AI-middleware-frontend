@@ -541,16 +541,6 @@ function AgentActionButtons({ payload, rawTool }) {
 
   return (
     <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
-      {canViewData && (
-        <button
-          type="button"
-          className={AGENT_ROW_BTN}
-          title="View agent data"
-          onClick={() => onAgentDataClick(rawTool || payload?.functionData)}
-        >
-          <FileClock size={14} />
-        </button>
-      )}
       {canHistory && (
         <button
           type="button"
@@ -559,6 +549,16 @@ function AgentActionButtons({ payload, rawTool }) {
           onClick={(e) => onAgentHistoryClick(e, rawTool)}
         >
           <History size={14} />
+        </button>
+      )}
+      {canViewData && (
+        <button
+          type="button"
+          className={AGENT_ROW_BTN}
+          title="View agent data"
+          onClick={() => onAgentDataClick(rawTool || payload?.functionData)}
+        >
+          <FileClock size={14} />
         </button>
       )}
     </div>
