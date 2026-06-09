@@ -372,3 +372,10 @@ export const PRE_TOOL_CONFIG_SCHEMA = {
 export const ON_CLICK_ACTION_TYPES = ["reply", "sendDataToFrontend"];
 
 export const PROXY_SCRIPT_SRC = "https://36blocks.com/assets/proxy-auth/proxy-auth.js";
+
+export const DEFAULT_STARTER_QUESTIONS = [
+  "What can you help me with?",
+  "Give me a quick overview of your capabilities.",
+  "How do I get started?",
+  "What kind of questions can I ask you?",
+];

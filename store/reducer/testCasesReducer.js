@@ -183,14 +183,16 @@ const testCasesReducer = createSlice({
     testRunStartedReducer: (state, action) => {
       const { bridgeId, total = 0, versionIds = [], testcaseId = null } = action.payload || {};
       if (!bridgeId) return;
+      const existing = state.testRuns[bridgeId];
+      const resolvedTestcaseId = testcaseId || existing?.testcaseId || null;
       state.testRuns[bridgeId] = {
         status: "running",
-        total: Number(total) || 0,
-        completed: 0,
-        versionIds: Array.isArray(versionIds) ? versionIds : [versionIds].filter(Boolean),
-        testcaseId,
+        total: Number(total) || existing?.total || 0,
+        completed: existing?.completed || 0,
+        versionIds: Array.isArray(versionIds) && versionIds.length > 0 ? versionIds : existing?.versionIds || [],
+        testcaseId: resolvedTestcaseId,
         error: null,
-        seen: {},
+        seen: existing?.seen || {},
       };
     },
     testRunResultReducer: (state, action) => {

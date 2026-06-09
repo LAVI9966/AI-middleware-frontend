@@ -106,15 +106,13 @@ function ChatTextInput({
   });
 
   // Redux selectors for chat state
-  const { threadId, loading, uploadedFiles, uploadedImages, storedTestCaseId, testCaseConversation } =
-    useCustomSelector((state) => ({
-      threadId: state?.chatReducer?.threadIdByChannel?.[channelIdentifier] || null,
-      loading: state?.chatReducer?.loadingByChannel?.[channelIdentifier] || false,
-      uploadedFiles: state?.chatReducer?.uploadedFilesByChannel?.[channelIdentifier] || [],
-      uploadedImages: state?.chatReducer?.uploadedImagesByChannel?.[channelIdentifier] || [],
-      storedTestCaseId: state?.chatReducer?.testCaseIdByChannel?.[channelIdentifier] || null,
-      testCaseConversation: state?.chatReducer?.testCaseConversationByChannel?.[channelIdentifier] || null,
-    }));
+  const { threadId, loading, uploadedFiles, uploadedImages, testCaseConversation } = useCustomSelector((state) => ({
+    threadId: state?.chatReducer?.threadIdByChannel?.[channelIdentifier] || null,
+    loading: state?.chatReducer?.loadingByChannel?.[channelIdentifier] || false,
+    uploadedFiles: state?.chatReducer?.uploadedFilesByChannel?.[channelIdentifier] || [],
+    uploadedImages: state?.chatReducer?.uploadedImagesByChannel?.[channelIdentifier] || [],
+    testCaseConversation: state?.chatReducer?.testCaseConversationByChannel?.[channelIdentifier] || null,
+  }));
   const dataToSend = useMemo(
     () => ({
       configuration: {
@@ -322,14 +320,6 @@ function ChatTextInput({
         return;
       }
     }
-    let testcase_data = {
-      matching_type: selectedStrategy || "exact",
-    };
-    // Use stored testcase_id from Redux if available, otherwise fall back to prop
-    const activeTestCaseId = storedTestCaseId || testCaseId;
-    if (activeTestCaseId) {
-      testcase_data.testcase_id = activeTestCaseId;
-    }
     dispatch(setChatError(channelIdentifier, ""));
     if (modelType !== "completion") inputRef.current.value = "";
 
@@ -357,7 +347,6 @@ function ChatTextInput({
           return await dryRun({
             localDataToSend: {
               ...(isPublished ? {} : { version_id: versionId }),
-              testcase_data,
               configuration: {
                 type: modelType,
                 ...(testCaseConversation ? { conversation: testCaseConversation } : {}),
@@ -402,7 +391,6 @@ function ChatTextInput({
           return await dryRun({
             localDataToSend: {
               ...(isPublished ? {} : { version_id: versionId }),
-              testcase_data,
               configuration: {
                 type: modelType,
                 ...(testCaseConversation ? { conversation: testCaseConversation } : {}),
@@ -431,17 +419,12 @@ function ChatTextInput({
           return;
         }
       } else if (modelType !== "image") {
-        if (activeTestCaseId) {
-          testcase_data.testcase_id = activeTestCaseId;
-        }
-
         // Use RT layer action for completion models too
         const apiCall = async () => {
           return await dryRun({
             localDataToSend: {
               ...localDataToSend,
               ...(isPublished ? {} : { version_id: versionId }),
-              testcase_data,
               configuration: {
                 ...localDataToSend.configuration,
                 ...(testCaseConversation ? { conversation: testCaseConversation } : {}),

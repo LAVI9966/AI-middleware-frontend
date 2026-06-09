@@ -4,7 +4,6 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
 import { MODAL_TYPE } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
-import { getBridgeVersionAction } from "@/store/action/bridgeAction";
 import { updateTestCaseAction } from "@/store/action/testCasesAction";
 import TestCaseVariablesModal from "./TestCaseVariablesModal";
 import AutoResizeTextarea from "@/components/UI/AutoResizeTextarea";
@@ -260,12 +259,6 @@ const TestCaseDetailsPanel = ({
       }
     });
 
-    // Fetch missing versions
-    if (versionsToFetch.length > 0) {
-      versionsToFetch.forEach((versionId) => {
-        dispatch(getBridgeVersionAction({ versionId }));
-      });
-    }
     setVersionVariables(mergedVersionVariables);
   }, [selectedVersions, bridgeVersionMapping, dispatch]);
 
