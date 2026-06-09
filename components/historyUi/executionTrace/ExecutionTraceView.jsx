@@ -47,7 +47,7 @@ function IoPanel({ label, value }) {
       <div className="border-b border-base-content/20 bg-base-200/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/45">
         {label}
       </div>
-      <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-words bg-[#f6f7f9] px-3 py-2.5 font-mono text-[11px] leading-relaxed text-[#324049]">
+      <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-words bg-base-100 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-base-content/80">
         {formatIoValue(value)}
       </pre>
     </div>
