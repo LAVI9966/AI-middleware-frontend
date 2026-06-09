@@ -15,6 +15,7 @@ export default function MessageExecutionTrace({
   onToolLogsClick,
   onToolDataClick,
   onAgentDataClick,
+  onAgentHistoryClick,
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -121,6 +122,7 @@ export default function MessageExecutionTrace({
         onToolLogsClick={onToolLogsClick}
         onToolDataClick={onToolDataClick}
         onAgentDataClick={onAgentDataClick}
+        onAgentHistoryClick={onAgentHistoryClick}
       />
     </div>
   );
