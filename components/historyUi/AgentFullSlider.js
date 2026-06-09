@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 
 const CollapsibleSection = ({ title, children, defaultOpen = true }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -57,19 +57,15 @@ export function AgentFullSlider({ agent, onClose }) {
       {/* Header */}
       <div
         data-testid="agent-full-slider-header"
-        className="flex items-center justify-between p-4 border-b border-base-300"
+        className="flex items-center justify-end p-4 border-b border-base-300"
       >
         <button
           data-testid="agent-full-slider-back"
           onClick={handleBack}
           className="flex items-center text-sm text-primary hover:text-primary/80"
         >
-          <ArrowLeft size={16} className="mr-1" />
-          GO BACK TO FLOW EDITOR
+          <X size={16} className="mr-1" />
         </button>
-        <div data-testid="agent-full-slider-branding" className="text-xs text-base-content/60">
-          SECURED BY VIASOCKET
-        </div>
       </div>
 
       {/* Title */}
@@ -138,17 +134,6 @@ export function AgentFullSlider({ agent, onClose }) {
             testId="agent-full-slider-metadata-json"
           />
         </CollapsibleSection>
-      </div>
-
-      {/* Footer */}
-      <div data-testid="agent-full-slider-footer" className="flex justify-end p-4 border-t border-base-300 bg-base-200">
-        <button
-          data-testid="agent-full-slider-close"
-          onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/80"
-        >
-          CLOSE
-        </button>
       </div>
     </aside>
   );
