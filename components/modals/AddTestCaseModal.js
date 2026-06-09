@@ -55,10 +55,11 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
       const processedMessages = [];
 
       // Create conversation from AiConfig.input - only user and assistant messages
-      aiConfigInput.forEach((msg) => {
+      aiConfigInput.forEach((msg, idx) => {
         // Only include user, assistant, developer, and system messages
         if (msg.role === "user" || msg.role === "assistant") {
           processedMessages.push({
+            id: `msg-config-${idx}-${Date.now()}-${Math.random()}`,
             role: msg.role,
             content: getContentText(msg.content),
           });
@@ -72,6 +73,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
         historyItem.llm_message || historyItem.chatbot_message || historyItem.updated_llm_message;
       if (expectedResponse) {
         processedMessages.push({
+          id: `msg-expected-${Date.now()}-${Math.random()}`,
           role: "assistant",
           content: expectedResponse,
           isExpectedResponse: true, // Mark this as the expected response
@@ -83,14 +85,17 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
 
     // Handle regular conversation array format
     return testCaseConversation
-      .map((message) => {
+      .map((message, idx) => {
+        const uniqueId = `msg-${idx}-${Date.now()}-${Math.random()}`;
         if (message.role === "user" || message.sender === "user") {
           return {
+            id: uniqueId,
             role: message.role || message.sender,
             content: getContentText(message.content),
           };
         } else if ((message.role === "assistant" || message.sender === "assistant") && message.content) {
           return {
+            id: uniqueId,
             role: message.role || message.sender,
             content: getContentText(message.content),
           };
@@ -110,6 +115,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
           }
 
           return {
+            id: uniqueId,
             role: message?.role || message?.sender,
             tools,
           };
@@ -196,7 +202,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
   const handleChange = (newValue, index, childIndex) => {
     setFinalTestCases((prevTestCases) => {
       const updatedTestCases = [...prevTestCases];
-      if (childIndex) {
+      if (childIndex !== undefined && childIndex !== null) {
         try {
           JSON.parse(newValue);
         } catch {
@@ -259,6 +265,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
         user: finalTestCases[i],
         assistant: finalTestCases[i + 1],
         startIndex: i,
+        id: finalTestCases[i]?.id || `pair-${i}`,
       });
     }
     return pairs;
@@ -340,7 +347,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                 {showFullConversation && (
                   <div className="mt-3 bg-base-100 rounded-lg px-6 py-4 border border-base-200 space-y-4">
                     {getConversationPairs().map((pair, pairIndex) => (
-                      <div key={pairIndex} className="space-y-4">
+                      <div key={pair.id || pairIndex} className="space-y-4">
                         {/* User Message */}
                         <div className="flex flex-col items-end gap-1">
                           <div className="flex items-center gap-2">
@@ -354,11 +361,12 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                               <Trash2 size={13} />
                             </button>
                           </div>
-                          <div className="max-w-full bg-blue-500 text-white rounded-lg rounded-br-none px-4 py-3">
+                          <div className="w-[90%] bg-primary text-primary-content rounded-lg rounded-br-none px-4 py-3">
                             <textarea
                               defaultValue={pair.user?.content || ""}
                               className="w-full bg-transparent text-sm leading-relaxed break-words focus:outline-none resize-none"
                               onInput={handleTextareaInput}
+                              onFocus={handleTextareaInput}
                               onBlur={(e) => handleChange(e.target.value, pair.startIndex, null)}
                               rows={3}
                             />
@@ -367,11 +375,12 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                         {/* Assistant Message */}
                         <div className="flex flex-col items-start gap-1">
                           <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">AI</span>
-                          <div className="max-w-full bg-gray-100 text-gray-800 rounded-lg rounded-bl-none px-4 py-3">
+                          <div className="w-[90%] bg-base-300 text-base-content rounded-lg rounded-bl-none px-4 py-3">
                             <textarea
                               defaultValue={pair.assistant?.content || ""}
                               className="w-full bg-transparent text-sm leading-relaxed break-words focus:outline-none resize-none"
                               onInput={handleTextareaInput}
+                              onFocus={handleTextareaInput}
                               onBlur={(e) => handleChange(e.target.value, pair.startIndex + 1, null)}
                               rows={3}
                             />
@@ -405,6 +414,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                                 defaultValue={JSON.stringify(item, null, 2)}
                                 className="textarea bg-base-100 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
                                 onInput={handleTextareaInput}
+                                onFocus={handleTextareaInput}
                                 onBlur={(e) => handleChange(e.target.value, secondLastIndex, idx)}
                                 rows={4}
                               />
@@ -426,6 +436,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                           defaultValue={secondLastMessage.content}
                           className="textarea bg-base-100 w-full text-sm p-3 focus:outline-none rounded-lg shadow-sm resize-none overflow-hidden"
                           onInput={handleTextareaInput}
+                          onFocus={handleTextareaInput}
                           onBlur={(e) => handleChange(e.target.value, secondLastIndex, null)}
                           rows={3}
                         />
@@ -468,6 +479,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                                   defaultValue={JSON.stringify(item, null, 2)}
                                   className="textarea bg-base-100 w-full font-mono text-sm p-2 bg-transparent focus:outline-none resize-none overflow-hidden"
                                   onInput={handleTextareaInput}
+                                  onFocus={handleTextareaInput}
                                   onBlur={(e) => handleChange(e.target.value, lastIndex, idx)}
                                   rows={4}
                                 />
@@ -491,6 +503,7 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                           defaultValue={lastMessage.content}
                           className="textarea bg-base-100 w-full text-sm p-3 focus:outline-none resize-none overflow-hidden"
                           onInput={handleTextareaInput}
+                          onFocus={handleTextareaInput}
                           onBlur={(e) => handleChange(e.target.value, lastIndex, null)}
                           rows={3}
                         />
