@@ -769,6 +769,19 @@ function Home({ params, searchParams, isEmbedUser }) {
     return UnArchivedBridges.filter((b) => getFolderIdStr(b.folder_id) === getFolderIdStr(activeFolderId));
   }, [UnArchivedBridges, activeFolderId, folders]);
 
+  const folderCounts = useMemo(() => {
+    const counts = {
+      all: UnArchivedBridges.length,
+      uncategorized: UnArchivedBridges.filter((b) => !b.folder_id).length,
+    };
+    folders.forEach((folder) => {
+      counts[folder._id] = UnArchivedBridges.filter(
+        (b) => getFolderIdStr(b.folder_id) === getFolderIdStr(folder._id)
+      ).length;
+    });
+    return counts;
+  }, [UnArchivedBridges, folders]);
+
   // Helper function to calculate days remaining for deletion (30 days from deletedAt)
 
   const DeletedBridges = usageFilteredDeleted?.map((item) => {
@@ -968,6 +981,25 @@ function Home({ params, searchParams, isEmbedUser }) {
   useEffect(() => {
     if (!usageFilterPopover.open) return;
     const handleClick = (event) => {
+      // Ignore clicks on native select and options since they are managed by the browser
+      if (event.target && (event.target.tagName === "OPTION" || event.target.tagName === "SELECT")) {
+        return;
+      }
+
+      // Ignore clicks on body/html/null if the focus is currently on an input/select/textarea inside the popover
+      if (
+        document.activeElement &&
+        (document.activeElement.tagName === "SELECT" ||
+          document.activeElement.tagName === "INPUT" ||
+          document.activeElement.tagName === "TEXTAREA") &&
+        usageFilterPopoverRef.current &&
+        usageFilterPopoverRef.current.contains(document.activeElement)
+      ) {
+        if (!event.target || event.target === document.body || event.target === document.documentElement) {
+          return;
+        }
+      }
+
       if (usageFilterPopoverRef.current && !usageFilterPopoverRef.current.contains(event.target)) {
         closeUsageFilterPopover();
       }
@@ -1073,7 +1105,7 @@ function Home({ params, searchParams, isEmbedUser }) {
             }}
           />
           <div className="divider my-1"></div>
-          <div className={`dropdown dropdown-left ${isNearBottom ? "dropdown-top" : ""} w-full`}>
+          <div className={`dropdown dropdown-hover dropdown-left ${isNearBottom ? "dropdown-top" : ""} w-full`}>
             <label
               tabIndex={0}
               className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center justify-between cursor-pointer"
@@ -1085,7 +1117,7 @@ function Home({ params, searchParams, isEmbedUser }) {
             </label>
             <div
               tabIndex={0}
-              className={`dropdown-content z-[100] ${isNearBottom ? "bottom-0 top-auto mb-2" : "top-0 bottom-auto mt-2"} right-full mr-2`}
+              className={`dropdown-content z-[100] ${isNearBottom ? "bottom-0 top-auto pb-2" : "top-0 bottom-auto pt-2"} right-full pr-2`}
             >
               <MoveToFolderMenu
                 folders={folders}
@@ -1272,6 +1304,7 @@ function Home({ params, searchParams, isEmbedUser }) {
                         onMoveResource={moveResource}
                         showTrashTab={true}
                         deletedCount={DeletedBridges?.length || 0}
+                        folderCounts={folderCounts}
                       />
                     )}
 

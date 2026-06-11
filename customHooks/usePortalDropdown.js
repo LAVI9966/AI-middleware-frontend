@@ -11,7 +11,7 @@ import { useOutsideClick } from "@/utils/utility";
  * @returns {Object} Portal management functions and components
  */
 const usePortalDropdown = (options = {}) => {
-  const { offsetX = -150, offsetY = 5, hoverDelay = 100, estimatedHeight = 280 } = options;
+  const { offsetX = -150, offsetY = 5, hoverDelay = 350, estimatedHeight = 280 } = options;
 
   // Portal state
   const [portalPosition, setPortalPosition] = useState({ top: 0, left: 0 });

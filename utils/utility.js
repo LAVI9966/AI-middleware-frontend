@@ -994,6 +994,26 @@ export const useOutsideClick = (elementRef, triggerRef, onOutsideClick, isActive
   const handleClickOutside = (event) => {
     if (!isActive) return;
 
+    // Ignore clicks on native select and options since they are managed by the browser
+    if (event.target && (event.target.tagName === "OPTION" || event.target.tagName === "SELECT")) {
+      return;
+    }
+
+    // Ignore clicks on body/html/null if the focus is currently on an input/select/textarea inside the dropdown
+    // This happens when interacting with native browser overlays like date picker calendars or select dropdown options
+    if (
+      document.activeElement &&
+      (document.activeElement.tagName === "SELECT" ||
+        document.activeElement.tagName === "INPUT" ||
+        document.activeElement.tagName === "TEXTAREA") &&
+      elementRef.current &&
+      elementRef.current.contains(document.activeElement)
+    ) {
+      if (!event.target || event.target === document.body || event.target === document.documentElement) {
+        return;
+      }
+    }
+
     const isClickInsideElement = elementRef.current && elementRef.current.contains(event.target);
     const isClickInsideTrigger = triggerRef && triggerRef.current && triggerRef.current.contains(event.target);
 
@@ -1008,8 +1028,24 @@ export const useOutsideClick = (elementRef, triggerRef, onOutsideClick, isActive
     }
   };
 
-  const handleScroll = () => {
+  const handleScroll = (event) => {
     if (isActive) {
+      // 1. Do not close if target is inside the dropdown element
+      if (elementRef.current && elementRef.current.contains(event?.target)) {
+        return;
+      }
+      // 2. Do not close if active focused element is inside the dropdown (like focused inputs/selects)
+      if (elementRef.current && elementRef.current.contains(document.activeElement)) {
+        return;
+      }
+      // 3. Only close if the scrolled container is an ancestor of the trigger (meaning the trigger moved)
+      if (triggerRef && triggerRef.current && event?.target) {
+        const target = event.target;
+        const isGlobalScroll = target === document || target === window || target === document.documentElement;
+        if (!isGlobalScroll && target instanceof Node && !target.contains(triggerRef.current)) {
+          return;
+        }
+      }
       onOutsideClick();
     }
   };

@@ -28,6 +28,7 @@ export const FolderTabs = ({
   onMoveResource,
   showTrashTab = false,
   deletedCount = 0,
+  folderCounts = {},
 }) => {
   const { activeFolderId, setActiveFolderId, draggedResourceId } = useFolderContext();
   const [isCreating, setIsCreating] = useState(false);
@@ -84,7 +85,7 @@ export const FolderTabs = ({
           }`}
         >
           {activeFolderId === null ? <FolderOpen size={15} /> : <Folder size={15} />}
-          <span>All</span>
+          <span>All {folderCounts.all !== undefined ? `(${folderCounts.all})` : ""}</span>
         </div>
 
         {/* Dynamic Folder Tabs */}
@@ -120,6 +121,7 @@ export const FolderTabs = ({
                 <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="text"
+                    maxLength={24}
                     value={editFolderName}
                     onChange={(e) => setEditFolderName(e.target.value)}
                     onBlur={() => handleRename(folder._id)}
@@ -143,6 +145,13 @@ export const FolderTabs = ({
               ) : (
                 <div className="flex items-center gap-2">
                   <TruncatedFolderText name={folder.name} />
+                  {folderCounts[folder._id] !== undefined && (
+                    <span
+                      className={`text-[11px] font-semibold opacity-80 ${isSelected ? "text-primary-content" : "text-base-content/60"}`}
+                    >
+                      ({folderCounts[folder._id]})
+                    </span>
+                  )}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <button
                       onClick={(e) => {
@@ -180,7 +189,7 @@ export const FolderTabs = ({
           }}
         >
           <FileMinus size={15} />
-          <span>Uncategorized</span>
+          <span>Uncategorized {folderCounts.uncategorized !== undefined ? `(${folderCounts.uncategorized})` : ""}</span>
         </div>
 
         {/* Trash Tab (UI only) */}
@@ -206,6 +215,7 @@ export const FolderTabs = ({
           >
             <input
               type="text"
+              maxLength={24}
               placeholder="Folder name..."
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
