@@ -4,12 +4,13 @@ import { getServiceAction } from "@/store/action/serviceAction";
 import { closeModal, focusDialogWhenOpen, sendDataToParent } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useContext } from "react";
 import { useDispatch } from "react-redux";
 import LoadingSpinner from "./LoadingSpinner";
 import Protected from "./Protected";
 import { BotIcon, Info, Plus } from "lucide-react";
 import { CloseIcon } from "./Icons";
+import { FolderContext } from "@/components/folders/FolderContext";
 
 const buildInitialState = () => ({
   selectedService: "openai",
@@ -27,6 +28,9 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
   const textAreaPurposeRef = useRef();
   const dispatch = useDispatch();
   const router = useRouter();
+
+  const folderContext = useContext(FolderContext);
+  const activeFolderId = folderContext?.activeFolderId;
 
   const { SERVICES } = useCustomSelector((state) => ({
     SERVICES: state?.serviceReducer?.services,
@@ -84,8 +88,50 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
     });
   }, [updateState, state.validationErrors]);
 
+  const getResolvedFolderId = useCallback(() => {
+    if (activeFolderId && activeFolderId !== "uncategorized") {
+      return activeFolderId;
+    }
+
+    if (typeof window !== "undefined") {
+      // 1. Try URL search params
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramFolderId = urlParams.get("folder_id") || urlParams.get("folderId");
+      if (paramFolderId && paramFolderId !== "uncategorized" && paramFolderId !== "null") {
+        return paramFolderId;
+      }
+
+      // 2. Try sessionStorage for this organization's agents page
+      if (orgid) {
+        const sessionKey = `activeFolderId_/org/${orgid}/agents`;
+        const saved = sessionStorage.getItem(sessionKey);
+        if (saved && saved !== "uncategorized" && saved !== "null") {
+          return saved;
+        }
+      }
+
+      // 3. Fallback: Search all activeFolderId_ keys in sessionStorage
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith("activeFolderId_") && key.includes("/agents")) {
+            const val = sessionStorage.getItem(key);
+            if (val && val !== "uncategorized" && val !== "null") {
+              return val;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error reading sessionStorage keys", e);
+      }
+    }
+    return null;
+  }, [activeFolderId, orgid]);
+
   const handleCreateAgent = useCallback(() => {
     const purpose = textAreaPurposeRef?.current?.value?.trim();
+    const resolvedFolderId = getResolvedFolderId();
+    console.log("CreateNewBridge: handleCreateAgent called.", { activeFolderId, folderContext, resolvedFolderId });
     updateState({
       validationErrors: { purpose: "" },
       globalError: "",
@@ -99,6 +145,7 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
       const dataToSend = {
         purpose,
         bridgeType: resolvedBridgeType,
+        ...(resolvedFolderId ? { folder_id: resolvedFolderId } : {}),
       };
 
       dispatch(createBridgeWithAiAction({ dataToSend, orgId: orgid }))
@@ -130,6 +177,7 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
               model: state.selectedModel,
               bridgeType: resolvedBridgeType,
               type: state.selectedType,
+              ...(resolvedFolderId ? { folder_id: resolvedFolderId } : {}),
             };
             dispatch(
               createBridgeAction({ dataToSend: fallbackDataToSend, orgid }, (data) => {
@@ -170,6 +218,7 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
           model: state.selectedModel,
           bridgeType: resolvedBridgeType,
           type: state.selectedType,
+          ...(resolvedFolderId ? { folder_id: resolvedFolderId } : {}),
         };
 
         dispatch(
@@ -206,6 +255,9 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
     cleanState,
     generateUniqueName,
     bridgeTypeForContext,
+    getResolvedFolderId,
+    activeFolderId,
+    folderContext,
   ]);
 
   const handleCloseModal = useCallback(() => {

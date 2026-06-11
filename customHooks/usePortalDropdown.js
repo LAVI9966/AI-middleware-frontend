@@ -11,7 +11,7 @@ import { useOutsideClick } from "@/utils/utility";
  * @returns {Object} Portal management functions and components
  */
 const usePortalDropdown = (options = {}) => {
-  const { offsetX = -150, offsetY = 5, hoverDelay = 100 } = options;
+  const { offsetX = -150, offsetY = 5, hoverDelay = 100, estimatedHeight = 280 } = options;
 
   // Portal state
   const [portalPosition, setPortalPosition] = useState({ top: 0, left: 0 });
@@ -47,7 +47,7 @@ const usePortalDropdown = (options = {}) => {
       }
 
       // Adjust vertical position if dropdown would go off-screen
-      const dropdownHeight = 150; // Estimated dropdown height
+      const dropdownHeight = estimatedHeight; // Estimated dropdown height
       if (top + dropdownHeight > viewportHeight + window.scrollY) {
         top = rect.top + window.scrollY - dropdownHeight - offsetY;
       }
@@ -103,6 +103,29 @@ const usePortalDropdown = (options = {}) => {
     handlePortalCloseImmediate,
     showPortal
   );
+
+  // Adjust position dynamically after render to get the precise height of the dropdown
+  useEffect(() => {
+    if (showPortal && portalRef.current && portalTriggerElement) {
+      const rect = portalTriggerElement.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const dropdownHeight = portalRef.current.offsetHeight;
+
+      let top = rect.bottom + window.scrollY + offsetY;
+
+      // Adjust vertical position if dropdown would go off-screen
+      if (top + dropdownHeight > viewportHeight + window.scrollY) {
+        top = rect.top + window.scrollY - dropdownHeight - offsetY;
+      }
+
+      setPortalPosition((prev) => {
+        if (prev.top !== top) {
+          return { ...prev, top };
+        }
+        return prev;
+      });
+    }
+  }, [showPortal, portalTriggerElement, offsetY]);
 
   // Event listeners for dropdown auto-close
   useEffect(() => {

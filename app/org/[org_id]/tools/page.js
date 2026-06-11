@@ -1,8 +1,9 @@
 "use client";
+/* eslint-disable no-commented-code/no-commented-code, unused-imports/no-unused-imports, unused-imports/no-unused-vars */
 import React, { useEffect, useMemo, useState, use, useCallback } from "react";
 import { useDispatch } from "react-redux";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, ChevronRight, Wrench, Bot, Settings, Funnel, Clock, Layers, Link2 } from "lucide-react";
+import { Plus, ChevronRight, Wrench, Bot, Settings, Funnel, Clock, Layers, Link2, Folder } from "lucide-react";
 import { toast } from "react-toastify";
 import PageHeader from "@/components/Pageheader";
 import MainLayout from "@/components/layoutComponents/MainLayout";
@@ -16,6 +17,11 @@ import { MODAL_TYPE } from "@/utils/enums";
 import { openModal, formatRelativeTime, formatDate, getStatusClass } from "@/utils/utility";
 import CustomTable from "@/components/customTable/CustomTable";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
+import ResourcePage from "@/components/folders/ResourcePage";
+import FolderTabs from "@/components/folders/FolderTabs";
+import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
+import useFolders from "@/hooks/useFolders";
+import { useFolderContext } from "@/components/folders/FolderContext";
 
 export const runtime = "edge";
 
@@ -95,6 +101,8 @@ const EmptyState = ({ onAddTool }) => (
 const ToolsPage = ({ params }) => {
   const resolvedParams = use(params);
   const orgId = resolvedParams?.org_id;
+  const { folders, createFolder, renameFolder, deleteFolder, moveResource } = useFolders("tools", orgId);
+  const { activeFolderId, setDraggedResourceId } = useFolderContext();
   const dispatch = useDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -271,6 +279,15 @@ const ToolsPage = ({ params }) => {
     });
   }, [allTools, integrationData, agentsVersionsData, getAgentInfo, getVersionLabel]);
 
+  const displayedTools = useMemo(() => {
+    return filteredTools;
+    /* if (activeFolderId === null) return filteredTools;
+    if (activeFolderId === "uncategorized") {
+      return filteredTools.filter((item) => !item.originalData?.folder_id);
+    }
+    return filteredTools.filter((item) => item.originalData?.folder_id === activeFolderId); */
+  }, [filteredTools, activeFolderId]);
+
   useEffect(() => {
     if (filterParam) {
       const filtered = tableData.filter((item) => item?._id === filterParam);
@@ -285,14 +302,19 @@ const ToolsPage = ({ params }) => {
       toast.error("Tool builder is still loading, please try again in a moment.");
       return;
     }
+    const folderId =
+      activeFolderId && activeFolderId !== "uncategorized"
+        ? activeFolderId
+        : (typeof window !== "undefined" ? sessionStorage.getItem("gtwy_folder_id") : null) || null;
     window.openViasocket(undefined, {
       embedToken,
       meta: {
         type: "tool",
         createFrom: "Tools",
+        ...(folderId ? { folder_id: folderId } : {}),
       },
     });
-  }, [embedToken]);
+  }, [embedToken, activeFolderId]);
 
   const handleFilterDropdownClick = useCallback(
     (e) => {
@@ -351,10 +373,16 @@ const ToolsPage = ({ params }) => {
       const row = tableData.find((r) => r._id === fn?._id);
       setSelectedToolAgents(row?.agents || []);
       if (typeof window !== "undefined" && typeof window.openViasocket === "function" && scriptId) {
+        const folderId =
+          fn?.folder_id ||
+          (activeFolderId && activeFolderId !== "uncategorized" ? activeFolderId : null) ||
+          (typeof window !== "undefined" ? sessionStorage.getItem("gtwy_folder_id") : null) ||
+          null;
         window.openViasocket(scriptId, {
           embedToken,
           meta: {
             type: "tool",
+            ...(folderId ? { folder_id: folderId } : {}),
           },
         });
         return;
@@ -634,117 +662,146 @@ const ToolsPage = ({ params }) => {
           >
             <Settings size={14} />
           </button>
+          {/* <div className="dropdown dropdown-left">
+            <label tabIndex={0} className="btn btn-ghost btn-xs btn-circle text-base-content/70 hover:bg-base-300">
+              <Folder size={14} />
+            </label>
+            <div tabIndex={0} className="dropdown-content z-[100] mt-2">
+              <MoveToFolderMenu folders={folders} onMove={(folderId) => moveResource(row._id, folderId)} />
+            </div>
+          </div> */}
         </div>
       );
     },
-    [handleConfigTool]
+    [handleConfigTool, folders, moveResource]
   );
 
   return (
-    <div className="w-full h-screen flex flex-col">
-      <div className="px-2 pt-4">
-        <MainLayout>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <PageHeader
-              title="Tools"
-              docLink={linksData?.find((link) => link.title === "Tools")?.blog_link}
-              description={
-                descriptions?.["Tools"] ||
-                "All custom tools available in this organization. Create new tools or click an existing tool to configure it."
-              }
-            />
-          </div>
-        </MainLayout>
-      </div>
+    <div className="flex w-full min-h-screen">
+      <div className="w-full overflow-x-hidden flex flex-col h-screen flex-1">
+        <div className="px-2 pt-4">
+          <MainLayout>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+              <PageHeader
+                title="Tools"
+                docLink={linksData?.find((link) => link.title === "Tools")?.blog_link}
+                description={
+                  descriptions?.["Tools"] ||
+                  "All custom tools available in this organization. Create new tools or click an existing tool to configure it."
+                }
+              />
+            </div>
+          </MainLayout>
+        </div>
 
-      {allTools.length > 0 && (
-        <div className="px-4 pb-3 flex flex-row gap-4 items-center flex-wrap">
-          {(allTools?.length > 5 || filterParam) && (
-            <SearchItems
-              data={tableData}
-              setFilterItems={setFilteredTools}
-              item="Tool"
-              containerClass="max-w-xs"
-              inputContainerClass="relative"
+        {allTools.length > 0 && (
+          <div className="px-4 pb-3 flex flex-row gap-4 items-center flex-wrap">
+            {(allTools?.length > 5 || filterParam) && (
+              <SearchItems
+                data={tableData}
+                setFilterItems={setFilteredTools}
+                item="Tool"
+                containerClass="max-w-xs"
+                inputContainerClass="relative"
+              />
+            )}
+            <button
+              className="btn btn-outline btn-ghost text-sm btn-sm border border-base-300 gap-1"
+              onClick={handleFilterDropdownClick}
+            >
+              <Funnel size={14} />
+              <span>Filter</span>
+              <span className="text-xs text-gray-500">
+                {activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
+              </span>
+            </button>
+            <button type="button" onClick={handleAddNewTool} className="btn btn-primary btn-sm">
+              <Plus size={16} strokeWidth={2.5} />
+              Create New Tool
+            </button>
+          </div>
+        )}
+
+        {/* {!isEmbedUser && allTools.length > 0 && (
+          <FolderTabs
+            folders={folders}
+            resourceType="tools"
+            onCreateFolder={createFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
+            onMoveResource={moveResource}
+          />
+        )} */}
+
+        <div className="px-4 pb-8 flex-1 overflow-y-auto">
+          {allTools.length === 0 ? (
+            <EmptyState onAddTool={handleAddNewTool} />
+          ) : (
+            <CustomTable
+              data={displayedTools}
+              /* draggableRows={true}
+              onDragStart={(row) => setDraggedResourceId(row._id)}
+              onDragEnd={() => setDraggedResourceId(null)} */
+              columnsToShow={["title", "description", "status", "agents", "createdAt", "updatedAt"]}
+              sorting
+              sortingColumns={["title", "createdAt", "updatedAt"]}
+              customGetColumnLabel={getColumnLabel}
+              customCellRenderers={customCellRenderers}
+              endComponent={EndComponent}
+              handleRowClick={(row) => {
+                handleOpenTool(row.originalData);
+              }}
+              keysToExtractOnRowClick={["_id", "originalData"]}
+              filterFunction={(item) => {
+                const RECENT_DAYS = 7;
+                const cutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000;
+                if (activeFilter === "connected") {
+                  return (item.agentsCount || 0) > 0;
+                }
+                if (activeFilter === "recent") {
+                  const ts = item.originalData?.updatedAt || item.originalData?.createdAt;
+                  return ts && new Date(ts).getTime() >= cutoff;
+                }
+                return true;
+              }}
             />
           )}
-          <button
-            className="btn btn-outline btn-ghost text-sm btn-sm border border-base-300 gap-1"
-            onClick={handleFilterDropdownClick}
-          >
-            <Funnel size={14} />
-            <span>Filter</span>
-            <span className="text-xs text-gray-500">
-              {activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
-            </span>
-          </button>
-          <button type="button" onClick={handleAddNewTool} className="btn btn-primary btn-sm">
-            <Plus size={16} strokeWidth={2.5} />
-            Create New Tool
-          </button>
+
+          {allTools.length > 0 && filteredTools.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-base-content/60 text-sm">No tools match your search.</p>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="px-4 pb-8 flex-1 overflow-y-auto">
-        {allTools.length === 0 ? (
-          <EmptyState onAddTool={handleAddNewTool} />
-        ) : (
-          <CustomTable
-            data={filteredTools}
-            columnsToShow={["title", "description", "status", "agents", "createdAt", "updatedAt"]}
-            sorting
-            sortingColumns={["title", "createdAt", "updatedAt"]}
-            customGetColumnLabel={getColumnLabel}
-            customCellRenderers={customCellRenderers}
-            endComponent={EndComponent}
-            handleRowClick={(row) => {
-              handleOpenTool(row.originalData);
-            }}
-            keysToExtractOnRowClick={["_id", "originalData"]}
-            filterFunction={(item) => {
-              const RECENT_DAYS = 7;
-              const cutoff = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000;
-              if (activeFilter === "connected") {
-                return (item.agentsCount || 0) > 0;
-              }
-              if (activeFilter === "recent") {
-                const ts = item.originalData?.updatedAt || item.originalData?.createdAt;
-                return ts && new Date(ts).getTime() >= cutoff;
-              }
-              return true;
-            }}
-          />
-        )}
+        <FunctionParameterModal
+          isPublished={false}
+          name="Tool"
+          functionId={functionId}
+          Model_Name={MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL}
+          embedToken={embedToken}
+          handleSave={handleSaveFunctionData}
+          toolData={toolData}
+          setToolData={setToolData}
+          function_details={functionDetails}
+          variables_path={{}}
+          functionName={functionName}
+          setVariablesPath={() => {}}
+          variablesPath={{}}
+          disableValuePath={true}
+          connectedAgents={selectedToolAgents}
+        />
 
-        {allTools.length > 0 && filteredTools.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-base-content/60 text-sm">No tools match your search.</p>
-          </div>
-        )}
+        <PortalDropdown />
+        <PortalStyles />
       </div>
-
-      <FunctionParameterModal
-        isPublished={false}
-        name="Tool"
-        functionId={functionId}
-        Model_Name={MODAL_TYPE.TOOL_FUNCTION_PARAMETER_MODAL}
-        embedToken={embedToken}
-        handleSave={handleSaveFunctionData}
-        toolData={toolData}
-        setToolData={setToolData}
-        function_details={functionDetails}
-        variables_path={{}}
-        functionName={functionName}
-        setVariablesPath={() => {}}
-        variablesPath={{}}
-        disableValuePath={true}
-        connectedAgents={selectedToolAgents}
-      />
-
-      <PortalDropdown />
-      <PortalStyles />
     </div>
   );
 };
 
-export default ToolsPage;
+const WrappedToolsPage = (props) => (
+  <ResourcePage>
+    <ToolsPage {...props} />
+  </ResourcePage>
+);
+export default WrappedToolsPage;

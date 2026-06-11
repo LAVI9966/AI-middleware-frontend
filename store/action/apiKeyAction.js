@@ -42,6 +42,7 @@ export const updateApikeyAction = (dataToSend) => async (dispatch) => {
       apikey_limit: dataToSend.apikey_limit,
       apikey_usage: dataToSend.apikey_usage,
       apikey_limit_reset_period: dataToSend.apikey_limit_reset_period,
+      folder_id: dataToSend.folder_id,
     })
   );
 
@@ -58,6 +59,7 @@ export const updateApikeyAction = (dataToSend) => async (dispatch) => {
           apikey_limit: dataToSend.apikey_limit,
           apikey_usage: dataToSend.apikey_usage,
           apikey_limit_reset_period: dataToSend.apikey_limit_reset_period,
+          folder_id: dataToSend.folder_id,
         })
       );
       toast.success(response.data?.message || "API Key updated successfully");

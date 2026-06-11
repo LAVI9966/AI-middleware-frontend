@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable no-commented-code/no-commented-code, unused-imports/no-unused-imports, unused-imports/no-unused-vars */
 import CustomTable from "@/components/customTable/CustomTable";
 import MainLayout from "@/components/layoutComponents/MainLayout";
 import ApiKeyModal from "@/components/modals/ApiKeyModal";
@@ -16,6 +17,12 @@ import {
   getApiKeyStatusClass,
 } from "@/utils/utility";
 import { BookIcon, RefreshIcon, SquarePenIcon, TrashIcon } from "@/components/Icons";
+import ResourcePage from "@/components/folders/ResourcePage";
+import FolderTabs from "@/components/folders/FolderTabs";
+import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
+import useFolders from "@/hooks/useFolders";
+import { useFolderContext } from "@/components/folders/FolderContext";
+import { Folder } from "lucide-react";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
@@ -38,6 +45,8 @@ const Page = () => {
     linksData: state.flowDataReducer.flowData.linksData || [],
     SERVICES: state?.serviceReducer?.services || [],
   }));
+  const { folders, createFolder, renameFolder, deleteFolder, moveResource } = useFolders("apikey", orgId);
+  const { activeFolderId, setDraggedResourceId } = useFolderContext();
   // Filter API keys to only show keys for services that exist in current services
   const [filterApiKeys, setFilterApiKeys] = useState(apikeyData);
 
@@ -90,12 +99,23 @@ const Page = () => {
   }, []);
 
   // Only show API keys for services that currently exist
-  const validApiKeys = filterApiKeys.filter((apiKey) => {
-    const serviceExists = SERVICES.some((service) => service.value === apiKey?.service);
-    return serviceExists;
-  });
+  const validApiKeys = useMemo(() => {
+    return filterApiKeys.filter((apiKey) => {
+      const serviceExists = SERVICES.some((service) => service.value === apiKey?.service);
+      return serviceExists;
+    });
+  }, [filterApiKeys, SERVICES]);
 
-  const dataWithIcons = validApiKeys.map((item) => ({
+  const displayedApiKeys = useMemo(() => {
+    return validApiKeys;
+    /* if (activeFolderId === null) return validApiKeys;
+    if (activeFolderId === "uncategorized") {
+      return validApiKeys.filter((k) => !k.folder_id);
+    }
+    return validApiKeys.filter((k) => k.folder_id === activeFolderId); */
+  }, [validApiKeys, activeFolderId]);
+
+  const dataWithIcons = displayedApiKeys.map((item) => ({
     ...item,
     actualName: item.name,
     serviceKey: item.service,
@@ -193,6 +213,14 @@ const Page = () => {
             <RefreshIcon size={16} />
           </div>
         ) : null}
+        {/* <div className="dropdown dropdown-left">
+          <label tabIndex={0} className="btn btn-ghost btn-xs btn-circle text-base-content/70 hover:bg-base-300">
+            <Folder size={14} />
+          </label>
+          <div tabIndex={0} className="dropdown-content z-[100] mt-2">
+            <MoveToFolderMenu folders={folders} onMove={(folderId) => moveResource(row._id, folderId)} />
+          </div>
+        </div> */}
       </div>
     );
   };
@@ -209,80 +237,100 @@ const Page = () => {
   }, [dataWithIcons]);
 
   return (
-    <div className="w-full">
-      <div className="px-2">
-        <MainLayout>
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between w-full pt-4 ">
-            <PageHeader
-              title="API Keys"
-              description={
-                descriptions?.["Provider Keys"] ||
-                "Add your model-specific API keys to enable and use different AI models in your chat."
-              }
-              docLink={linksData?.find((link) => link.title === "API Key")?.blog_link}
-            />
-          </div>
-        </MainLayout>
-        <div className="flex flex-row gap-4">
-          {apikeyData?.length > 5 && (
-            <SearchItems data={apikeyData} setFilterItems={setFilterApiKeys} item="API Keys" />
-          )}
-          <div className={`${apikeyData?.length <= 5 ? " " : ""} flex-shrink-0 flex gap-4 ml-2`}>
-            <button className="btn btn-sm" onClick={() => toggleSidebar("Api-Keys-guide-slider", "right")}>
-              <BookIcon /> API Key Guide
-            </button>
-            <button className="btn btn-sm btn-primary" onClick={() => openModal(MODAL_TYPE.API_KEY_MODAL)}>
-              + Add New API Key
-            </button>
+    <div className="flex w-full min-h-screen">
+      <div className="w-full flex-1 overflow-x-hidden flex flex-col">
+        <div className="px-2">
+          <MainLayout>
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between w-full pt-4 ">
+              <PageHeader
+                title="API Keys"
+                description={
+                  descriptions?.["Provider Keys"] ||
+                  "Add your model-specific API keys to enable and use different AI models in your chat."
+                }
+                docLink={linksData?.find((link) => link.title === "API Key")?.blog_link}
+              />
+            </div>
+          </MainLayout>
+          <div className="flex flex-row flex-wrap gap-4 px-4 pb-3 items-center">
+            {apikeyData?.length > 5 && (
+              <SearchItems data={apikeyData} setFilterItems={setFilterApiKeys} item="API Keys" />
+            )}
+            <div className={`${apikeyData?.length <= 5 ? " " : ""} flex-shrink-0 flex gap-4 ml-2`}>
+              <button className="btn btn-sm" onClick={() => toggleSidebar("Api-Keys-guide-slider", "right")}>
+                <BookIcon /> API Key Guide
+              </button>
+              <button className="btn btn-sm btn-primary" onClick={() => openModal(MODAL_TYPE.API_KEY_MODAL)}>
+                + Add New API Key
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-      {filterApiKeys.length > 0 ? (
-        Object.entries(groupedApiKeys).map(([serviceKey, items]) => (
-          <div key={serviceKey} className="mb-2 mt-4">
-            <h2 className="text-xl font-semibold flex items-center gap-2 pl-4">
-              {getIconOfService(serviceKey, 24, 24)}
-              {getServiceDisplayName(serviceKey, SERVICES)}
-            </h2>
-            <CustomTable
-              data={items}
-              columnsToShow={API_KEY_COLUMNS}
-              sorting
-              sortingColumns={["name", "last_used", "apikey_usage"]}
-              keysToWrap={["apikey"]}
-              endComponent={EndComponent}
-              handleRowClick={(data) => showConnectedAgents(data)}
-              keysToExtractOnRowClick={["_id", "name", "version_ids"]}
-            />
+        {/* {!isEmbedUser && (
+          <FolderTabs
+            folders={folders}
+            resourceType="apikey"
+            onCreateFolder={createFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
+            onMoveResource={moveResource}
+          />
+        )} */}
+        {filterApiKeys.length > 0 ? (
+          Object.entries(groupedApiKeys).map(([serviceKey, items]) => (
+            <div key={serviceKey} className="mb-2 mt-4">
+              <h2 className="text-xl font-semibold flex items-center gap-2 pl-4">
+                {getIconOfService(serviceKey, 24, 24)}
+                {getServiceDisplayName(serviceKey, SERVICES)}
+              </h2>
+              <CustomTable
+                data={items}
+                /* draggableRows={true}
+                onDragStart={(row) => setDraggedResourceId(row._id)}
+                onDragEnd={() => setDraggedResourceId(null)} */
+                columnsToShow={API_KEY_COLUMNS}
+                sorting
+                sortingColumns={["name", "last_used", "apikey_usage"]}
+                keysToWrap={["apikey"]}
+                endComponent={EndComponent}
+                handleRowClick={(data) => showConnectedAgents(data)}
+                keysToExtractOnRowClick={["_id", "name", "version_ids"]}
+              />
+            </div>
+          ))
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500 text-lg">No API keys entries found</p>
           </div>
-        ))
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-gray-500 text-lg">No API keys entries found</p>
-        </div>
-      )}
-      <ApiKeyModal
-        orgId={orgId}
-        isEditing={isEditing}
-        selectedApiKey={selectedApiKey}
-        setSelectedApiKey={setSelectedApiKey}
-        setIsEditing={setIsEditing}
-        apikeyData={apikeyData}
-        selectedService={selectedService}
-      />
+        )}
+        <ApiKeyModal
+          orgId={orgId}
+          isEditing={isEditing}
+          selectedApiKey={selectedApiKey}
+          setSelectedApiKey={setSelectedApiKey}
+          setIsEditing={setIsEditing}
+          apikeyData={apikeyData}
+          selectedService={selectedService}
+        />
 
-      <ApiKeyGuideSlider />
-      <DeleteModal
-        onConfirm={deleteApikey}
-        item={selectedDataToDelete}
-        title="Delete API Key"
-        description={`Are you sure you want to delete the API key "${selectedDataToDelete?.name}"? This action cannot be undone.`}
-        loading={isDeleting}
-        isAsync={true}
-      />
-      <ConnectedAgentsModal apiKey={selectedApiKeyForAgents} orgId={orgId} key={selectedApiKeyForAgents} />
+        <ApiKeyGuideSlider />
+        <DeleteModal
+          onConfirm={deleteApikey}
+          item={selectedDataToDelete}
+          title="Delete API Key"
+          description={`Are you sure you want to delete the API key "${selectedDataToDelete?.name}"? This action cannot be undone.`}
+          loading={isDeleting}
+          isAsync={true}
+        />
+        <ConnectedAgentsModal apiKey={selectedApiKeyForAgents} orgId={orgId} key={selectedApiKeyForAgents} />
+      </div>
     </div>
   );
 };
 
-export default Page;
+const WrappedPage = (props) => (
+  <ResourcePage>
+    <Page {...props} />
+  </ResourcePage>
+);
+export default WrappedPage;
