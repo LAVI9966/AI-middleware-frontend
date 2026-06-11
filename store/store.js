@@ -25,6 +25,7 @@ import variableSliceReducer from "./reducer/variableReducer";
 import chatSliceReducer from "./reducer/chatReducer";
 import appInfoSliceReducer from "./reducer/appInfoReducer";
 import richUiTemplateSliceReducer from "./reducer/richUiTemplateReducer";
+import folderSliceReducer from "./reducer/folderReducer";
 const createNoopStorage = () => {
   return {
     getItem(_key) {
@@ -88,6 +89,7 @@ const rootReducer = combineReducers({
   chatReducer: chatSliceReducer,
   appInfoReducer: appInfoSliceReducer,
   richUiTemplateReducer: richUiTemplateSliceReducer,
+  folderReducer: folderSliceReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

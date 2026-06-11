@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "@/components/UI/Modal";
 import { MODAL_TYPE, MIME_EXTENSION_MAP } from "@/utils/enums";
@@ -8,6 +8,7 @@ import { createResourceAction, updateResourceAction } from "@/store/action/knowl
 import { uploadImage } from "@/config/utilityApi";
 import { toast } from "react-toastify";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
+import { FolderContext } from "@/components/folders/FolderContext";
 const KnowledgeBaseModal = ({
   params,
   selectedResource,
@@ -17,6 +18,9 @@ const KnowledgeBaseModal = ({
   searchParams,
 }) => {
   const dispatch = useDispatch();
+  const folderContext = useContext(FolderContext);
+  const activeFolderId = folderContext?.activeFolderId;
+
   const [isCreatingResource, setIsCreatingResource] = useState(false);
   const [inputType, setInputType] = useState("url"); // 'url', 'file', 'content'
   const [chunkingType, setChunkingType] = useState("recursive");
@@ -176,6 +180,7 @@ const KnowledgeBaseModal = ({
       title: (formData.get("title") || "").trim(),
       description: (formData.get("description") || "").trim(),
       settings: settings,
+      ...(activeFolderId && activeFolderId !== "uncategorized" ? { folder_id: activeFolderId } : {}),
     };
 
     const chunkingUrl = (formData.get("chunkingUrl") || "").trim();

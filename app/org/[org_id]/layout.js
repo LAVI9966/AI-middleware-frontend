@@ -17,7 +17,6 @@ import {
   updateApiAction,
   updateBridgeVersionAction,
 } from "@/store/action/bridgeAction";
-import { getAllChatBotAction } from "@/store/action/chatBotAction";
 import { getRichUiTemplatesAction } from "@/store/action/richUiTemplateAction";
 import { getAllKnowBaseDataAction } from "@/store/action/knowledgeBaseAction";
 import { updateUserMetaOnboarding, updateOrgMetaAction, getUsersAction } from "@/store/action/orgAction";
@@ -290,43 +289,6 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
     }
   }, [isValidOrg, dispatch, resolvedParams?.org_id]);
 
-  const scriptId = "chatbot-main-script";
-  const scriptSrc = process.env.NEXT_PUBLIC_CHATBOT_SCRIPT_SRC;
-
-  useEffect(() => {
-    if (isValidOrg && !isEmbedUser && !pathName.includes("/chatbotConfig")) {
-      const updateScript = (token) => {
-        const existingScript = document.getElementById(scriptId);
-        if (existingScript) {
-          document.head.removeChild(existingScript);
-        }
-        if (token) {
-          const script = document.createElement("script");
-          script.setAttribute("embedToken", token);
-          script.setAttribute("hideIcon", true);
-          script.setAttribute("eventsToSubscribe", JSON.stringify(["MESSAGE_CLICK"]));
-          script.id = scriptId;
-          script.src = scriptSrc;
-          document.head.appendChild(script);
-        }
-      };
-
-      dispatch(getAllChatBotAction(resolvedParams.org_id)).then((e) => {
-        const chatbotToken = e?.chatbot_token;
-        if (chatbotToken && !pathName.includes("/history")) updateScript(chatbotToken);
-      });
-
-      return () => {
-        if (!pathName.includes("/history")) {
-          const existingScript = document.getElementById(scriptId);
-          if (existingScript) {
-            // document.head.removeChild(existingScript);
-          }
-        }
-      };
-    }
-  }, [isValidOrg, pathName]);
-
   useEffect(() => {
     const onFocus = async () => {
       if (isValidOrg && !isEmbedUser) {
@@ -458,6 +420,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
           status: e?.data?.action,
           title: e?.data?.title,
           openaiToolJson: e?.data?.openaiToolJson,
+          folder_id: e?.data?.metadata?.folder_id || null,
         };
         dispatch(createApiAction(resolvedParams.org_id, dataFromEmbed)).then((data) => {
           if (pathName.includes("agents")) {
@@ -541,6 +504,8 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
   const themeUserType = isEmbedUser ? "embed" : "default";
 
   if (!isEmbedUser) {
+    const hasFolders = ["agents", "apikeys", "tools", "knowledge_base"].includes(path[3]);
+
     return (
       <div className="h-screen flex flex-col overflow-hidden">
         <ThemeManager userType={themeUserType} />
@@ -554,14 +519,16 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
           <div
             className={`flex-1 ${path.length > 4 ? "ml-0  md:ml-12 lg:ml-12" : ""} flex flex-col overflow-hidden z-medium`}
           >
-            <div className="sticky top-0 z-medium bg-base-100 border-b border-base-300 ml-2">
+            <div
+              className={`sticky top-0 z-medium bg-base-100 border-b border-base-300 ${hasFolders ? "ml-0" : "ml-2"}`}
+            >
               <Navbar params={resolvedParams} searchParams={resolvedSearchParams} />
             </div>
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden">
               <main
-                className={`px-2 h-full ${path.length > 4 && !isFocus && !pathName.includes("orchestratal_model") ? "max-h-[calc(100vh-2rem)]" : ""} ${!pathName.includes("history") ? "overflow-y-auto" : "overflow-y-hidden"}`}
+                className={`${hasFolders ? "pr-2 pl-0" : "px-2"} h-full ${path.length > 4 && !isFocus && !pathName.includes("orchestratal_model") ? "max-h-[calc(100vh-2rem)]" : ""} ${!pathName.includes("history") ? "overflow-y-auto" : "overflow-y-hidden"}`}
               >
                 {children}
               </main>
