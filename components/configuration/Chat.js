@@ -21,6 +21,8 @@ import {
   ChevronDown,
   ChevronUp,
   SquarePen,
+  Copy,
+  Check,
 } from "lucide-react";
 import TestCaseSidebar from "./TestCaseSidebar";
 import AddTestCaseModal from "../modals/AddTestCaseModal";
@@ -159,6 +161,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
   const [pendingTestIndex, setPendingTestIndex] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const uploadRef = useRef(null);
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
 
   // Get published version ID from Redux store
   const publishedVersionId = useCustomSelector(
@@ -429,6 +432,19 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     setEditingMessage(null);
     setEditContent("");
     originalEditContentRef.current = "";
+  };
+
+  const handleCopyMessage = (message, index) => {
+    const raw =
+      message.testCaseResult && message.sender === "assistant"
+        ? message.testCaseResult.actual_result || message.content
+        : message.content;
+    const textToCopy = typeof raw === "string" ? raw : raw != null ? JSON.stringify(raw) : "";
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedMessageId(message.id || index);
+    setTimeout(() => {
+      setCopiedMessageId(null);
+    }, 2000);
   };
 
   const handleTestCaseClick = async (testCaseConversation, expected, testcase_id, matching_type) => {
@@ -1232,24 +1248,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                 </div>
                               ) : (
                                 /* Display Mode */
-                                <div className="relative group">
-                                  {/* Edit Button for Assistant Messages */}
-                                  {message.sender === "assistant" &&
-                                    !message.isLoading &&
-                                    message?.type !== "richui_json" &&
-                                    message?.type !== "template" &&
-                                    !(message?.llm_urls?.length > 0) && (
-                                      <button
-                                        data-testid={`playground-ai-response-pencil-button-${message.id}`}
-                                        id={`chat-edit-message-button-${message.id}`}
-                                        onClick={() => handleEditMessage(message.id, message.content)}
-                                        className="absolute -top-2 -right-5 opacity-0 group-hover:opacity-100 transition-opacity btn btn-sm btn-circle btn-ghost"
-                                        title="Edit message"
-                                      >
-                                        <Edit2 className="h-4 w-4" />
-                                      </button>
-                                    )}
-
+                                <div className="relative group flex flex-col w-full">
                                   {/* Review phase accordion (shown when agent has a reviewer configured) */}
                                   {message.review_phases?.length > 0 && (
                                     <ReviewPhaseAccordion reviewPhases={message.review_phases} />
@@ -1351,6 +1350,45 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
                                   {/* Render message attachments (images, etc.) */}
                                   {_renderMessageAttachments(message)}
+
+                                  {/* Action Buttons Toolbar for Assistant Messages */}
+                                  {message.sender === "assistant" && !message.isLoading && (
+                                    <div className="flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 justify-end w-full">
+                                      {message?.type !== "richui_json" &&
+                                        message?.type !== "template" &&
+                                        !(message?.llm_urls?.length > 0) && (
+                                          <button
+                                            data-testid={`playground-ai-response-pencil-button-${message.id}`}
+                                            id={`chat-edit-message-button-${message.id}`}
+                                            onClick={() => handleEditMessage(message.id, message.content)}
+                                            className="btn btn-xs btn-ghost gap-1.5 text-base-content/50 hover:text-base-content hover:bg-base-300/50 px-2 py-1 h-7 min-h-0 rounded-md transition-colors"
+                                            title="Edit message"
+                                          >
+                                            <Edit2 className="h-3.5 w-3.5" />
+                                            <span className="text-[10px] font-medium">Edit</span>
+                                          </button>
+                                        )}
+                                      <button
+                                        data-testid={`playground-ai-response-copy-button-${message.id}`}
+                                        id={`chat-copy-message-button-${message.id}`}
+                                        onClick={() => handleCopyMessage(message, index)}
+                                        className="btn btn-xs btn-ghost gap-1.5 text-base-content/50 hover:text-base-content hover:bg-base-300/50 px-2 py-1 h-7 min-h-0 rounded-md transition-colors"
+                                        title="Copy response"
+                                      >
+                                        {copiedMessageId === (message.id || index) ? (
+                                          <>
+                                            <Check className="h-3.5 w-3.5 text-success" />
+                                            <span className="text-[10px] font-medium text-success">Copied!</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="h-3.5 w-3.5" />
+                                            <span className="text-[10px] font-medium">Copy</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
