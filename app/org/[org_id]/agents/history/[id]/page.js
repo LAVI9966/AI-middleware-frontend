@@ -184,8 +184,10 @@ function Page({ params, searchParams }) {
         const end = search.get("end");
         const messageId = search.get("message_id");
         const encodedThreadId = encodeURIComponent(thread_id.replace(/&/g, "%26"));
+        const firstSubThreadId = item?.sub_thread?.[0]?.sub_thread_id || thread_id;
+        const encodedSubThreadId = encodeURIComponent(firstSubThreadId.replace(/&/g, "%26"));
         router.push(
-          `${pathName}?version=${search.get("version") || selectedVersion}&thread_id=${encodedThreadId}&subThread_id=${encodedThreadId}&start=${start || ""}&end=${end || ""}${messageId ? `&message_id=${messageId}` : ""}&type=${search.get("type") || resolvedSearchParams.type || ""}`,
+          `${pathName}?version=${search.get("version") || selectedVersion}&thread_id=${encodedThreadId}&subThread_id=${encodedSubThreadId}&start=${start || ""}&end=${end || ""}${messageId ? `&message_id=${messageId}` : ""}&type=${search.get("type") || resolvedSearchParams.type || ""}`,
           undefined,
           { shallow: true }
         );

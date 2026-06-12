@@ -62,12 +62,7 @@ export function ThreadActionPill({
       </span>
 
       {badge != null ? (
-        <span
-          className={`text-xs font-semibold tracking-[0.06em] uppercase ${
-            active ? "text-trace-gold" : "text-base-content/90"
-          }`}
-        >
-          {" "}
+        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-trace-gold/15 text-trace-gold shrink-0 ml-1 select-none">
           {badge}
         </span>
       ) : null}

@@ -72,7 +72,7 @@ function AgentBodyRail({ children, hue, className = "" }) {
   const railClass = hue ? HUE_THEME[hue]?.rail : NEUTRAL_RAIL;
   return (
     <TraceRailCtx.Provider value={{ railClass }}>
-      <div className={`relative ml-[13px] border-l-2 py-1.5 pl-[22px] pr-1 ${railClass} ${className}`}>{children}</div>
+      <div className={`relative ml-[13px] border-l-2 py-1 pl-[22px] pr-1 ${railClass} ${className}`}>{children}</div>
     </TraceRailCtx.Provider>
   );
 }
@@ -83,7 +83,7 @@ function TraceRow({ children, node, textRow = false }) {
     : RAIL_NODE_CLASS;
 
   return (
-    <div className="relative my-[7px]">
+    <div className="relative my-[4px]">
       {node ? <span className={nodeClasses}>{node}</span> : null}
       <div className="min-w-0">{children}</div>
     </div>
@@ -104,26 +104,22 @@ function StepIconBox({ children, className = "" }) {
   );
 }
 
-function CaretBox({ open }) {
-  return (
-    <span className="grid h-5 w-5 shrink-0 place-items-center">
-      <Caret open={open} />
-    </span>
-  );
-}
-
 function StepRowHeader({ open, inRail, icon, children, onClick, headerClass = "" }) {
   return (
     <div
-      className={`flex min-h-[38px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${TRACE_ROW_BORDER} ${headerClass}`}
+      className={`flex min-h-[30px] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1 transition-colors ${TRACE_ROW_BORDER} ${headerClass}`}
       onClick={onClick}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick(e) : undefined}
       role="button"
       tabIndex={0}
     >
-      <CaretBox open={open} />
-      {!inRail && icon}
+      {icon}
       {children}
+
+      <ChevronRight
+        size={14}
+        className={`shrink-0 text-base-content/40 transition-transform duration-150 ml-auto ${open ? "rotate-90" : ""}`}
+      />
     </div>
   );
 }
@@ -149,46 +145,20 @@ function AgentAvatar({ name, hue, glyph, large = false }) {
 function Meta({ latency, tokens, cost }) {
   const { showMeta } = useContext(TraceCtx);
   if (!showMeta) return null;
-  // latency is in seconds — show with 4 decimal places, no rounding
-  const fmt = (s) => `${Number(s).toFixed(4)}s`;
+  const fmt = (s) => {
+    const num = Number(s);
+    if (num >= 1) return `${num.toFixed(1)}s`;
+    return `${(num * 1000).toFixed(0)}ms`;
+  };
   const tokObj = tokens && typeof tokens === "object" ? tokens : null;
   const tokTotal = tokObj ? tokObj.total : tokens;
   return (
-    <div className="flex shrink-0 gap-1.5">
-      {latency != null && (
-        <span className="inline-flex items-center gap-1 text-[11px] font-mono text-base-content/50" title="latency">
-          <span className="h-1 w-1 rounded-full bg-base-content/40" />
-          {fmt(latency)}
-        </span>
-      )}
-      {tokObj != null ? (
-        <span
-          className="text-[11px] font-mono text-base-content/50"
-          title={`Input Token: ${tokObj.input.toLocaleString()}, Output Token: ${tokObj.output.toLocaleString()}`}
-        >
-          {tokObj.input.toLocaleString()} IN ↑ {tokObj.output.toLocaleString()} OP ↓
-        </span>
-      ) : tokTotal != null ? (
-        <span className="text-[11px] font-mono text-base-content/50" title="tokens">
-          {tokTotal.toLocaleString()} tok
-        </span>
-      ) : null}
-      {cost != null && (
-        <span className="text-[11px] font-mono text-base-content/50" title="cost">
-          ${Number(cost).toFixed(4)}
-        </span>
-      )}
+    <div className="flex items-center gap-1.5 text-[11px] text-base-content/45 font-medium shrink-0 ml-auto mr-1 select-none">
+      <span>•</span>
+      {latency != null && <span>{fmt(latency)}</span>}
+      {tokTotal != null && <span>{tokTotal.toLocaleString()} tok</span>}
+      {cost != null && <span>${Number(cost).toFixed(3)}</span>}
     </div>
-  );
-}
-
-function Caret({ open, className = "", style }) {
-  return (
-    <ChevronRight
-      size={14}
-      style={style}
-      className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""} ${className}`}
-    />
   );
 }
 
@@ -560,9 +530,8 @@ function MessageBubble({ text, align = "left", expandable = true }) {
   return (
     <div className="relative my-[7px] min-w-0">
       <div
-        className={`bg-base-200/55 px-3 py-2 text-xs leading-snug text-base-content/70 ${
-          isLeft ? "rounded-[4px_12px_12px_12px] text-left" : "rounded-[12px_4px_12px_12px] text-right"
-        }`}
+        className={`bg-base-200/55 px-3 py-2 text-xs leading-snug text-base-content/70 ${isLeft ? "rounded-[4px_12px_12px_12px] text-left" : "rounded-[12px_4px_12px_12px] text-right"
+          }`}
       >
         <div
           ref={contentRef}
@@ -595,10 +564,6 @@ function QueryBubble({ text }) {
 }
 
 function ResponseBubble({ text }) {
-  return <MessageBubble text={text} align="left" expandable />;
-}
-
-function UserMessageBubble({ text }) {
   return <MessageBubble text={text} align="left" expandable />;
 }
 
@@ -744,44 +709,37 @@ function StepCountBadges({ stepCounts, responsePreview }) {
 
 /** Parent agent wrapper — gold shell/header, user message + colored rail for children */
 function RootExecutionShell({ node, agents, userMessage }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const steps = node.steps || [];
-  const hasUserMessage = Boolean(userMessage?.trim());
-  if (steps.length === 0 && !hasUserMessage) return null;
+  if (steps.length === 0) return null;
 
-  const a = agents[node.agent] || {
-    name: node.agent,
-    model: "—",
-    role: "Orchestrator",
-  };
-  const stepCounts = useMemo(() => countExecutionSteps(steps), [steps]);
-  const hasBody = steps.length > 0 || hasUserMessage;
-  const hue = resolveAgentHue(a, node.agent);
-  const theme = HUE_THEME[hue];
-  const shellClass = !(open && hasBody) ? theme.shell : "";
-  const headClass = open && hasBody ? theme.headOpen : theme.head;
+  const totalSteps = steps.length;
 
   return (
-    <div className={`w-full overflow-hidden ${shellClass}`}>
+    <div className="w-full flex flex-col gap-2 items-start">
+      {/* Accordion Header */}
       <div
-        className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-lg px-2 py-2 transition-colors ${headClass}`}
+        className="inline-flex items-center gap-2 cursor-pointer select-none rounded-lg px-3 transition-all duration-200"
         onClick={() => setOpen((o) => !o)}
       >
-        <CaretBox open={open} />
-        <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large />
-        <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
-        {a.model && a.model !== "—" && (
-          <span className="hidden truncate text-[11px] text-base-content/45 sm:inline">{a.model}</span>
-        )}
-        {!open && <StepCountBadges stepCounts={stepCounts} />}
-        <span className="flex-1" />
-        <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
+        <ChevronRight
+          size={13}
+          className={`shrink-0 text-base-content/50 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+        />
+        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-base-content/70">
+          <span className="font-mono text-xs text-trace-blue font-bold">&lt;&gt;</span>
+          <span>Tool Calls</span>
+        </span>
+        <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-trace-blue/10 text-trace-blue border border-trace-blue/20 leading-none">
+          {totalSteps}
+        </span>
       </div>
-      {open && hasBody && (
-        <AgentBodyRail hue={hue} className="pt-1">
-          <UserMessageBubble text={userMessage} />
-          <HistoryExecutionSteps node={node} agents={agents} inRail />
-        </AgentBodyRail>
+
+      {/* Expanded Container */}
+      {open && (
+        <div className="w-full border border-base-300 rounded-xl p-4 bg-base-200/10 shadow-sm space-y-2">
+          <HistoryExecutionSteps node={node} agents={agents} inRail={false} />
+        </div>
       )}
     </div>
   );
@@ -823,28 +781,40 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
 
   const headClass = open && hasBody ? theme?.headOpen || NEUTRAL_HEAD_OPEN : theme?.head || NEUTRAL_HEAD;
 
-  const renderAgentHeader = () => (
-    <div
-      className={`flex min-h-[38px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${headClass}`}
-      onClick={() => setOpen((o) => !o)}
-    >
-      <CaretBox open={open} />
-      <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large={root && !embedded} />
-      <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
-      <span
-        className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${theme?.roleTag || "border-base-300/40 bg-base-300/30 text-base-content/55"}`}
+  const renderAgentHeader = () => {
+    const barColor =
+      hue === "trace-blue"
+        ? "bg-trace-blue/40"
+        : hue === "trace-green"
+          ? "bg-trace-green/40"
+          : hue === "trace-gold"
+            ? "bg-trace-gold/40"
+            : "bg-base-content/10";
+    return (
+      <div
+        className={`relative flex min-h-[30px] cursor-pointer items-center gap-2 rounded-lg pl-4 pr-3 py-1 transition-colors ${headClass}`}
+        onClick={() => setOpen((o) => !o)}
       >
-        {a.role}
-      </span>
-      {a.model && a.model !== "—" && (
-        <span className="hidden truncate text-[11px] text-base-content/45 sm:inline">{a.model}</span>
-      )}
-      {!open && stepCountBadges}
-      <span className="flex-1" />
-      <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
-      <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
-    </div>
-  );
+        <div className={`absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg ${barColor}`} />
+
+        <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large={root && !embedded} />
+        <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wider font-semibold ${theme?.roleTag || "border-base-300/40 bg-base-300/30 text-base-content/55"}`}
+        >
+          {a.role}
+        </span>
+        {!open && stepCountBadges}
+        <span className="flex-1" />
+        <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
+        <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
+        <ChevronRight
+          size={14}
+          className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+        />
+      </div>
+    );
+  };
 
   const renderExpandedBody = () => {
     const hasInnerContent = (node.steps?.length ?? 0) > 0 || question || hasVars || node.responseText;

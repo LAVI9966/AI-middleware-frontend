@@ -616,7 +616,7 @@ const Sidebar = memo(
                               handleToggleThread(item?.thread_id);
                             } else {
                               // Otherwise, select the thread
-                              threadHandler(item?.thread_id);
+                              threadHandler(item?.thread_id, item);
                             }
                           }}
                         >

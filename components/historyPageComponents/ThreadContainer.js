@@ -9,6 +9,7 @@ import ThreadItem from "./ThreadItem";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { scrollToBottom, scrollToTop } from "./AssistFile";
 import { getThread, updateContentHistory } from "@/store/action/historyAction";
+import { clearThreadData } from "@/store/reducer/historyReducer";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { closeModal, openModal } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
@@ -378,6 +379,7 @@ const ThreadContainer = ({
       // Detect thread switch and set flag immediately (synchronous)
       const isThreadSwitch = lastFetchedThreadKeyRef.current && lastFetchedThreadKeyRef.current !== fetchKey;
       if (isThreadSwitch) {
+        dispatch(clearThreadData());
         setLoadingData(true);
       }
 
@@ -559,7 +561,7 @@ const ThreadContainer = ({
               inverse={flexDirection === "column-reverse"}
               scrollableTarget="scrollableDiv"
             >
-              <div ref={contentRef} className="pb-16 px-24 pt-4" style={{ width: "100%" }}>
+              <div ref={contentRef} className="pb-16 px-4 pt-4" style={{ width: "100%" }}>
                 {Array.isArray(thread) &&
                   thread.map((item, index) => (
                     <ThreadItem

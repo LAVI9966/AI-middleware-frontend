@@ -53,13 +53,38 @@ function useIsDark() {
   return isDark;
 }
 
-function CodeBlock({ inline, className, children, showCopy = true, ...props }) {
+function CodeBlock({ inline, className, children, showCopy = true, plain = false, ...props }) {
   const match = /language-(\w+)/.exec(className || "");
   const [copyStatus, setCopyStatus] = useState("Copy");
   const resetTimerRef = useRef(null);
   const codeString = String(children).replace(/\n$/, "");
   const isDark = useIsDark();
   const hlTheme = isDark ? oneDark : oneLight;
+
+  if (!inline && match && plain) {
+    return (
+      <SyntaxHighlighter
+        language={match[1]}
+        style={{
+          ...hlTheme,
+          'pre[class*="language-"]': { ...hlTheme['pre[class*="language-"]'], background: "transparent" },
+          'code[class*="language-"]': { ...hlTheme['code[class*="language-"]'], background: "transparent" },
+        }}
+        wrapLongLines
+        customStyle={{ margin: 0, padding: "12px 14px", fontSize: "11px", background: "transparent" }}
+        codeTagProps={{
+          style: {
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            background: "transparent",
+          },
+        }}
+        PreTag="div"
+        {...props}
+      >
+        {codeString}
+      </SyntaxHighlighter>
+    );
+  }
 
   // DaisyUI / Tailwind based container classes
   const blockClasses = `text-sm w-full rounded-lg border border-base-300 bg-base-200 text-base-content overflow-hidden`;

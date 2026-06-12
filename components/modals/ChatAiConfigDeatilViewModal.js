@@ -1,15 +1,10 @@
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { CloseIcon, CopyIcon } from "@/components/Icons";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import Modal from "../UI/Modal";
-import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
-import oneDark from "react-syntax-highlighter/dist/esm/styles/prism/one-dark";
-import oneLight from "react-syntax-highlighter/dist/esm/styles/prism/one-light";
-import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import CodeBlock from "@/components/codeBlock/CodeBlock";
 import { SlidersHorizontal } from "lucide-react";
-
-SyntaxHighlighter.registerLanguage("json", json);
 
 // ---------------------------------------------------------------------------
 // Helpers (used by the generic fallback modal path)
@@ -60,19 +55,7 @@ const renderFlattenedMessage = (message) => {
 
 function JsonSection({ label, data, count }) {
   const jsonString = useMemo(() => JSON.stringify(data, null, 2), [data]);
-  const [isDark, setIsDark] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark");
-    check();
-    const observer = new MutationObserver(check);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme"],
-    });
-    return () => observer.disconnect();
-  }, []);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(jsonString);
@@ -105,24 +88,9 @@ function JsonSection({ label, data, count }) {
         </button>
       </div>
       <div className="max-h-64 overflow-auto" style={{ background: "var(--ai-config-section-bg)" }}>
-        <SyntaxHighlighter
-          language="json"
-          style={isDark ? oneDark : oneLight}
-          customStyle={{
-            margin: 0,
-            padding: "12px 14px",
-            background: "transparent",
-            fontSize: "11px",
-            lineHeight: "1.55",
-          }}
-          codeTagProps={{
-            style: {
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            },
-          }}
-        >
+        <CodeBlock plain className="language-json">
           {jsonString}
-        </SyntaxHighlighter>
+        </CodeBlock>
       </div>
     </section>
   );

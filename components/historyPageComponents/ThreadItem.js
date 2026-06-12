@@ -4,9 +4,11 @@ import {
   PencilIcon,
   AddIcon,
   SquareFunctionIcon,
-  UserIcon,
   BotMessageIcon,
   FileTextIcon,
+  BotIcon,
+  CopyIcon,
+  CheckCircleIcon,
 } from "@/components/Icons";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -23,6 +25,7 @@ import {
   Braces,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Clock3,
   ExternalLink,
   RotateCcw,
@@ -32,6 +35,7 @@ import {
   SlidersHorizontal,
   Maximize2,
   Plus,
+  User,
 } from "lucide-react";
 import { rerunApi } from "@/config/modelApi";
 import { toast } from "react-toastify";
@@ -40,7 +44,8 @@ import CodeBlock from "../codeBlock/CodeBlock";
 import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
 import { FinalResponseCard } from "../historyUi/FinalResponseCard";
 import { ThreadActionPill, ThreadInlinePanel, ThreadSystemPromptPanel } from "../historyUi/ThreadActionPill";
-import { agentInitials, HUE_THEME } from "../historyUi/executionTrace/traceTheme";
+import { HUE_THEME } from "../historyUi/executionTrace/traceTheme";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 import { flattenToolsCallData } from "@/utils/executionTraceTransform";
 
 // Inline variable value with show more/less for long content and JSON formatting
@@ -104,7 +109,7 @@ function InlineVarValue({ raw, isLong }) {
 
   // Not JSON, handle normal text/non-JSON value
   return (
-    <span className="text-sm break-all text-base-content whitespace-pre-wrap">
+    <span className="text-xs break-all text-base-content whitespace-pre-wrap">
       {isLong && !expanded ? (
         <>
           {raw.slice(0, 200)}…{" "}
@@ -264,6 +269,9 @@ const ThreadItem = ({
   handleAddTestCase,
   setModalInput,
 }) => {
+  const { actualTheme } = useThemeManager();
+  const isDark = actualTheme === "dark";
+
   // Determine message type based on new data structure
   const getInitialMessageType = () => {
     if (item?.user === "user") {
@@ -316,6 +324,21 @@ const ThreadItem = ({
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, setVariablesFilter] = useState("");
   const [isMoreDetailsExpanded, setIsMoreDetailsExpanded] = useState(false);
+  const [copiedAllVariables, setCopiedAllVariables] = useState(false);
+
+  // Keep toolbar visible whenever any accordion panel is open
+  const isAnyPanelOpen = isVariablesOpen || isMoreDetailsExpanded || isSystemPromptExpanded;
+
+  const handleCopyAllVariables = () => {
+    const jsonString = JSON.stringify(item?.variables || {}, null, 2);
+    navigator.clipboard.writeText(jsonString);
+    setCopiedAllVariables(true);
+    toast.success("Variables copied to clipboard");
+    setTimeout(() => {
+      setCopiedAllVariables(false);
+    }, 2000);
+  };
+
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
@@ -456,8 +479,6 @@ const ThreadItem = ({
 
   const statelessBtnClass =
     "inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300";
-
-  const rootAgentInitials = useMemo(() => agentInitials(rootAgentName), [rootAgentName]);
 
   useEffect(() => {
     setMessageType(getInitialMessageType());
@@ -846,7 +867,7 @@ const ThreadItem = ({
         if (typeof window.openChatbot === "function") window.openChatbot();
         setTimeout(() => {
           if (item?.user && typeof window.Chatbot?.askAi === "function") {
-            window.Chatbot.askAi({ message: debugQuery });
+            window.Chatbot.askAi({ message: item.user });
           }
         }, 300);
       }, 1000);
@@ -1035,11 +1056,31 @@ const ThreadItem = ({
 
   const variableCount = Object.keys(item?.variables || {}).length;
 
-  const renderVariablesPanel = (panelClassName = "w-1/2") => {
+  const renderVariablesPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
     if (!isVariablesOpen || variableCount === 0) return null;
 
     return (
       <ThreadInlinePanel className={panelClassName}>
+        <div className="px-4 py-2 border-b border-base-content/10 bg-base-200/50 flex justify-between items-center select-none">
+          <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Variables</span>
+          <button
+            onClick={handleCopyAllVariables}
+            className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center"
+            title="Copy all variables as JSON"
+          >
+            {copiedAllVariables ? (
+              <>
+                <CheckCircleIcon size={12} className="text-success" />
+                <span className="text-success font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <CopyIcon size={12} className="opacity-80" />
+                <span>Copy Object</span>
+              </>
+            )}
+          </button>
+        </div>
         <div className="max-h-[32rem] overflow-y-auto">
           {Object.entries(item?.variables || {})
             .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
@@ -1052,7 +1093,7 @@ const ThreadItem = ({
                   key={key}
                   className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
                 >
-                  <span className="min-w-[120px] shrink-0 text-sm font-medium text-trace-gold">{key}</span>
+                  <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">{key}</span>
                   <InlineVarValue raw={raw} isLong={isLong} />
                 </div>
               );
@@ -1062,7 +1103,7 @@ const ThreadItem = ({
     );
   };
 
-  const renderOptionalDetailsPanel = (panelClassName = "w-1/2") => {
+  const renderOptionalDetailsPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
     if (!isMoreDetailsExpanded) return null;
 
     return (
@@ -1084,10 +1125,10 @@ const ThreadItem = ({
                     key={`${key}-${objKey}`}
                     className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
                   >
-                    <span className="min-w-[120px] shrink-0 text-sm font-medium text-trace-gold font-mono">
+                    <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold font-mono">
                       {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                     </span>
-                    <span className="text-sm break-all text-base-content whitespace-pre-wrap font-mono">
+                    <span className="text-xs break-all text-base-content whitespace-pre-wrap font-mono">
                       {objValue?.toString()}
                     </span>
                   </div>
@@ -1100,8 +1141,8 @@ const ThreadItem = ({
                   key={key}
                   className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
                 >
-                  <span className="min-w-[120px] shrink-0 text-sm font-medium text-trace-gold">{displayKey}</span>
-                  <span className="text-sm break-all text-base-content whitespace-pre-wrap">
+                  <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">{displayKey}</span>
+                  <span className="text-xs break-all text-base-content whitespace-pre-wrap">
                     {key === "createdAt" || key === "created_at" ? new Date(value).toLocaleString() : value?.toString()}
                   </span>
                 </div>
@@ -1112,7 +1153,7 @@ const ThreadItem = ({
     );
   };
 
-  const renderSystemPromptPanel = (panelClassName = "w-fit") => {
+  const renderSystemPromptPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
     if (!isSystemPromptExpanded || !item?.prompt) return null;
     return (
       <ThreadSystemPromptPanel className={panelClassName}>
@@ -1180,8 +1221,8 @@ const ThreadItem = ({
     if (panelsOnly) {
       return (
         <div className="w-full flex flex-col items-end">
-          {renderSystemPromptPanel("w-fit")}
-          {renderVariablesPanel("w-1/2")}
+          {renderSystemPromptPanel("max-w-[620px] w-full ml-auto")}
+          {renderVariablesPanel("max-w-[620px] w-full ml-auto")}
         </div>
       );
     }
@@ -1212,11 +1253,19 @@ const ThreadItem = ({
           <ThreadActionPill
             testId="thread-item-user-system-prompt-button"
             id="thread-item-user-system-prompt-button"
-            icon={FileTextIcon}
-            trailing={ChevronDown}
-            trailingClassName={`transition-transform duration-200 ${isSystemPromptExpanded ? "rotate-180" : ""}`}
+            trailing={ChevronRight}
+            trailingClassName={`transition-transform duration-200 ${isSystemPromptExpanded ? "rotate-90" : ""}`}
             active={isSystemPromptExpanded}
-            onClick={() => setIsSystemPromptExpanded((v) => !v)}
+            onClick={() => {
+              setIsSystemPromptExpanded((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsVariablesOpen(false);
+                  setIsMoreDetailsExpanded(false);
+                }
+                return newVal;
+              });
+            }}
           >
             System Prompt
           </ThreadActionPill>
@@ -1225,12 +1274,19 @@ const ThreadItem = ({
           <ThreadActionPill
             testId="thread-item-user-variables-button"
             id="thread-item-user-variables-button"
-            icon={Braces}
-            badge={variableCount}
             trailing={ChevronRight}
             trailingClassName={`transition-transform duration-200 ${isVariablesOpen ? "rotate-90" : ""}`}
             active={isVariablesOpen}
-            onClick={() => setIsVariablesOpen((v) => !v)}
+            onClick={() => {
+              setIsVariablesOpen((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsSystemPromptExpanded(false);
+                  setIsMoreDetailsExpanded(false);
+                }
+                return newVal;
+              });
+            }}
           >
             Variables
           </ThreadActionPill>
@@ -1238,11 +1294,19 @@ const ThreadItem = ({
         <ThreadActionPill
           testId="thread-item-user-more-button"
           id="thread-item-user-more-button"
-          icon={Plus}
-          trailing={ChevronDown}
-          trailingClassName={`transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-180" : ""}`}
+          trailing={ChevronRight}
+          trailingClassName={`transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-90" : ""}`}
           active={isMoreDetailsExpanded}
-          onClick={() => setIsMoreDetailsExpanded((v) => !v)}
+          onClick={() => {
+            setIsMoreDetailsExpanded((v) => {
+              const newVal = !v;
+              if (newVal) {
+                setIsSystemPromptExpanded(false);
+                setIsVariablesOpen(false);
+              }
+              return newVal;
+            });
+          }}
         >
           More
         </ThreadActionPill>
@@ -1258,9 +1322,9 @@ const ThreadItem = ({
       <div className={`w-full ${className}`}>
         {pills}
         <div className="w-full flex flex-col items-end">
-          {renderSystemPromptPanel("w-fit")}
-          {renderVariablesPanel("w-1/2")}
-          {renderOptionalDetailsPanel("w-1/2")}
+          {renderSystemPromptPanel("max-w-[620px] w-full ml-auto")}
+          {renderVariablesPanel("max-w-[620px] w-full ml-auto")}
+          {renderOptionalDetailsPanel("max-w-[620px] w-full ml-auto")}
         </div>
       </div>
     );
@@ -1303,7 +1367,16 @@ const ThreadItem = ({
             data-testid="thread-item-user-more-button"
             id="thread-item-user-more-button"
             className={`${statelessBtnClass} ${isMoreDetailsExpanded ? "bg-base-300" : ""}`}
-            onClick={() => setIsMoreDetailsExpanded((v) => !v)}
+            onClick={() => {
+              setIsMoreDetailsExpanded((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsVariablesOpen(false);
+                  setIsSystemPromptExpanded(false);
+                }
+                return newVal;
+              });
+            }}
           >
             <Plus className={`h-3 w-3 transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-45" : ""}`} />
             <span>More...</span>
@@ -1315,13 +1388,19 @@ const ThreadItem = ({
             data-testid="thread-item-user-variables-button"
             id="thread-item-user-variables-button"
             className={statelessBtnClass}
-            onClick={() => setIsVariablesOpen((v) => !v)}
+            onClick={() => {
+              setIsVariablesOpen((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsMoreDetailsExpanded(false);
+                  setIsSystemPromptExpanded(false);
+                }
+                return newVal;
+              });
+            }}
           >
             <Braces className="h-3 w-3" />
             <span>Sent Variables</span>
-            <span className="rounded-full px-1.5 py-0 text-[10px] font-bold bg-base-300 text-base-content/60">
-              {variableCount}
-            </span>
             <ChevronDown
               className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
             />
@@ -1335,15 +1414,32 @@ const ThreadItem = ({
       </div>
 
       {isVariablesOpen && variableCount > 0 ? (
-        <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100">
-          <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
+        <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100">
+          <div className="px-4 py-2.5 bg-base-100 border-b border-base-300 flex justify-between items-center select-none">
             <input
               type="text"
               placeholder={`Filter ${variableCount} variables...`}
               value={variablesFilter}
               onChange={(e) => setVariablesFilter(e.target.value)}
-              className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40"
+              className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40 mr-2"
             />
+            <button
+              onClick={handleCopyAllVariables}
+              className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center shrink-0"
+              title="Copy all variables as JSON"
+            >
+              {copiedAllVariables ? (
+                <>
+                  <CheckCircleIcon size={12} className="text-success" />
+                  <span className="text-success font-medium">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <CopyIcon size={12} className="opacity-80" />
+                  <span>Copy Object</span>
+                </>
+              )}
+            </button>
           </div>
           <div className="max-h-64 overflow-y-auto">
             {Object.entries(item?.variables || {})
@@ -1353,7 +1449,7 @@ const ThreadItem = ({
                   key={key}
                   className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
                 >
-                  <span className="text-sm font-medium min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                  <span className="text-xs font-normal min-w-[120px] shrink-0 text-trace-gold">{key}</span>
                   <div className="flex-1 w-full max-w-full overflow-hidden">
                     <InlineVarValue
                       raw={
@@ -1378,7 +1474,7 @@ const ThreadItem = ({
       ) : null}
 
       {isMoreDetailsExpanded ? (
-        <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100 p-4 space-y-4 text-left">
+        <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100 p-4 space-y-4 text-left">
           <div className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</div>
           <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100 divide-y divide-base-300">
             {allowedAttributes.optional
@@ -1391,11 +1487,11 @@ const ThreadItem = ({
                 if (typeof value === "object" && key !== "createdAt") {
                   return Object.entries(value).map(([objKey, objValue]) => (
                     <div key={`${key}-${objKey}`} className="bg-base-100 flex px-4 py-3">
-                      <div className="text-xs font-semibold capitalize w-1/2 text-base-content/85">
+                      <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">
                         {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                       </div>
                       <div className="w-1/2 text-xs text-base-content font-mono">
-                        <span className="break-words font-medium text-base-content/80">{objValue?.toString()}</span>
+                        <span className="break-words font-normal text-base-content/80">{objValue?.toString()}</span>
                       </div>
                     </div>
                   ));
@@ -1404,9 +1500,9 @@ const ThreadItem = ({
                 // Regular single value display
                 return (
                   <div key={key} className="bg-base-100 flex px-4 py-3">
-                    <div className="text-xs font-semibold capitalize w-1/2 text-base-content/85">{displayKey}</div>
+                    <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">{displayKey}</div>
                     <div className="w-1/2 text-xs text-base-content">
-                      <span className="break-words font-medium text-base-content/80">
+                      <span className="break-words font-normal text-base-content/80">
                         {key === "createdAt" || key === "created_at"
                           ? new Date(value).toLocaleString()
                           : value?.toString()}
@@ -1535,7 +1631,16 @@ const ThreadItem = ({
               data-testid="thread-item-user-variables-button-sticky"
               id="thread-item-user-variables-button-sticky"
               className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
-              onClick={() => setIsVariablesOpen((v) => !v)}
+              onClick={() => {
+                setIsVariablesOpen((v) => {
+                  const newVal = !v;
+                  if (newVal) {
+                    setIsSystemPromptExpanded(false);
+                    setIsMoreDetailsExpanded(false);
+                  }
+                  return newVal;
+                });
+              }}
             >
               <Braces className="h-3 w-3" />
               <span>Variables</span>
@@ -1557,46 +1662,87 @@ const ThreadItem = ({
         </div>
       )}
 
-      <div className={isSingleQuery ? "" : "show-on-hover"}>
+      <div className="">
         {isSingleQuery ? (
           /* ── Single-query vertical flow ── */
           <div className="flex flex-col w-full py-2">
-            {/* User Query card — full width in stateless mode */}
-            <div className="flex justify-start w-full">
-              <div className="w-full bg-primary rounded-xl px-4 py-3 text-base-200" style={{ wordBreak: "break-word" }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center shrink-0">
-                    <UserIcon size={13} className="text-base-content" />
+            {/* User message — right-aligned bubble + U avatar */}
+            <div className="group mb-2">
+              <div className="flex items-start justify-end gap-3">
+                <div
+                  onClick={
+                    !isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5)
+                      ? () => setIsUserQueryExpanded(true)
+                      : undefined
+                  }
+                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words relative border ${isDark
+                      ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
+                      : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
+                    } ${!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) ? "cursor-pointer select-none" : ""}`}
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                >
+                  {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                  <div
+                    className={
+                      !isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5)
+                        ? "overflow-hidden max-h-[140px]"
+                        : "whitespace-pre-line"
+                    }
+                  >
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, inline, className, children, ...props }) => (
+                          <CodeBlock className={className} {...props}>
+                            {children}
+                          </CodeBlock>
+                        ),
+                      }}
+                    >
+                      {item.user}
+                    </ReactMarkdown>
                   </div>
-                  <span className="text-xs font-semibold text-base-200 uppercase tracking-wide">User Query</span>
-                </div>
-                {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                <div className={!isUserQueryExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
-                  <ReactMarkdown
-                    components={{
-                      code: ({ node, inline, className, children, ...props }) => (
-                        <CodeBlock className={className} {...props}>
-                          {children}
-                        </CodeBlock>
-                      ),
-                    }}
-                  >
-                    {item.user}
-                  </ReactMarkdown>
-                </div>
-                {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
-                  <button
-                    data-testid="thread-item-user-query-expand-button"
-                    className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
-                    onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
-                  >
-                    <ChevronDown
-                      size={12}
-                      className={`transition-transform duration-150 ${isUserQueryExpanded ? "rotate-180" : ""}`}
+
+                  {/* Semi-transparent fade-out overlay when collapsed */}
+                  {!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t ${isDark ? "from-[#27272a]" : "from-[#f4f4f5]"} to-transparent pointer-events-none rounded-b-2xl`}
                     />
-                    {isUserQueryExpanded ? "Show less" : "Show more"}
-                  </button>
-                ) : null}
+                  )}
+
+                  {/* Collapse button inside the bubble, shown only when expanded */}
+                  {isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
+                    <div className="flex justify-center mt-3 select-none">
+                      <button
+                        type="button"
+                        className={`btn btn-xs rounded-full border border-base-content/10 px-4 py-1 flex items-center gap-1.5 transition-colors font-semibold ${isDark
+                            ? "bg-base-200 text-base-content hover:bg-base-300"
+                            : "bg-base-100/10 text-neutral-content hover:bg-base-100/20"
+                          }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsUserQueryExpanded(false);
+                        }}
+                      >
+                        <ChevronUp size={12} />
+                        <span>Collapse</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Avatar */}
+                <div
+                  className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 ${isDark ? "bg-[#1a1a1a] text-white/50" : "bg-base-100 text-base-content/50"
+                    }`}
+                >
+                  U
+                </div>
+              </div>
+
+              {/* Action pills below user prompt bubble */}
+              <div
+                className={`mt-3 pr-12 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+              >
+                {renderStatefulMessageActionToolbar({ showTimestamp: true })}
               </div>
             </div>
 
@@ -1605,7 +1751,13 @@ const ThreadItem = ({
                 <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20">
                   <div
                     className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
-                    onClick={() => setIsSystemPromptExpanded(!isSystemPromptExpanded)}
+                    onClick={() => {
+                      setIsSystemPromptExpanded(!isSystemPromptExpanded);
+                      if (!isSystemPromptExpanded) {
+                        setIsVariablesOpen(false);
+                        setIsMoreDetailsExpanded(false);
+                      }
+                    }}
                   >
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
@@ -1657,23 +1809,18 @@ const ThreadItem = ({
 
             {/* Agent execution trace (replaces old tools UI) */}
             {hasAgentsOrTools && (
-              <>
-                <div className="flex flex-row items-center justify-center my-2 w-full gap-3">
-                  <ArrowDown size={20} className="text-base-content/50" />
-                </div>
-                <div className="w-full">
-                  <MessageExecutionTrace
-                    item={item}
-                    bridgeId={params?.id}
-                    rootAgentName={rootAgentName}
-                    formatDateAndTime={formatDateAndTime}
-                    onToolLogsClick={handleToolPrimaryClick}
-                    onToolDataClick={handleToolDataClick}
-                    onAgentDataClick={handleToolDataClick}
-                    onAgentHistoryClick={handleToolPrimaryClick}
-                  />
-                </div>
-              </>
+              <div className="w-full mt-4">
+                <MessageExecutionTrace
+                  item={item}
+                  bridgeId={params?.id}
+                  rootAgentName={rootAgentName}
+                  formatDateAndTime={formatDateAndTime}
+                  onToolLogsClick={handleToolPrimaryClick}
+                  onToolDataClick={handleToolDataClick}
+                  onAgentDataClick={handleToolDataClick}
+                  onAgentHistoryClick={handleToolPrimaryClick}
+                />
+              </div>
             )}
 
             {/* Legacy tools UI — only when no nested agent trace */}
@@ -1739,13 +1886,12 @@ const ThreadItem = ({
                       data-testid={`thread-item-tool-${toolKey || chipIndex}`}
                       id={`thread-item-tool-${toolKey || chipIndex}`}
                       onClick={(event) => !isRAGTool && handleToolPrimaryClick(event, tool)}
-                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${
-                        isRAGTool
+                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${isRAGTool
                           ? "bg-info/10 border-info/30 hover:bg-info/20 cursor-default"
                           : isPreTool
                             ? "bg-warning/10 border-warning/30 hover:bg-warning/20 cursor-pointer"
                             : "bg-base-100 border-base-300 hover:bg-base-300 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       {isRAGTool && <BookOpen size={14} className="text-info mr-1" title="Knowledge Base" />}
                       <span
@@ -1841,13 +1987,12 @@ const ThreadItem = ({
                                   data-testid={`thread-item-tool-${toolKey || i}`}
                                   id={`thread-item-tool-${toolKey || i}`}
                                   onClick={(event) => !isRAGTool && handleToolPrimaryClick(event, tool)}
-                                  className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 transition-colors text-sm ${
-                                    isRAGTool
+                                  className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 transition-colors text-sm ${isRAGTool
                                       ? "bg-info/10 border-info/30 hover:bg-info/20 cursor-default"
                                       : isPreTool
                                         ? "bg-warning/10 border-warning/30 hover:bg-warning/20 cursor-pointer"
                                         : "bg-base-100 border-base-300 hover:bg-base-300 cursor-pointer"
-                                  }`}
+                                    }`}
                                 >
                                   {isRAGTool && (
                                     <BookOpen size={13} className="text-info mr-1" title="Knowledge Base" />
@@ -1994,72 +2139,63 @@ const ThreadItem = ({
                 );
               })()}
 
-            {/* Arrow connector to AI response with final execution time */}
-            {!item.error &&
-              (() => {
-                // Model execution time goes on arrow from Tools to AI Response
-                const modelExecutionTime = parseFloat(item?.latency?.model_execution_time) || 0;
-
-                return (
-                  <div className="flex flex-row items-center justify-center my-2 w-full max-w-xl gap-3">
-                    <ArrowDown size={20} className="text-base-content/50" />
-                    {modelExecutionTime > 0 && (
-                      <span className="text-xs px-2.5 py-1 rounded-md bg-base-200 text-base-content border border-base-300 whitespace-nowrap font-medium flex items-center gap-1 w-20 justify-center">
-                        <Clock3 size={12} /> {modelExecutionTime.toFixed(2)}s
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
-
             {!item.error && (
-              <div className="w-full relative">
-                {/* Total time badge — top right outside card */}
-                {firstAttemptErrorNotice}
-                <span className="absolute -top-2 right-2 z-10 text-xs px-2 py-0.5 rounded-full border border-base-content/20 text-base-content/50 bg-base-100 whitespace-nowrap flex items-center gap-1">
-                  <Clock3 size={10} /> {(parseFloat(item?.latency?.over_all_time) || 0).toFixed(2)}s total
-                </span>
-
-                <FinalResponseCard
-                  agentInitials={rootAgentInitials}
-                  agentName={rootAgentName}
-                  avatarClassName={HUE_THEME["trace-gold"].avatar}
-                  onAvatarClick={
-                    hasMultipleMessageTypes
-                      ? (e) => {
+              <div className="w-full relative flex items-end gap-3">
+                {/* Left Column: Avatar */}
+                <div className="shrink-0 mb-1">
+                  <div
+                    onClick={
+                      hasMultipleMessageTypes
+                        ? (e) => {
                           e.stopPropagation();
                           setIsDropupOpen(!isDropupOpen);
                         }
-                      : null
-                  }
-                  avatarMenu={messageTypeDropdown}
-                  badges={responseStatusBadges}
-                  attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
-                  content={getMessageToDisplay()}
-                  isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
-                  contentRef={aiResponseRef}
-                  isExpanded={isAiResponseExpanded}
-                  overflows={aiResponseOverflows}
-                  onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
-                  editButton={
-                    !item?.llm_urls?.length && !item?.fromRTLayer ? (
-                      <div
-                        className="tooltip absolute"
-                        style={{ top: "-0.5rem", right: "0.5rem" }}
-                        data-tip="Edit message"
-                      >
-                        <button
-                          id="thread-item-edit-message-button"
-                          data-testid="thread-item-edit-message-button"
-                          className="btn btn-xs btn-circle btn-ghost opacity-0 group-hover:opacity-100"
-                          onClick={handleEdit}
+                        : null
+                    }
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border relative ${hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
+                      } bg-trace-gold/12 bottom-[30px] text-trace-gold border-trace-gold/20`}
+                  >
+                    <BotIcon className="w-[25px] h-[25px]" />
+                    {messageTypeDropdown}
+                  </div>
+                </div>
+
+                {/* Right Column: Assistant Message */}
+                <div className="flex-1 min-w-0 relative">
+                  {firstAttemptErrorNotice}
+
+                  <FinalResponseCard
+                    attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                    content={getMessageToDisplay()}
+                    isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                    contentRef={aiResponseRef}
+                    isExpanded={isAiResponseExpanded}
+                    overflows={aiResponseOverflows}
+                    onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
+                    editButton={
+                      !item?.llm_urls?.length && !item?.fromRTLayer ? (
+                        <div
+                          className="tooltip absolute"
+                          style={{ top: "-0.5rem", right: "0.5rem" }}
+                          data-tip="Edit message"
                         >
-                          <PencilIcon size={13} />
-                        </button>
-                      </div>
-                    ) : null
-                  }
-                />
+                          <button
+                            id="thread-item-edit-message-button"
+                            data-testid="thread-item-edit-message-button"
+                            className="btn btn-xs btn-circle btn-ghost opacity-0 group-hover:opacity-100"
+                            onClick={handleEdit}
+                          >
+                            <PencilIcon size={13} />
+                          </button>
+                        </div>
+                      ) : null
+                    }
+                  />
+
+                  {responseStatusBadges && (
+                    <div className="mt-3 flex gap-1.5 items-center select-none">{responseStatusBadges}</div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -2070,7 +2206,10 @@ const ThreadItem = ({
             <div className="group mb-2">
               <div className="flex items-start justify-end gap-3">
                 <div
-                  className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words bg-neutral text-neutral-content"
+                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words border ${isDark
+                      ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
+                      : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
+                    }`}
                   style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
                 >
                   {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
@@ -2088,13 +2227,19 @@ const ThreadItem = ({
                 </div>
                 {/* Avatar */}
                 <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-100 text-base-content/50">
-                  U
+                  <User size={20} />
                 </div>
               </div>
               {isStatelessConversation ? (
-                renderStatelessMultiQueryUserActions()
+                <div
+                  className={`transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                >
+                  {renderStatelessMultiQueryUserActions()}
+                </div>
               ) : (
-                <div className={`mt-3 pr-12 ${isLastMessage() ? "" : "see-on-hover"}`}>
+                <div
+                  className={`mt-3 pr-12 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                >
                   {renderStatefulMessageActionToolbar({ showTimestamp: true })}
                 </div>
               )}
@@ -2156,13 +2301,12 @@ const ThreadItem = ({
                       data-testid={`thread-item-tool-${toolKey || chipIndex}`}
                       id={`thread-item-tool-${toolKey || chipIndex}`}
                       onClick={(event) => !isRAGTool && handleToolPrimaryClick(event, tool)}
-                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${
-                        isRAGTool
+                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${isRAGTool
                           ? "bg-info/10 border-info/30 hover:bg-info/20 cursor-default"
                           : isPreTool
                             ? "bg-warning/10 border-warning/30 hover:bg-warning/20 cursor-pointer"
                             : "bg-base-100 border-base-300 hover:bg-base-300 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       {isRAGTool && <BookOpen size={14} className="text-info mr-1" title="Knowledge Base" />}
                       <span
@@ -2284,63 +2428,82 @@ const ThreadItem = ({
 
             {/* 3. Third: Render Assistant Message if exists */}
             {!item.error && (
-              <div className="w-full px-2 relative">
-                {firstAttemptErrorNotice}
-                {preFunctionEntry && (
-                  <button
-                    type="button"
-                    data-testid="thread-item-pre-function-logs-button"
-                    onClick={handlePreFunctionClick}
-                    className="absolute -top-3 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-base-content/30 ring-1 ring-base-content/10 bg-base-100 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-base-content/50 hover:ring-base-content/20 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/35"
-                    title="Open pre-function logs"
-                    aria-label="Open pre-function logs"
-                  >
-                    <SquareFunctionIcon size={14} className="shrink-0 opacity-80" />
-                    <span className="block truncate">Pre-Function Logs: {preFunctionStripText}</span>
-                    <ChevronRight size={12} className="shrink-0 opacity-70" />
-                  </button>
-                )}
-                <FinalResponseCard
-                  agentInitials={rootAgentInitials}
-                  agentName={rootAgentName}
-                  avatarClassName={HUE_THEME["trace-gold"].avatar}
-                  onAvatarClick={
-                    hasMultipleMessageTypes
-                      ? (e) => {
+              <div className="w-full relative flex items-end gap-3 group">
+                {/* Left Column: Avatar */}
+                <div className="shrink-0 mb-1">
+                  <div
+                    onClick={
+                      hasMultipleMessageTypes
+                        ? (e) => {
                           e.stopPropagation();
                           setIsDropupOpen(!isDropupOpen);
                         }
-                      : null
-                  }
-                  avatarMenu={messageTypeDropdown}
-                  badges={responseStatusBadges}
-                  attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
-                  content={getMessageToDisplay()}
-                  isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
-                  contentRef={aiResponseRef}
-                  isExpanded={isAiResponseExpanded}
-                  overflows={aiResponseOverflows}
-                  onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
-                  editButton={
-                    !item?.llm_urls?.length && !item?.fromRTLayer ? (
-                      <div
-                        className={`absolute top-2 right-2 flex items-center gap-1 transition-opacity ${isLastMessage() ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                      >
-                        <div className="tooltip" data-tip="Edit message">
-                          <button
-                            id="thread-item-edit-message-button"
-                            data-testid="thread-item-edit-message-button"
-                            className="btn btn-sm btn-circle btn-ghost hover:btn-primary text-base-content"
-                            onClick={handleEdit}
-                          >
-                            <PencilIcon size={14} />
-                          </button>
+                        : null
+                    }
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border relative ${hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
+                      } bg-trace-gold/12 text-trace-gold border-trace-gold/20`}
+                  >
+                    <BotIcon size={16} />
+                    {messageTypeDropdown}
+                  </div>
+                </div>
+
+                {/* Right Column: Assistant Message */}
+                <div className="flex-1 min-w-0 relative">
+                  {firstAttemptErrorNotice}
+                  {preFunctionEntry && (
+                    <button
+                      type="button"
+                      id="thread-item-pre-function-logs-button"
+                      data-testid="thread-item-pre-function-logs-button"
+                      onClick={handlePreFunctionClick}
+                      className="absolute -top-3 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-base-content/30 ring-1 ring-base-content/10 bg-base-100 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-base-content/50 hover:ring-base-content/20 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/35"
+                      title="Open pre-function logs"
+                      aria-label="Open pre-function logs"
+                    >
+                      <SquareFunctionIcon size={14} className="shrink-0 opacity-80" />
+                      <span className="block truncate">Pre-Function Logs: {preFunctionStripText}</span>
+                      <ChevronRight size={12} className="shrink-0 opacity-70" />
+                    </button>
+                  )}
+                  <FinalResponseCard
+                    attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                    content={getMessageToDisplay()}
+                    isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                    contentRef={aiResponseRef}
+                    isExpanded={isAiResponseExpanded}
+                    overflows={aiResponseOverflows}
+                    onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
+                    editButton={
+                      !item?.llm_urls?.length && !item?.fromRTLayer ? (
+                        <div
+                          className={`absolute top-2 right-2 flex items-center gap-1 transition-opacity ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                        >
+                          <div className="tooltip" data-tip="Edit message">
+                            <button
+                              id="thread-item-edit-message-button"
+                              data-testid="thread-item-edit-message-button"
+                              className="btn btn-sm btn-circle btn-ghost hover:btn-primary text-base-content"
+                              onClick={handleEdit}
+                            >
+                              <PencilIcon size={14} />
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : null
-                  }
-                />
-                {renderResponseActionButtons(!isStatelessConversation)}
+                      ) : null
+                    }
+                  />
+
+                  {/* Action buttons and badges below FinalResponseCard */}
+                  <div
+                    className={`mt-3 flex flex-wrap items-center gap-2 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  >
+                    {renderResponseActionButtons(!isStatelessConversation)}
+                    {responseStatusBadges && (
+                      <div className="flex gap-1.5 items-center select-none ml-2">{responseStatusBadges}</div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -2351,10 +2514,6 @@ const ThreadItem = ({
           (isSingleQuery ? (
             /* Single-query (stateless) — match the AI Response card style */
             <div className="flex flex-col items-center py-2 w-full">
-              {/* Arrow connector — same as the non-error path */}
-              <div className="flex flex-row items-center justify-center my-2 w-full max-w-xl gap-3">
-                <ArrowDown size={20} className="text-base-content/50" />
-              </div>
               {firstAttemptErrorNotice}
               {/* Error card — mirrors the AI Response card */}
               <div className="w-full relative">
@@ -2370,7 +2529,7 @@ const ThreadItem = ({
                     <span
                       className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
                     >
-                      {rootAgentInitials}
+                      <BotIcon className="w-[17px] h-[17px]" />
                     </span>
                     <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                   </div>
@@ -2394,7 +2553,7 @@ const ThreadItem = ({
                   <span
                     className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
                   >
-                    {rootAgentInitials}
+                    <BotIcon className="w-[17px] h-[17px]" />
                   </span>
                   <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                 </div>
