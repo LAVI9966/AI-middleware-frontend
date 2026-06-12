@@ -21,6 +21,9 @@ export default function MessageExecutionTrace({
   const [error, setError] = useState(null);
   const [traceData, setTraceData] = useState(null);
 
+  // Memoize item properties to prevent unnecessary re-renders
+  const itemKey = useMemo(() => `${item?.thread_id}:${item?.message_id}:${item?.tools_call_data ? JSON.stringify(item.tools_call_data) : ''}`, [item?.thread_id, item?.message_id, item?.tools_call_data]);
+
   const hasToolsData = useMemo(() => flattenToolsCallData(item?.tools_call_data).length > 0, [item?.tools_call_data]);
 
   const localTrace = useMemo(() => {
@@ -29,7 +32,7 @@ export default function MessageExecutionTrace({
       rootAgentName,
       formatTime: formatDateAndTime,
     });
-  }, [item, rootAgentName, formatDateAndTime, hasToolsData]);
+  }, [itemKey, rootAgentName, formatDateAndTime, hasToolsData]);
 
   useEffect(() => {
     if (!hasToolsData) {
@@ -82,10 +85,7 @@ export default function MessageExecutionTrace({
   }, [
     hasToolsData,
     bridgeId,
-    item?.thread_id,
-    item?.message_id,
-    item?.tools_call_data,
-    localTrace,
+    itemKey,
     rootAgentName,
     formatDateAndTime,
   ]);

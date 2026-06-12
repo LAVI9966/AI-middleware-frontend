@@ -797,6 +797,10 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
       >
         <div className={`absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg ${barColor}`} />
 
+        <ChevronRight
+          size={14}
+          className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+        />
         <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large={root && !embedded} />
         <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
         <span
@@ -808,10 +812,6 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
         <span className="flex-1" />
         <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
         <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
-        <ChevronRight
-          size={14}
-          className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
-        />
       </div>
     );
   };

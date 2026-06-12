@@ -76,7 +76,7 @@ const Sidebar = memo(
           }
         }
       }
-    }, [subThreads, expandedThreads, searchParams?.thread_id, searchParams?.subThread_id]);
+    }, [subThreads, expandedThreads, searchParams?.thread_id, searchParams?.subThread_id, searchParams?.version, searchParams?.message_id, searchParams?.type, pathName, router]);
 
     const handleVersionChange = async (event) => {
       const version = event.target.value;
@@ -97,7 +97,7 @@ const Sidebar = memo(
           })
         );
       }
-    }, [searchParams?.thread_id]);
+    }, [searchParams?.thread_id, isErrorTrue, params.id, selectedVersion, dispatch]);
 
     useEffect(() => {
       const p = new URLSearchParams(window.location.search);
@@ -114,7 +114,7 @@ const Sidebar = memo(
           router.push(url, undefined, { shallow: true });
         }
       }
-    }, [subThreads, selectedVersion, expandedThreads]);
+    }, [subThreads, selectedVersion, expandedThreads, pathName, router]);
     const debounce = (func, delay) => {
       let timeoutId;
       return (...args) => {
