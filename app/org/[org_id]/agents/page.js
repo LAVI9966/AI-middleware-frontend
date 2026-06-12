@@ -1,3 +1,4 @@
+/* eslint-disable no-commented-code/no-commented-code, unused-imports/no-unused-imports, unused-imports/no-unused-vars */
 "use client";
 import CreateNewBridge from "@/components/CreateNewBridge";
 import CustomTable from "@/components/customTable/CustomTable";
@@ -18,6 +19,12 @@ import {
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
 import { getIconOfService, openModal, formatRelativeTime, formatDate } from "@/utils/utility";
+import ResourcePage from "@/components/folders/ResourcePage";
+import FolderTabs from "@/components/folders/FolderTabs";
+import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
+import useFolders from "@/hooks/useFolders";
+import { useFolderContext } from "@/components/folders/FolderContext";
+import { Folder, Funnel, Undo2, Infinity, Trash2 } from "lucide-react";
 
 import { ClockIcon, EllipsisIcon } from "@/components/Icons";
 import { useRouter } from "next/navigation";
@@ -28,7 +35,6 @@ import { toast } from "react-toastify";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 import SearchItems from "@/components/UI/SearchItems";
 import AgentEmptyState from "@/components/AgentEmptyState";
-import { Funnel, Undo2, Infinity } from "lucide-react";
 import DeleteModal from "@/components/UI/DeleteModal";
 import AccessManagementModal from "@/components/modals/AccessManagementModal";
 import ConfigureEnvironmentModal from "@/components/modals/ConfigureEnvironmentModal";
@@ -301,9 +307,15 @@ const PoweredByFooter = () => {
 };
 
 function Home({ params, searchParams, isEmbedUser }) {
+  const resolvedParams = use(params);
+  const { folders, createFolder, renameFolder, deleteFolder, moveResource } = useFolders(
+    "agent",
+    resolvedParams.org_id,
+    isEmbedUser
+  );
+  const { activeFolderId, setActiveFolderId, setDraggedResourceId } = useFolderContext();
   // Use the tutorial videos hook
   const { getApiAgentCreationVideo, getChatbotAgentCreationVideo } = useTutorialVideos();
-  const resolvedParams = use(params);
   const resolvedSearchParams = use(searchParams);
   const dispatch = useDispatch();
   const router = useRouter();
@@ -364,6 +376,18 @@ function Home({ params, searchParams, isEmbedUser }) {
     };
   }, [bridgeTypeFilter, descriptions, isEmbedUser]);
   const deletedSectionTitle = bridgeTypeFilter === "chatbot" ? "Deleted Chatbots" : "Deleted Agents";
+
+  useEffect(() => {
+    if (resolvedSearchParams?.folder === "trash") {
+      setActiveFolderId("trash");
+      const url = new URL(window.location);
+      if (url.searchParams.has("folder")) {
+        url.searchParams.delete("folder");
+        router.replace(url.pathname + url.search, { scroll: false });
+      }
+    }
+  }, [resolvedSearchParams?.folder, setActiveFolderId, router]);
+
   // Initialize with empty array instead of typeFilteredBridges to avoid reference error
   const [filterBridges, setFilterBridges] = useState([]);
   const [loadingAgentId, setLoadingAgentId] = useState(null);
@@ -384,6 +408,7 @@ function Home({ params, searchParams, isEmbedUser }) {
   const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown({
     offsetX: -100, // Better positioning for table dropdowns
     offsetY: 5,
+    estimatedHeight: 330,
   });
   const { isDeleting, executeDelete } = useDeleteOperation();
 
@@ -610,6 +635,19 @@ function Home({ params, searchParams, isEmbedUser }) {
     return Math.max(0, diffDays);
   };
 
+  const getFolderIdStr = (fid) => {
+    if (!fid) return "";
+    if (typeof fid === "string") return fid;
+    if (typeof fid === "object") {
+      if (fid.$oid) return String(fid.$oid);
+      if (fid._id) return String(fid._id);
+      if (typeof fid.toString === "function" && fid.toString() !== "[object Object]") {
+        return fid.toString();
+      }
+    }
+    return String(fid);
+  };
+
   const UnArchivedBridges = usageFilteredUnArchived
     ?.filter((item) => item.status === 1 || item.status === undefined)
     .map((item) => {
@@ -713,8 +751,55 @@ function Home({ params, searchParams, isEmbedUser }) {
         ),
         updated_at_original: updatedAt,
         bridge_limit_reset_period: item?.bridge_limit_reset_period || null,
+        folder_id: item?.folder_id ? getFolderIdStr(item.folder_id) : null,
       };
     });
+
+  const displayedUnArchivedBridges = useMemo(() => {
+    if (activeFolderId === "trash") {
+      return [];
+    }
+    if (activeFolderId === null) {
+      const sorted = [...UnArchivedBridges].sort((a, b) => {
+        const aFolder = a.folder_id || "";
+        const bFolder = b.folder_id || "";
+        if (!aFolder && bFolder) return 1; // uncategorized to bottom
+        if (aFolder && !bFolder) return -1; // uncategorized to bottom
+        if (!aFolder && !bFolder) return 0;
+
+        // Find folder names for alphabetical sorting
+        const foldersList = Array.isArray(folders) ? folders : [];
+        const folderA = foldersList.find((f) => f && getFolderIdStr(f._id) === getFolderIdStr(aFolder));
+        const folderB = foldersList.find((f) => f && getFolderIdStr(f._id) === getFolderIdStr(bFolder));
+        const nameA = folderA && folderA.name ? folderA.name.toLowerCase() : "";
+        const nameB = folderB && folderB.name ? folderB.name.toLowerCase() : "";
+        return nameA.localeCompare(nameB);
+      });
+      return sorted;
+    }
+    if (activeFolderId === "uncategorized") {
+      return UnArchivedBridges.filter((b) => !b.folder_id);
+    }
+    return UnArchivedBridges.filter((b) => getFolderIdStr(b.folder_id) === getFolderIdStr(activeFolderId));
+  }, [UnArchivedBridges, activeFolderId, folders]);
+
+  const folderCounts = useMemo(() => {
+    const unarchivedList = Array.isArray(UnArchivedBridges) ? UnArchivedBridges : [];
+    const foldersList = Array.isArray(folders) ? folders : [];
+
+    const counts = {
+      all: unarchivedList.length,
+      uncategorized: unarchivedList.filter((b) => !b.folder_id).length,
+    };
+    foldersList.forEach((folder) => {
+      if (folder && folder._id) {
+        counts[folder._id] = unarchivedList.filter(
+          (b) => getFolderIdStr(b.folder_id) === getFolderIdStr(folder._id)
+        ).length;
+      }
+    });
+    return counts;
+  }, [UnArchivedBridges, folders]);
 
   // Helper function to calculate days remaining for deletion (30 days from deletedAt)
 
@@ -816,8 +901,16 @@ function Home({ params, searchParams, isEmbedUser }) {
       updated_by_original: users?.find((user) => String(user?.user_id) === String(item.last_publisher_id))?.name,
       updated_at_original: updatedAt,
       agent_usage: item?.bridge_usage ? parseFloat(item.bridge_usage).toFixed(4) : 0,
+      folder_id: item?.folder_id ? getFolderIdStr(item.folder_id) : null,
     };
   });
+
+  const displayedDeletedBridges = useMemo(() => {
+    if (activeFolderId === "trash") {
+      return DeletedBridges;
+    }
+    return [];
+  }, [DeletedBridges, activeFolderId]);
 
   const prefetchedRoutes = useRef(new Set());
   const handleRowHover = (row) => {
@@ -907,6 +1000,25 @@ function Home({ params, searchParams, isEmbedUser }) {
   useEffect(() => {
     if (!usageFilterPopover.open) return;
     const handleClick = (event) => {
+      // Ignore clicks on native select and options since they are managed by the browser
+      if (event.target && (event.target.tagName === "OPTION" || event.target.tagName === "SELECT")) {
+        return;
+      }
+
+      // Ignore clicks on body/html/null if the focus is currently on an input/select/textarea inside the popover
+      if (
+        document.activeElement &&
+        (document.activeElement.tagName === "SELECT" ||
+          document.activeElement.tagName === "INPUT" ||
+          document.activeElement.tagName === "TEXTAREA") &&
+        usageFilterPopoverRef.current &&
+        usageFilterPopoverRef.current.contains(document.activeElement)
+      ) {
+        if (!event.target || event.target === document.body || event.target === document.documentElement) {
+          return;
+        }
+      }
+
       if (usageFilterPopoverRef.current && !usageFilterPopoverRef.current.contains(event.target)) {
         closeUsageFilterPopover();
       }
@@ -984,8 +1096,11 @@ function Home({ params, searchParams, isEmbedUser }) {
       e.preventDefault();
       e.stopPropagation();
 
+      const rect = e.currentTarget.getBoundingClientRect();
+      const isNearBottom = rect.bottom + 550 > window.innerHeight;
+
       const dropdownContent = (
-        <div className="bg-base-100 rounded-box w-52 shadow p-1">
+        <div className="bg-base-100 rounded-box w-52 shadow-2xl p-1 border border-base-300">
           <AgentMenuItems
             bridge={row}
             bridgeData={row}
@@ -1007,8 +1122,32 @@ function Home({ params, searchParams, isEmbedUser }) {
               setItemToDelete(row);
               setTimeout(() => openModal(MODAL_TYPE.DELETE_MODAL), 10);
             }}
-            isTableListPage={true}
           />
+          <div className="divider my-1"></div>
+          <div className={`dropdown dropdown-hover dropdown-left ${isNearBottom ? "dropdown-top" : ""} w-full`}>
+            <label
+              tabIndex={0}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-2 text-base-content">
+                <Folder size={14} className="text-base-content/70" />
+                <span>Move to Folder</span>
+              </div>
+            </label>
+            <div
+              tabIndex={0}
+              className={`dropdown-content z-[100] ${isNearBottom ? "bottom-0 top-auto pb-2" : "top-0 bottom-auto pt-2"} right-full pr-2`}
+            >
+              <MoveToFolderMenu
+                folders={folders}
+                currentFolderId={row.folder_id}
+                onMove={(folderId) => {
+                  moveResource(row._id, folderId);
+                  handlePortalCloseImmediate();
+                }}
+              />
+            </div>
+          </div>
         </div>
       );
 
@@ -1097,133 +1236,105 @@ function Home({ params, searchParams, isEmbedUser }) {
   };
 
   return (
-    <div className="w-full overflow-x-hidden flex flex-col min-h-screen">
-      <div className="w-full max-w-full flex-1">
-        {tutorialState?.showSuggestion && (
-          <TutorialSuggestionToast
-            setTutorialState={setTutorialState}
-            flagKey={"bridgeCreation"}
-            TutorialDetails={"Agent Creation"}
-          />
-        )}
-        {tutorialState?.showTutorial && (
-          <OnBoarding
-            setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
-            video={bridgeTypeFilter === "chatbot" ? getChatbotAgentCreationVideo() : getApiAgentCreationVideo()}
-            flagKey={"bridgeCreation"}
-          />
-        )}
-        <CreateNewBridge orgid={resolvedParams.org_id} defaultBridgeType={bridgeTypeFilter} />
-        {!typeFilteredBridges.length && isLoading && <LoadingSpinner />}
-        <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
-        <div className="drawer-content flex flex-col items-start justify-start">
-          <div className="flex w-full justify-start gap-4 lg:gap-16 items-start">
-            <div className="w-full">
-              {typeFilteredBridges.length === 0 ? (
-                <AgentEmptyState
-                  orgid={resolvedParams.org_id}
-                  isEmbedUser={isEmbedUser}
-                  defaultBridgeType={bridgeTypeFilter}
-                  title={pageHeaderContent.title}
-                  description={pageHeaderContent.description}
-                  docLink={linksData?.find((link) => link.title === "Agents")?.blog_link}
-                />
-              ) : (
-                <div className="flex flex-col lg:mx-0">
-                  <div className="px-2 pt-4">
-                    <MainLayout>
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between w-full ">
-                        <PageHeader
-                          title={pageHeaderContent.title}
-                          description={pageHeaderContent.description}
-                          docLink={linksData?.find((link) => link.title === "Agents")?.blog_link}
-                          isEmbedUser={isEmbedUser}
-                        />
-                      </div>
-                    </MainLayout>
+    <div className="flex w-full min-h-screen">
+      <div className="w-full overflow-x-hidden flex flex-col min-h-screen flex-1">
+        <div className="w-full max-w-full flex-1">
+          {tutorialState?.showSuggestion && (
+            <TutorialSuggestionToast
+              setTutorialState={setTutorialState}
+              flagKey={"bridgeCreation"}
+              TutorialDetails={"Agent Creation"}
+            />
+          )}
+          {tutorialState?.showTutorial && (
+            <OnBoarding
+              setShowTutorial={() => setTutorialState((prev) => ({ ...prev, showTutorial: false }))}
+              video={bridgeTypeFilter === "chatbot" ? getChatbotAgentCreationVideo() : getApiAgentCreationVideo()}
+              flagKey={"bridgeCreation"}
+            />
+          )}
+          <CreateNewBridge orgid={resolvedParams.org_id} defaultBridgeType={bridgeTypeFilter} />
+          {!typeFilteredBridges.length && isLoading && <LoadingSpinner />}
+          <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
+          <div className="drawer-content flex flex-col items-start justify-start">
+            <div className="flex w-full justify-start gap-4 lg:gap-16 items-start">
+              <div className="w-full">
+                {typeFilteredBridges.length === 0 ? (
+                  <AgentEmptyState
+                    orgid={resolvedParams.org_id}
+                    isEmbedUser={isEmbedUser}
+                    defaultBridgeType={bridgeTypeFilter}
+                    title={pageHeaderContent.title}
+                    description={pageHeaderContent.description}
+                    docLink={linksData?.find((link) => link.title === "Agents")?.blog_link}
+                  />
+                ) : (
+                  <div className="flex flex-col lg:mx-0">
+                    <div className="px-2 pt-4">
+                      <MainLayout>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between w-full ">
+                          <PageHeader
+                            title={pageHeaderContent.title}
+                            description={pageHeaderContent.description}
+                            docLink={linksData?.find((link) => link.title === "Agents")?.blog_link}
+                            isEmbedUser={isEmbedUser}
+                          />
+                        </div>
+                      </MainLayout>
 
-                    <div className="flex flex-row gap-4 mb-2">
-                      {allBridges.length > 5 && (
-                        <SearchItems data={allBridges} setFilterItems={setFilterBridges} item="Agents" />
-                      )}
-                      <div className="flex items-center gap-2 ml-2">
-                        <button
-                          type="button"
-                          data-testid="agents-usage-filter-button"
-                          className="btn btn-outline btn-ghost text-sm btn-sm border border-base-300 gap-1"
-                          onClick={handleUsageFilterDropdownClick}
-                        >
-                          <Funnel size={14} />
-                          <span>Usage Filter</span>
-                          <span className="text-xs text-gray-500">
-                            {isUsageFilterActive ? usageFilterLabel || "Last 24h" : "Last 24h"}
-                          </span>
-                        </button>
+                      <div className="flex flex-row flex-wrap gap-4 px-4 pb-3 items-center">
+                        {allBridges.length > 5 && (
+                          <SearchItems data={allBridges} setFilterItems={setFilterBridges} item="Agents" />
+                        )}
+                        <div className="flex items-center gap-2 ml-2">
+                          <button
+                            type="button"
+                            data-testid="agents-usage-filter-button"
+                            className="btn btn-outline btn-ghost text-sm btn-sm border border-base-300 gap-1"
+                            onClick={handleUsageFilterDropdownClick}
+                          >
+                            <Funnel size={14} />
+                            <span>Usage Filter</span>
+                            <span className="text-xs text-gray-500">
+                              {isUsageFilterActive ? usageFilterLabel || "Last 24h" : "Last 24h"}
+                            </span>
+                          </button>
 
-                        <button
-                          data-testid="create-new-agent-button"
-                          className="btn btn-primary btn-sm"
-                          onClick={() => openModal(MODAL_TYPE?.CREATE_BRIDGE_MODAL)}
-                        >
-                          {isEmbedUser
-                            ? "+ Create New Agent"
-                            : type === "api"
-                              ? " + Create New API Agent"
-                              : " + Create New Chatbot Agent"}
-                        </button>
+                          <button
+                            data-testid="create-new-agent-button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => openModal(MODAL_TYPE?.CREATE_BRIDGE_MODAL)}
+                          >
+                            {isEmbedUser
+                              ? "+ Create New Agent"
+                              : type === "api"
+                                ? " + Create New API Agent"
+                                : " + Create New Chatbot Agent"}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                    {!isEmbedUser && (
+                      <FolderTabs
+                        folders={folders}
+                        resourceType="agent"
+                        onCreateFolder={createFolder}
+                        onRenameFolder={renameFolder}
+                        onDeleteFolder={deleteFolder}
+                        onMoveResource={moveResource}
+                        showTrashTab={true}
+                        deletedCount={DeletedBridges?.length || 0}
+                        folderCounts={folderCounts}
+                      />
+                    )}
 
-                  <div className="w-full overflow-visible">
-                    <CustomTable
-                      data={UnArchivedBridges}
-                      columnsToShow={[
-                        "name",
-                        "promptDetails",
-                        "cost",
-                        "totalTokens",
-                        "agent_limit",
-                        "last_used",
-                        "created_by",
-                        "updated_by",
-                      ]}
-                      sorting
-                      sortingColumns={[
-                        "name",
-                        "cost",
-                        "totalTokens",
-                        "agent_limit",
-                        "last_used",
-                        "created_by",
-                        "updated_by",
-                      ]}
-                      handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)}
-                      handleRowHover={handleRowHover}
-                      keysToExtractOnRowClick={["_id", "versionId"]}
-                      keysToWrap={["name", "model"]}
-                      endComponent={EndComponent}
-                      onUsageFilterClick={handleUsageFilterIconClick}
-                      isUsageFilterActive={isUsageFilterActive}
-                      usageFilterLabel={usageFilterLabel}
-                      usageFilterIsLoading={isUsageFilterSubmitting}
-                      customGetColumnLabel={getColumnLabel}
-                      customCellRenderers={customCellRenderers}
-                    />
-                  </div>
-
-                  {filteredDeletedBridges?.length > 0 && (
-                    <div className="">
-                      <div className="flex justify-center items-center my-4">
-                        <p className="border-t border-base-300 w-full"></p>
-                        <p className="bg-error text-white py-1 px-2 rounded-full mx-4 whitespace-nowrap text-sm">
-                          {deletedSectionTitle}
-                        </p>
-                        <p className="border-t border-base-300 w-full"></p>
-                      </div>
-                      <div className="opacity-60 overflow-visible">
+                    {activeFolderId !== "trash" && (
+                      <div className="w-full overflow-visible">
                         <CustomTable
-                          data={DeletedBridges}
+                          data={displayedUnArchivedBridges}
+                          // draggableRows={true}
+                          // onDragStart={(row) => setDraggedResourceId(row._id)}
+                          onDragEnd={() => setDraggedResourceId(null)}
                           columnsToShow={[
                             "name",
                             "promptDetails",
@@ -1243,109 +1354,159 @@ function Home({ params, searchParams, isEmbedUser }) {
                             "last_used",
                             "created_by",
                             "updated_by",
-                            "created_at",
-                            "updated_at",
                           ]}
+                          handleRowClick={(props) => onClickConfigure(props?._id, props?.versionId)}
+                          handleRowHover={handleRowHover}
+                          keysToExtractOnRowClick={["_id", "versionId"]}
                           keysToWrap={["name", "model"]}
-                          endComponent={DeletedEndComponent}
+                          endComponent={EndComponent}
+                          onUsageFilterClick={handleUsageFilterIconClick}
                           isUsageFilterActive={isUsageFilterActive}
+                          usageFilterLabel={usageFilterLabel}
+                          usageFilterIsLoading={isUsageFilterSubmitting}
                           customGetColumnLabel={getColumnLabel}
                           customCellRenderers={customCellRenderers}
                         />
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+
+                    {displayedDeletedBridges?.length > 0 && (
+                      <div className="">
+                        <div className="opacity-60 overflow-visible">
+                          <CustomTable
+                            data={displayedDeletedBridges}
+                            columnsToShow={[
+                              "name",
+                              "promptDetails",
+                              "cost",
+                              "totalTokens",
+                              "agent_limit",
+                              "last_used",
+                              "created_by",
+                              "updated_by",
+                            ]}
+                            sorting
+                            sortingColumns={[
+                              "name",
+                              "cost",
+                              "totalTokens",
+                              "agent_limit",
+                              "last_used",
+                              "created_by",
+                              "updated_by",
+                              "created_at",
+                              "updated_at",
+                            ]}
+                            keysToWrap={["name", "model"]}
+                            endComponent={DeletedEndComponent}
+                            isUsageFilterActive={isUsageFilterActive}
+                            customGetColumnLabel={getColumnLabel}
+                            customCellRenderers={customCellRenderers}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Powered By Footer */}
           </div>
 
-          {/* Powered By Footer */}
+          {usageFilterPopover.open &&
+            typeof document !== "undefined" &&
+            createPortal(
+              <div
+                className="fixed z-[999999999]"
+                style={{ top: usageFilterPopover.top, left: usageFilterPopover.left }}
+              >
+                <div
+                  ref={usageFilterPopoverRef}
+                  data-testid="agents-usage-filter-popover"
+                  className="w-72 rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-base-content">Filter usage</p>
+                      <p className="text-xs text-base-content/60">Show tokens between two dates</p>
+                    </div>
+                    {isUsageFilterActive && <span className="badge badge-primary badge-sm text-xs">Applied</span>}
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold uppercase text-base-content/60">Start date</label>
+                    <input
+                      autoComplete="off"
+                      type="date"
+                      data-testid="usage-filter-start-date"
+                      className="input input-bordered input-sm w-full"
+                      value={usageFilterDates.start_date}
+                      max={usageFilterDates.end_date || undefined}
+                      onChange={(e) => handleUsageDateChange("start_date", e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold uppercase text-base-content/60">End date</label>
+                    <input
+                      autoComplete="off"
+                      type="date"
+                      data-testid="usage-filter-end-date"
+                      className="input input-bordered input-sm w-full"
+                      value={usageFilterDates.end_date}
+                      min={usageFilterDates.start_date || undefined}
+                      onChange={(e) => handleUsageDateChange("end_date", e.target.value)}
+                    />
+                  </div>
+                  {usageFilterError && <p className="text-xs text-error">{usageFilterError}</p>}
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={handleUsageFilterClear}
+                      disabled={isUsageResetDisabled}
+                    >
+                      Reset
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm min-w-[70px]"
+                      data-testid="usage-filter-apply-button"
+                      onClick={handleUsageFilterApply}
+                      disabled={isUsageFilterSubmitting}
+                    >
+                      {isUsageFilterSubmitting ? <span className="loading loading-spinner loading-xs" /> : "Apply"}
+                    </button>
+                  </div>
+                </div>
+              </div>,
+              document.body
+            )}
+
+          {/* Single DeleteModal for all delete operations */}
+          <DeleteModal
+            onConfirm={deleteBridge}
+            item={itemToDelete}
+            title="Delete Agent"
+            description={`Are you sure you want to delete the Agent "${itemToDelete?.actualName}"? This agent will be moved to deleted items and permanently removed after 30 days.`}
+            loading={isDeleting}
+            isAsync={true}
+          />
         </div>
 
-        {usageFilterPopover.open &&
-          typeof document !== "undefined" &&
-          createPortal(
-            <div className="fixed z-[999999999]" style={{ top: usageFilterPopover.top, left: usageFilterPopover.left }}>
-              <div
-                ref={usageFilterPopoverRef}
-                data-testid="agents-usage-filter-popover"
-                className="w-72 rounded-2xl border border-base-300 bg-base-100 p-4 shadow-2xl space-y-3"
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-base-content">Filter usage</p>
-                    <p className="text-xs text-base-content/60">Show tokens between two dates</p>
-                  </div>
-                  {isUsageFilterActive && <span className="badge badge-primary badge-sm text-xs">Applied</span>}
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-base-content/60">Start date</label>
-                  <input
-                    autoComplete="off"
-                    type="date"
-                    data-testid="usage-filter-start-date"
-                    className="input input-bordered input-sm w-full"
-                    value={usageFilterDates.start_date}
-                    max={usageFilterDates.end_date || undefined}
-                    onChange={(e) => handleUsageDateChange("start_date", e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold uppercase text-base-content/60">End date</label>
-                  <input
-                    autoComplete="off"
-                    type="date"
-                    data-testid="usage-filter-end-date"
-                    className="input input-bordered input-sm w-full"
-                    value={usageFilterDates.end_date}
-                    min={usageFilterDates.start_date || undefined}
-                    onChange={(e) => handleUsageDateChange("end_date", e.target.value)}
-                  />
-                </div>
-                {usageFilterError && <p className="text-xs text-error">{usageFilterError}</p>}
-                <div className="flex items-center justify-between pt-2">
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={handleUsageFilterClear}
-                    disabled={isUsageResetDisabled}
-                  >
-                    Reset
-                  </button>
-                  <button
-                    className="btn btn-primary btn-sm min-w-[70px]"
-                    data-testid="usage-filter-apply-button"
-                    onClick={handleUsageFilterApply}
-                    disabled={isUsageFilterSubmitting}
-                  >
-                    {isUsageFilterSubmitting ? <span className="loading loading-spinner loading-xs" /> : "Apply"}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body
-          )}
+        {/* Powered By Footer pinned to bottom */}
+        {isEmbedUser && <PoweredByFooter />}
+        <AccessManagementModal agent={selectedAgentForAccess} />
+        <ConfigureEnvironmentModal />
 
-        {/* Single DeleteModal for all delete operations */}
-        <DeleteModal
-          onConfirm={deleteBridge}
-          item={itemToDelete}
-          title="Delete Agent"
-          description={`Are you sure you want to delete the Agent "${itemToDelete?.actualName}"? This agent will be moved to deleted items and permanently removed after 30 days.`}
-          loading={isDeleting}
-          isAsync={true}
-        />
+        {/* Portal components from hook */}
+        <PortalStyles />
+        <PortalDropdown />
       </div>
-
-      {/* Powered By Footer pinned to bottom */}
-      {isEmbedUser && <PoweredByFooter />}
-      <AccessManagementModal agent={selectedAgentForAccess} />
-      <ConfigureEnvironmentModal />
-
-      {/* Portal components from hook */}
-      <PortalStyles />
-      <PortalDropdown />
     </div>
   );
 }
-export default Protected(Home);
+
+const WrappedHome = (props) => (
+  <ResourcePage>
+    <Home {...props} />
+  </ResourcePage>
+);
+export default Protected(WrappedHome);

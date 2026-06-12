@@ -16,6 +16,9 @@ const CustomTable = ({
   customGetColumnLabel = null,
   customCellRenderers = {},
   filterFunction = null,
+  draggableRows = false,
+  onDragStart = () => {},
+  onDragEnd = () => {},
 }) => {
   const keys = useMemo(() => Object.keys(data[0] || {}), [data]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -414,6 +417,31 @@ const CustomTable = ({
                     )
                   }
                   onMouseEnter={() => handleRowHover(row)}
+                  draggable={draggableRows}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("resourceId", row._id || row.id);
+                    const nameText = row.actualName || row.actual_name || row.title || "Item";
+                    const ghost = document.createElement("div");
+                    ghost.innerText = nameText;
+                    ghost.style.position = "absolute";
+                    ghost.style.top = "-1000px";
+                    ghost.style.left = "-1000px";
+                    ghost.style.padding = "6px 12px";
+                    ghost.style.background = "#3b82f6";
+                    ghost.style.color = "#ffffff";
+                    ghost.style.borderRadius = "4px";
+                    ghost.style.fontSize = "12px";
+                    ghost.style.fontWeight = "500";
+                    ghost.style.pointerEvents = "none";
+                    ghost.style.zIndex = "9999";
+                    document.body.appendChild(ghost);
+                    e.dataTransfer.setDragImage(ghost, 0, 0);
+                    setTimeout(() => {
+                      document.body.removeChild(ghost);
+                    }, 0);
+                    onDragStart(row);
+                  }}
+                  onDragEnd={onDragEnd}
                 >
                   {showRowSelection && (
                     <td className="px-4 py-2 text-left">

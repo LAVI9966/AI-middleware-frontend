@@ -4,10 +4,11 @@ import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { API_KEY_MODAL_INPUT, MODAL_TYPE } from "@/utils/enums";
 import { closeModal, RequiredItem } from "@/utils/utility";
 import { usePathname } from "next/navigation";
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useContext } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
+import { FolderContext } from "@/components/folders/FolderContext";
 
 const ApiKeyModal = ({
   params,
@@ -22,6 +23,9 @@ const ApiKeyModal = ({
   selectedService,
 }) => {
   const pathName = usePathname();
+  const folderContext = useContext(FolderContext);
+  const activeFolderId = folderContext?.activeFolderId;
+
   const { isDeleting: isLoading, executeDelete: executeOperation } = useDeleteOperation(MODAL_TYPE.API_KEY_MODAL, {
     closeOnSuccess: false, // We'll handle modal closing manually
     onSuccess: () => {
@@ -156,6 +160,7 @@ const ApiKeyModal = ({
             apikey: data.apikey,
             apikey_limit: data.apikey_limit,
             apikey_limit_reset_period: data.apikey_limit_reset_period,
+            ...(activeFolderId && activeFolderId !== "uncategorized" ? { folder_id: activeFolderId } : {}),
           };
           const response = await dispatch(saveApiKeysAction(dataToSend, orgId));
           if (service && response?._id) {
@@ -186,6 +191,7 @@ const ApiKeyModal = ({
       bridgeApikey_object_id,
       selectedService,
       executeOperation,
+      activeFolderId,
     ]
   );
 
