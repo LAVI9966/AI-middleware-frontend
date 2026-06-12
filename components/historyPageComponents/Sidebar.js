@@ -455,6 +455,7 @@ const Sidebar = memo(
                           </label>
                           <input
                             autoComplete="off"
+                            data-testid={`history-sidebar-filter-by-${fieldKey}`}
                             type="text"
                             className="input input-xs input-bordered w-full text-xs"
                             placeholder={`Search ${fieldKey.replace(/_/g, " ")}...`}
@@ -468,6 +469,7 @@ const Sidebar = memo(
                       <div className="flex gap-1 w-full min-w-0">
                         <input
                           autoComplete="off"
+                          data-testid="history-sidebar-filter-by-variable-key"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="key"
@@ -476,6 +478,7 @@ const Sidebar = memo(
                         />
                         <input
                           autoComplete="off"
+                          data-testid="history-sidebar-filter-by-variable-value"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="value"

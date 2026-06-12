@@ -45,6 +45,8 @@ const BatchSubthreadPanel = ({
           return (
             <li
               key={msg.message_id || index}
+              data-testid={`batch-item-${msg.message_id || index}`}
+              id={`batch-item-${msg.message_id || index}`}
               onClick={() => onSelectBatch(msg.message_id)}
               className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-colors duration-150 ${
                 isActive ? "bg-primary text-primary-content" : "hover:bg-base-300 text-base-content"
@@ -70,6 +72,8 @@ const BatchSubthreadPanel = ({
           return (
             <li
               key={st.sub_thread_id}
+              data-testid={`subthread-item-${st.sub_thread_id}`}
+              id={`subthread-item-${st.sub_thread_id}`}
               onClick={() => onSelectSubThread(st.sub_thread_id)}
               className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-colors duration-150 ${
                 isActive ? "bg-primary text-primary-content" : "hover:bg-base-300 text-base-content"

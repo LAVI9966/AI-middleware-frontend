@@ -20,6 +20,7 @@ import {
   agentInitials,
   resolveAgentHue,
 } from "./traceTheme";
+import CodeBlock from "../../codeBlock/CodeBlock";
 
 const TRACE_HIDDEN_VAR_KEYS = new Set(["_user_message"]);
 
@@ -148,7 +149,10 @@ function AgentAvatar({ name, hue, glyph, large = false }) {
 function Meta({ latency, tokens, cost }) {
   const { showMeta } = useContext(TraceCtx);
   if (!showMeta) return null;
-  const fmt = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)}s` : `${Math.round(ms)}ms`);
+  // latency is in seconds — show with 4 decimal places, no rounding
+  const fmt = (s) => `${Number(s).toFixed(4)}s`;
+  const tokObj = tokens && typeof tokens === "object" ? tokens : null;
+  const tokTotal = tokObj ? tokObj.total : tokens;
   return (
     <div className="flex shrink-0 gap-1.5">
       {latency != null && (
@@ -157,11 +161,18 @@ function Meta({ latency, tokens, cost }) {
           {fmt(latency)}
         </span>
       )}
-      {tokens != null && (
-        <span className="text-[11px] font-mono text-base-content/50" title="tokens">
-          {tokens.toLocaleString()} tok
+      {tokObj != null ? (
+        <span
+          className="text-[11px] font-mono text-base-content/50"
+          title={`Input Token: ${tokObj.input.toLocaleString()}, Output Token: ${tokObj.output.toLocaleString()}`}
+        >
+          {tokObj.input.toLocaleString()} IN ↑ {tokObj.output.toLocaleString()} OP ↓
         </span>
-      )}
+      ) : tokTotal != null ? (
+        <span className="text-[11px] font-mono text-base-content/50" title="tokens">
+          {tokTotal.toLocaleString()} tok
+        </span>
+      ) : null}
       {cost != null && (
         <span className="text-[11px] font-mono text-base-content/50" title="cost">
           ${Number(cost).toFixed(4)}
@@ -233,6 +244,76 @@ function VarsNodeIcon({ size = 12 }) {
   );
 }
 
+function VariableRow({ label, value, isLong }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Parse JSON if possible
+  const parsedJson = useMemo(() => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [value]);
+
+  return (
+    <div className="grid grid-cols-[minmax(120px,180px)_1fr] gap-4 border-b border-base-content/15 px-4 py-2.5 text-xs last:border-0">
+      <span className="font-mono font-medium text-trace-blue break-words">{label}</span>
+      <div className="font-mono text-base-content overflow-hidden w-full">
+        {parsedJson !== null ? (
+          (() => {
+            const prettyJson = JSON.stringify(parsedJson, null, 2);
+            const lines = prettyJson.split("\n");
+            const isJsonLong = lines.length > 8;
+            return isJsonLong && !expanded ? (
+              <div>
+                <CodeBlock className="language-json" showCopy={false}>
+                  {lines.slice(0, 8).join("\n") + "\n  ..."}
+                </CodeBlock>
+                <button className="text-blue-500 hover:underline text-[11px] mt-1" onClick={() => setExpanded(true)}>
+                  Show more
+                </button>
+              </div>
+            ) : (
+              <div>
+                <CodeBlock className="language-json" showCopy={false}>
+                  {prettyJson}
+                </CodeBlock>
+                {isJsonLong && (
+                  <button className="text-blue-500 hover:underline text-[11px] mt-1" onClick={() => setExpanded(false)}>
+                    Show less
+                  </button>
+                )}
+              </div>
+            );
+          })()
+        ) : isLong && !expanded ? (
+          <span className="break-all whitespace-pre-wrap">
+            {value.slice(0, 200)}…{" "}
+            <button className="text-blue-500 hover:underline text-[11px] ml-1" onClick={() => setExpanded(true)}>
+              Show more
+            </button>
+          </span>
+        ) : (
+          <span className="break-all whitespace-pre-wrap">
+            {value}
+            {isLong && (
+              <button className="text-blue-500 hover:underline text-[11px] ml-1" onClick={() => setExpanded(false)}>
+                Show less
+              </button>
+            )}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VariablesBlock({ vars, inRail = true }) {
   const entries = Object.entries(vars || {}).filter(([k]) => !TRACE_HIDDEN_VAR_KEYS.has(k));
   const [open, setOpen] = useState(false);
@@ -267,15 +348,11 @@ function VariablesBlock({ vars, inRail = true }) {
       </StepRowHeader>
       {open && (
         <div className={`mt-1.5 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06]`}>
-          {entries.map(([k, v]) => (
-            <div
-              key={k}
-              className="grid grid-cols-[minmax(120px,180px)_1fr] gap-4 border-b border-base-content/15 px-4 py-2.5 text-xs last:border-0"
-            >
-              <span className="font-mono font-medium text-trace-blue break-words">{k}</span>
-              <span className="font-mono text-base-content break-words">{String(v)}</span>
-            </div>
-          ))}
+          {entries.map(([k, v]) => {
+            const raw = typeof v === "object" && v !== null ? JSON.stringify(v, null, 2) : String(v ?? "");
+            const isLong = raw.length > 200;
+            return <VariableRow key={k} label={k} value={raw} isLong={isLong} />;
+          })}
         </div>
       )}
     </div>
@@ -526,7 +603,9 @@ function UserMessageBubble({ text }) {
 }
 
 function canOpenAgentHistory(rawTool) {
-  return rawTool?.data?.metadata?.type === "agent" && Boolean(rawTool?.data?.metadata?.agent_id);
+  const isAgent = rawTool?.data?.metadata?.type === "agent" || rawTool?.type === "AGENT" || Boolean(rawTool?.bridge_id);
+  const agentId = rawTool?.data?.metadata?.agent_id || rawTool?.bridge_id;
+  return isAgent && Boolean(agentId);
 }
 
 const AGENT_ROW_BTN =
@@ -681,7 +760,6 @@ function RootExecutionShell({ node, agents, userMessage }) {
   const theme = HUE_THEME[hue];
   const shellClass = !(open && hasBody) ? theme.shell : "";
   const headClass = open && hasBody ? theme.headOpen : theme.head;
-  const sliderPayload = useMemo(() => buildAgentSliderPayload(node, agents, a), [node, agents, a]);
 
   return (
     <div className={`w-full overflow-hidden ${shellClass}`}>
@@ -698,7 +776,6 @@ function RootExecutionShell({ node, agents, userMessage }) {
         {!open && <StepCountBadges stepCounts={stepCounts} />}
         <span className="flex-1" />
         <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
-        <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
       </div>
       {open && hasBody && (
         <AgentBodyRail hue={hue} className="pt-1">
@@ -869,7 +946,16 @@ export default function ExecutionTraceView({
   const meta = trace.meta || {};
 
   return (
-    <TraceCtx.Provider value={{ detail, showMeta }}>
+    <TraceCtx.Provider
+      value={{
+        detail,
+        showMeta,
+        onToolLogsClick,
+        onToolDataClick,
+        onAgentDataClick,
+        onAgentHistoryClick,
+      }}
+    >
       <div className="bg-base-100 text-base-content">
         <div className="flex flex-wrap items-center gap-4 border-b border-base-300 px-4 py-3">
           <div>
@@ -889,14 +975,28 @@ export default function ExecutionTraceView({
             )}
             {meta.totalTokens != null && (
               <div className="flex flex-col">
-                <b className="text-sm">{meta.totalTokens.toLocaleString()}</b>
+                {typeof meta.totalTokens === "object" ? (
+                  <b className="text-sm">
+                    {meta.totalTokens.input.toLocaleString()}IN {meta.totalTokens.output.toLocaleString()}OP
+                  </b>
+                ) : (
+                  <b className="text-sm">{meta.totalTokens.toLocaleString()}</b>
+                )}
                 <span className="text-[11px] text-base-content/50">tokens</span>
               </div>
             )}
           </div>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-4 py-5">
-          <MessageRunTrace run={turn.run} agents={agents} embedded={false} />
+          <MessageRunTrace
+            run={turn.run}
+            agents={agents}
+            embedded={false}
+            onToolLogsClick={onToolLogsClick}
+            onToolDataClick={onToolDataClick}
+            onAgentDataClick={onAgentDataClick}
+            onAgentHistoryClick={onAgentHistoryClick}
+          />
         </div>
       </div>
     </TraceCtx.Provider>

@@ -9,6 +9,9 @@ import { clearThreadData, clearHistoryData, setSelectedVersion } from "@/store/r
 import Protected from "@/components/Protected";
 import ChatDetails from "@/components/historyPageComponents/ChatDetails";
 import { ChatLoadingSkeleton } from "@/components/historyPageComponents/ChatLayoutLoader";
+import { openModal } from "@/utils/utility";
+import { MODAL_TYPE } from "@/utils/enums";
+import ChatAiConfigDeatilViewModal from "@/components/modals/ChatAiConfigDeatilViewModal";
 import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
 
 // Lazy load the components to reduce initial render time
@@ -166,8 +169,12 @@ function Page({ params, searchParams }) {
       if (currentRole === "user" || currentRole === "tools_call" || currentRole === "error") {
         try {
           setSelectedItem({ variables: item.variables, ...item, value });
-          const shouldOpenSidebar = value === "more" || item?.[value] === null;
-          setIsSliderOpen(shouldOpenSidebar);
+          if (value === "AiConfig" || value === "Latency") {
+            openModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL);
+          } else {
+            const shouldOpenSidebar = value === "more" || item?.[value] === null;
+            setIsSliderOpen(shouldOpenSidebar);
+          }
         } catch (error) {
           console.error("Failed to fetch single message:", error);
         }
@@ -296,6 +303,10 @@ function Page({ params, searchParams }) {
         </React.Suspense>
       </div>
       <ChatDetails selectedItem={selectedItem} setIsSliderOpen={setIsSliderOpen} isSliderOpen={isSliderOpen} />
+      <ChatAiConfigDeatilViewModal
+        modalContent={selectedItem?.value === "Latency" ? selectedItem?.latency : selectedItem?.AiConfig}
+        modalTitle={selectedItem?.value === "Latency" ? "Latency Details" : "AI Configuration"}
+      />
     </div>
   );
 }

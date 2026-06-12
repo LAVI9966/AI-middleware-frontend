@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import { truncate } from "./AssistFile";
 import ToolsDataModal from "./ToolsDataModal";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { formatRelativeTime, getIconOfService, getToolName, openModal } from "@/utils/utility";
+import { getIconOfService, getToolName, openModal, allowedAttributes } from "@/utils/utility";
 import { BATCH_PROCESSING_STATUSES, MODAL_TYPE } from "@/utils/enums";
 import { PdfIcon } from "@/icons/pdfIcon";
 import {
@@ -29,14 +29,113 @@ import {
   ChevronRight,
   BookOpen,
   ArrowDown,
+  SlidersHorizontal,
+  Maximize2,
+  Plus,
 } from "lucide-react";
 import { rerunApi } from "@/config/modelApi";
 import { toast } from "react-toastify";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 import CodeBlock from "../codeBlock/CodeBlock";
 import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
+import { FinalResponseCard } from "../historyUi/FinalResponseCard";
+import { ThreadActionPill, ThreadInlinePanel, ThreadSystemPromptPanel } from "../historyUi/ThreadActionPill";
 import { agentInitials, HUE_THEME } from "../historyUi/executionTrace/traceTheme";
 import { flattenToolsCallData } from "@/utils/executionTraceTransform";
+
+// Inline variable value with show more/less for long content and JSON formatting
+function InlineVarValue({ raw, isLong }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Parse JSON if possible
+  const parsedJson = useMemo(() => {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [raw]);
+
+  if (parsedJson !== null) {
+    const prettyJson = JSON.stringify(parsedJson, null, 2);
+    const lines = prettyJson.split("\n");
+    const isJsonLong = lines.length > 8;
+    return (
+      <div className="flex flex-col gap-1.5 w-full">
+        <div className="w-full max-w-full overflow-hidden">
+          {isJsonLong && !expanded ? (
+            <div>
+              <CodeBlock className="language-json" showCopy={false}>
+                {lines.slice(0, 8).join("\n") + "\n  ..."}
+              </CodeBlock>
+              <button
+                data-testid="inline-var-json-show-more"
+                className="text-blue-500 hover:underline text-xs mt-1"
+                onClick={() => setExpanded(true)}
+              >
+                Show more
+              </button>
+            </div>
+          ) : (
+            <div>
+              <CodeBlock className="language-json" showCopy={false}>
+                {prettyJson}
+              </CodeBlock>
+              {isJsonLong && (
+                <button
+                  data-testid="inline-var-json-show-less"
+                  className="text-blue-500 hover:underline text-xs mt-1"
+                  onClick={() => setExpanded(false)}
+                >
+                  Show less
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Not JSON, handle normal text/non-JSON value
+  return (
+    <span className="text-sm break-all text-base-content whitespace-pre-wrap">
+      {isLong && !expanded ? (
+        <>
+          {raw.slice(0, 200)}…{" "}
+          <button
+            data-testid="inline-var-text-show-more"
+            className="text-blue-500 hover:underline text-xs"
+            onClick={() => setExpanded(true)}
+          >
+            Show more
+          </button>
+        </>
+      ) : (
+        <>
+          {raw}
+          {isLong && (
+            <>
+              {" "}
+              <button
+                data-testid="inline-var-text-show-less"
+                className="text-blue-500 hover:underline text-xs"
+                onClick={() => setExpanded(false)}
+              >
+                Show less
+              </button>
+            </>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
 
 // Resolve any possible url shape (string, object with permanent_url, etc.)
 const resolveAttachmentUrl = (rawUrl) => {
@@ -216,6 +315,7 @@ const ThreadItem = ({
   const aiResponseRef = useRef(null);
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, setVariablesFilter] = useState("");
+  const [isMoreDetailsExpanded, setIsMoreDetailsExpanded] = useState(false);
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
@@ -348,6 +448,14 @@ const ThreadItem = ({
     const bridge = orgBridges.find((b) => b?._id === params?.id || b?.id === params?.id);
     return bridge?.name || bridge?.agent_name || bridge?.bridge_name || item?.name || "Agent";
   }, [orgBridges, params?.id, item?.name]);
+
+  const isStatelessConversation = useMemo(() => {
+    const bridge = allBridgesMap?.[params?.id];
+    return bridge?.settings?.stateless_conversation === true;
+  }, [allBridgesMap, params?.id]);
+
+  const statelessBtnClass =
+    "inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300";
 
   const rootAgentInitials = useMemo(() => agentInitials(rootAgentName), [rootAgentName]);
 
@@ -537,7 +645,7 @@ const ThreadItem = ({
     // MAX_HEIGHT matches line-clamp-5 at ~1.6rem line-height × 5 = ~8rem = 128px
     const MAX_HEIGHT = 128;
     setAiResponseOverflows(el.scrollHeight > MAX_HEIGHT);
-  }, [item?.chatbot_message, item?.llm_message, item?.updated_llm_message]);
+  }, [item?.chatbot_message, item?.llm_message, item?.updated_llm_message, messageType]);
 
   const messageId = item.message_id;
   useEffect(() => {
@@ -614,39 +722,37 @@ const ThreadItem = ({
           console.error("Error processing knowledge base tool:", error);
         }
       }
-      if (tool?.data?.metadata?.type === "agent") {
+      const isAgent = tool?.data?.metadata?.type === "agent" || tool?.type === "AGENT" || Boolean(tool?.bridge_id);
+      if (isAgent) {
         const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
         const orgId = params?.org_id;
-        const agentId = tool?.data?.metadata?.agent_id;
-        const messageId = tool?.data?.metadata?.message_id;
+        const agentId = tool?.data?.metadata?.agent_id || tool?.bridge_id;
+        const messageId = tool?.data?.metadata?.message_id || tool?.message_id;
 
-        // 1) Find this bridge/agent in the org list
-        const bridgeFromOrg = orgBridges.find((b) => b?._id === agentId);
-        // 2) Also look it up in allBridgesMap
+        // 1) Find this bridge/agent in the org list or allBridgesMap
+        const bridgeFromOrg = orgBridges.find((b) => b?._id === agentId) || allBridgesMap?.[agentId];
         // 3) Resolve published_version_id
         const publishedVersionId = bridgeFromOrg?.published_version_id;
 
-        // If the agent bridge does not exist in org data, do not navigate
-        if (!bridgeFromOrg) {
-          console.warn("Agent bridge not found for org", { orgId, agentId });
-          return;
-        }
-        const threadId = tool?.data?.metadata?.thread_id;
-        const subThreadId = tool?.data?.metadata?.sub_thread_id || tool?.data?.metadata?.thread_id;
-        if (baseUrl && orgId && agentId) {
+        const threadId = tool?.data?.metadata?.thread_id || tool?.thread_id;
+        const subThreadId = tool?.data?.metadata?.sub_thread_id || tool?.data?.metadata?.thread_id || tool?.thread_id;
+
+        if (orgId && agentId) {
           const searchParams = new URLSearchParams();
           if (publishedVersionId) searchParams.set("version", publishedVersionId);
           if (messageId) searchParams.set("message_id", messageId);
           if (threadId) searchParams.set("thread_id", threadId);
           if (subThreadId) searchParams.set("sub_thread_id", subThreadId);
-          const url = `${baseUrl}/org/${orgId}/agents/history/${agentId}?${searchParams.toString()}`;
+
+          const path = `/org/${orgId}/agents/history/${agentId}?${searchParams.toString()}`;
           if (isEmbedUser) {
-            router.push(`/org/${orgId}/agents/history/${agentId}?${searchParams.toString()}`);
+            router.push(path);
             return;
           }
 
           if (typeof window !== "undefined") {
-            window.open(url, "_blank", "noopener,noreferrer");
+            const finalUrl = baseUrl ? `${baseUrl}${path}` : path;
+            window.open(finalUrl, "_blank", "noopener,noreferrer");
           }
         }
         return;
@@ -660,7 +766,17 @@ const ThreadItem = ({
         },
       });
     },
-    [knowledgeBaseData, openSlider, embedToken, params?.id, params?.org_id, orgBridges, allBridgesMap]
+    [
+      knowledgeBaseData,
+      openSlider,
+      embedToken,
+      params?.id,
+      params?.org_id,
+      orgBridges,
+      allBridgesMap,
+      isEmbedUser,
+      router,
+    ]
   );
 
   const handleToolDataClick = useCallback((tool) => {
@@ -853,6 +969,458 @@ const ThreadItem = ({
     });
   };
 
+  const hasMultipleMessageTypes =
+    [item.chatbot_message, item.llm_message, item.updated_llm_message].filter(Boolean).length > 1;
+
+  const messageTypeDropdown = isDropupOpen ? (
+    <div
+      ref={dropupRef}
+      className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[130px] p-1"
+      style={{ zIndex: 9999, top: "28px", left: "0" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
+      <ul className="flex flex-col gap-0.5">
+        {item.chatbot_message && (
+          <li>
+            <button
+              data-testid="thread-item-select-chatbot-message"
+              id="thread-item-select-chatbot-message"
+              className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
+              onClick={() => selectMessageType("chatbot_message")}
+            >
+              Chatbot
+            </button>
+          </li>
+        )}
+        {item.llm_message && (
+          <li>
+            <button
+              data-testid="thread-item-select-llm-message"
+              id="thread-item-select-llm-message"
+              className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
+              onClick={() => selectMessageType("llm_message")}
+            >
+              LLM
+            </button>
+          </li>
+        )}
+        {item.updated_llm_message && (
+          <li>
+            <button
+              data-testid="thread-item-select-updated-message"
+              id="thread-item-select-updated-message"
+              className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
+              onClick={() => selectMessageType("updated_llm_message")}
+            >
+              Updated
+            </button>
+          </li>
+        )}
+      </ul>
+    </div>
+  ) : null;
+
+  const responseStatusBadges = (
+    <>
+      {messageType === "updated_llm_message" && <span className="badge badge-xs badge-outline">Edited</span>}
+      {isBatchResponse && (
+        <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
+          <BatchStatusIcon size={10} />
+          {batchStatusMeta.label}
+        </span>
+      )}
+    </>
+  );
+
+  const variableCount = Object.keys(item?.variables || {}).length;
+
+  const renderVariablesPanel = (panelClassName = "w-1/2") => {
+    if (!isVariablesOpen || variableCount === 0) return null;
+
+    return (
+      <ThreadInlinePanel className={panelClassName}>
+        <div className="max-h-[32rem] overflow-y-auto">
+          {Object.entries(item?.variables || {})
+            .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+            .map(([key, value]) => {
+              const raw =
+                typeof value === "object" && value !== null ? JSON.stringify(value, null, 2) : String(value ?? "");
+              const isLong = raw.length > 200;
+              return (
+                <div
+                  key={key}
+                  className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+                >
+                  <span className="min-w-[120px] shrink-0 text-sm font-medium text-trace-gold">{key}</span>
+                  <InlineVarValue raw={raw} isLong={isLong} />
+                </div>
+              );
+            })}
+        </div>
+      </ThreadInlinePanel>
+    );
+  };
+
+  const renderOptionalDetailsPanel = (panelClassName = "w-1/2") => {
+    if (!isMoreDetailsExpanded) return null;
+
+    return (
+      <ThreadInlinePanel className={panelClassName}>
+        <div className="max-h-[32rem] overflow-y-auto text-left">
+          <div className="px-4 py-2 border-b border-base-content/10 bg-base-200/50">
+            <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</span>
+          </div>
+          {allowedAttributes.optional
+            .sort((a, b) => a[1].localeCompare(b[1]))
+            .map(([key, displayKey]) => {
+              const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
+              if (value === undefined || value === null) return null;
+
+              // If the value is an object, render each property as separate rows
+              if (typeof value === "object" && key !== "createdAt") {
+                return Object.entries(value).map(([objKey, objValue]) => (
+                  <div
+                    key={`${key}-${objKey}`}
+                    className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+                  >
+                    <span className="min-w-[120px] shrink-0 text-sm font-medium text-trace-gold font-mono">
+                      {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </span>
+                    <span className="text-sm break-all text-base-content whitespace-pre-wrap font-mono">
+                      {objValue?.toString()}
+                    </span>
+                  </div>
+                ));
+              }
+
+              // Regular single value display
+              return (
+                <div
+                  key={key}
+                  className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+                >
+                  <span className="min-w-[120px] shrink-0 text-sm font-medium text-trace-gold">{displayKey}</span>
+                  <span className="text-sm break-all text-base-content whitespace-pre-wrap">
+                    {key === "createdAt" || key === "created_at" ? new Date(value).toLocaleString() : value?.toString()}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+      </ThreadInlinePanel>
+    );
+  };
+
+  const renderSystemPromptPanel = (panelClassName = "w-fit") => {
+    if (!isSystemPromptExpanded || !item?.prompt) return null;
+    return (
+      <ThreadSystemPromptPanel className={panelClassName}>
+        {renderHighlightedSystemPrompt(item.prompt)}
+      </ThreadSystemPromptPanel>
+    );
+  };
+
+  const renderResponseActionButtons = (stateful = false) => {
+    if (stateful) {
+      return (
+        <div className="mt-2 flex flex-wrap items-center justify-start gap-1.5">
+          <ThreadActionPill
+            id="thread-item-add-test-case-button"
+            testId="thread-item-add-test-case-button"
+            icon={AddIcon}
+            trailing={ChevronRight}
+            onClick={() => handleAddTestCase(item, index)}
+          >
+            Test Case
+          </ThreadActionPill>
+          <ThreadActionPill
+            id="thread-item-debug-agent-button"
+            testId="thread-item-debug-agent-button"
+            icon={BotMessageIcon}
+            trailing={ChevronRight}
+            onClick={() => handleAskAi(item)}
+          >
+            Debug Agent
+          </ThreadActionPill>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-2 flex items-center gap-1.5">
+        <button
+          id="thread-item-add-test-case-button"
+          data-testid="thread-item-add-test-case-button"
+          className={statelessBtnClass}
+          onClick={() => handleAddTestCase(item, index)}
+        >
+          <AddIcon className="h-3 w-3" />
+          <span>Test Case</span>
+        </button>
+        <button
+          id="thread-item-debug-agent-button"
+          data-testid="thread-item-debug-agent-button"
+          className={statelessBtnClass}
+          onClick={() => handleAskAi(item)}
+        >
+          <BotMessageIcon className="h-3 w-3" />
+          <span>Debug Agent</span>
+        </button>
+      </div>
+    );
+  };
+
+  const renderStatefulMessageActionToolbar = ({
+    showTimestamp = true,
+    className = "",
+    pillsOnly = false,
+    panelsOnly = false,
+  } = {}) => {
+    if (panelsOnly) {
+      return (
+        <div className="w-full flex flex-col items-end">
+          {renderSystemPromptPanel("w-fit")}
+          {renderVariablesPanel("w-1/2")}
+        </div>
+      );
+    }
+
+    const pills = (
+      <div className={`flex w-full flex-wrap items-center justify-end gap-1.5 ${className}`}>
+        <ThreadActionPill
+          testId="thread-item-user-aiconfig-button"
+          id="thread-item-user-aiconfig-button"
+          icon={SlidersHorizontal}
+          trailing={Maximize2}
+          onClick={() => handleUserButtonClick("AiConfig")}
+        >
+          AI Config
+        </ThreadActionPill>
+        {item?.latency ? (
+          <ThreadActionPill
+            testId="thread-item-user-latency-button"
+            id="thread-item-user-latency-button"
+            icon={Clock3}
+            trailing={Maximize2}
+            onClick={() => handleUserButtonClick("Latency")}
+          >
+            Latency
+          </ThreadActionPill>
+        ) : null}
+        {item?.prompt ? (
+          <ThreadActionPill
+            testId="thread-item-user-system-prompt-button"
+            id="thread-item-user-system-prompt-button"
+            icon={FileTextIcon}
+            trailing={ChevronDown}
+            trailingClassName={`transition-transform duration-200 ${isSystemPromptExpanded ? "rotate-180" : ""}`}
+            active={isSystemPromptExpanded}
+            onClick={() => setIsSystemPromptExpanded((v) => !v)}
+          >
+            System Prompt
+          </ThreadActionPill>
+        ) : null}
+        {variableCount > 0 ? (
+          <ThreadActionPill
+            testId="thread-item-user-variables-button"
+            id="thread-item-user-variables-button"
+            icon={Braces}
+            badge={variableCount}
+            trailing={ChevronRight}
+            trailingClassName={`transition-transform duration-200 ${isVariablesOpen ? "rotate-90" : ""}`}
+            active={isVariablesOpen}
+            onClick={() => setIsVariablesOpen((v) => !v)}
+          >
+            Variables
+          </ThreadActionPill>
+        ) : null}
+        <ThreadActionPill
+          testId="thread-item-user-more-button"
+          id="thread-item-user-more-button"
+          icon={Plus}
+          trailing={ChevronDown}
+          trailingClassName={`transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-180" : ""}`}
+          active={isMoreDetailsExpanded}
+          onClick={() => setIsMoreDetailsExpanded((v) => !v)}
+        >
+          More
+        </ThreadActionPill>
+        {showTimestamp ? (
+          <time className="shrink-0 text-xs text-base-content/60">{formatDateAndTime(item.created_at)}</time>
+        ) : null}
+      </div>
+    );
+
+    if (pillsOnly) return pills;
+
+    return (
+      <div className={`w-full ${className}`}>
+        {pills}
+        <div className="w-full flex flex-col items-end">
+          {renderSystemPromptPanel("w-fit")}
+          {renderVariablesPanel("w-1/2")}
+          {renderOptionalDetailsPanel("w-1/2")}
+        </div>
+      </div>
+    );
+  };
+
+  const renderStatelessMultiQueryUserActions = () => (
+    <div className="flex flex-col gap-1 mt-3 pr-12">
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            data-testid="thread-item-user-aiconfig-button"
+            id="thread-item-user-aiconfig-button"
+            className={statelessBtnClass}
+            onClick={() => handleUserButtonClick("AiConfig")}
+          >
+            <SquareFunctionIcon className="h-3 w-3" />
+            <span>AI Config</span>
+          </button>
+          {item?.latency ? (
+            <button
+              data-testid="thread-item-user-latency-button"
+              id="thread-item-user-latency-button"
+              className={statelessBtnClass}
+              onClick={() => handleUserButtonClick("Latency")}
+            >
+              <Clock3 className="h-3 w-3" />
+              <span>Latency</span>
+            </button>
+          ) : null}
+          <button
+            data-testid="thread-item-user-system-prompt-button"
+            id="thread-item-user-system-prompt-button"
+            className={statelessBtnClass}
+            onClick={() => handleUserButtonClick("system Prompt")}
+          >
+            <FileClockIcon className="h-3 w-3" />
+            <span>System Prompt</span>
+          </button>
+          <button
+            data-testid="thread-item-user-more-button"
+            id="thread-item-user-more-button"
+            className={`${statelessBtnClass} ${isMoreDetailsExpanded ? "bg-base-300" : ""}`}
+            onClick={() => setIsMoreDetailsExpanded((v) => !v)}
+          >
+            <Plus className={`h-3 w-3 transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-45" : ""}`} />
+            <span>More...</span>
+          </button>
+        </div>
+
+        {variableCount > 0 ? (
+          <button
+            data-testid="thread-item-user-variables-button"
+            id="thread-item-user-variables-button"
+            className={statelessBtnClass}
+            onClick={() => setIsVariablesOpen((v) => !v)}
+          >
+            <Braces className="h-3 w-3" />
+            <span>Sent Variables</span>
+            <span className="rounded-full px-1.5 py-0 text-[10px] font-bold bg-base-300 text-base-content/60">
+              {variableCount}
+            </span>
+            <ChevronDown
+              className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        ) : null}
+
+        <time className="text-xs opacity-40 shrink-0">
+          <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
+          <span className="hidden group-hover:inline">{formatDateAndTime(item.created_at)}</span>
+        </time>
+      </div>
+
+      {isVariablesOpen && variableCount > 0 ? (
+        <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100">
+          <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
+            <input
+              type="text"
+              placeholder={`Filter ${variableCount} variables...`}
+              value={variablesFilter}
+              onChange={(e) => setVariablesFilter(e.target.value)}
+              className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {Object.entries(item?.variables || {})
+              .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+              .map(([key, value], i) => (
+                <div
+                  key={key}
+                  className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
+                >
+                  <span className="text-sm font-medium min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                  <div className="flex-1 w-full max-w-full overflow-hidden">
+                    <InlineVarValue
+                      raw={
+                        typeof value === "object" && value !== null
+                          ? JSON.stringify(value, null, 2)
+                          : String(value ?? "")
+                      }
+                      isLong={
+                        typeof value === "object" && value !== null
+                          ? JSON.stringify(value).length > 200
+                          : String(value ?? "").length > 200
+                      }
+                    />
+                  </div>
+                </div>
+              ))}
+          </div>
+          <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
+            {formatDateAndTime(item.created_at)}
+          </div>
+        </div>
+      ) : null}
+
+      {isMoreDetailsExpanded ? (
+        <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100 p-4 space-y-4 text-left">
+          <div className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</div>
+          <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100 divide-y divide-base-300">
+            {allowedAttributes.optional
+              .sort((a, b) => a[1].localeCompare(b[1]))
+              .map(([key, displayKey]) => {
+                const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
+                if (value === undefined || value === null) return null;
+
+                // If the value is an object, render each property as separate rows
+                if (typeof value === "object" && key !== "createdAt") {
+                  return Object.entries(value).map(([objKey, objValue]) => (
+                    <div key={`${key}-${objKey}`} className="bg-base-100 flex px-4 py-3">
+                      <div className="text-xs font-semibold capitalize w-1/2 text-base-content/85">
+                        {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                      </div>
+                      <div className="w-1/2 text-xs text-base-content font-mono">
+                        <span className="break-words font-medium text-base-content/80">{objValue?.toString()}</span>
+                      </div>
+                    </div>
+                  ));
+                }
+
+                // Regular single value display
+                return (
+                  <div key={key} className="bg-base-100 flex px-4 py-3">
+                    <div className="text-xs font-semibold capitalize w-1/2 text-base-content/85">{displayKey}</div>
+                    <div className="w-1/2 text-xs text-base-content">
+                      <span className="break-words font-medium text-base-content/80">
+                        {key === "createdAt" || key === "created_at"
+                          ? new Date(value).toLocaleString()
+                          : value?.toString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+
   const firstAttemptErrorNotice = item?.firstAttemptError ? (
     <div className="w-full mb-2">
       <details className="group/fae rounded-lg border border-warning/30 bg-error/10 text-base-content">
@@ -934,6 +1502,7 @@ const ThreadItem = ({
           </div>
           <div className="flex items-center gap-1.5 bg-base-200 rounded-lg p-1 shrink-0">
             <button
+              data-testid="thread-item-rerun-button"
               className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
               onClick={handleRerun}
               disabled={isRerunning || !publishedVersionId}
@@ -954,6 +1523,7 @@ const ThreadItem = ({
             <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
             <button
               id="thread-item-add-test-case-button-sticky"
+              data-testid="thread-item-add-test-case-button-sticky"
               className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
               onClick={() => handleAddTestCase(item, index)}
             >
@@ -965,11 +1535,24 @@ const ThreadItem = ({
               data-testid="thread-item-user-variables-button-sticky"
               id="thread-item-user-variables-button-sticky"
               className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
-              onClick={() => handleUserButtonClick("variables")}
+              onClick={() => setIsVariablesOpen((v) => !v)}
             >
               <Braces className="h-3 w-3" />
-              <span>Sent Variables</span>
+              <span>Variables</span>
             </button>
+            {item?.latency ? (
+              <>
+                <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
+                <button
+                  data-testid="thread-item-user-latency-button-sticky"
+                  className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
+                  onClick={() => handleUserButtonClick("Latency")}
+                >
+                  <Clock3 className="h-3 w-3 text-base-content/60" />
+                  <span>Latency</span>
+                </button>
+              </>
+            ) : null}
           </div>
         </div>
       )}
@@ -1003,6 +1586,7 @@ const ThreadItem = ({
                 </div>
                 {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
                   <button
+                    data-testid="thread-item-user-query-expand-button"
                     className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
                     onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
                   >
@@ -1015,31 +1599,6 @@ const ThreadItem = ({
                 ) : null}
               </div>
             </div>
-
-            {/* Config between user and agent: pre-tool, system prompt */}
-            {isSingleQuery &&
-              item?.tools_call_data?.length > 0 &&
-              (() => {
-                const preFunction = item.tools_call_data
-                  .flatMap((tools) => Object.values(tools || {}))
-                  .find((tool) => tool?.type === "pre_tool");
-                if (!preFunction) return null;
-                return (
-                  <div className="w-full max-w-xl mt-3">
-                    <div className="inline-flex items-center gap-2 bg-base-200/30 border border-base-300 rounded-xl px-4 py-2">
-                      <span className="text-xs font-medium text-base-content/70 shrink-0">Pre Function:</span>
-                      <div
-                        onClick={(e) => handleToolPrimaryClick(e, preFunction)}
-                        className="inline-flex items-center gap-2 bg-base-200 border border-base-300 rounded-md px-4 py-2 text-xs cursor-pointer hover:bg-base-300 transition-colors"
-                      >
-                        <span className="font-medium truncate max-w-[120px]" title={getToolNameHelper(preFunction)}>
-                          {truncate(getToolNameHelper(preFunction), 20)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
 
             {isSingleQuery && item?.prompt && (
               <div className="w-full mt-3">
@@ -1070,6 +1629,31 @@ const ThreadItem = ({
                 </div>
               </div>
             )}
+
+            {/* Config between user and agent: pre-tool */}
+            {isSingleQuery &&
+              item?.tools_call_data?.length > 0 &&
+              (() => {
+                const preFunction = item.tools_call_data
+                  .flatMap((tools) => Object.values(tools || {}))
+                  .find((tool) => tool?.type === "pre_tool");
+                if (!preFunction) return null;
+                return (
+                  <div className="w-full max-w-xl mt-3">
+                    <div className="inline-flex items-center gap-2 bg-base-200/30 border border-base-300 rounded-xl px-4 py-2">
+                      <span className="text-xs font-medium text-base-content/70 shrink-0">Pre Function:</span>
+                      <div
+                        onClick={(e) => handleToolPrimaryClick(e, preFunction)}
+                        className="inline-flex items-center gap-2 bg-base-200 border border-base-300 rounded-md px-4 py-2 text-xs cursor-pointer hover:bg-base-300 transition-colors"
+                      >
+                        <span className="font-medium truncate max-w-[120px]" title={getToolNameHelper(preFunction)}>
+                          {truncate(getToolNameHelper(preFunction), 20)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
             {/* Agent execution trace (replaces old tools UI) */}
             {hasAgentsOrTools && (
@@ -1436,344 +2020,85 @@ const ThreadItem = ({
                   <Clock3 size={10} /> {(parseFloat(item?.latency?.over_all_time) || 0).toFixed(2)}s total
                 </span>
 
-                <div
-                  className=" rounded-xl px-4 py-3 text-sm text-base-content relative group"
-                  style={{ wordBreak: "break-word" }}
-                >
-                  {/* Header row */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="relative shrink-0 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDropupOpen(!isDropupOpen);
-                      }}
-                    >
-                      <span
-                        data-testid="thread-item-bot-icon"
-                        id="thread-item-bot-icon"
-                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
+                <FinalResponseCard
+                  agentInitials={rootAgentInitials}
+                  agentName={rootAgentName}
+                  avatarClassName={HUE_THEME["trace-gold"].avatar}
+                  onAvatarClick={
+                    hasMultipleMessageTypes
+                      ? (e) => {
+                          e.stopPropagation();
+                          setIsDropupOpen(!isDropupOpen);
+                        }
+                      : null
+                  }
+                  avatarMenu={messageTypeDropdown}
+                  badges={responseStatusBadges}
+                  attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                  content={getMessageToDisplay()}
+                  isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                  contentRef={aiResponseRef}
+                  isExpanded={isAiResponseExpanded}
+                  overflows={aiResponseOverflows}
+                  onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
+                  editButton={
+                    !item?.llm_urls?.length && !item?.fromRTLayer ? (
+                      <div
+                        className="tooltip absolute"
+                        style={{ top: "-0.5rem", right: "0.5rem" }}
+                        data-tip="Edit message"
                       >
-                        {rootAgentInitials}
-                      </span>
-                      {isDropupOpen && (
-                        <div
-                          ref={dropupRef}
-                          className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[130px] p-1"
-                          style={{ zIndex: 9999, top: "28px", left: "0" }}
-                          onClick={(e) => e.stopPropagation()}
+                        <button
+                          id="thread-item-edit-message-button"
+                          data-testid="thread-item-edit-message-button"
+                          className="btn btn-xs btn-circle btn-ghost opacity-0 group-hover:opacity-100"
+                          onClick={handleEdit}
                         >
-                          <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
-                          <ul className="flex flex-col gap-0.5">
-                            {item.chatbot_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-chatbot-message"
-                                  id="thread-item-select-chatbot-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("chatbot_message")}
-                                >
-                                  Chatbot
-                                </button>
-                              </li>
-                            )}
-                            {item.llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-llm-message"
-                                  id="thread-item-select-llm-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("llm_message")}
-                                >
-                                  LLM
-                                </button>
-                              </li>
-                            )}
-                            {item.updated_llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-updated-message"
-                                  id="thread-item-select-updated-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("updated_llm_message")}
-                                >
-                                  Updated
-                                </button>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
-                    {messageType === "updated_llm_message" && (
-                      <span className="badge badge-xs badge-outline">Edited</span>
-                    )}
-                    {isBatchResponse && (
-                      <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
-                        <BatchStatusIcon size={10} />
-                        {batchStatusMeta.label}
-                      </span>
-                    )}
-                  </div>
-                  {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
-                  <div
-                    ref={aiResponseRef}
-                    className={!isAiResponseExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}
-                  >
-                    {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
-                      <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
-                    ) : (
-                      <ReactMarkdown
-                        components={{
-                          code: ({ node, inline, className, children, ...props }) => (
-                            <CodeBlock className={className} {...props}>
-                              {children}
-                            </CodeBlock>
-                          ),
-                        }}
-                      >
-                        {getMessageToDisplay()}
-                      </ReactMarkdown>
-                    )}
-                  </div>
-                  {aiResponseOverflows && (
-                    <button
-                      className="mt-1 text-xs text-primary/70 hover:text-primary flex items-center gap-1"
-                      onClick={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
-                    >
-                      <ChevronDown
-                        size={12}
-                        className={`transition-transform duration-150 ${isAiResponseExpanded ? "rotate-180" : ""}`}
-                      />
-                      {isAiResponseExpanded ? "Show less" : "Show more"}
-                    </button>
-                  )}
-                  {!item?.llm_urls?.length && !item?.fromRTLayer && (
-                    <div
-                      className="tooltip absolute"
-                      style={{ top: "-0.5rem", right: "7.5rem" }}
-                      data-tip="Edit message"
-                    >
-                      <button
-                        id="thread-item-edit-message-button"
-                        className="btn btn-xs btn-circle btn-ghost opacity-0 group-hover:opacity-100"
-                        onClick={handleEdit}
-                      >
-                        <PencilIcon size={13} />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                          <PencilIcon size={13} />
+                        </button>
+                      </div>
+                    ) : null
+                  }
+                />
               </div>
             )}
           </div>
         ) : (
           /* ── Multi-query chat bubble layout ── */
           <div>
-            {/* User message */}
-            {!isSingleQuery ? (
-              /* ── Stateless: new dark bubble + pill buttons ── */
-              <div className="group mb-2">
-                {/* Bubble row: message left, avatar right */}
-                <div className="flex items-start justify-end gap-3">
-                  <div
-                    className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words bg-neutral text-neutral-content"
-                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
-                  >
-                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                    <ReactMarkdown
-                      components={{
-                        code: ({ node, inline, className, children, ...props }) => (
-                          <CodeBlock className={className} {...props}>
-                            {children}
-                          </CodeBlock>
-                        ),
-                      }}
-                    >
-                      {item.user}
-                    </ReactMarkdown>
-                  </div>
-                  {/* Avatar */}
-                  <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-300 text-base-content/70">
-                    U
-                  </div>
-                </div>
-
-                {/* Below bubble: pill buttons + time */}
-                <div className="flex flex-col gap-1 mt-3 pr-12">
-                  <div className="flex items-center justify-end gap-2 flex-wrap">
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button
-                        data-testid="thread-item-user-aiconfig-button"
-                        id="thread-item-user-aiconfig-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => handleUserButtonClick("AiConfig")}
-                      >
-                        <SquareFunctionIcon className="h-3 w-3" />
-                        <span>AI Config</span>
-                      </button>
-                      <button
-                        data-testid="thread-item-user-system-prompt-button"
-                        id="thread-item-user-system-prompt-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => handleUserButtonClick("system Prompt")}
-                      >
-                        <FileClockIcon className="h-3 w-3" />
-                        <span>System Prompt</span>
-                      </button>
-                      <button
-                        data-testid="thread-item-user-more-button"
-                        id="thread-item-user-more-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => handleUserButtonClick("more")}
-                      >
-                        <AddIcon className="h-3 w-3" />
-                        <span>More...</span>
-                      </button>
-                    </div>
-
-                    {item?.variables && Object.keys(item.variables).length > 0 && (
-                      <button
-                        data-testid="thread-item-user-variables-button"
-                        id="thread-item-user-variables-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => setIsVariablesOpen((v) => !v)}
-                      >
-                        <Braces className="h-3 w-3" />
-                        <span>Sent Variables</span>
-                        <span className="rounded-full px-1.5 py-0 text-[10px] font-bold bg-base-300 text-base-content/60">
-                          {Object.keys(item.variables).length}
-                        </span>
-                        <ChevronDown
-                          className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                    )}
-
-                    <time className="text-xs opacity-40 shrink-0">
-                      <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
-                      <span className="hidden group-hover:inline">{formatDateAndTime(item.created_at)}</span>
-                    </time>
-                  </div>
-
-                  {/* Inline Variables Panel */}
-                  {isVariablesOpen && (
-                    <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100">
-                      <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
-                        <input
-                          type="text"
-                          placeholder={`Filter ${Object.keys(item?.variables || {}).length} variables...`}
-                          value={variablesFilter}
-                          onChange={(e) => setVariablesFilter(e.target.value)}
-                          className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40"
-                        />
-                      </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {Object.entries(item?.variables || {})
-                          .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
-                          .map(([key, value], i) => (
-                            <div
-                              key={key}
-                              className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
-                            >
-                              <span className="text-sm font-medium min-w-[120px] shrink-0 text-trace-gold">{key}</span>
-                              <span className="text-sm break-all text-base-content/80">
-                                {typeof value === "object" ? JSON.stringify(value) : String(value ?? "")}
-                              </span>
-                            </div>
-                          ))}
-                        {Object.keys(item?.variables || {}).length === 0 && (
-                          <div className="px-4 py-4 text-sm text-center text-base-content/40">No variables</div>
-                        )}
-                      </div>
-                      <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
-                        {formatDateAndTime(item.created_at)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* ── Stateful: original DaisyUI chat bubble + old buttons ── */
-              <div className="chat group chat-end mb-4">
-                <div className="chat-image avatar flex justify-center items-center">
-                  <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
-                    <div className="relative rounded-full bg-base-300 flex justify-center items-center">
-                      <UserIcon size={20} className="text-base-content" />
-                    </div>
-                  </div>
-                </div>
+            {/* User message — same dark bubble + U avatar for multi-query; buttons differ by mode */}
+            <div className="group mb-2">
+              <div className="flex items-start justify-end gap-3">
                 <div
-                  className="flex justify-start flex-row-reverse items-center gap-1"
-                  style={{ width: "-webkit-fill-available" }}
+                  className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words bg-neutral text-neutral-content"
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
                 >
-                  <div
-                    className="chat-bubble-primary chat-bubble transition-all ease-in-out duration-300 relative group break-words"
-                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                  {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }) => (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      ),
+                    }}
                   >
-                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                    <ReactMarkdown
-                      components={{
-                        code: ({ node, inline, className, children, ...props }) => (
-                          <CodeBlock className={className} {...props}>
-                            {children}
-                          </CodeBlock>
-                        ),
-                      }}
-                    >
-                      {item.user}
-                    </ReactMarkdown>
-                  </div>
+                    {item.user}
+                  </ReactMarkdown>
                 </div>
-                <div className="flex flex-row-reverse gap-2 m-1 items-center justify-between">
-                  <time className="text-xs opacity-50 chat-end relative w-[140px] inline-block text-right">
-                    <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
-                    <span className="hidden group-hover:inline absolute right-0 top-0">
-                      {formatDateAndTime(item.created_at)}
-                    </span>
-                  </time>
-                  <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
-                    <button
-                      data-testid="thread-item-user-aiconfig-button"
-                      id="thread-item-user-aiconfig-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("AiConfig")}
-                    >
-                      <SquareFunctionIcon className="h-3 w-3" />
-                      <span>AI Config</span>
-                    </button>
-                    <button
-                      data-testid="thread-item-user-variables-button"
-                      id="thread-item-user-variables-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("variables")}
-                    >
-                      <Braces className="h-3 w-3" />
-                      <span>Variables</span>
-                    </button>
-                    <button
-                      data-testid="thread-item-user-system-prompt-button"
-                      id="thread-item-user-system-prompt-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("system Prompt")}
-                    >
-                      <FileClockIcon className="h-3 w-3" />
-                      <span>System Prompt</span>
-                    </button>
-                    <button
-                      data-testid="thread-item-user-more-button"
-                      id="thread-item-user-more-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("more")}
-                    >
-                      <AddIcon className="h-3 w-3" />
-                      <span>More...</span>
-                    </button>
-                  </div>
+                {/* Avatar */}
+                <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-100 text-base-content/50">
+                  U
                 </div>
               </div>
-            )}
+              {isStatelessConversation ? (
+                renderStatelessMultiQueryUserActions()
+              ) : (
+                <div className={`mt-3 pr-12 ${isLastMessage() ? "" : "see-on-hover"}`}>
+                  {renderStatefulMessageActionToolbar({ showTimestamp: true })}
+                </div>
+              )}
+            </div>
 
             {/* Agent execution trace (replaces old tools UI in stateful mode) */}
             {hasAgentsOrTools && (
@@ -1959,130 +2284,52 @@ const ThreadItem = ({
 
             {/* 3. Third: Render Assistant Message if exists */}
             {!item.error && (
-              <div className="w-full relative">
+              <div className="w-full px-2 relative">
                 {firstAttemptErrorNotice}
-                <div
-                  className="rounded-xl px-4 py-3 text-sm text-base-content relative group"
-                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
-                >
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <div
-                      className="relative shrink-0 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDropupOpen(!isDropupOpen);
-                      }}
-                    >
-                      <span
-                        data-testid="thread-item-bot-icon"
-                        id="thread-item-bot-icon"
-                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
-                      >
-                        {rootAgentInitials}
-                      </span>
-                      {isDropupOpen && (
-                        <div
-                          ref={dropupRef}
-                          className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[140px] p-1"
-                          style={{ zIndex: 9999, top: "28px", left: "0" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
-                          <ul className="flex flex-col gap-0.5">
-                            {item.chatbot_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-chatbot-message"
-                                  id="thread-item-select-chatbot-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("chatbot_message")}
-                                >
-                                  Chatbot
-                                </button>
-                              </li>
-                            )}
-                            {item.llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-llm-message"
-                                  id="thread-item-select-llm-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("llm_message")}
-                                >
-                                  LLM
-                                </button>
-                              </li>
-                            )}
-                            {item.updated_llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-updated-message"
-                                  id="thread-item-select-updated-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("updated_llm_message")}
-                                >
-                                  Updated
-                                </button>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
-                    {messageType === "updated_llm_message" && (
-                      <span className="badge badge-xs badge-outline">Edited</span>
-                    )}
-                    {isBatchResponse && (
-                      <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
-                        <BatchStatusIcon size={10} />
-                        {batchStatusMeta.label}
-                      </span>
-                    )}
-                  </div>
-                  <div className={`relative pr-10 ${preFunctionEntry ? "min-w-[16rem]" : ""}`}>
-                    {preFunctionEntry && (
-                      <button
-                        type="button"
-                        onClick={handlePreFunctionClick}
-                        className="absolute -top-3 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-base-content/30 ring-1 ring-base-content/10 bg-base-100 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-base-content/50 hover:ring-base-content/20 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/35"
-                        title="Open pre-function logs"
-                        aria-label="Open pre-function logs"
-                      >
-                        <SquareFunctionIcon size={14} className="shrink-0 opacity-80" />
-                        <span className="block truncate">Pre-Function Logs: {preFunctionStripText}</span>
-                        <ChevronRight size={12} className="shrink-0 opacity-70" />
-                      </button>
-                    )}
-
-                    {/* Assistant attachments */}
-                    {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
-
-                    {/* Message content */}
-                    {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
-                      <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
-                    ) : (
-                      <ReactMarkdown
-                        components={{
-                          code: ({ node, inline, className, children, ...props }) => (
-                            <CodeBlock className={className} {...props}>
-                              {children}
-                            </CodeBlock>
-                          ),
-                        }}
-                      >
-                        {getMessageToDisplay()}
-                      </ReactMarkdown>
-                    )}
-
-                    {/* Edit button for assistant messages */}
-                    {!item?.llm_urls?.length && !item?.fromRTLayer && (
+                {preFunctionEntry && (
+                  <button
+                    type="button"
+                    data-testid="thread-item-pre-function-logs-button"
+                    onClick={handlePreFunctionClick}
+                    className="absolute -top-3 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-base-content/30 ring-1 ring-base-content/10 bg-base-100 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-base-content/50 hover:ring-base-content/20 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/35"
+                    title="Open pre-function logs"
+                    aria-label="Open pre-function logs"
+                  >
+                    <SquareFunctionIcon size={14} className="shrink-0 opacity-80" />
+                    <span className="block truncate">Pre-Function Logs: {preFunctionStripText}</span>
+                    <ChevronRight size={12} className="shrink-0 opacity-70" />
+                  </button>
+                )}
+                <FinalResponseCard
+                  agentInitials={rootAgentInitials}
+                  agentName={rootAgentName}
+                  avatarClassName={HUE_THEME["trace-gold"].avatar}
+                  onAvatarClick={
+                    hasMultipleMessageTypes
+                      ? (e) => {
+                          e.stopPropagation();
+                          setIsDropupOpen(!isDropupOpen);
+                        }
+                      : null
+                  }
+                  avatarMenu={messageTypeDropdown}
+                  badges={responseStatusBadges}
+                  attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                  content={getMessageToDisplay()}
+                  isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                  contentRef={aiResponseRef}
+                  isExpanded={isAiResponseExpanded}
+                  overflows={aiResponseOverflows}
+                  onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
+                  editButton={
+                    !item?.llm_urls?.length && !item?.fromRTLayer ? (
                       <div
                         className={`absolute top-2 right-2 flex items-center gap-1 transition-opacity ${isLastMessage() ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                       >
                         <div className="tooltip" data-tip="Edit message">
                           <button
                             id="thread-item-edit-message-button"
+                            data-testid="thread-item-edit-message-button"
                             className="btn btn-sm btn-circle btn-ghost hover:btn-primary text-base-content"
                             onClick={handleEdit}
                           >
@@ -2090,28 +2337,10 @@ const ThreadItem = ({
                           </button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                </div>
-                {/* Action buttons below AI response — always visible */}
-                <div className="mt-2 flex items-center gap-1.5">
-                  <button
-                    id="thread-item-add-test-case-button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                    onClick={() => handleAddTestCase(item, index)}
-                  >
-                    <AddIcon className="h-3 w-3" />
-                    <span>Test Case</span>
-                  </button>
-                  <button
-                    id="thread-item-debug-agent-button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                    onClick={() => handleAskAi(item)}
-                  >
-                    <BotMessageIcon className="h-3 w-3" />
-                    <span>Debug Agent</span>
-                  </button>
-                </div>
+                    ) : null
+                  }
+                />
+                {renderResponseActionButtons(!isStatelessConversation)}
               </div>
             )}
           </div>

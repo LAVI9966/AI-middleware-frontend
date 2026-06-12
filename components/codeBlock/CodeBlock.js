@@ -53,7 +53,7 @@ function useIsDark() {
   return isDark;
 }
 
-function CodeBlock({ inline, className, children, ...props }) {
+function CodeBlock({ inline, className, children, showCopy = true, ...props }) {
   const match = /language-(\w+)/.exec(className || "");
   const [copyStatus, setCopyStatus] = useState("Copy");
   const resetTimerRef = useRef(null);
@@ -132,15 +132,17 @@ function CodeBlock({ inline, className, children, ...props }) {
         <span className="text-xs font-semibold uppercase tracking-wider text-base-content/70">
           {languageLabel || "Code"}
         </span>
-        <button
-          data-testid="code-block-copy-button"
-          id="code-block-copy-button"
-          type="button"
-          onClick={handleCopy}
-          className="btn btn-ghost btn-xs font-medium text-xs px-2 py-1 text-base-content"
-        >
-          {copyStatus}
-        </button>
+        {showCopy && (
+          <button
+            data-testid="code-block-copy-button"
+            id="code-block-copy-button"
+            type="button"
+            onClick={handleCopy}
+            className="btn btn-ghost btn-xs font-medium text-xs px-2 py-1 text-base-content"
+          >
+            {copyStatus}
+          </button>
+        )}
       </div>
       <SyntaxHighlighter
         language={match[1]}
