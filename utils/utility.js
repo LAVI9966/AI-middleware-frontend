@@ -415,12 +415,7 @@ export function closeModal(modalName) {
 }
 
 export const allowedAttributes = {
-  important: [
-    ["variables", "Variables"],
-    ["prompt", "System Prompt"],
-    ["AiConfig", "AI Configuration"],
-    ["latency", "Latency"],
-  ],
+  important: [["latency", "Latency"]],
   optional: [
     ["message_id", "Message ID"],
     ["tokens", "Tokens"],

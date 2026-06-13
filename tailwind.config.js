@@ -127,13 +127,19 @@ module.exports = {
         /* Custom themed tokens */
         ':root, [data-theme="light"]': {
           "--base-50": "oklch(0.985 0.002 247.84)",
-          /* trace accents — oklch components (L C H), used as oklch(var(--token) / α) */
           "--trace-gold": "0.52 0.11 62",
           "--trace-gold-bg": "0.98 0.012 75",
           "--trace-gold-border": "0.93 0.025 75",
           "--trace-blue": "0.55 0.14 250",
           "--trace-green": "0.52 0.12 165",
           "--history-page-bg": "#F6F6F4",
+          "--pill-bg": "#F3F3F0",
+          "--pill-bg-hover": "#E8E8E4",
+          "--ai-config-header-bg": "#F3F3F1",
+          "--ai-config-container-bg": "#FFFFFF",
+          "--ai-config-section-header": "#F3F3F1",
+          "--ai-config-section-bg": "#F6F7F9",
+          "--final-response-bg": "#F3F0EB",
         },
         '[data-theme="dark"]': {
           "--base-50": "oklch(0.20 0.002 247.84)",
@@ -142,7 +148,14 @@ module.exports = {
           "--trace-gold-border": "0.36 0.035 70",
           "--trace-blue": "0.70 0.12 250",
           "--trace-green": "0.68 0.11 155",
-          "--history-page-bg": "#1b1b19ff",
+          "--history-page-bg": "#0A0A0B",
+          "--pill-bg": "#141417",
+          "--pill-bg-hover": "#1e1e22",
+          "--ai-config-header-bg": "#141417",
+          "--ai-config-container-bg": "#0E0E11",
+          "--ai-config-section-header": "#141417",
+          "--ai-config-section-bg": "#0C0C0E",
+          "--final-response-bg": "#120E0B",
         },
         /* Light Theme Scrollbar */
         '[data-theme="light"] ::-webkit-scrollbar': {

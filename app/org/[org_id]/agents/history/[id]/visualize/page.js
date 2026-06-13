@@ -7,6 +7,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { useRouter } from "next/navigation";
 import { useDispatch } from "react-redux";
 import { getRecursiveHistoryAction } from "@/store/action/historyAction";
+import { clearRecursiveHistory } from "@/store/reducer/historyReducer";
 import { X, ArrowLeft } from "lucide-react";
 import { formatRelativeTime, toggleSidebar } from "@/utils/utility";
 
@@ -128,6 +129,10 @@ export default function Page({ params, searchParams }) {
     };
 
     fetchRecursiveHistory();
+
+    return () => {
+      dispatch(clearRecursiveHistory());
+    };
   }, [bridgeId, threadId, messageId, dispatch]);
 
   const normalizeToolCalls = (toolData) => {

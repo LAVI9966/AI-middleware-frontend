@@ -9,6 +9,9 @@ import { clearThreadData, clearHistoryData, setSelectedVersion } from "@/store/r
 import Protected from "@/components/Protected";
 import ChatDetails from "@/components/historyPageComponents/ChatDetails";
 import { ChatLoadingSkeleton } from "@/components/historyPageComponents/ChatLayoutLoader";
+import { openModal } from "@/utils/utility";
+import { MODAL_TYPE } from "@/utils/enums";
+import ChatAiConfigDeatilViewModal from "@/components/modals/ChatAiConfigDeatilViewModal";
 import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
 
 // Lazy load the components to reduce initial render time
@@ -166,8 +169,12 @@ function Page({ params, searchParams }) {
       if (currentRole === "user" || currentRole === "tools_call" || currentRole === "error") {
         try {
           setSelectedItem({ variables: item.variables, ...item, value });
-          const shouldOpenSidebar = value === "more" || item?.[value] === null;
-          setIsSliderOpen(shouldOpenSidebar);
+          if (value === "AiConfig" || value === "Latency") {
+            openModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL);
+          } else {
+            const shouldOpenSidebar = value === "more" || item?.[value] === null;
+            setIsSliderOpen(shouldOpenSidebar);
+          }
         } catch (error) {
           console.error("Failed to fetch single message:", error);
         }
@@ -177,8 +184,10 @@ function Page({ params, searchParams }) {
         const end = search.get("end");
         const messageId = search.get("message_id");
         const encodedThreadId = encodeURIComponent(thread_id.replace(/&/g, "%26"));
+        const firstSubThreadId = item?.sub_thread?.[0]?.sub_thread_id || thread_id;
+        const encodedSubThreadId = encodeURIComponent(firstSubThreadId.replace(/&/g, "%26"));
         router.push(
-          `${pathName}?version=${search.get("version") || selectedVersion}&thread_id=${encodedThreadId}&subThread_id=${encodedThreadId}&start=${start || ""}&end=${end || ""}${messageId ? `&message_id=${messageId}` : ""}&type=${search.get("type") || resolvedSearchParams.type || ""}`,
+          `${pathName}?version=${search.get("version") || selectedVersion}&thread_id=${encodedThreadId}&subThread_id=${encodedSubThreadId}&start=${start || ""}&end=${end || ""}${messageId ? `&message_id=${messageId}` : ""}&type=${search.get("type") || resolvedSearchParams.type || ""}`,
           undefined,
           { shallow: true }
         );
@@ -216,6 +225,7 @@ function Page({ params, searchParams }) {
     <BatchSubthreadPanel
       thread={thread}
       subThreadIdFromURL={search.get("subThread_id")}
+      parentThreadId={resolvedSearchParams?.thread_id}
       selectedBatchMessageId={selectedBatchMessageId}
       onSelectBatch={(messageId) => setSelectedBatchMessageId((prev) => (prev === messageId ? null : messageId))}
       onSelectSubThread={(subThreadId) => {
@@ -296,6 +306,10 @@ function Page({ params, searchParams }) {
         </React.Suspense>
       </div>
       <ChatDetails selectedItem={selectedItem} setIsSliderOpen={setIsSliderOpen} isSliderOpen={isSliderOpen} />
+      <ChatAiConfigDeatilViewModal
+        modalContent={selectedItem?.value === "Latency" ? selectedItem?.latency : selectedItem?.AiConfig}
+        modalTitle={selectedItem?.value === "Latency" ? "Latency Details" : "AI Configuration"}
+      />
     </div>
   );
 }

@@ -1,37 +1,37 @@
 /** Trace accent colors — tailwind.config.js oklch tokens: trace-gold, trace-blue, trace-green */
 
 /** Dark border on light theme, light border on dark theme (follows base-content) */
-export const TRACE_ROW_BORDER = "border border-base-content/20";
+export const TRACE_ROW_BORDER = "border border-base-content/8 dark:border-base-content/15";
 
 export const AGENT_HUES = ["trace-blue", "trace-green", "trace-gold"];
 
 export const HUE_THEME = {
   "trace-blue": {
-    shell: `rounded-[11px] ${TRACE_ROW_BORDER} bg-trace-blue/[0.07]`,
+    shell: `rounded-[11px] ${TRACE_ROW_BORDER} bg-trace-blue/[0.02]`,
     shellOpen: "",
-    rail: "border-trace-blue/35",
-    head: "bg-trace-blue/[0.10] hover:bg-trace-blue/[0.14]",
-    headOpen: `rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.12]`,
-    avatar: "bg-trace-blue text-white",
-    roleTag: "bg-trace-blue/10 text-trace-blue border-trace-blue/25",
+    rail: "border-trace-blue/15",
+    head: "bg-trace-blue/[0.03] hover:bg-trace-blue/[0.06]",
+    headOpen: `bg-trace-blue/[0.04] rounded-t-[10px]`,
+    avatar: "bg-trace-blue/12 text-trace-blue border border-trace-blue/20",
+    roleTag: "bg-trace-blue/10 text-trace-blue border-trace-blue/15",
   },
   "trace-green": {
-    shell: `rounded-[11px] ${TRACE_ROW_BORDER} bg-trace-green/[0.07]`,
+    shell: `rounded-[11px] ${TRACE_ROW_BORDER} bg-trace-green/[0.02]`,
     shellOpen: "",
-    rail: "border-trace-green/35",
-    head: "bg-trace-green/[0.10] hover:bg-trace-green/[0.14]",
-    headOpen: `rounded-lg ${TRACE_ROW_BORDER} bg-trace-green/[0.12]`,
-    avatar: "bg-trace-green text-white",
-    roleTag: "bg-trace-green/10 text-trace-green border-trace-green/25",
+    rail: "border-trace-green/15",
+    head: "bg-trace-green/[0.03] hover:bg-trace-green/[0.06]",
+    headOpen: `bg-trace-green/[0.04] rounded-t-[10px]`,
+    avatar: "bg-trace-green/12 text-trace-green border border-trace-green/20",
+    roleTag: "bg-trace-green/10 text-trace-green border-trace-green/15",
   },
   "trace-gold": {
-    shell: `rounded-[11px] ${TRACE_ROW_BORDER} bg-trace-gold-bg`,
+    shell: `rounded-[11px] ${TRACE_ROW_BORDER} bg-trace-gold/[0.02]`,
     shellOpen: "",
-    rail: "border-trace-gold-border",
-    head: "bg-trace-gold-bg hover:bg-trace-gold-bg/90",
-    headOpen: `rounded-lg ${TRACE_ROW_BORDER} bg-trace-gold-bg`,
-    avatar: "bg-trace-gold text-white",
-    roleTag: "bg-trace-gold/10 text-trace-gold border-trace-gold-border",
+    rail: "border-trace-gold/15",
+    head: "bg-trace-gold/[0.03] hover:bg-trace-gold/[0.06]",
+    headOpen: `bg-trace-gold/[0.04] rounded-t-[10px]`,
+    avatar: "bg-trace-gold/12 text-trace-gold border border-trace-gold/20",
+    roleTag: "bg-trace-gold/10 text-trace-gold border-trace-gold/15",
   },
 };
 
