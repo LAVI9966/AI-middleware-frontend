@@ -1,16 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  BookOpen,
-  Brackets,
-  ChevronDown,
-  ChevronRight,
-  FileClock,
-  History,
-  SquareFunction,
-} from "lucide-react";
+import { AlertTriangle, BookOpen, Brackets, ChevronDown, ChevronRight, History, SquareFunction } from "lucide-react";
 import {
   HUE_THEME,
   NEUTRAL_HEAD,
@@ -113,13 +104,12 @@ function StepRowHeader({ open, inRail, icon, children, onClick, headerClass = ""
       role="button"
       tabIndex={0}
     >
-      {icon}
-      {children}
-
       <ChevronRight
         size={14}
-        className={`shrink-0 text-base-content/40 transition-transform duration-150 ml-auto ${open ? "rotate-90" : ""}`}
+        className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
       />
+      {icon}
+      {children}
     </div>
   );
 }
@@ -333,7 +323,7 @@ function VariablesBlock({ vars, inRail = true }) {
 }
 
 function ToolActionButtons({ rawTool, isRag }) {
-  const { onToolLogsClick, onToolDataClick } = useContext(TraceCtx);
+  const { onToolLogsClick } = useContext(TraceCtx);
   if (!rawTool) return null;
 
   return (
@@ -346,16 +336,6 @@ function ToolActionButtons({ rawTool, isRag }) {
           onClick={(e) => onToolLogsClick(e, rawTool)}
         >
           <SquareFunction size={14} />
-        </button>
-      )}
-      {onToolDataClick && (
-        <button
-          type="button"
-          className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
-          title={isRag ? "knowledge base data" : "function data"}
-          onClick={() => onToolDataClick(rawTool)}
-        >
-          <FileClock size={14} />
         </button>
       )}
     </div>
@@ -530,8 +510,9 @@ function MessageBubble({ text, align = "left", expandable = true }) {
   return (
     <div className="relative my-[7px] min-w-0">
       <div
-        className={`bg-base-200/55 px-3 py-2 text-xs leading-snug text-base-content/70 ${isLeft ? "rounded-[4px_12px_12px_12px] text-left" : "rounded-[12px_4px_12px_12px] text-right"
-          }`}
+        className={`bg-base-200/55 px-3 py-2 text-xs leading-snug text-base-content/70 ${
+          isLeft ? "rounded-[4px_12px_12px_12px] text-left" : "rounded-[12px_4px_12px_12px] text-right"
+        }`}
       >
         <div
           ref={contentRef}
@@ -577,11 +558,10 @@ const AGENT_ROW_BTN =
   "grid h-5 w-5 shrink-0 place-items-center rounded text-base-content/60 hover:bg-base-300/50 hover:text-primary";
 
 function AgentActionButtons({ payload, rawTool }) {
-  const { onAgentDataClick, onAgentHistoryClick } = useContext(TraceCtx);
-  const canViewData = Boolean(onAgentDataClick && (rawTool || payload?.functionData));
+  const { onAgentHistoryClick } = useContext(TraceCtx);
   const canHistory = Boolean(onAgentHistoryClick && canOpenAgentHistory(rawTool));
 
-  if (!canViewData && !canHistory) return null;
+  if (!canHistory) return null;
 
   return (
     <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -593,16 +573,6 @@ function AgentActionButtons({ payload, rawTool }) {
           onClick={(e) => onAgentHistoryClick(e, rawTool)}
         >
           <History size={14} />
-        </button>
-      )}
-      {canViewData && (
-        <button
-          type="button"
-          className={AGENT_ROW_BTN}
-          title="View agent data"
-          onClick={() => onAgentDataClick(rawTool || payload?.functionData)}
-        >
-          <FileClock size={14} />
         </button>
       )}
     </div>
