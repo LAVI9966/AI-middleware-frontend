@@ -25,7 +25,6 @@ import {
   Braces,
   CheckCircle2,
   ChevronDown,
-  ChevronUp,
   Clock3,
   ExternalLink,
   RotateCcw,
@@ -317,10 +316,6 @@ const ThreadItem = ({
     }
   };
 
-  const [isUserQueryExpanded, setIsUserQueryExpanded] = useState(false);
-  const [isAiResponseExpanded, setIsAiResponseExpanded] = useState(false);
-  const [aiResponseOverflows, setAiResponseOverflows] = useState(false);
-  const aiResponseRef = useRef(null);
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, setVariablesFilter] = useState("");
   const [isMoreDetailsExpanded, setIsMoreDetailsExpanded] = useState(false);
@@ -496,15 +491,6 @@ const ThreadItem = ({
     return "assistant";
   };
 
-  // Check if this is the last message of the same role (assistant, user, or tools_call)
-  const isLastMessage = () => {
-    const currentRole = getMessageRole();
-    if (!currentRole || currentRole === "unknown") return false;
-
-    // For simplicity, just return true for now since role detection is now dynamic
-    return true;
-  };
-
   const handleEdit = () => {
     // For user messages, use user content
     if (getMessageRole() === "user") {
@@ -658,15 +644,6 @@ const ThreadItem = ({
     setToolsData([]);
     toolsDataModalRef.current?.close();
   }, []);
-
-  // Measure AI response height to show/hide "Show more" button
-  useEffect(() => {
-    const el = aiResponseRef.current;
-    if (!el) return;
-    // MAX_HEIGHT matches line-clamp-5 at ~1.6rem line-height × 5 = ~8rem = 128px
-    const MAX_HEIGHT = 128;
-    setAiResponseOverflows(el.scrollHeight > MAX_HEIGHT);
-  }, [item?.chatbot_message, item?.llm_message, item?.updated_llm_message, messageType]);
 
   const messageId = item.message_id;
   useEffect(() => {
@@ -1223,6 +1200,7 @@ const ThreadItem = ({
         <div className="w-full flex flex-col items-end">
           {renderSystemPromptPanel("max-w-[620px] w-full ml-auto")}
           {renderVariablesPanel("max-w-[620px] w-full ml-auto")}
+          {renderOptionalDetailsPanel("max-w-[620px] w-full ml-auto")}
         </div>
       );
     }
@@ -1330,8 +1308,8 @@ const ThreadItem = ({
     );
   };
 
-  const renderStatelessMultiQueryUserActions = () => (
-    <div className="flex flex-col gap-1 mt-3 pr-12">
+  const renderStatelessMultiQueryUserActions = (pillsOnly = false, panelsOnly = false) => {
+    const pills = (
       <div className="flex items-center justify-end gap-2 flex-wrap">
         <div className="flex gap-1.5 flex-wrap">
           <button
@@ -1412,110 +1390,124 @@ const ThreadItem = ({
           <span className="hidden group-hover:inline">{formatDateAndTime(item.created_at)}</span>
         </time>
       </div>
+    );
 
-      {isVariablesOpen && variableCount > 0 ? (
-        <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100">
-          <div className="px-4 py-2.5 bg-base-100 border-b border-base-300 flex justify-between items-center select-none">
-            <input
-              type="text"
-              placeholder={`Filter ${variableCount} variables...`}
-              value={variablesFilter}
-              onChange={(e) => setVariablesFilter(e.target.value)}
-              className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40 mr-2"
-            />
-            <button
-              onClick={handleCopyAllVariables}
-              className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center shrink-0"
-              title="Copy all variables as JSON"
-            >
-              {copiedAllVariables ? (
-                <>
-                  <CheckCircleIcon size={12} className="text-success" />
-                  <span className="text-success font-medium">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <CopyIcon size={12} className="opacity-80" />
-                  <span>Copy Object</span>
-                </>
-              )}
-            </button>
-          </div>
-          <div className="max-h-64 overflow-y-auto">
-            {Object.entries(item?.variables || {})
-              .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
-              .map(([key, value], i) => (
-                <div
-                  key={key}
-                  className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
-                >
-                  <span className="text-xs font-normal min-w-[120px] shrink-0 text-trace-gold">{key}</span>
-                  <div className="flex-1 w-full max-w-full overflow-hidden">
-                    <InlineVarValue
-                      raw={
-                        typeof value === "object" && value !== null
-                          ? JSON.stringify(value, null, 2)
-                          : String(value ?? "")
-                      }
-                      isLong={
-                        typeof value === "object" && value !== null
-                          ? JSON.stringify(value).length > 200
-                          : String(value ?? "").length > 200
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-          </div>
-          <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
-            {formatDateAndTime(item.created_at)}
-          </div>
-        </div>
-      ) : null}
-
-      {isMoreDetailsExpanded ? (
-        <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100 p-4 space-y-4 text-left">
-          <div className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</div>
-          <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100 divide-y divide-base-300">
-            {allowedAttributes.optional
-              .sort((a, b) => a[1].localeCompare(b[1]))
-              .map(([key, displayKey]) => {
-                const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
-                if (value === undefined || value === null) return null;
-
-                // If the value is an object, render each property as separate rows
-                if (typeof value === "object" && key !== "createdAt") {
-                  return Object.entries(value).map(([objKey, objValue]) => (
-                    <div key={`${key}-${objKey}`} className="bg-base-100 flex px-4 py-3">
-                      <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">
-                        {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                      </div>
-                      <div className="w-1/2 text-xs text-base-content font-mono">
-                        <span className="break-words font-normal text-base-content/80">{objValue?.toString()}</span>
-                      </div>
-                    </div>
-                  ));
-                }
-
-                // Regular single value display
-                return (
-                  <div key={key} className="bg-base-100 flex px-4 py-3">
-                    <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">{displayKey}</div>
-                    <div className="w-1/2 text-xs text-base-content">
-                      <span className="break-words font-normal text-base-content/80">
-                        {key === "createdAt" || key === "created_at"
-                          ? new Date(value).toLocaleString()
-                          : value?.toString()}
-                      </span>
+    const panels = (
+      <>
+        {isVariablesOpen && variableCount > 0 ? (
+          <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100">
+            <div className="px-4 py-2.5 bg-base-100 border-b border-base-300 flex justify-between items-center select-none">
+              <input
+                type="text"
+                placeholder={`Filter ${variableCount} variables...`}
+                value={variablesFilter}
+                onChange={(e) => setVariablesFilter(e.target.value)}
+                className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40 mr-2"
+              />
+              <button
+                onClick={handleCopyAllVariables}
+                className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center shrink-0"
+                title="Copy all variables as JSON"
+              >
+                {copiedAllVariables ? (
+                  <>
+                    <CheckCircleIcon size={12} className="text-success" />
+                    <span className="text-success font-medium">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon size={12} className="opacity-80" />
+                    <span>Copy Object</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {Object.entries(item?.variables || {})
+                .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+                .map(([key, value], i) => (
+                  <div
+                    key={key}
+                    className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
+                  >
+                    <span className="text-xs font-normal min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                    <div className="flex-1 w-full max-w-full overflow-hidden">
+                      <InlineVarValue
+                        raw={
+                          typeof value === "object" && value !== null
+                            ? JSON.stringify(value, null, 2)
+                            : String(value ?? "")
+                        }
+                        isLong={
+                          typeof value === "object" && value !== null
+                            ? JSON.stringify(value).length > 200
+                            : String(value ?? "").length > 200
+                        }
+                      />
                     </div>
                   </div>
-                );
-              })}
+                ))}
+            </div>
+            <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
+              {formatDateAndTime(item.created_at)}
+            </div>
           </div>
-        </div>
-      ) : null}
-    </div>
-  );
+        ) : null}
+
+        {isMoreDetailsExpanded ? (
+          <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100 p-4 space-y-4 text-left">
+            <div className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</div>
+            <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100 divide-y divide-base-300">
+              {allowedAttributes.optional
+                .sort((a, b) => a[1].localeCompare(b[1]))
+                .map(([key, displayKey]) => {
+                  const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
+                  if (value === undefined || value === null) return null;
+
+                  // If the value is an object, render each property as separate rows
+                  if (typeof value === "object" && key !== "createdAt") {
+                    return Object.entries(value).map(([objKey, objValue]) => (
+                      <div key={`${key}-${objKey}`} className="bg-base-100 flex px-4 py-3">
+                        <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">
+                          {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </div>
+                        <div className="w-1/2 text-xs text-base-content font-mono">
+                          <span className="break-words font-normal text-base-content/80">{objValue?.toString()}</span>
+                        </div>
+                      </div>
+                    ));
+                  }
+
+                  // Regular single value display
+                  return (
+                    <div key={key} className="bg-base-100 flex px-4 py-3">
+                      <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">{displayKey}</div>
+                      <div className="w-1/2 text-xs text-base-content">
+                        <span className="break-words font-normal text-base-content/80">
+                          {key === "createdAt" || key === "created_at"
+                            ? new Date(value).toLocaleString()
+                            : value?.toString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+
+    if (pillsOnly) return pills;
+    if (panelsOnly) return panels;
+
+    return (
+      <div className="flex flex-col gap-1 mt-3 pr-12">
+        {pills}
+        {panels}
+      </div>
+    );
+  };
 
   const firstAttemptErrorNotice = item?.firstAttemptError ? (
     <div className="w-full mb-2">
@@ -1667,28 +1659,18 @@ const ThreadItem = ({
           /* ── Single-query vertical flow ── */
           <div className="flex flex-col w-full py-2">
             {/* User message — right-aligned bubble + U avatar */}
-            <div className="group mb-2">
+            <div className="group mb-2 relative">
               <div className="flex items-start justify-end gap-3">
                 <div
-                  onClick={
-                    !isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5)
-                      ? () => setIsUserQueryExpanded(true)
-                      : undefined
-                  }
-                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words relative border ${isDark
+                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words relative border ${
+                    isDark
                       ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
                       : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
-                    } ${!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) ? "cursor-pointer select-none" : ""}`}
+                  }`}
                   style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
                 >
                   {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                  <div
-                    className={
-                      !isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5)
-                        ? "overflow-hidden max-h-[140px]"
-                        : "whitespace-pre-line"
-                    }
-                  >
+                  <div className="whitespace-pre-line">
                     <ReactMarkdown
                       components={{
                         code: ({ node, inline, className, children, ...props }) => (
@@ -1701,38 +1683,12 @@ const ThreadItem = ({
                       {item.user}
                     </ReactMarkdown>
                   </div>
-
-                  {/* Semi-transparent fade-out overlay when collapsed */}
-                  {!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
-                    <div
-                      className={`absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t ${isDark ? "from-[#27272a]" : "from-[#f4f4f5]"} to-transparent pointer-events-none rounded-b-2xl`}
-                    />
-                  )}
-
-                  {/* Collapse button inside the bubble, shown only when expanded */}
-                  {isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
-                    <div className="flex justify-center mt-3 select-none">
-                      <button
-                        type="button"
-                        className={`btn btn-xs rounded-full border border-base-content/10 px-4 py-1 flex items-center gap-1.5 transition-colors font-semibold ${isDark
-                            ? "bg-base-200 text-base-content hover:bg-base-300"
-                            : "bg-base-100/10 text-neutral-content hover:bg-base-100/20"
-                          }`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsUserQueryExpanded(false);
-                        }}
-                      >
-                        <ChevronUp size={12} />
-                        <span>Collapse</span>
-                      </button>
-                    </div>
-                  )}
                 </div>
                 {/* Avatar */}
                 <div
-                  className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 ${isDark ? "bg-[#1a1a1a] text-white/50" : "bg-base-100 text-base-content/50"
-                    }`}
+                  className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 ${
+                    isDark ? "bg-[#1a1a1a] text-white/50" : "bg-base-100 text-base-content/50"
+                  }`}
                 >
                   U
                 </div>
@@ -1740,11 +1696,16 @@ const ThreadItem = ({
 
               {/* Action pills below user prompt bubble */}
               <div
-                className={`mt-3 pr-12 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                className={`absolute right-12 top-[calc(100%+8px)] z-20 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
               >
-                {renderStatefulMessageActionToolbar({ showTimestamp: true })}
+                {renderStatefulMessageActionToolbar({ showTimestamp: true, pillsOnly: true })}
               </div>
             </div>
+
+            {/* Action panels below user prompt bubble (in relative flow) */}
+            {isAnyPanelOpen && (
+              <div className="w-full mt-[2rem] mb-2">{renderStatefulMessageActionToolbar({ panelsOnly: true })}</div>
+            )}
 
             {isSingleQuery && item?.prompt && (
               <div className="w-full mt-3">
@@ -1886,12 +1847,13 @@ const ThreadItem = ({
                       data-testid={`thread-item-tool-${toolKey || chipIndex}`}
                       id={`thread-item-tool-${toolKey || chipIndex}`}
                       onClick={(event) => !isRAGTool && handleToolPrimaryClick(event, tool)}
-                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${isRAGTool
+                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${
+                        isRAGTool
                           ? "bg-info/10 border-info/30 hover:bg-info/20 cursor-default"
                           : isPreTool
                             ? "bg-warning/10 border-warning/30 hover:bg-warning/20 cursor-pointer"
                             : "bg-base-100 border-base-300 hover:bg-base-300 cursor-pointer"
-                        }`}
+                      }`}
                     >
                       {isRAGTool && <BookOpen size={14} className="text-info mr-1" title="Knowledge Base" />}
                       <span
@@ -1987,12 +1949,13 @@ const ThreadItem = ({
                                   data-testid={`thread-item-tool-${toolKey || i}`}
                                   id={`thread-item-tool-${toolKey || i}`}
                                   onClick={(event) => !isRAGTool && handleToolPrimaryClick(event, tool)}
-                                  className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 transition-colors text-sm ${isRAGTool
+                                  className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1.5 transition-colors text-sm ${
+                                    isRAGTool
                                       ? "bg-info/10 border-info/30 hover:bg-info/20 cursor-default"
                                       : isPreTool
                                         ? "bg-warning/10 border-warning/30 hover:bg-warning/20 cursor-pointer"
                                         : "bg-base-100 border-base-300 hover:bg-base-300 cursor-pointer"
-                                    }`}
+                                  }`}
                                 >
                                   {isRAGTool && (
                                     <BookOpen size={13} className="text-info mr-1" title="Knowledge Base" />
@@ -2147,13 +2110,14 @@ const ThreadItem = ({
                     onClick={
                       hasMultipleMessageTypes
                         ? (e) => {
-                          e.stopPropagation();
-                          setIsDropupOpen(!isDropupOpen);
-                        }
+                            e.stopPropagation();
+                            setIsDropupOpen(!isDropupOpen);
+                          }
                         : null
                     }
-                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border relative ${hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
-                      } bg-trace-gold/12 bottom-[30px] text-trace-gold border-trace-gold/20`}
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border relative ${
+                      hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
+                    } bg-trace-gold/12 bottom-[30px] text-trace-gold border-trace-gold/20`}
                   >
                     <BotIcon className="w-[25px] h-[25px]" />
                     {messageTypeDropdown}
@@ -2168,10 +2132,6 @@ const ThreadItem = ({
                     attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
                     content={getMessageToDisplay()}
                     isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
-                    contentRef={aiResponseRef}
-                    isExpanded={isAiResponseExpanded}
-                    overflows={aiResponseOverflows}
-                    onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
                     editButton={
                       !item?.llm_urls?.length && !item?.fromRTLayer ? (
                         <div
@@ -2203,13 +2163,14 @@ const ThreadItem = ({
           /* ── Multi-query chat bubble layout ── */
           <div>
             {/* User message — same dark bubble + U avatar for multi-query; buttons differ by mode */}
-            <div className="group mb-2">
+            <div className="group mb-2 relative">
               <div className="flex items-start justify-end gap-3">
                 <div
-                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words border ${isDark
+                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words border ${
+                    isDark
                       ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
                       : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
-                    }`}
+                  }`}
                   style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
                 >
                   {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
@@ -2232,18 +2193,27 @@ const ThreadItem = ({
               </div>
               {isStatelessConversation ? (
                 <div
-                  className={`transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  className={`absolute right-12 top-[calc(100%+8px)] z-20 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                 >
-                  {renderStatelessMultiQueryUserActions()}
+                  {renderStatelessMultiQueryUserActions(true, false)}
                 </div>
               ) : (
                 <div
-                  className={`mt-3 pr-12 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  className={`absolute right-12 top-[calc(100%+8px)] z-20 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                 >
-                  {renderStatefulMessageActionToolbar({ showTimestamp: true })}
+                  {renderStatefulMessageActionToolbar({ showTimestamp: true, pillsOnly: true })}
                 </div>
               )}
             </div>
+
+            {/* Render panels in relative flow if any panel is open */}
+            {isAnyPanelOpen && (
+              <div className="w-full mt-[2rem] mb-2">
+                {isStatelessConversation
+                  ? renderStatelessMultiQueryUserActions(false, true)
+                  : renderStatefulMessageActionToolbar({ panelsOnly: true })}
+              </div>
+            )}
 
             {/* Agent execution trace (replaces old tools UI in stateful mode) */}
             {hasAgentsOrTools && (
@@ -2301,12 +2271,13 @@ const ThreadItem = ({
                       data-testid={`thread-item-tool-${toolKey || chipIndex}`}
                       id={`thread-item-tool-${toolKey || chipIndex}`}
                       onClick={(event) => !isRAGTool && handleToolPrimaryClick(event, tool)}
-                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${isRAGTool
+                      className={`flex items-center gap-1.5 border rounded-lg px-3 py-1.5 transition-colors text-sm ${
+                        isRAGTool
                           ? "bg-info/10 border-info/30 hover:bg-info/20 cursor-default"
                           : isPreTool
                             ? "bg-warning/10 border-warning/30 hover:bg-warning/20 cursor-pointer"
                             : "bg-base-100 border-base-300 hover:bg-base-300 cursor-pointer"
-                        }`}
+                      }`}
                     >
                       {isRAGTool && <BookOpen size={14} className="text-info mr-1" title="Knowledge Base" />}
                       <span
@@ -2428,20 +2399,21 @@ const ThreadItem = ({
 
             {/* 3. Third: Render Assistant Message if exists */}
             {!item.error && (
-              <div className="w-full relative flex items-end gap-3 group">
+              <div className="w-full relative flex items-start gap-3 group">
                 {/* Left Column: Avatar */}
-                <div className="shrink-0 mb-1">
+                <div className="shrink-0 mb-1 self-end">
                   <div
                     onClick={
                       hasMultipleMessageTypes
                         ? (e) => {
-                          e.stopPropagation();
-                          setIsDropupOpen(!isDropupOpen);
-                        }
+                            e.stopPropagation();
+                            setIsDropupOpen(!isDropupOpen);
+                          }
                         : null
                     }
-                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border relative ${hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
-                      } bg-trace-gold/12 text-trace-gold border-trace-gold/20`}
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border relative ${
+                      hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
+                    } bg-trace-gold/12 text-trace-gold border-trace-gold/20`}
                   >
                     <BotIcon size={16} />
                     {messageTypeDropdown}
@@ -2470,10 +2442,6 @@ const ThreadItem = ({
                     attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
                     content={getMessageToDisplay()}
                     isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
-                    contentRef={aiResponseRef}
-                    isExpanded={isAiResponseExpanded}
-                    overflows={aiResponseOverflows}
-                    onToggleExpand={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
                     editButton={
                       !item?.llm_urls?.length && !item?.fromRTLayer ? (
                         <div
@@ -2496,7 +2464,7 @@ const ThreadItem = ({
 
                   {/* Action buttons and badges below FinalResponseCard */}
                   <div
-                    className={`mt-3 flex flex-wrap items-center gap-2 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                    className={`absolute left-0 top-[100%] z-20 flex flex-wrap items-center gap-2 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                   >
                     {renderResponseActionButtons(!isStatelessConversation)}
                     {responseStatusBadges && (
