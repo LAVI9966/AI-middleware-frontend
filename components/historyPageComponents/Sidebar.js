@@ -76,7 +76,17 @@ const Sidebar = memo(
           }
         }
       }
-    }, [subThreads, expandedThreads, searchParams?.thread_id, searchParams?.subThread_id, searchParams?.version, searchParams?.message_id, searchParams?.type, pathName, router]);
+    }, [
+      subThreads,
+      expandedThreads,
+      searchParams?.thread_id,
+      searchParams?.subThread_id,
+      searchParams?.version,
+      searchParams?.message_id,
+      searchParams?.type,
+      pathName,
+      router,
+    ]);
 
     const handleVersionChange = async (event) => {
       const version = event.target.value;

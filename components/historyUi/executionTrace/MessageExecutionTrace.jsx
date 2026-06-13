@@ -22,7 +22,10 @@ export default function MessageExecutionTrace({
   const [traceData, setTraceData] = useState(null);
 
   // Memoize item properties to prevent unnecessary re-renders
-  const itemKey = useMemo(() => `${item?.thread_id}:${item?.message_id}:${item?.tools_call_data ? JSON.stringify(item.tools_call_data) : ''}`, [item?.thread_id, item?.message_id, item?.tools_call_data]);
+  const itemKey = useMemo(
+    () => `${item?.thread_id}:${item?.message_id}:${item?.tools_call_data ? JSON.stringify(item.tools_call_data) : ""}`,
+    [item?.thread_id, item?.message_id, item?.tools_call_data]
+  );
 
   const hasToolsData = useMemo(() => flattenToolsCallData(item?.tools_call_data).length > 0, [item?.tools_call_data]);
 
@@ -82,13 +85,7 @@ export default function MessageExecutionTrace({
     return () => {
       cancelled = true;
     };
-  }, [
-    hasToolsData,
-    bridgeId,
-    itemKey,
-    rootAgentName,
-    formatDateAndTime,
-  ]);
+  }, [hasToolsData, bridgeId, itemKey, rootAgentName, formatDateAndTime]);
 
   if (!hasToolsData) return null;
 

@@ -25,6 +25,7 @@ import {
   Braces,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Clock3,
   ExternalLink,
   RotateCcw,
@@ -1556,12 +1557,26 @@ const ThreadItem = ({
             )}
             {item?.model && <span className="text-xs font-medium text-base-content/60 shrink-0">{item.model}</span>}
             {(item?.tokens?.input_tokens != null || item?.tokens?.output_tokens != null) && (
-              <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
+              <span
+                className="text-xs text-base-content/40 flex items-center gap-1 shrink-0 cursor-help"
+                title={`Tokens: ${(item.tokens.input_tokens ?? 0).toLocaleString()} input • ${(item.tokens.output_tokens ?? 0).toLocaleString()} output • ${(item.tokens.total_tokens ?? (item.tokens.input_tokens ?? 0) + (item.tokens.output_tokens ?? 0)).toLocaleString()} total`}
+              >
                 <span className="text-base-content/20">·</span>
                 <span>Tokens:</span>
-                <span className="font-medium text-base-content/60">{item.tokens.input_tokens ?? 0} input</span>
+                <span className="font-medium text-base-content/60">
+                  {(item.tokens.input_tokens ?? 0).toLocaleString()} INPUT
+                </span>
                 <span className="text-base-content/20">/</span>
-                <span className="font-medium text-base-content/60">{item.tokens.output_tokens ?? 0} output</span>
+                <span className="font-medium text-base-content/60">
+                  {(item.tokens.output_tokens ?? 0).toLocaleString()} OUTPUT
+                </span>
+                <span className="text-base-content/20">/</span>
+                <span className="font-medium text-base-content/60">
+                  {(
+                    item.tokens.total_tokens ?? (item.tokens.input_tokens ?? 0) + (item.tokens.output_tokens ?? 0)
+                  ).toLocaleString()}{" "}
+                  TOTAL
+                </span>
               </span>
             )}
             {item?.tokens?.expected_cost && (
@@ -1662,11 +1677,16 @@ const ThreadItem = ({
             <div className="group mb-2 relative">
               <div className="flex items-start justify-end gap-3">
                 <div
+                  onClick={
+                    !isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5)
+                      ? () => setIsUserQueryExpanded(true)
+                      : undefined
+                  }
                   className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words relative border ${
                     isDark
                       ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
                       : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
-                  }`}
+                  } ${!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) ? "cursor-pointer select-none" : ""}`}
                   style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
                 >
                   {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
@@ -1683,6 +1703,34 @@ const ThreadItem = ({
                       {item.user}
                     </ReactMarkdown>
                   </div>
+
+                  {/* Semi-transparent fade-out overlay when collapsed */}
+                  {!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t ${isDark ? "from-[#27272a]" : "from-[#f4f4f5]"} to-transparent pointer-events-none rounded-b-2xl`}
+                    />
+                  )}
+
+                  {/* Collapse button inside the bubble, shown only when expanded */}
+                  {isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
+                    <div className="flex justify-center mt-3 select-none">
+                      <button
+                        type="button"
+                        className={`btn btn-xs rounded-full border border-base-content/10 px-4 py-1 flex items-center gap-1.5 transition-colors font-semibold ${
+                          isDark
+                            ? "bg-base-200 text-base-content hover:bg-base-300"
+                            : "bg-base-100/10 text-neutral-content hover:bg-base-100/20"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsUserQueryExpanded(false);
+                        }}
+                      >
+                        <ChevronUp size={12} />
+                        <span>Collapse</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 {/* Avatar */}
                 <div

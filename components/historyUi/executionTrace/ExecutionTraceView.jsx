@@ -144,9 +144,22 @@ function Meta({ latency, tokens, cost }) {
   const tokTotal = tokObj ? tokObj.total : tokens;
   return (
     <div className="flex items-center gap-1.5 text-[11px] text-base-content/45 font-medium shrink-0 ml-auto mr-1 select-none">
-      <span>•</span>
       {latency != null && <span>{fmt(latency)}</span>}
-      {tokTotal != null && <span>{tokTotal.toLocaleString()} tok</span>}
+      {tokObj ? (
+        <span
+          className="cursor-help"
+          title={`Tokens: ${(tokObj.input ?? 0).toLocaleString()} input • ${(tokObj.output ?? 0).toLocaleString()} output • ${(tokObj.total ?? (tokObj.input ?? 0) + (tokObj.output ?? 0)).toLocaleString()} total`}
+        >
+          {(tokObj.input ?? 0).toLocaleString()} IN • {(tokObj.output ?? 0).toLocaleString()} OUT •{" "}
+          {(tokObj.total ?? (tokObj.input ?? 0) + (tokObj.output ?? 0)).toLocaleString()} TOTAL
+        </span>
+      ) : (
+        tokTotal != null && (
+          <span className="cursor-help" title={`Total Tokens: ${tokTotal.toLocaleString()}`}>
+            {tokTotal.toLocaleString()} TOTAL
+          </span>
+        )
+      )}
       {cost != null && <span>${Number(cost).toFixed(3)}</span>}
     </div>
   );
@@ -327,15 +340,15 @@ function ToolActionButtons({ rawTool, isRag }) {
   if (!rawTool) return null;
 
   return (
-    <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+    <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
       {!isRag && onToolLogsClick && (
         <button
           type="button"
-          className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
+          className="flex items-center gap-1 rounded border border-primary/30 bg-primary/5 hover:bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary transition-all duration-100 active:scale-95 cursor-pointer shadow-xs"
           title="function logs"
           onClick={(e) => onToolLogsClick(e, rawTool)}
         >
-          <SquareFunction size={14} />
+          <span>Logs</span>
         </button>
       )}
     </div>
@@ -733,7 +746,7 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
 
   const hue = root && !embedded ? null : resolveAgentHue(a, node.agent, node.hue);
   const theme = hue ? HUE_THEME[hue] : null;
-  const shellClass = theme && !(open && hasBody) ? theme.shell : "";
+  const shellClass = theme ? theme.shell : "";
 
   const renderStep = (s, i) => {
     if (s.type === "text") return <TextStep key={i} step={s} />;
@@ -914,10 +927,21 @@ export default function ExecutionTraceView({
               </div>
             )}
             {meta.totalTokens != null && (
-              <div className="flex flex-col">
+              <div
+                className="flex flex-col cursor-help"
+                title={
+                  typeof meta.totalTokens === "object"
+                    ? `Tokens: ${meta.totalTokens.input.toLocaleString()} input • ${meta.totalTokens.output.toLocaleString()} output • ${(meta.totalTokens.total ?? (meta.totalTokens.input ?? 0) + (meta.totalTokens.output ?? 0)).toLocaleString()} total`
+                    : `Total Tokens: ${meta.totalTokens.toLocaleString()}`
+                }
+              >
                 {typeof meta.totalTokens === "object" ? (
                   <b className="text-sm">
-                    {meta.totalTokens.input.toLocaleString()}IN {meta.totalTokens.output.toLocaleString()}OP
+                    {meta.totalTokens.input.toLocaleString()}IN {meta.totalTokens.output.toLocaleString()}OUT{" "}
+                    {(
+                      meta.totalTokens.total ?? (meta.totalTokens.input ?? 0) + (meta.totalTokens.output ?? 0)
+                    ).toLocaleString()}
+                    TOTAL
                   </b>
                 ) : (
                   <b className="text-sm">{meta.totalTokens.toLocaleString()}</b>
