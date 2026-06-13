@@ -13,3 +13,4 @@ export * from "./utilityApi";
 export * from "./historyApi";
 export * from "./integrationApi";
 export * from "./richUiTemplateApi";
+export * from "./folderApi";

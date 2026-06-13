@@ -910,7 +910,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         return Object.entries(parsed).map(([key, value]) => ({
           key,
-          value: typeof value === "object" ? JSON.stringify(value) : String(value),
+          value: value === null ? null : typeof value === "object" ? JSON.stringify(value) : String(value),
         }));
       }
     } catch {
@@ -941,12 +941,14 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
       const jsonVariables = parseJsonToKeyValue(bulkEditText);
       if (jsonVariables) {
         const parsed = jsonVariables.map(({ key, value }) => {
-          const type = inferType(value, "");
-          const valueCheck = validateAndFormatValue(value, type, { allowEmpty: false });
+          const isNull = value === null || String(value).toLowerCase() === "null";
+          const safeValue = isNull ? "" : value;
+          const type = inferType(safeValue, "");
+          const valueCheck = validateAndFormatValue(safeValue, type, { allowEmpty: false });
 
           return {
             key,
-            value: valueCheck.ok ? valueCheck.value : value,
+            value: valueCheck.ok ? valueCheck.value : safeValue,
             defaultValue: "",
             required: true,
             type,

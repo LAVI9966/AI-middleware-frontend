@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable no-commented-code/no-commented-code, unused-imports/no-unused-imports, unused-imports/no-unused-vars */
 import CustomTable from "@/components/customTable/CustomTable";
 import MainLayout from "@/components/layoutComponents/MainLayout";
 import KnowledgeBaseModal from "@/components/modals/KnowledgeBaseModal";
@@ -10,12 +11,17 @@ import { deleteResourceAction, getAllKnowBaseDataAction } from "@/store/action/k
 import { KNOWLEDGE_BASE_COLUMNS, MODAL_TYPE } from "@/utils/enums";
 import { openModal, formatRelativeTime, formatDate, GetFileTypeIcon } from "@/utils/utility";
 import { SquarePenIcon, TrashIcon } from "@/components/Icons";
-import React, { useEffect, useState, use } from "react";
+import React, { useEffect, useState, use, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import DeleteModal from "@/components/UI/DeleteModal";
 import SearchItems from "@/components/UI/SearchItems";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
-import { FileSearch } from "lucide-react";
+import { FileSearch, Folder } from "lucide-react";
+import ResourcePage from "@/components/folders/ResourcePage";
+import FolderTabs from "@/components/folders/FolderTabs";
+import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
+import useFolders from "@/hooks/useFolders";
+import { useFolderContext } from "@/components/folders/FolderContext";
 
 export const runtime = "edge";
 
@@ -27,6 +33,11 @@ const Page = ({ params }) => {
     descriptions: state.flowDataReducer.flowData.descriptionsData?.descriptions || {},
     linksData: state.flowDataReducer.flowData.linksData || [],
   }));
+  const { folders, createFolder, renameFolder, deleteFolder, moveResource } = useFolders(
+    "knowledgebase",
+    resolvedParams.org_id
+  );
+  const { activeFolderId, setDraggedResourceId } = useFolderContext();
   const [selectedKnowledgeBase, setSelectedKnowledgeBase] = useState();
   const [filterKnowledgeBase, setFilterKnowledgeBase] = useState(knowledgeBaseData);
   const [selectedDataToDelete, setselectedDataToDelete] = useState(null);
@@ -36,7 +47,21 @@ const Page = ({ params }) => {
   useEffect(() => {
     setFilterKnowledgeBase(knowledgeBaseData);
   }, [knowledgeBaseData]);
-  const tableData = filterKnowledgeBase.map((item) => ({
+
+  const displayedKnowledgeBase = useMemo(() => {
+    return filterKnowledgeBase;
+    /* if (activeFolderId === null) return filterKnowledgeBase;
+    const getResourceFolderId = (resourceId) => {
+      const folder = folders.find((f) => f.config?.resourceIds?.includes(resourceId));
+      return folder ? folder._id : null;
+    };
+    if (activeFolderId === "uncategorized") {
+      return filterKnowledgeBase.filter((item) => !getResourceFolderId(item._id));
+    }
+    return filterKnowledgeBase.filter((item) => getResourceFolderId(item._id) === activeFolderId); */
+  }, [filterKnowledgeBase, folders, activeFolderId]);
+
+  const tableData = displayedKnowledgeBase.map((item) => ({
     ...item,
     actualName: item?.title,
     createdAt_original: item?.createdAt,
@@ -123,6 +148,21 @@ const Page = ({ params }) => {
         <div className="tooltip tooltip-primary" data-tip="Update" onClick={() => handleUpdateKnowledgeBase(row)}>
           <SquarePenIcon size={20} />
         </div>
+        {/* <div className="dropdown dropdown-left">
+          <label tabIndex={0} className="btn btn-ghost btn-xs btn-circle text-base-content/70 hover:bg-base-300">
+            <Folder size={14} />
+          </label>
+          <div tabIndex={0} className="dropdown-content z-[100] mt-2">
+            <MoveToFolderMenu
+              folders={folders}
+              currentFolderId={(() => {
+                const folder = Array.isArray(folders) ? folders.find((f) => f && f.config?.resourceIds?.includes(row._id)) : null;
+                return folder ? folder._id : null;
+              })()}
+              onMove={(folderId) => moveResource(row._id, folderId)}
+            />
+          </div>
+        </div> */}
       </div>
     );
   };
@@ -142,73 +182,93 @@ const Page = ({ params }) => {
   }, [resolvedParams.org_id]);
 
   return (
-    <div className="w-full">
-      <div className="px-2 pt-4">
-        <MainLayout>
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between w-full gap-2">
-            <PageHeader
-              title="Knowledge Base"
-              description={
-                descriptions?.["Knowledge Base"] ||
-                "A knowledge Base is a collection of useful info like docs and FAQs. You can add it via files, URLs, or websites. Agents use this data to generate dynamic, context-aware responses without hardcoding."
-              }
-              docLink={linksData?.find((link) => link.title === "Knowledge Base")?.blog_link}
-            />
-          </div>
-        </MainLayout>
-        <div className="flex flex-row gap-4">
-          {knowledgeBaseData?.length > 5 && (
-            <SearchItems data={knowledgeBaseData} setFilterItems={setFilterKnowledgeBase} item="KnowledgeBase" />
-          )}
-          <div className={`flex-shrink-0 ${knowledgeBaseData?.length > 5 ? "mr-2" : "ml-2"}`}>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => {
-                if (window.openRag) {
-                  window.openRag();
-                } else {
-                  openModal(MODAL_TYPE?.KNOWLEDGE_BASE_MODAL);
+    <div className="flex w-full min-h-screen">
+      <div className="w-full flex-1 overflow-x-hidden flex flex-col">
+        <div className="px-2 pt-4">
+          <MainLayout>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between w-full gap-2">
+              <PageHeader
+                title="Knowledge Base"
+                description={
+                  descriptions?.["Knowledge Base"] ||
+                  "A knowledge Base is a collection of useful info like docs and FAQs. You can add it via files, URLs, or websites. Agents use this data to generate dynamic, context-aware responses without hardcoding."
                 }
-              }}
-            >
-              + Create Knowledge Base
-            </button>
+                docLink={linksData?.find((link) => link.title === "Knowledge Base")?.blog_link}
+              />
+            </div>
+          </MainLayout>
+          <div className="flex flex-row flex-wrap gap-4 px-4 pb-3 items-center">
+            {knowledgeBaseData?.length > 5 && (
+              <SearchItems data={knowledgeBaseData} setFilterItems={setFilterKnowledgeBase} item="KnowledgeBase" />
+            )}
+            <div className={`flex-shrink-0 ${knowledgeBaseData?.length > 5 ? "mr-2" : "ml-2"}`}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  if (window.openRag) {
+                    window.openRag();
+                  } else {
+                    openModal(MODAL_TYPE?.KNOWLEDGE_BASE_MODAL);
+                  }
+                }}
+              >
+                + Create Knowledge Base
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+        {/* {!isEmbedUser && (
+          <FolderTabs
+            folders={folders}
+            resourceType="knowledgebase"
+            onCreateFolder={createFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
+            onMoveResource={moveResource}
+          />
+        )} */}
 
-      {filterKnowledgeBase.length > 0 ? (
-        <CustomTable
-          data={tableData}
-          columnsToShow={KNOWLEDGE_BASE_COLUMNS}
-          sorting
-          sortingColumns={["name", "created"]}
-          keysToWrap={["name", "description"]}
-          endComponent={EndComponent}
+        {filterKnowledgeBase.length > 0 ? (
+          <CustomTable
+            data={tableData}
+            /* draggableRows={true}
+            onDragStart={(row) => setDraggedResourceId(row._id)}
+            onDragEnd={() => setDraggedResourceId(null)} */
+            columnsToShow={KNOWLEDGE_BASE_COLUMNS}
+            sorting
+            sortingColumns={["name", "created"]}
+            keysToWrap={["name", "description"]}
+            endComponent={EndComponent}
+          />
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500 text-lg">No knowledge base entries found</p>
+          </div>
+        )}
+
+        <KnowledgeBaseModal
+          params={resolvedParams}
+          selectedResource={selectedKnowledgeBase}
+          setSelectedResource={setSelectedKnowledgeBase}
         />
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-gray-500 text-lg">No knowledge base entries found</p>
-        </div>
-      )}
-
-      <KnowledgeBaseModal
-        params={resolvedParams}
-        selectedResource={selectedKnowledgeBase}
-        setSelectedResource={setSelectedKnowledgeBase}
-      />
-      <ResourceChunksModal resourceId={selectedResourceForChunks.id} resourceName={selectedResourceForChunks.name} />
-      <QueryKnowledgeBaseModal resource={selectedResourceForQuery} orgId={resolvedParams.org_id} />
-      <DeleteModal
-        onConfirm={handleDeleteKnowledgebase}
-        item={selectedDataToDelete}
-        title="Delete knowledgeBase "
-        description={`Are you sure you want to delete the KnowledgeBase "${selectedDataToDelete?.actual_name}"? This action cannot be undone.`}
-        loading={isDeleting}
-        isAsync={true}
-      />
+        <ResourceChunksModal resourceId={selectedResourceForChunks.id} resourceName={selectedResourceForChunks.name} />
+        <QueryKnowledgeBaseModal resource={selectedResourceForQuery} orgId={resolvedParams.org_id} />
+        <DeleteModal
+          onConfirm={handleDeleteKnowledgebase}
+          item={selectedDataToDelete}
+          title="Delete knowledgeBase "
+          description={`Are you sure you want to delete the KnowledgeBase "${selectedDataToDelete?.actual_name}"? This action cannot be undone.`}
+          loading={isDeleting}
+          isAsync={true}
+        />
+      </div>
     </div>
   );
 };
 
-export default Page;
+const WrappedPage = (props) => (
+  <ResourcePage>
+    <Page {...props} />
+  </ResourcePage>
+);
+export default WrappedPage;
