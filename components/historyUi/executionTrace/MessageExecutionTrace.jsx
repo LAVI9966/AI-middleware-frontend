@@ -17,11 +17,19 @@ export default function MessageExecutionTrace({
   onAgentDataClick,
   onAgentHistoryClick,
 }) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [traceData, setTraceData] = useState(null);
+  // Memoize item properties to prevent unnecessary re-renders
+  const itemKey = useMemo(
+    () => `${item?.thread_id}:${item?.message_id}:${item?.tools_call_data ? JSON.stringify(item.tools_call_data) : ""}`,
+    [item?.thread_id, item?.message_id, item?.tools_call_data]
+  );
 
   const hasToolsData = useMemo(() => flattenToolsCallData(item?.tools_call_data).length > 0, [item?.tools_call_data]);
+
+  const shouldFetch = hasToolsData && Boolean(bridgeId && item?.thread_id && item?.message_id);
+
+  const [loading, setLoading] = useState(shouldFetch);
+  const [error, setError] = useState(null);
+  const [traceData, setTraceData] = useState(null);
 
   const localTrace = useMemo(() => {
     if (!hasToolsData) return null;
@@ -29,24 +37,29 @@ export default function MessageExecutionTrace({
       rootAgentName,
       formatTime: formatDateAndTime,
     });
-  }, [item, rootAgentName, formatDateAndTime, hasToolsData]);
+  }, [itemKey, rootAgentName, formatDateAndTime, hasToolsData]);
 
   useEffect(() => {
     if (!hasToolsData) {
       setTraceData(null);
+      setLoading(false);
       return;
     }
+
+    if (!bridgeId || !item?.thread_id || !item?.message_id) {
+      setTraceData(localTrace);
+      setLoading(false);
+      return;
+    }
+
+    // Reset loading and trace data immediately to display the loading spinner for the new message/thread
+    setLoading(true);
+    setTraceData(null);
+    setError(null);
 
     let cancelled = false;
 
     async function load() {
-      if (!bridgeId || !item?.thread_id || !item?.message_id) {
-        if (!cancelled) setTraceData(localTrace);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
       try {
         const response = await getRecursiveHistory({
           agent_id: bridgeId,
@@ -79,16 +92,7 @@ export default function MessageExecutionTrace({
     return () => {
       cancelled = true;
     };
-  }, [
-    hasToolsData,
-    bridgeId,
-    item?.thread_id,
-    item?.message_id,
-    item?.tools_call_data,
-    localTrace,
-    rootAgentName,
-    formatDateAndTime,
-  ]);
+  }, [hasToolsData, bridgeId, itemKey, rootAgentName, formatDateAndTime, localTrace]);
 
   if (!hasToolsData) return null;
 

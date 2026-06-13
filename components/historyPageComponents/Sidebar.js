@@ -1,6 +1,11 @@
 import { useCustomSelector } from "@/customHooks/customSelector.js";
 import { getHistoryAction, getSubThreadsAction } from "@/store/action/historyAction.js";
-import { clearSubThreadData, clearThreadData, setSelectedVersion } from "@/store/reducer/historyReducer.js";
+import {
+  clearSubThreadData,
+  clearThreadData,
+  setSelectedVersion,
+  clearRecursiveHistory,
+} from "@/store/reducer/historyReducer.js";
 import { USER_FEEDBACK_FILTER_OPTIONS, HISTORY_FILTER_BY_FIELDS } from "@/utils/enums.js";
 import { formatDate, formatRelativeTime } from "@/utils/utility.js";
 import { ThumbsDownIcon, ThumbsUpIcon, UserIcon, MessageCircleIcon } from "@/components/Icons";
@@ -34,8 +39,9 @@ const Sidebar = memo(
     isErrorTrue,
     activeFilterByRef,
   }) => {
-    const { subThreads, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
+    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
       subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
+      subThreadsParentId: state?.historyReducer?.subThreadsParentId,
       userFeedbackCount: state?.historyReducer?.userFeedbackCount,
       bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
         ? state.bridgeReducer.allBridgesMap[params.id].versions
@@ -55,6 +61,7 @@ const Sidebar = memo(
 
     useEffect(() => {
       if (
+        subThreadsParentId === searchParams?.thread_id &&
         expandedThreads?.includes(searchParams?.thread_id) &&
         subThreads?.length > 0 &&
         searchParams?.thread_id &&
@@ -76,11 +83,24 @@ const Sidebar = memo(
           }
         }
       }
-    }, [subThreads, expandedThreads, searchParams?.thread_id, searchParams?.subThread_id]);
+    }, [
+      subThreads,
+      subThreadsParentId,
+      expandedThreads,
+      searchParams?.thread_id,
+      searchParams?.subThread_id,
+      searchParams?.version,
+      searchParams?.message_id,
+      searchParams?.type,
+      pathName,
+      router,
+    ]);
 
     const handleVersionChange = async (event) => {
       const version = event.target.value;
       dispatch(clearSubThreadData());
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       dispatch(setSelectedVersion(version));
     };
 
@@ -97,7 +117,7 @@ const Sidebar = memo(
           })
         );
       }
-    }, [searchParams?.thread_id]);
+    }, [searchParams?.thread_id, isErrorTrue, params.id, selectedVersion, dispatch]);
 
     useEffect(() => {
       const p = new URLSearchParams(window.location.search);
@@ -107,14 +127,14 @@ const Sidebar = memo(
       if (!liveThreadId || !liveVersion || versionMismatch) {
         return;
       }
-      if (subThreads?.length > 0 && expandedThreads?.includes(liveThreadId)) {
+      if (subThreadsParentId === liveThreadId && subThreads?.length > 0 && expandedThreads?.includes(liveThreadId)) {
         const firstSubThreadId = subThreads[0]?.sub_thread_id;
         if (firstSubThreadId) {
           const url = `${pathName}?version=${liveVersion}&thread_id=${liveThreadId}&subThread_id=${firstSubThreadId}&start=${p.get("start") || ""}&end=${p.get("end") || ""}${p.get("message_id") ? `&message_id=${p.get("message_id")}` : ""}&type=${p.get("type") || ""}`;
           router.push(url, undefined, { shallow: true });
         }
       }
-    }, [subThreads, selectedVersion, expandedThreads]);
+    }, [subThreads, subThreadsParentId, selectedVersion, expandedThreads, pathName, router]);
     const debounce = (func, delay) => {
       let timeoutId;
       return (...args) => {
@@ -311,6 +331,8 @@ const Sidebar = memo(
     };
 
     const handleSelectSubThread = async (subThreadId, threadId) => {
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       setThreadPage(1);
       setExpandedThreads([threadId]);
       const start = searchParams?.start;
@@ -323,6 +345,8 @@ const Sidebar = memo(
     };
 
     const handleFilterChange = async (user_feedback) => {
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       setFilterOption(user_feedback);
       setThreadPage(1);
     };
@@ -340,6 +364,8 @@ const Sidebar = memo(
     );
 
     const handleCheckError = async (isError) => {
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       if (isError === true) {
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.set("error", "true");
@@ -348,7 +374,6 @@ const Sidebar = memo(
         setThreadPage(1);
         setIsErrorTrue(true);
         setHasMore(true);
-        dispatch(clearThreadData());
         window.history.replaceState(null, "", `?${queryString}`);
       } else {
         setIsErrorTrue(false);
@@ -455,6 +480,7 @@ const Sidebar = memo(
                           </label>
                           <input
                             autoComplete="off"
+                            data-testid={`history-sidebar-filter-by-${fieldKey}`}
                             type="text"
                             className="input input-xs input-bordered w-full text-xs"
                             placeholder={`Search ${fieldKey.replace(/_/g, " ")}...`}
@@ -468,6 +494,7 @@ const Sidebar = memo(
                       <div className="flex gap-1 w-full min-w-0">
                         <input
                           autoComplete="off"
+                          data-testid="history-sidebar-filter-by-variable-key"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="key"
@@ -476,6 +503,7 @@ const Sidebar = memo(
                         />
                         <input
                           autoComplete="off"
+                          data-testid="history-sidebar-filter-by-variable-value"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="value"
@@ -613,7 +641,9 @@ const Sidebar = memo(
                               handleToggleThread(item?.thread_id);
                             } else {
                               // Otherwise, select the thread
-                              threadHandler(item?.thread_id);
+                              dispatch(clearThreadData());
+                              dispatch(clearRecursiveHistory());
+                              threadHandler(item?.thread_id, item);
                             }
                           }}
                         >

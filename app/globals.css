@@ -7,6 +7,15 @@
   .group:hover .group-hover\:opacity-100 { opacity: 1; }
 }
 
+@layer utilities {
+  .group:hover .group-hover\:opacity-0 {
+    opacity: 0;
+  }
+  .group:hover .group-hover\:opacity-100 {
+    opacity: 1;
+  }
+}
+
 /* Global Input and Textarea Styles - Theme Aware */
 @layer components {
   .input,
@@ -107,8 +116,8 @@ body {
 }
 
 .r-body.open {
-  max-height: 16rem;
-  overflow-y: auto;
+  max-height: 9999px;
+  overflow-y: visible;
   opacity: 1;
 }
 

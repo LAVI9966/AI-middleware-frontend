@@ -10,6 +10,8 @@ const initialState = {
   selectedVersion: "all",
   loading: false,
   success: false,
+  subThreads: [],
+  subThreadsParentId: null,
 };
 
 export const historyReducer = createSlice({
@@ -34,6 +36,9 @@ export const historyReducer = createSlice({
 
     clearThreadData: (state) => {
       state.thread = [];
+      state.recursiveHistory = null;
+      state.recursiveHistoryLoading = false;
+      state.recursiveHistoryError = null;
     },
     updateHistoryMessageReducer: (state, action) => {
       const { index, data } = action.payload;
@@ -44,11 +49,13 @@ export const historyReducer = createSlice({
       state.userFeedbackCount = data;
     },
     fetchSubThreadReducer: (state, action) => {
-      const { data } = action.payload;
+      const { data, thread_id } = action.payload;
       state.subThreads = data;
+      state.subThreadsParentId = thread_id;
     },
     clearSubThreadData: (state) => {
       state.subThreads = [];
+      state.subThreadsParentId = null;
     },
     setSelectedVersion: (state, action) => {
       state.selectedVersion = action.payload;
@@ -84,6 +91,11 @@ export const historyReducer = createSlice({
       state.recursiveHistoryLoading = false;
       state.recursiveHistoryError = null;
     },
+    clearRecursiveHistory: (state) => {
+      state.recursiveHistory = null;
+      state.recursiveHistoryLoading = false;
+      state.recursiveHistoryError = null;
+    },
   },
 });
 
@@ -101,5 +113,6 @@ export const {
   addThreadNMessageUsingRtLayer,
   fetchRecursiveHistoryStart,
   fetchRecursiveHistorySuccess,
+  clearRecursiveHistory,
 } = historyReducer.actions;
 export default historyReducer.reducer;

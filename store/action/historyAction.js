@@ -90,7 +90,7 @@ export const getSubThreadsAction =
   async (dispatch) => {
     try {
       const data = await getSubThreadIds({ thread_id, error, bridge_id, version_id });
-      dispatch(fetchSubThreadReducer({ data: data.threads }));
+      dispatch(fetchSubThreadReducer({ data: data.threads, thread_id }));
     } catch (error) {
       console.error(error);
     }
@@ -101,9 +101,7 @@ export const getRecursiveHistoryAction =
   async (dispatch) => {
     try {
       dispatch(fetchRecursiveHistoryStart());
-
       const data = await getRecursiveHistory({ agent_id, thread_id, message_id });
-
       dispatch(fetchRecursiveHistorySuccess({ data }));
       return data;
     } catch (error) {

@@ -39,6 +39,7 @@ export const MODAL_TYPE = {
   CHATBOT_MODAL: "chatBot_model",
   CREATE_ORG_MODAL: "create-org-modal",
   WEBHOOK_MODAL: "WEBHOOK_MODAL",
+  CHAT_DETAILS_MODAL: "chat_details_modal",
   CHAT_DETAILS_VIEW_MODAL: "chat_details_view",
   JSON_SCHEMA: "JSON_SCHEMA",
   JSON_SCHEMA_BUILDER: "JSON_SCHEMA_BUILDER",
