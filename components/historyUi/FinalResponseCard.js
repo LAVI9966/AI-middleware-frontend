@@ -3,8 +3,8 @@
 import React from "react";
 import { Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import CodeBlock from "../codeBlock/CodeBlock";
 import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
+import { mdComponentsLight, mdRemarkPlugins } from "@/utils/markdownComponents";
 
 /**
  * Final AI response card — transparent and borderless.
@@ -38,19 +38,11 @@ export function FinalResponseCard({
       {/* Body container — wrapped in ExpandCollapse for long content */}
       <ExpandCollapse collapsedHeight={300} fadeHeight={90} expandLabel="Show more" collapseLabel="Collapse">
         <div data-testid="final-response-content">
-          <div className="whitespace-pre-wrap leading-relaxed">
+          <div className="">
             {isHtml ? (
               <div dangerouslySetInnerHTML={{ __html: content }} />
             ) : (
-              <ReactMarkdown
-                components={{
-                  code: ({ node, inline, className, children, ...props }) => (
-                    <CodeBlock className={className} {...props}>
-                      {children}
-                    </CodeBlock>
-                  ),
-                }}
-              >
+              <ReactMarkdown components={mdComponentsLight} remarkPlugins={mdRemarkPlugins}>
                 {content}
               </ReactMarkdown>
             )}

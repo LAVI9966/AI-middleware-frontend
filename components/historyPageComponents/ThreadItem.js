@@ -1759,7 +1759,7 @@ const ThreadItem = ({
             </div>
 
             {isSingleQuery && item?.prompt && (
-              <div className="w-full mt-3">
+              <div className={`w-full ${hasAgentsOrTools ? "mb-3" : "mb-6"}`}>
                 <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20">
                   <div
                     className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
@@ -2166,11 +2166,11 @@ const ThreadItem = ({
                           }
                         : null
                     }
-                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border  relative ${
+                    className={`shrink-0  rounded-full border border-primary/50 p-1 flex items-center justify-center text-primary relative ${
                       hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
-                    } bg-trace-gold/12 text-trace-gold border-trace-gold/20`}
+                    }`}
                   >
-                    <BotIcon className="w-[25px] h-[25px]" />
+                    <BotIcon size={16} />
                     {messageTypeDropdown}
                   </div>
                 </div>

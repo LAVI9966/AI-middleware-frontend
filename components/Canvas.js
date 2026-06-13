@@ -219,9 +219,9 @@ function Canvas({
                 </div>
 
                 {/* Chat Bubble */}
-                <div className="chat-bubble text-sm leading-relaxed max-w-full sm:max-w-md md:max-w-lg lg:max-w-xl break-words">
+                <div className="chat-bubble text-sm leading-snug max-w-full sm:max-w-md md:max-w-lg lg:max-w-xl break-words">
                   {isJson ? (
-                    <pre className="whitespace-pre-wrap text-base-content font-mono text-xs bg-base-200 p-3 rounded-lg overflow-x-auto">
+                    <pre className="text-base-content font-mono text-xs bg-base-200 p-3 rounded-lg overflow-x-auto">
                       <CodeBlock>{formatted}</CodeBlock>
                     </pre>
                   ) : (

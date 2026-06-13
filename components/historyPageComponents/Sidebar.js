@@ -39,14 +39,19 @@ const Sidebar = memo(
     isErrorTrue,
     activeFilterByRef,
   }) => {
-    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
-      subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
-      subThreadsParentId: state?.historyReducer?.subThreadsParentId,
-      userFeedbackCount: state?.historyReducer?.userFeedbackCount,
-      bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
-        ? state.bridgeReducer.allBridgesMap[params.id].versions
-        : [],
-    }));
+    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType } = useCustomSelector(
+      (state) => ({
+        subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
+        subThreadsParentId: state?.historyReducer?.subThreadsParentId,
+        userFeedbackCount: state?.historyReducer?.userFeedbackCount,
+        bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
+          ? state.bridgeReducer.allBridgesMap[params.id].versions
+          : [],
+        bridgeType:
+          state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType ||
+          state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridge_type,
+      })
+    );
 
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
     const [expandedThreads, setExpandedThreads] = useState([]);
@@ -389,7 +394,7 @@ const Sidebar = memo(
 
     return (
       <div
-        className="drawer-side justify-items-stretch text-xs bg-base-200 w-[220px] min-w-[220px] max-w-[220px] border-r border-base-300 relative h-screen overflow-y-auto overflow-x-hidden"
+        className="drawer-side justify-items-stretch text-xs bg-base-200 w-[280px] min-w-[280px] max-w-[280px] border-r border-base-300 relative h-screen overflow-y-auto overflow-x-hidden ml-4"
         id="sidebar"
       >
         <CreateFineTuneModal params={params} selectedThreadIds={selectedThreadIds} />
@@ -621,7 +626,7 @@ const Sidebar = memo(
               scrollableTarget="sidebar"
             >
               <div className="slider-container min-w-[45%] w-full overflow-x-auto pb-20">
-                <ul className="menu min-h-full text-base-content flex flex-col space-y-1">
+                <ul className="menu min-h-full text-base-content flex flex-col space-y-2">
                   {historyData.map((item) => (
                     <div className={`${"flex-col"}`} key={item?.thread_id}>
                       <div className="flex flex-col">
@@ -630,8 +635,8 @@ const Sidebar = memo(
                           id={`history-sidebar-thread-${item?.thread_id}`}
                           className={`${
                             decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                              ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary rounded-md"
-                              : ""
+                              ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary rounded-lg shadow-md"
+                              : "hover:bg-base-300/50 rounded-lg transition-colors duration-200"
                           } flex-grow cursor-pointer group`}
                           onClick={() => {
                             const isCurrentlySelected = decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
@@ -647,15 +652,67 @@ const Sidebar = memo(
                             }
                           }}
                         >
-                          <a className="w-full h-full flex items-center relative">
-                            <span className="truncate flex-1 text-xs">
-                              <span className="group-hover:hidden">
-                                {formatRelativeTime(item?.updated_at || item?.created_at)}
-                              </span>
-                              <span className="hidden group-hover:inline">
-                                {formatDate(item?.updated_at || item?.created_at)}
-                              </span>
-                            </span>
+                          <a className="w-full h-full flex flex-col relative px-2 py-1.5">
+                            {bridgeType?.toLowerCase() === "chatbot" || bridgeType === "chatbot" ? (
+                              <div
+                                className={`flex items-start gap-1 mb-1 w-full justify-between group ${
+                                  decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
+                                }`}
+                              >
+                                <p
+                                  className={`text-xs font-mono truncate ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-primary"
+                                  }`}
+                                >
+                                  {truncate(item?.thread_id, 22)}
+                                </p>
+                                <span
+                                  className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                </span>
+                                <span
+                                  className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatDate(item?.updated_at || item?.created_at)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div
+                                className={`flex items-start gap-1 mb-1 w-full group ${
+                                  decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
+                                }`}
+                              >
+                                <span
+                                  className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                </span>
+                                <span
+                                  className={`text-xs whitespace-nowrap group-hover:inline ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatDate(item?.updated_at || item?.created_at)}
+                                </span>
+                              </div>
+                            )}
                           </a>
                         </li>
                         {decodeURIComponent(searchParams?.thread_id) === item?.thread_id && (
