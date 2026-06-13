@@ -342,7 +342,7 @@ const FallbackModel = ({
                     data-testid="fallback-service-dropdown-menu"
                     id="fallback-service-dropdown-menu"
                     tabIndex={0}
-                    className="dropdown-content z-high menu bg-base-100 rounded-box w-full p-1 shadow border border-base-300 max-h-80 overflow-y-auto"
+                    className="dropdown-content z-high menu bg-base-100 rounded-box w-full p-1 shadow border border-base-300 max-h-180 overflow-y-auto"
                   >
                     {Array.isArray(SERVICES) &&
                       SERVICES.filter((svc) => {
