@@ -1181,7 +1181,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                   ? `mr-8 w-full rounded-xl ${message.content ? "px-4 py-3 border border-base-content/20" : ""}`
                                   : message.sender === "error"
                                     ? "rounded-xl w-fit max-w-[75%] overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
-                                    : "chat-bubble w-fit max-w-[75%] text-sm"
+                                    : "chat-bubble w-fit max-w-[75%] text-sm text-neutral-content"
                               } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
                             >
                               {/* Show loader overlay if this is the message being tested and no result yet */}

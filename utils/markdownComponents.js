@@ -19,7 +19,7 @@ export function buildMdComponents({ isDark = false } = {}) {
 
   return {
     // ── Block elements ──────────────────────────────────────────────────────
-    p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed text-base-content">{children}</p>,
+    p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
 
     ul: ({ children }) => (
       <OrderedListContext.Provider value={false}>
@@ -44,14 +44,14 @@ export function buildMdComponents({ isDark = false } = {}) {
       if (isOrdered) {
         olCtx.counterRef.current += 1;
         return (
-          <li className="leading-relaxed my-1 text-base-content" {...props}>
+          <li className="leading-relaxed my-1" {...props}>
             <span className="[&>p]:m-0 [&>p]:inline">{children}</span>
           </li>
         );
       }
 
       return (
-        <li className="leading-relaxed my-1 text-base-content" {...props}>
+        <li className="leading-relaxed my-1" {...props}>
           <span className="[&>p]:m-0 [&>p]:inline">{children}</span>
         </li>
       );
@@ -61,12 +61,10 @@ export function buildMdComponents({ isDark = false } = {}) {
       <blockquote className="border-l-4 border-base-content/30 pl-4 italic opacity-80 my-3 py-1">{children}</blockquote>
     ),
 
-    h1: ({ children }) => <h1 className="text-2xl font-bold mt-4 mb-2 leading-tight text-base-content">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-xl font-bold mt-4 mb-2 leading-tight text-base-content">{children}</h2>,
-    h3: ({ children }) => (
-      <h3 className="text-lg font-semibold mt-3 mb-1.5 leading-tight text-base-content">{children}</h3>
-    ),
-    h4: ({ children }) => <h4 className="text-base font-semibold mt-2 mb-1 text-base-content">{children}</h4>,
+    h1: ({ children }) => <h1 className="text-2xl font-bold mt-4 mb-2 leading-tight">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-xl font-bold mt-4 mb-2 leading-tight">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-lg font-semibold mt-3 mb-1.5 leading-tight">{children}</h3>,
+    h4: ({ children }) => <h4 className="text-base font-semibold mt-2 mb-1">{children}</h4>,
 
     // ── Inline elements ─────────────────────────────────────────────────────
     a: ({ href, children }) => (
@@ -97,7 +95,7 @@ export function buildMdComponents({ isDark = false } = {}) {
         );
       }
       return (
-        <code className="px-1.5 py-0.5 rounded text-[0.8em] font-mono bg-base-200 text-base-content" {...props}>
+        <code className="px-1.5 py-0.5 rounded text-[0.8em] font-mono bg-base-200" {...props}>
           {children}
         </code>
       );

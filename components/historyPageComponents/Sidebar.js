@@ -402,7 +402,7 @@ const Sidebar = memo(
           <div
             data-testid="history-sidebar-advance-filter"
             id="history-sidebar-advance-filter"
-            className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-lg min-h-0 overflow-hidden"
+            className="collapse collapse-arrow border border-base-300 bg-base-100 min-h-0 overflow-hidden"
           >
             <input
               autoComplete="off"
@@ -426,7 +426,7 @@ const Sidebar = memo(
                   isErrorTrue={isErrorTrue}
                 />
 
-                <div className="p-2 bg-base-200 rounded-lg">
+                <div className="p-2 bg-base-200">
                   <p className="text-center mb-2 text-xs font-medium">Filter Response</p>
                   <div className="flex items-center justify-center mb-2 gap-2">
                     {USER_FEEDBACK_FILTER_OPTIONS?.map((value, index) => (
@@ -470,7 +470,7 @@ const Sidebar = memo(
                   </div>
                 </div>
 
-                <div className="p-2 bg-base-200 rounded-lg w-full min-w-0">
+                <div className="p-2 bg-base-200 w-full min-w-0">
                   <p className="text-center mb-2 text-xs font-medium">Search by Fields</p>
                   <p className="text-xs text-base-content/60 mb-2">
                     Fill in values for fields you want to search. Leave empty to skip that field.
@@ -635,8 +635,8 @@ const Sidebar = memo(
                           id={`history-sidebar-thread-${item?.thread_id}`}
                           className={`${
                             decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                              ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary rounded-lg shadow-md"
-                              : "hover:bg-base-300/50 rounded-lg transition-colors duration-200"
+                              ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary shadow-md"
+                              : "hover:bg-base-300/50 transition-colors duration-200"
                           } flex-grow cursor-pointer group`}
                           onClick={() => {
                             const isCurrentlySelected = decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
@@ -660,10 +660,10 @@ const Sidebar = memo(
                                 }`}
                               >
                                 <p
-                                  className={`text-xs font-mono truncate ${
+                                  className={`text-xs truncate ${
                                     decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                      ? "text-base-primary"
-                                      : "text-primary"
+                                      ? "text-base-100"
+                                      : "text-base-content"
                                   }`}
                                 >
                                   {truncate(item?.thread_id, 22)}
@@ -717,10 +717,7 @@ const Sidebar = memo(
                         </li>
                         {decodeURIComponent(searchParams?.thread_id) === item?.thread_id && (
                           <div className="space-y-3">
-                            <div
-                              key={item.id}
-                              className="rounded-x-lg rounded-b-lg shadow-sm bg-base-100 overflow-hidden"
-                            >
+                            <div key={item.id} className="shadow-sm bg-base-100 overflow-hidden">
                               {item?.sub_thread && item.sub_thread?.length > 0 && (
                                 <div className="bg-base-100">
                                   <div className="p-2">
@@ -733,8 +730,8 @@ const Sidebar = memo(
                                             className={`ml-4 ${
                                               decodeURIComponent(searchParams?.subThread_id) ===
                                               subThread?.sub_thread_id
-                                                ? "cursor-pointer hover:bg-base-primary hover:text-base-100 rounded-md transition-all duration-200 text-xs bg-primary text-base-100"
-                                                : "cursor-pointer hover:bg-base-300 hover:text-base-content rounded-md transition-all duration-200 text-xs"
+                                                ? "cursor-pointer hover:bg-base-primary hover:text-base-100 transition-all duration-200 text-xs bg-primary text-base-100"
+                                                : "cursor-pointer hover:bg-base-300 hover:text-base-content transition-all duration-200 text-xs"
                                             } flex-grow group`}
                                             onClick={() =>
                                               handleSelectSubThread(subThread?.sub_thread_id, item?.thread_id)
@@ -771,7 +768,7 @@ const Sidebar = memo(
                                                   id={`history-sidebar-message-${msg?.message_id}`}
                                                   key={msgIndex}
                                                   onClick={() => handleSetMessageId(msg?.message_id)}
-                                                  className={`cursor-pointer rounded-md transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
+                                                  className={`cursor-pointer transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
                                                 >
                                                   <div className="flex items-start gap-1.5">
                                                     <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />
@@ -796,7 +793,7 @@ const Sidebar = memo(
                                         id={`history-sidebar-thread-message-${msg?.message_id}`}
                                         key={index}
                                         onClick={() => handleSetMessageId(msg?.message_id)}
-                                        className={`cursor-pointer p-2 rounded-md transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content hover:text-gray-800 border-l-2 border-transparent hover:border-base-300`}
+                                        className={`cursor-pointer p-2 transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content hover:text-gray-800 border-l-2 border-transparent hover:border-base-300`}
                                       >
                                         <div className="flex items-start gap-1.5">
                                           <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />
