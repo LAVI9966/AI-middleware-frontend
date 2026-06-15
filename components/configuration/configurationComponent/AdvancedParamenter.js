@@ -118,8 +118,22 @@ const AdvancedParameters = ({
     const modelInfoData =
       state?.modelReducer?.serviceModels?.[service]?.[type]?.[model]?.configuration?.additional_parameters;
 
+    // Reactively derive function data from function_ids and all organization functions
+    const function_ids = activeData?.function_ids || [];
+    const functionData = state?.bridgeReducer?.org?.[params?.org_id]?.functionData || {};
+    const version_function_data = {};
+    function_ids.forEach((id) => {
+      if (functionData[id]) {
+        version_function_data[id] = functionData[id];
+      }
+    });
+
+    // Fallback if derived functions are empty but apiCalls is populated
+    const final_version_function_data =
+      Object.keys(version_function_data).length > 0 ? version_function_data : activeData?.apiCalls || {};
+
     return {
-      version_function_data: isPublished ? bridgeDataFromState?.apiCalls : versionData?.apiCalls,
+      version_function_data: final_version_function_data,
       integrationData,
       service,
       configuration,
@@ -243,7 +257,7 @@ const AdvancedParameters = ({
             }))
         : [];
     setSelectedOptions(selectedAgentData?.length > 0 ? selectedAgentData : selectedFunctiondata);
-  }, [tool_choice_data]);
+  }, [tool_choice_data, version_function_data, connected_agents, integrationData]);
 
   const debounce = (func, delay) => {
     let timeoutId;
