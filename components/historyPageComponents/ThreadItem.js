@@ -4,18 +4,28 @@ import {
   PencilIcon,
   AddIcon,
   SquareFunctionIcon,
-  UserIcon,
   BotMessageIcon,
   FileTextIcon,
+  BotIcon,
+  CopyIcon,
+  CheckCircleIcon,
 } from "@/components/Icons";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
 import { truncate } from "./AssistFile";
 import ToolsDataModal from "./ToolsDataModal";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { formatRelativeTime, getIconOfService, getToolName, openModal } from "@/utils/utility";
+import {
+  getIconOfService,
+  getToolName,
+  openModal,
+  allowedAttributes,
+  formatCostValue,
+  formatTokensTable,
+} from "@/utils/utility";
 import { BATCH_PROCESSING_STATUSES, MODAL_TYPE } from "@/utils/enums";
 import { PdfIcon } from "@/icons/pdfIcon";
 import {
@@ -23,20 +33,69 @@ import {
   Braces,
   CheckCircle2,
   ChevronDown,
+  ChevronUp,
   Clock3,
   ExternalLink,
   RotateCcw,
   ChevronRight,
   BookOpen,
   ArrowDown,
+  SlidersHorizontal,
+  Maximize2,
+  Plus,
+  User,
 } from "lucide-react";
 import { rerunApi } from "@/config/modelApi";
 import { toast } from "react-toastify";
 import { GenericSlider, useSlider } from "@/utils/sliderUtility";
 import CodeBlock from "../codeBlock/CodeBlock";
 import MessageExecutionTrace from "../historyUi/executionTrace/MessageExecutionTrace";
-import { agentInitials, HUE_THEME } from "../historyUi/executionTrace/traceTheme";
+import { FinalResponseCard } from "../historyUi/FinalResponseCard";
+import { ThreadActionPill, ThreadInlinePanel, ThreadSystemPromptPanel } from "../historyUi/ThreadActionPill";
+import { HUE_THEME } from "../historyUi/executionTrace/traceTheme";
+import { useThemeManager } from "@/customHooks/useThemeManager";
 import { flattenToolsCallData } from "@/utils/executionTraceTransform";
+
+// Inline variable value with show more/less for long content and JSON formatting using ExpandCollapse
+function InlineVarValue({ raw, isLong }) {
+  // Parse JSON if possible
+  const parsedJson = useMemo(() => {
+    if (!raw) return null;
+    const trimmed = raw.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [raw]);
+
+  if (parsedJson !== null) {
+    const prettyJson = JSON.stringify(parsedJson, null, 2);
+    return (
+      <div className="flex flex-col gap-1.5 w-full">
+        <div className="w-full max-w-full overflow-hidden">
+          <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+            <CodeBlock className="language-json" showCopy={false}>
+              {prettyJson}
+            </CodeBlock>
+          </ExpandCollapse>
+        </div>
+      </div>
+    );
+  }
+
+  // Not JSON, handle normal text/non-JSON value
+  return (
+    <span className="text-xs break-all text-base-content whitespace-pre-wrap block">
+      <ExpandCollapse collapsedHeight={150} fadeHeight={40}>
+        {raw}
+      </ExpandCollapse>
+    </span>
+  );
+}
 
 // Resolve any possible url shape (string, object with permanent_url, etc.)
 const resolveAttachmentUrl = (rawUrl) => {
@@ -165,6 +224,9 @@ const ThreadItem = ({
   handleAddTestCase,
   setModalInput,
 }) => {
+  const { actualTheme } = useThemeManager();
+  const isDark = actualTheme === "dark";
+
   // Determine message type based on new data structure
   const getInitialMessageType = () => {
     if (item?.user === "user") {
@@ -193,6 +255,7 @@ const ThreadItem = ({
   const [isDropupOpen, setIsDropupOpen] = useState(false);
   const [isRerunning, setIsRerunning] = useState(false);
   const [isSystemPromptExpanded, setIsSystemPromptExpanded] = useState(false);
+  const [isUserQueryExpanded, setIsUserQueryExpanded] = useState(false);
   const handleRerun = async () => {
     if (!item?.message_id) return;
     setIsRerunning(true);
@@ -210,12 +273,24 @@ const ThreadItem = ({
     }
   };
 
-  const [isUserQueryExpanded, setIsUserQueryExpanded] = useState(false);
-  const [isAiResponseExpanded, setIsAiResponseExpanded] = useState(false);
-  const [aiResponseOverflows, setAiResponseOverflows] = useState(false);
-  const aiResponseRef = useRef(null);
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, setVariablesFilter] = useState("");
+  const [isMoreDetailsExpanded, setIsMoreDetailsExpanded] = useState(false);
+  const [copiedAllVariables, setCopiedAllVariables] = useState(false);
+
+  // Keep toolbar visible whenever any accordion panel is open
+  const isAnyPanelOpen = isVariablesOpen || isMoreDetailsExpanded || isSystemPromptExpanded;
+
+  const handleCopyAllVariables = () => {
+    const jsonString = JSON.stringify(item?.variables || {}, null, 2);
+    navigator.clipboard.writeText(jsonString);
+    setCopiedAllVariables(true);
+    toast.success("Variables copied to clipboard");
+    setTimeout(() => {
+      setCopiedAllVariables(false);
+    }, 2000);
+  };
+
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
@@ -349,7 +424,13 @@ const ThreadItem = ({
     return bridge?.name || bridge?.agent_name || bridge?.bridge_name || item?.name || "Agent";
   }, [orgBridges, params?.id, item?.name]);
 
-  const rootAgentInitials = useMemo(() => agentInitials(rootAgentName), [rootAgentName]);
+  const isStatelessConversation = useMemo(() => {
+    const bridge = allBridgesMap?.[params?.id];
+    return bridge?.settings?.stateless_conversation === true;
+  }, [allBridgesMap, params?.id]);
+
+  const statelessBtnClass =
+    "inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300";
 
   useEffect(() => {
     setMessageType(getInitialMessageType());
@@ -365,15 +446,6 @@ const ThreadItem = ({
 
     // All other types (llm_message, chatbot_message, updated_llm_message) are assistant
     return "assistant";
-  };
-
-  // Check if this is the last message of the same role (assistant, user, or tools_call)
-  const isLastMessage = () => {
-    const currentRole = getMessageRole();
-    if (!currentRole || currentRole === "unknown") return false;
-
-    // For simplicity, just return true for now since role detection is now dynamic
-    return true;
   };
 
   const handleEdit = () => {
@@ -530,15 +602,6 @@ const ThreadItem = ({
     toolsDataModalRef.current?.close();
   }, []);
 
-  // Measure AI response height to show/hide "Show more" button
-  useEffect(() => {
-    const el = aiResponseRef.current;
-    if (!el) return;
-    // MAX_HEIGHT matches line-clamp-5 at ~1.6rem line-height × 5 = ~8rem = 128px
-    const MAX_HEIGHT = 128;
-    setAiResponseOverflows(el.scrollHeight > MAX_HEIGHT);
-  }, [item?.chatbot_message, item?.llm_message, item?.updated_llm_message]);
-
   const messageId = item.message_id;
   useEffect(() => {
     if (messageId && !threadRefs.current[messageId]) {
@@ -614,39 +677,37 @@ const ThreadItem = ({
           console.error("Error processing knowledge base tool:", error);
         }
       }
-      if (tool?.data?.metadata?.type === "agent") {
+      const isAgent = tool?.data?.metadata?.type === "agent" || tool?.type === "AGENT" || Boolean(tool?.bridge_id);
+      if (isAgent) {
         const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || "";
         const orgId = params?.org_id;
-        const agentId = tool?.data?.metadata?.agent_id;
-        const messageId = tool?.data?.metadata?.message_id;
+        const agentId = tool?.data?.metadata?.agent_id || tool?.bridge_id;
+        const messageId = tool?.data?.metadata?.message_id || tool?.message_id;
 
-        // 1) Find this bridge/agent in the org list
-        const bridgeFromOrg = orgBridges.find((b) => b?._id === agentId);
-        // 2) Also look it up in allBridgesMap
+        // 1) Find this bridge/agent in the org list or allBridgesMap
+        const bridgeFromOrg = orgBridges.find((b) => b?._id === agentId) || allBridgesMap?.[agentId];
         // 3) Resolve published_version_id
         const publishedVersionId = bridgeFromOrg?.published_version_id;
 
-        // If the agent bridge does not exist in org data, do not navigate
-        if (!bridgeFromOrg) {
-          console.warn("Agent bridge not found for org", { orgId, agentId });
-          return;
-        }
-        const threadId = tool?.data?.metadata?.thread_id;
-        const subThreadId = tool?.data?.metadata?.sub_thread_id || tool?.data?.metadata?.thread_id;
-        if (baseUrl && orgId && agentId) {
+        const threadId = tool?.data?.metadata?.thread_id || tool?.thread_id;
+        const subThreadId = tool?.data?.metadata?.sub_thread_id || tool?.data?.metadata?.thread_id || tool?.thread_id;
+
+        if (orgId && agentId) {
           const searchParams = new URLSearchParams();
           if (publishedVersionId) searchParams.set("version", publishedVersionId);
           if (messageId) searchParams.set("message_id", messageId);
           if (threadId) searchParams.set("thread_id", threadId);
           if (subThreadId) searchParams.set("sub_thread_id", subThreadId);
-          const url = `${baseUrl}/org/${orgId}/agents/history/${agentId}?${searchParams.toString()}`;
+
+          const path = `/org/${orgId}/agents/history/${agentId}?${searchParams.toString()}`;
           if (isEmbedUser) {
-            router.push(`/org/${orgId}/agents/history/${agentId}?${searchParams.toString()}`);
+            router.push(path);
             return;
           }
 
           if (typeof window !== "undefined") {
-            window.open(url, "_blank", "noopener,noreferrer");
+            const finalUrl = baseUrl ? `${baseUrl}${path}` : path;
+            window.open(finalUrl, "_blank", "noopener,noreferrer");
           }
         }
         return;
@@ -660,7 +721,17 @@ const ThreadItem = ({
         },
       });
     },
-    [knowledgeBaseData, openSlider, embedToken, params?.id, params?.org_id, orgBridges, allBridgesMap]
+    [
+      knowledgeBaseData,
+      openSlider,
+      embedToken,
+      params?.id,
+      params?.org_id,
+      orgBridges,
+      allBridgesMap,
+      isEmbedUser,
+      router,
+    ]
   );
 
   const handleToolDataClick = useCallback((tool) => {
@@ -730,7 +801,7 @@ const ThreadItem = ({
         if (typeof window.openChatbot === "function") window.openChatbot();
         setTimeout(() => {
           if (item?.user && typeof window.Chatbot?.askAi === "function") {
-            window.Chatbot.askAi({ message: debugQuery });
+            window.Chatbot.askAi({ message: item.user });
           }
         }, 300);
       }, 1000);
@@ -853,6 +924,719 @@ const ThreadItem = ({
     });
   };
 
+  const hasMultipleMessageTypes =
+    [item.chatbot_message, item.llm_message, item.updated_llm_message].filter(Boolean).length > 1;
+
+  const messageTypeDropdown = isDropupOpen ? (
+    <div
+      ref={dropupRef}
+      className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[130px] p-1"
+      style={{ zIndex: 9999, top: "28px", left: "0" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
+      <ul className="flex flex-col gap-0.5">
+        {item.chatbot_message && (
+          <li>
+            <button
+              data-testid="thread-item-select-chatbot-message"
+              id="thread-item-select-chatbot-message"
+              className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
+              onClick={() => selectMessageType("chatbot_message")}
+            >
+              Chatbot
+            </button>
+          </li>
+        )}
+        {item.llm_message && (
+          <li>
+            <button
+              data-testid="thread-item-select-llm-message"
+              id="thread-item-select-llm-message"
+              className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
+              onClick={() => selectMessageType("llm_message")}
+            >
+              LLM
+            </button>
+          </li>
+        )}
+        {item.updated_llm_message && (
+          <li>
+            <button
+              data-testid="thread-item-select-updated-message"
+              id="thread-item-select-updated-message"
+              className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
+              onClick={() => selectMessageType("updated_llm_message")}
+            >
+              Updated
+            </button>
+          </li>
+        )}
+      </ul>
+    </div>
+  ) : null;
+
+  const responseStatusBadges = (
+    <>
+      {messageType === "updated_llm_message" && <span className="badge badge-xs badge-outline">Edited</span>}
+      {isBatchResponse && (
+        <span className={`badge badge-sm gap-1 text-white ${batchStatusMeta.className}`}>
+          <BatchStatusIcon size={10} />
+          {batchStatusMeta.label}
+        </span>
+      )}
+    </>
+  );
+
+  const variableCount = Object.keys(item?.variables || {}).length;
+
+  const renderVariablesPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
+    if (!isVariablesOpen || variableCount === 0) return null;
+
+    return (
+      <ThreadInlinePanel className={panelClassName}>
+        <div className="px-4 py-2 border-b border-base-content/10 bg-base-200/50 flex justify-between items-center select-none">
+          <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Variables</span>
+          <button
+            onClick={handleCopyAllVariables}
+            className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center"
+            title="Copy all variables as JSON"
+          >
+            {copiedAllVariables ? (
+              <>
+                <CheckCircleIcon size={12} className="text-success" />
+                <span className="text-success font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <CopyIcon size={12} className="opacity-80" />
+                <span>Copy Object</span>
+              </>
+            )}
+          </button>
+        </div>
+        <div>
+          {Object.entries(item?.variables || {})
+            .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+            .map(([key, value]) => {
+              const raw =
+                typeof value === "object" && value !== null ? JSON.stringify(value, null, 2) : String(value ?? "");
+              const isLong = raw.length > 200;
+              return (
+                <div
+                  key={key}
+                  className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+                >
+                  <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">{key}</span>
+                  <InlineVarValue raw={raw} isLong={isLong} />
+                </div>
+              );
+            })}
+        </div>
+      </ThreadInlinePanel>
+    );
+  };
+
+  const renderOptionalDetailsPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
+    if (!isMoreDetailsExpanded) return null;
+
+    return (
+      <ThreadInlinePanel className={panelClassName}>
+        <div className="text-left">
+          <div className="px-4 py-2 border-b border-base-content/10 bg-base-200/50">
+            <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</span>
+          </div>
+          {allowedAttributes.optional
+            .filter(([key]) => key !== "tokens")
+            .sort((a, b) => a[1].localeCompare(b[1]))
+            .map(([key, displayKey]) => {
+              const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
+              if (value === undefined || value === null) return null;
+
+              // If the value is an object, render each property as separate rows
+              if (typeof value === "object" && key !== "createdAt") {
+                return Object.entries(value).map(([objKey, objValue]) => (
+                  <div
+                    key={`${key}-${objKey}`}
+                    className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+                  >
+                    <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold font-mono">
+                      {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                    </span>
+                    <div className="flex-1 min-w-0 text-xs break-all text-base-content whitespace-pre-wrap font-mono">
+                      {typeof objValue === "object" && objValue !== null ? (
+                        <div className="border border-base-content/20 bg-base-200/50 rounded-lg overflow-hidden w-full">
+                          <CodeBlock className="language-json" showCopy={false} plain={true}>
+                            {JSON.stringify(objValue, null, 2)}
+                          </CodeBlock>
+                        </div>
+                      ) : (
+                        objValue?.toString()
+                      )}
+                    </div>
+                  </div>
+                ));
+              }
+
+              // Regular single value display
+              return (
+                <div
+                  key={key}
+                  className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+                >
+                  <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">{displayKey}</span>
+                  <span className="text-xs break-all text-base-content whitespace-pre-wrap">
+                    {key === "createdAt" || key === "created_at" ? new Date(value).toLocaleString() : value?.toString()}
+                  </span>
+                </div>
+              );
+            })}
+          {(() => {
+            const batchId = item?.batch_data?.batch_id;
+            if (!batchId) return null;
+            return (
+              <div key="batch_id" className="flex items-start gap-4 border-t border-base-content/10 px-4 py-2.5">
+                <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Batch ID</span>
+                <span className="text-xs break-all text-base-content whitespace-pre-wrap font-mono">{batchId}</span>
+              </div>
+            );
+          })()}
+          {(() => {
+            const tokensVal = item.tokens;
+            if (tokensVal !== undefined && tokensVal !== null && typeof tokensVal === "object") {
+              const rows = formatTokensTable(tokensVal);
+              if (rows && rows.length > 0) {
+                return (
+                  <div key="tokens" className="flex flex-col gap-2 border-t border-base-content/10 px-4 py-3">
+                    <span className="text-xs font-semibold text-trace-gold uppercase tracking-wide">
+                      Token and Cost
+                    </span>
+                    <div className="overflow-x-auto w-full border border-base-content/10 bg-base-200/10 rounded-lg shadow-sm">
+                      <table className="table table-xs w-full border-collapse">
+                        <thead>
+                          <tr className="border-b border-base-content/10 bg-base-200/50">
+                            <th className="text-left py-2 px-3 font-semibold text-base-content/70 text-[10px] uppercase tracking-wider">
+                              Type
+                            </th>
+                            <th className="text-left py-2 px-3 font-semibold text-base-content/70 text-[10px] uppercase tracking-wider">
+                              Tokens
+                            </th>
+                            <th className="text-left py-2 px-3 font-semibold text-base-content/70 text-[10px] uppercase tracking-wider">
+                              Cost ($)
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-base-content/5">
+                          {rows.map((row, idx) => (
+                            <tr
+                              key={idx}
+                              className={`${
+                                row.isTotal
+                                  ? "font-semibold bg-base-200/40 border-t border-base-content/15"
+                                  : "hover:bg-base-200/20"
+                              }`}
+                            >
+                              <td className="py-2 px-3 text-left text-xs font-medium text-base-content/90">
+                                {row.label}
+                              </td>
+                              <td className="py-2 px-3 text-left text-xs font-mono text-base-content/80">
+                                {row.token !== undefined && row.token !== null
+                                  ? typeof row.token === "number"
+                                    ? row.token.toLocaleString()
+                                    : row.token
+                                  : "-"}
+                              </td>
+                              <td className="py-2 px-3 text-left text-xs font-mono text-base-content/80">
+                                {formatCostValue(row.cost)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              }
+            }
+            return null;
+          })()}
+        </div>
+      </ThreadInlinePanel>
+    );
+  };
+
+  const renderSystemPromptPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
+    const prompt = item?.prompt || (item?.user && thread?.[index + 1]?.prompt);
+    if (!isSystemPromptExpanded || !prompt) return null;
+    return (
+      <ThreadSystemPromptPanel className={panelClassName}>
+        {renderHighlightedSystemPrompt(prompt)}
+      </ThreadSystemPromptPanel>
+    );
+  };
+
+  const renderResponseActionButtons = (stateful = false) => {
+    const showEdit = !item?.llm_urls?.length && !item?.fromRTLayer;
+    if (stateful) {
+      return (
+        <div className="mt-2 flex flex-wrap items-center justify-start gap-1.5">
+          <ThreadActionPill
+            id="thread-item-add-test-case-button"
+            testId="thread-item-add-test-case-button"
+            icon={AddIcon}
+            trailing={ChevronRight}
+            onClick={() => handleAddTestCase(item, index)}
+          >
+            Test Case
+          </ThreadActionPill>
+          <ThreadActionPill
+            id="thread-item-debug-agent-button"
+            testId="thread-item-debug-agent-button"
+            icon={BotMessageIcon}
+            trailing={ChevronRight}
+            onClick={() => handleAskAi(item)}
+          >
+            Debug Agent
+          </ThreadActionPill>
+          {showEdit && (
+            <ThreadActionPill
+              id="thread-item-edit-message-button"
+              testId="thread-item-edit-message-button"
+              icon={PencilIcon}
+              onClick={handleEdit}
+            >
+              Edit
+            </ThreadActionPill>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-2 flex items-center gap-1.5">
+        <button
+          id="thread-item-add-test-case-button"
+          data-testid="thread-item-add-test-case-button"
+          className={statelessBtnClass}
+          onClick={() => handleAddTestCase(item, index)}
+        >
+          <AddIcon className="h-3 w-3" />
+          <span>Test Case</span>
+        </button>
+        <button
+          id="thread-item-debug-agent-button"
+          data-testid="thread-item-debug-agent-button"
+          className={statelessBtnClass}
+          onClick={() => handleAskAi(item)}
+        >
+          <BotMessageIcon className="h-3 w-3" />
+          <span>Debug Agent</span>
+        </button>
+        {showEdit && (
+          <button
+            id="thread-item-edit-message-button"
+            data-testid="thread-item-edit-message-button"
+            className={statelessBtnClass}
+            onClick={handleEdit}
+          >
+            <PencilIcon className="h-3 w-3" />
+            <span>Edit</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderStatefulMessageActionToolbar = ({
+    showTimestamp = true,
+    className = "",
+    pillsOnly = false,
+    panelsOnly = false,
+  } = {}) => {
+    if (panelsOnly) {
+      return (
+        <div className="w-full flex flex-col items-end">
+          {renderSystemPromptPanel("max-w-[620px] w-full ml-auto")}
+          {renderVariablesPanel("max-w-[620px] w-full ml-auto")}
+          {renderOptionalDetailsPanel("max-w-[620px] w-full ml-auto")}
+        </div>
+      );
+    }
+
+    const pills = (
+      <div className={`flex w-full flex-wrap items-center justify-end gap-1.5 ${className}`}>
+        <ThreadActionPill
+          testId="thread-item-user-aiconfig-button"
+          id="thread-item-user-aiconfig-button"
+          icon={SlidersHorizontal}
+          trailing={Maximize2}
+          onClick={() => handleUserButtonClick("AiConfig")}
+        >
+          AI Config
+        </ThreadActionPill>
+        {item?.latency ? (
+          <ThreadActionPill
+            testId="thread-item-user-latency-button"
+            id="thread-item-user-latency-button"
+            icon={Clock3}
+            trailing={Maximize2}
+            onClick={() => handleUserButtonClick("Latency")}
+          >
+            Latency
+          </ThreadActionPill>
+        ) : null}
+        {(() => {
+          const prompt = item?.prompt || (item?.user && thread?.[index + 1]?.prompt);
+          return prompt ? (
+            <ThreadActionPill
+              testId="thread-item-user-system-prompt-button"
+              id="thread-item-user-system-prompt-button"
+              trailing={ChevronRight}
+              trailingClassName={`transition-transform duration-200 ${isSystemPromptExpanded ? "rotate-90" : ""}`}
+              active={isSystemPromptExpanded}
+              onClick={() => {
+                setIsSystemPromptExpanded((v) => {
+                  const newVal = !v;
+                  if (newVal) {
+                    setIsVariablesOpen(false);
+                    setIsMoreDetailsExpanded(false);
+                  }
+                  return newVal;
+                });
+              }}
+            >
+              System Prompt
+            </ThreadActionPill>
+          ) : null;
+        })()}
+        {variableCount > 0 ? (
+          <ThreadActionPill
+            testId="thread-item-user-variables-button"
+            id="thread-item-user-variables-button"
+            trailing={ChevronRight}
+            trailingClassName={`transition-transform duration-200 ${isVariablesOpen ? "rotate-90" : ""}`}
+            active={isVariablesOpen}
+            onClick={() => {
+              setIsVariablesOpen((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsSystemPromptExpanded(false);
+                  setIsMoreDetailsExpanded(false);
+                }
+                return newVal;
+              });
+            }}
+          >
+            Variables
+          </ThreadActionPill>
+        ) : null}
+        <ThreadActionPill
+          testId="thread-item-user-more-button"
+          id="thread-item-user-more-button"
+          trailing={ChevronRight}
+          trailingClassName={`transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-90" : ""}`}
+          active={isMoreDetailsExpanded}
+          onClick={() => {
+            setIsMoreDetailsExpanded((v) => {
+              const newVal = !v;
+              if (newVal) {
+                setIsSystemPromptExpanded(false);
+                setIsVariablesOpen(false);
+              }
+              return newVal;
+            });
+          }}
+        >
+          More
+        </ThreadActionPill>
+        {showTimestamp ? (
+          <time className="shrink-0 text-xs text-base-content/60">{formatDateAndTime(item.created_at)}</time>
+        ) : null}
+      </div>
+    );
+
+    if (pillsOnly) return pills;
+
+    return (
+      <div className={`w-full ${className}`}>
+        {pills}
+        <div className="w-full flex flex-col items-end">
+          {renderSystemPromptPanel("max-w-[620px] w-full ml-auto")}
+          {renderVariablesPanel("max-w-[620px] w-full ml-auto")}
+          {renderOptionalDetailsPanel("max-w-[620px] w-full ml-auto")}
+        </div>
+      </div>
+    );
+  };
+
+  const renderStatelessMultiQueryUserActions = (pillsOnly = false, panelsOnly = false) => {
+    const pills = (
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            data-testid="thread-item-user-aiconfig-button"
+            id="thread-item-user-aiconfig-button"
+            className={statelessBtnClass}
+            onClick={() => handleUserButtonClick("AiConfig")}
+          >
+            <SquareFunctionIcon className="h-3 w-3" />
+            <span>AI Config</span>
+          </button>
+          {item?.latency ? (
+            <button
+              data-testid="thread-item-user-latency-button"
+              id="thread-item-user-latency-button"
+              className={statelessBtnClass}
+              onClick={() => handleUserButtonClick("Latency")}
+            >
+              <Clock3 className="h-3 w-3" />
+              <span>Latency</span>
+            </button>
+          ) : null}
+          <button
+            data-testid="thread-item-user-system-prompt-button"
+            id="thread-item-user-system-prompt-button"
+            className={statelessBtnClass}
+            onClick={() => handleUserButtonClick("system Prompt")}
+          >
+            <FileClockIcon className="h-3 w-3" />
+            <span>System Prompt</span>
+          </button>
+          <button
+            data-testid="thread-item-user-more-button"
+            id="thread-item-user-more-button"
+            className={`${statelessBtnClass} ${isMoreDetailsExpanded ? "bg-base-300" : ""}`}
+            onClick={() => {
+              setIsMoreDetailsExpanded((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsVariablesOpen(false);
+                  setIsSystemPromptExpanded(false);
+                }
+                return newVal;
+              });
+            }}
+          >
+            <Plus className={`h-3 w-3 transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-45" : ""}`} />
+            <span>More...</span>
+          </button>
+        </div>
+
+        {variableCount > 0 ? (
+          <button
+            data-testid="thread-item-user-variables-button"
+            id="thread-item-user-variables-button"
+            className={statelessBtnClass}
+            onClick={() => {
+              setIsVariablesOpen((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsMoreDetailsExpanded(false);
+                  setIsSystemPromptExpanded(false);
+                }
+                return newVal;
+              });
+            }}
+          >
+            <Braces className="h-3 w-3" />
+            <span>Sent Variables</span>
+            <ChevronDown
+              className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+        ) : null}
+
+        <time className="text-xs opacity-40 shrink-0">
+          <span className="">{formatDateAndTime(item.created_at)}</span>
+        </time>
+      </div>
+    );
+
+    const panels = (
+      <>
+        {isVariablesOpen && variableCount > 0 ? (
+          <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100">
+            <div className="px-4 py-2.5 bg-base-100 border-b border-base-300 flex justify-between items-center select-none">
+              <input
+                type="text"
+                placeholder={`Filter ${variableCount} variables...`}
+                value={variablesFilter}
+                onChange={(e) => setVariablesFilter(e.target.value)}
+                className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40 mr-2"
+              />
+              <button
+                onClick={handleCopyAllVariables}
+                className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center shrink-0"
+                title="Copy all variables as JSON"
+              >
+                {copiedAllVariables ? (
+                  <>
+                    <CheckCircleIcon size={12} className="text-success" />
+                    <span className="text-success font-medium">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <CopyIcon size={12} className="opacity-80" />
+                    <span>Copy Object</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <div>
+              {Object.entries(item?.variables || {})
+                .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+                .map(([key, value], i) => (
+                  <div
+                    key={key}
+                    className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
+                  >
+                    <span className="text-xs font-normal min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                    <div className="flex-1 w-full max-w-full overflow-hidden">
+                      <InlineVarValue
+                        raw={
+                          typeof value === "object" && value !== null
+                            ? JSON.stringify(value, null, 2)
+                            : String(value ?? "")
+                        }
+                        isLong={
+                          typeof value === "object" && value !== null
+                            ? JSON.stringify(value).length > 200
+                            : String(value ?? "").length > 200
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+            </div>
+            <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
+              {formatDateAndTime(item.created_at)}
+            </div>
+          </div>
+        ) : null}
+
+        {isMoreDetailsExpanded ? (
+          <div className="mt-1 rounded-xl overflow-hidden max-w-[620px] w-full ml-auto border border-base-300 bg-base-100 p-4 space-y-4 text-left">
+            <div className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</div>
+            <div className="border border-base-300 rounded-lg overflow-hidden bg-base-100 divide-y divide-base-300">
+              {allowedAttributes.optional
+                .filter(([key]) => key !== "tokens")
+                .sort((a, b) => a[1].localeCompare(b[1]))
+                .map(([key, displayKey]) => {
+                  const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
+                  if (value === undefined || value === null) return null;
+
+                  // If the value is an object, render each property as separate rows
+                  if (typeof value === "object" && key !== "createdAt") {
+                    return Object.entries(value).map(([objKey, objValue]) => (
+                      <div key={`${key}-${objKey}`} className="bg-base-100 flex px-4 py-3">
+                        <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">
+                          {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </div>
+                        <div className="w-1/2 text-xs text-base-content font-mono">
+                          {typeof objValue === "object" && objValue !== null ? (
+                            <div className="border border-base-content/20 bg-base-200/50 rounded-lg overflow-hidden w-full">
+                              <CodeBlock className="language-json" showCopy={false} plain={true}>
+                                {JSON.stringify(objValue, null, 2)}
+                              </CodeBlock>
+                            </div>
+                          ) : (
+                            <span className="break-words font-normal text-base-content/80 whitespace-pre-wrap">
+                              {objValue?.toString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ));
+                  }
+
+                  // Regular single value display
+                  return (
+                    <div key={key} className="bg-base-100 flex px-4 py-3">
+                      <div className="text-xs font-normal capitalize w-1/2 text-trace-gold">{displayKey}</div>
+                      <div className="w-1/2 text-xs text-base-content">
+                        <span className="break-words font-normal text-base-content/80">
+                          {key === "createdAt" || key === "created_at"
+                            ? new Date(value).toLocaleString()
+                            : value?.toString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              {(() => {
+                const tokensVal = item.tokens;
+                if (tokensVal !== undefined && tokensVal !== null && typeof tokensVal === "object") {
+                  const rows = formatTokensTable(tokensVal);
+                  if (rows && rows.length > 0) {
+                    return (
+                      <div key="tokens" className="bg-base-100 flex flex-col gap-2 px-4 py-3">
+                        <div className="text-xs font-normal capitalize text-trace-gold">Token and Cost</div>
+                        <div className="overflow-x-auto w-full border border-base-content/10 bg-base-200/10 rounded-lg shadow-sm">
+                          <table className="table table-xs w-full border-collapse">
+                            <thead>
+                              <tr className="border-b border-base-content/10 bg-base-200/50">
+                                <th className="text-left py-2 px-3 font-semibold text-base-content/70 text-[10px] uppercase tracking-wider">
+                                  Type
+                                </th>
+                                <th className="text-right py-2 px-3 font-semibold text-base-content/70 text-[10px] uppercase tracking-wider">
+                                  Tokens
+                                </th>
+                                <th className="text-right py-2 px-3 font-semibold text-base-content/70 text-[10px] uppercase tracking-wider">
+                                  Cost
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-base-content/5">
+                              {rows.map((row, idx) => (
+                                <tr
+                                  key={idx}
+                                  className={`${
+                                    row.isTotal
+                                      ? "font-semibold bg-base-200/40 border-t border-base-content/15"
+                                      : "hover:bg-base-200/20"
+                                  }`}
+                                >
+                                  <td className="py-2 px-3 text-left text-xs font-medium text-base-content/90">
+                                    {row.label}
+                                  </td>
+                                  <td className="py-2 px-3 text-right text-xs font-mono text-base-content/80">
+                                    {row.token !== undefined && row.token !== null
+                                      ? typeof row.token === "number"
+                                        ? row.token.toLocaleString()
+                                        : row.token
+                                      : "-"}
+                                  </td>
+                                  <td className="py-2 px-3 text-right text-xs font-mono text-base-content/80">
+                                    {formatCostValue(row.cost)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        ) : null}
+      </>
+    );
+
+    if (pillsOnly) return pills;
+    if (panelsOnly) return panels;
+
+    return (
+      <div className="flex flex-col gap-1 mt-3 pr-12">
+        {pills}
+        {panels}
+      </div>
+    );
+  };
+
   const firstAttemptErrorNotice = item?.firstAttemptError ? (
     <div className="w-full mb-2">
       <details className="group/fae rounded-lg border border-warning/30 bg-error/10 text-base-content">
@@ -881,142 +1665,311 @@ const ThreadItem = ({
       key={`item-id-${item?.id}`}
       id={`message-${messageId}`}
       ref={(el) => (threadRefs.current[messageId] = el)}
-      className="text-sm overflow-x-hidden"
+      className="text-sm"
     >
       {/* Sticky header */}
       {isSingleQuery && (
-        <div className="flex sticky top-0 z-20 bg-history-page px-4 py-1 mb-3 items-center justify-between gap-2 border-b border-base-300">
-          <div
-            className="flex items-center gap-2 overflow-x-auto min-w-0"
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-            }}
-          >
-            {item?.service && (
-              <span className="flex items-center shrink-0" title={item.service}>
-                {getIconOfService(item.service, 14, 14)}
-              </span>
-            )}
-            {item?.model && <span className="text-xs font-medium text-base-content/60 shrink-0">{item.model}</span>}
-            {(item?.tokens?.input_tokens != null || item?.tokens?.output_tokens != null) && (
-              <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
-                <span className="text-base-content/20">·</span>
-                <span>Tokens:</span>
-                <span className="font-medium text-base-content/60">{item.tokens.input_tokens ?? 0} input</span>
-                <span className="text-base-content/20">/</span>
-                <span className="font-medium text-base-content/60">{item.tokens.output_tokens ?? 0} output</span>
-              </span>
-            )}
-            {item?.tokens?.expected_cost && (
-              <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
-                <span className="text-base-content/20">·</span>
-                <span>Cost:</span>
-                <span className="font-medium text-base-content/60">
-                  ${parseFloat(item.tokens.expected_cost).toFixed(4)}
+        <div className="flex sticky top-0 z-20 bg-history-page px-4 py-1 mb-3 items-center justify-between gap-2 border-b border-base-300 flex-col">
+          <div className="w-full flex items-center justify-between">
+            <div
+              className="flex items-center gap-2 overflow-x-auto min-w-0"
+              style={{
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
+              }}
+            >
+              {item?.service && (
+                <span className="flex items-center shrink-0" title={item.service}>
+                  {getIconOfService(item.service, 14, 14)}
                 </span>
-              </span>
-            )}
-            {item?.version_id && (
-              <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
-                <span className="text-base-content/20">·</span>
-                <span>Version:</span>
-                <span className="font-medium text-base-content/60">{item.version_id}</span>
-              </span>
-            )}
-            {item?.message_id && (
-              <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
-                <span className="text-base-content/20">·</span>
-                <span>Message ID:</span>
-                <span className="font-medium text-base-content/60">{item.message_id}</span>
-              </span>
-            )}
+              )}
+              {item?.model && <span className="text-xs font-medium text-base-content/60 shrink-0">{item.model}</span>}
+              {(item?.tokens?.input_tokens != null || item?.tokens?.output_tokens != null) && (
+                <span
+                  className="text-xs text-base-content/40 flex items-center gap-1 shrink-0 cursor-help"
+                  title={`Tokens: ${(item.tokens.input_tokens ?? 0).toLocaleString()} input • ${(item.tokens.output_tokens ?? 0).toLocaleString()} output • ${(item.tokens.total_tokens ?? (item.tokens.input_tokens ?? 0) + (item.tokens.output_tokens ?? 0)).toLocaleString()} total`}
+                >
+                  <span className="text-base-content/20">·</span>
+                  <span>Tokens:</span>
+                  <span className="font-medium text-base-content/60">
+                    {(item.tokens.input_tokens ?? 0).toLocaleString()} INPUT
+                  </span>
+                  <span className="text-base-content/20">/</span>
+                  <span className="font-medium text-base-content/60">
+                    {(item.tokens.output_tokens ?? 0).toLocaleString()} OUTPUT
+                  </span>
+                  <span className="text-base-content/20">/</span>
+                  <span className="font-medium text-base-content/60">
+                    {(
+                      item.tokens.total_tokens ?? (item.tokens.input_tokens ?? 0) + (item.tokens.output_tokens ?? 0)
+                    ).toLocaleString()}{" "}
+                    TOTAL
+                  </span>
+                </span>
+              )}
+              {item?.tokens?.expected_cost && (
+                <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
+                  <span className="text-base-content/20">·</span>
+                  <span>Cost:</span>
+                  <span className="font-medium text-base-content/60">
+                    ${parseFloat(item.tokens.expected_cost).toFixed(4)}
+                  </span>
+                </span>
+              )}
+              {item?.version_id && (
+                <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
+                  <span className="text-base-content/20">·</span>
+                  <span>Version:</span>
+                  <span className="font-medium text-base-content/60">{item.version_id}</span>
+                </span>
+              )}
+              {item?.message_id && (
+                <span className="text-xs text-base-content/40 flex items-center gap-1 shrink-0">
+                  <span className="text-base-content/20">·</span>
+                  <span>Message ID:</span>
+                  <span className="font-medium text-base-content/60">{item.message_id}</span>
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 bg-base-200 rounded-lg p-1 shrink-0">
+              <button
+                data-testid="thread-item-rerun-button"
+                className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
+                onClick={handleRerun}
+                disabled={isRerunning || !publishedVersionId}
+                title={!publishedVersionId ? "No published version available" : "Rerun this message"}
+              >
+                <RotateCcw className={`h-3 w-3 ${isRerunning ? "animate-spin" : ""}`} />
+                <span>{isRerunning ? "Running..." : "Rerun"}</span>
+              </button>
+              <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
+              <button
+                data-testid="thread-item-user-aiconfig-button-sticky"
+                className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
+                onClick={() => handleUserButtonClick("AiConfig")}
+              >
+                <SquareFunctionIcon className="h-3 w-3" />
+                <span>AI Config</span>
+              </button>
+              <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
+              <button
+                id="thread-item-add-test-case-button-sticky"
+                data-testid="thread-item-add-test-case-button-sticky"
+                className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
+                onClick={() => handleAddTestCase(item, index)}
+              >
+                <AddIcon className="h-3 w-3" />
+                <span>Test Case</span>
+              </button>
+              <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
+              <button
+                data-testid="thread-item-user-variables-button-sticky"
+                id="thread-item-user-variables-button-sticky"
+                className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
+                onClick={() => {
+                  setIsVariablesOpen((v) => {
+                    const newVal = !v;
+                    if (newVal) {
+                      setIsSystemPromptExpanded(false);
+                      setIsMoreDetailsExpanded(false);
+                    }
+                    return newVal;
+                  });
+                }}
+              >
+                <Braces className="h-3 w-3" />
+                <span>Variables</span>
+              </button>
+              {item?.latency ? (
+                <>
+                  <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
+                  <button
+                    data-testid="thread-item-user-latency-button-sticky"
+                    className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
+                    onClick={() => handleUserButtonClick("Latency")}
+                  >
+                    <Clock3 className="h-3 w-3 text-base-content/60" />
+                    <span>Latency</span>
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 bg-base-200 rounded-lg p-1 shrink-0">
-            <button
-              className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
-              onClick={handleRerun}
-              disabled={isRerunning || !publishedVersionId}
-              title={!publishedVersionId ? "No published version available" : "Rerun this message"}
-            >
-              <RotateCcw className={`h-3 w-3 ${isRerunning ? "animate-spin" : ""}`} />
-              <span>{isRerunning ? "Running..." : "Rerun"}</span>
-            </button>
-            <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
-            <button
-              data-testid="thread-item-user-aiconfig-button-sticky"
-              className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
-              onClick={() => handleUserButtonClick("AiConfig")}
-            >
-              <SquareFunctionIcon className="h-3 w-3" />
-              <span>AI Config</span>
-            </button>
-            <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
-            <button
-              id="thread-item-add-test-case-button-sticky"
-              className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
-              onClick={() => handleAddTestCase(item, index)}
-            >
-              <AddIcon className="h-3 w-3" />
-              <span>Test Case</span>
-            </button>
-            <div className="w-px h-4 bg-base-300 mx-0.5 shrink-0" />
-            <button
-              data-testid="thread-item-user-variables-button-sticky"
-              id="thread-item-user-variables-button-sticky"
-              className="btn btn-ghost btn-xs rounded-md gap-1.5 shrink-0"
-              onClick={() => handleUserButtonClick("variables")}
-            >
-              <Braces className="h-3 w-3" />
-              <span>Sent Variables</span>
-            </button>
-          </div>
+
+          {/* Variables panel dropdown - appears below the sticky header */}
+          {isVariablesOpen && variableCount > 0 && (
+            <div className="w-full mt-2 rounded-xl overflow-hidden border border-base-300 bg-base-100">
+              <div className="px-4 py-2.5 bg-base-100 border-b border-base-300 flex justify-between items-center select-none">
+                <input
+                  type="text"
+                  placeholder={`Filter ${variableCount} variables...`}
+                  value={variablesFilter}
+                  onChange={(e) => setVariablesFilter(e.target.value)}
+                  className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40 mr-2"
+                />
+                <button
+                  onClick={handleCopyAllVariables}
+                  className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center shrink-0"
+                  title="Copy all variables as JSON"
+                >
+                  {copiedAllVariables ? (
+                    <>
+                      <CheckCircleIcon size={12} className="text-success" />
+                      <span className="text-success font-medium">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon size={12} className="opacity-80" />
+                      <span>Copy Object</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="max-h-96 overflow-y-auto">
+                {Object.entries(item?.variables || {})
+                  .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
+                  .map(([key, value], i) => (
+                    <div
+                      key={key}
+                      className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
+                    >
+                      <span className="text-xs font-normal min-w-[120px] shrink-0 text-trace-gold">{key}</span>
+                      <div className="flex-1 w-full max-w-full overflow-hidden">
+                        <InlineVarValue
+                          raw={
+                            typeof value === "object" && value !== null
+                              ? JSON.stringify(value, null, 2)
+                              : String(value ?? "")
+                          }
+                          isLong={
+                            typeof value === "object" && value !== null
+                              ? JSON.stringify(value).length > 200
+                              : String(value ?? "").length > 200
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
+                {formatDateAndTime(item.created_at)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      <div className={isSingleQuery ? "" : "show-on-hover"}>
+      <div className="">
         {isSingleQuery ? (
           /* ── Single-query vertical flow ── */
           <div className="flex flex-col w-full py-2">
-            {/* User Query card — full width in stateless mode */}
-            <div className="flex justify-start w-full">
-              <div className="w-full bg-primary rounded-xl px-4 py-3 text-base-200" style={{ wordBreak: "break-word" }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full bg-base-300 flex items-center justify-center shrink-0">
-                    <UserIcon size={13} className="text-base-content" />
+            {/* User message — right-aligned bubble + U avatar */}
+            <div className={`group relative ${hasAgentsOrTools ? "mb-2" : "mb-10"}`}>
+              <div className="flex items-start justify-end gap-3">
+                <div
+                  onClick={
+                    !isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5)
+                      ? () => setIsUserQueryExpanded(true)
+                      : undefined
+                  }
+                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words relative border ${
+                    isDark
+                      ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
+                      : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
+                  } ${!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) ? "cursor-pointer select-none" : ""}`}
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+                >
+                  {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                  <div className="whitespace-pre-line">
+                    <ReactMarkdown
+                      components={{
+                        code: ({ node, inline, className, children, ...props }) => (
+                          <CodeBlock className={className} {...props}>
+                            {children}
+                          </CodeBlock>
+                        ),
+                      }}
+                    >
+                      {item.user}
+                    </ReactMarkdown>
                   </div>
-                  <span className="text-xs font-semibold text-base-200 uppercase tracking-wide">User Query</span>
-                </div>
-                {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                <div className={!isUserQueryExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}>
-                  <ReactMarkdown
-                    components={{
-                      code: ({ node, inline, className, children, ...props }) => (
-                        <CodeBlock className={className} {...props}>
-                          {children}
-                        </CodeBlock>
-                      ),
-                    }}
-                  >
-                    {item.user}
-                  </ReactMarkdown>
-                </div>
-                {item.user?.split("\n").length > 7 || item.user?.length > 400 ? (
-                  <button
-                    className="mt-1 text-xs text-base-200/70 hover:text-base-200 flex items-center gap-1"
-                    onClick={() => setIsUserQueryExpanded(!isUserQueryExpanded)}
-                  >
-                    <ChevronDown
-                      size={12}
-                      className={`transition-transform duration-150 ${isUserQueryExpanded ? "rotate-180" : ""}`}
+
+                  {/* Semi-transparent fade-out overlay when collapsed */}
+                  {!isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t ${isDark ? "from-[#27272a]" : "from-[#f4f4f5]"} to-transparent pointer-events-none rounded-b-2xl`}
                     />
-                    {isUserQueryExpanded ? "Show less" : "Show more"}
-                  </button>
-                ) : null}
+                  )}
+
+                  {/* Collapse button inside the bubble, shown only when expanded */}
+                  {isUserQueryExpanded && (item.user?.length > 300 || item.user?.split("\n").length > 5) && (
+                    <div className="flex justify-center mt-3 select-none">
+                      <button
+                        type="button"
+                        className={`btn btn-xs rounded-full border border-base-content/10 px-4 py-1 flex items-center gap-1.5 transition-colors font-semibold ${
+                          isDark
+                            ? "bg-base-200 text-base-content hover:bg-base-300"
+                            : "bg-base-100/10 text-neutral-content hover:bg-base-100/20"
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsUserQueryExpanded(false);
+                        }}
+                      >
+                        <ChevronUp size={12} />
+                        <span>Collapse</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                {/* Avatar */}
+                <div
+                  className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 ${
+                    isDark ? "bg-[#1a1a1a] text-white/50" : "bg-base-100 text-base-content/50"
+                  }`}
+                >
+                  U
+                </div>
               </div>
             </div>
 
-            {/* Config between user and agent: pre-tool, system prompt */}
+            {isSingleQuery && item?.prompt && (
+              <div className={`w-full ${hasAgentsOrTools ? "mb-3" : "mb-6"}`}>
+                <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20">
+                  <div
+                    className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
+                    onClick={() => {
+                      setIsSystemPromptExpanded(!isSystemPromptExpanded);
+                      if (!isSystemPromptExpanded) {
+                        setIsVariablesOpen(false);
+                        setIsMoreDetailsExpanded(false);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
+                      <span className="text-xs font-medium text-base-content/70">System Prompt:</span>
+                      {!isSystemPromptExpanded && (
+                        <span className="text-xs text-base-content/50 truncate flex-1">{item.prompt}</span>
+                      )}
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`text-base-content/60 shrink-0 transition-transform ${isSystemPromptExpanded ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                  {isSystemPromptExpanded && (
+                    <div className="px-3 pb-3 pt-2 border-t border-base-300">
+                      <div className="text-xs text-base-content whitespace-pre-wrap bg-base-100 rounded p-2.5 border border-base-300 leading-relaxed">
+                        {renderHighlightedSystemPrompt(item.prompt)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Config between user and agent: pre-tool */}
             {isSingleQuery &&
               item?.tools_call_data?.length > 0 &&
               (() => {
@@ -1041,55 +1994,20 @@ const ThreadItem = ({
                 );
               })()}
 
-            {isSingleQuery && item?.prompt && (
-              <div className="w-full mt-3">
-                <div className="bg-base-200 border border-base-300 rounded-lg hover:border-base-content/20">
-                  <div
-                    className="px-3 py-2 flex items-center justify-between gap-2 cursor-pointer hover:bg-base-200/80 rounded-lg"
-                    onClick={() => setIsSystemPromptExpanded(!isSystemPromptExpanded)}
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <FileTextIcon size={14} className="text-base-content/60 shrink-0" />
-                      <span className="text-xs font-medium text-base-content/70">System Prompt:</span>
-                      {!isSystemPromptExpanded && (
-                        <span className="text-xs text-base-content/50 truncate flex-1">{item.prompt}</span>
-                      )}
-                    </div>
-                    <ChevronDown
-                      size={16}
-                      className={`text-base-content/60 shrink-0 transition-transform ${isSystemPromptExpanded ? "rotate-180" : ""}`}
-                    />
-                  </div>
-                  {isSystemPromptExpanded && (
-                    <div className="px-3 pb-3 pt-2 border-t border-base-300">
-                      <div className="text-xs text-base-content whitespace-pre-wrap max-h-64 overflow-y-auto bg-base-100 rounded p-2.5 border border-base-300 leading-relaxed">
-                        {renderHighlightedSystemPrompt(item.prompt)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* Agent execution trace (replaces old tools UI) */}
             {hasAgentsOrTools && (
-              <>
-                <div className="flex flex-row items-center justify-center my-2 w-full gap-3">
-                  <ArrowDown size={20} className="text-base-content/50" />
-                </div>
-                <div className="w-full">
-                  <MessageExecutionTrace
-                    item={item}
-                    bridgeId={params?.id}
-                    rootAgentName={rootAgentName}
-                    formatDateAndTime={formatDateAndTime}
-                    onToolLogsClick={handleToolPrimaryClick}
-                    onToolDataClick={handleToolDataClick}
-                    onAgentDataClick={handleToolDataClick}
-                    onAgentHistoryClick={handleToolPrimaryClick}
-                  />
-                </div>
-              </>
+              <div className="w-full mt-4">
+                <MessageExecutionTrace
+                  item={item}
+                  bridgeId={params?.id}
+                  rootAgentName={rootAgentName}
+                  formatDateAndTime={formatDateAndTime}
+                  onToolLogsClick={handleToolPrimaryClick}
+                  onToolDataClick={handleToolDataClick}
+                  onAgentDataClick={handleToolDataClick}
+                  onAgentHistoryClick={handleToolPrimaryClick}
+                />
+              </div>
             )}
 
             {/* Legacy tools UI — only when no nested agent trace */}
@@ -1410,159 +2328,47 @@ const ThreadItem = ({
                 );
               })()}
 
-            {/* Arrow connector to AI response with final execution time */}
-            {!item.error &&
-              (() => {
-                // Model execution time goes on arrow from Tools to AI Response
-                const modelExecutionTime = parseFloat(item?.latency?.model_execution_time) || 0;
-
-                return (
-                  <div className="flex flex-row items-center justify-center my-2 w-full max-w-xl gap-3">
-                    <ArrowDown size={20} className="text-base-content/50" />
-                    {modelExecutionTime > 0 && (
-                      <span className="text-xs px-2.5 py-1 rounded-md bg-base-200 text-base-content border border-base-300 whitespace-nowrap font-medium flex items-center gap-1 w-20 justify-center">
-                        <Clock3 size={12} /> {modelExecutionTime.toFixed(2)}s
-                      </span>
-                    )}
-                  </div>
-                );
-              })()}
-
             {!item.error && (
-              <div className="w-full relative">
-                {/* Total time badge — top right outside card */}
-                {firstAttemptErrorNotice}
-                <span className="absolute -top-2 right-2 z-10 text-xs px-2 py-0.5 rounded-full border border-base-content/20 text-base-content/50 bg-base-100 whitespace-nowrap flex items-center gap-1">
-                  <Clock3 size={10} /> {(parseFloat(item?.latency?.over_all_time) || 0).toFixed(2)}s total
-                </span>
-
-                <div
-                  className=" rounded-xl px-4 py-3 text-sm text-base-content relative group"
-                  style={{ wordBreak: "break-word" }}
-                >
-                  {/* Header row */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="relative shrink-0 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDropupOpen(!isDropupOpen);
-                      }}
-                    >
-                      <span
-                        data-testid="thread-item-bot-icon"
-                        id="thread-item-bot-icon"
-                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
-                      >
-                        {rootAgentInitials}
-                      </span>
-                      {isDropupOpen && (
-                        <div
-                          ref={dropupRef}
-                          className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[130px] p-1"
-                          style={{ zIndex: 9999, top: "28px", left: "0" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
-                          <ul className="flex flex-col gap-0.5">
-                            {item.chatbot_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-chatbot-message"
-                                  id="thread-item-select-chatbot-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("chatbot_message")}
-                                >
-                                  Chatbot
-                                </button>
-                              </li>
-                            )}
-                            {item.llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-llm-message"
-                                  id="thread-item-select-llm-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("llm_message")}
-                                >
-                                  LLM
-                                </button>
-                              </li>
-                            )}
-                            {item.updated_llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-updated-message"
-                                  id="thread-item-select-updated-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("updated_llm_message")}
-                                >
-                                  Updated
-                                </button>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
-                    {messageType === "updated_llm_message" && (
-                      <span className="badge badge-xs badge-outline">Edited</span>
-                    )}
-                    {isBatchResponse && (
-                      <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
-                        <BatchStatusIcon size={10} />
-                        {batchStatusMeta.label}
-                      </span>
-                    )}
-                  </div>
-                  {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+              <div className="w-full relative flex items-end gap-3">
+                {/* Left Column: Avatar */}
+                <div className="shrink-0 mb-1">
                   <div
-                    ref={aiResponseRef}
-                    className={!isAiResponseExpanded ? "line-clamp-5 overflow-hidden" : "whitespace-pre-line"}
+                    onClick={
+                      hasMultipleMessageTypes
+                        ? (e) => {
+                            e.stopPropagation();
+                            setIsDropupOpen(!isDropupOpen);
+                          }
+                        : null
+                    }
+                    className={`shrink-0  rounded-full border border-primary/50 p-1 flex items-center justify-center text-primary relative ${
+                      hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
+                    }`}
                   >
-                    {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
-                      <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
-                    ) : (
-                      <ReactMarkdown
-                        components={{
-                          code: ({ node, inline, className, children, ...props }) => (
-                            <CodeBlock className={className} {...props}>
-                              {children}
-                            </CodeBlock>
-                          ),
-                        }}
-                      >
-                        {getMessageToDisplay()}
-                      </ReactMarkdown>
-                    )}
+                    <BotIcon size={16} />
+                    {messageTypeDropdown}
                   </div>
-                  {aiResponseOverflows && (
-                    <button
-                      className="mt-1 text-xs text-primary/70 hover:text-primary flex items-center gap-1"
-                      onClick={() => setIsAiResponseExpanded(!isAiResponseExpanded)}
-                    >
-                      <ChevronDown
-                        size={12}
-                        className={`transition-transform duration-150 ${isAiResponseExpanded ? "rotate-180" : ""}`}
-                      />
-                      {isAiResponseExpanded ? "Show less" : "Show more"}
-                    </button>
-                  )}
-                  {!item?.llm_urls?.length && !item?.fromRTLayer && (
-                    <div
-                      className="tooltip absolute"
-                      style={{ top: "-0.5rem", right: "7.5rem" }}
-                      data-tip="Edit message"
-                    >
-                      <button
-                        id="thread-item-edit-message-button"
-                        className="btn btn-xs btn-circle btn-ghost opacity-0 group-hover:opacity-100"
-                        onClick={handleEdit}
-                      >
-                        <PencilIcon size={13} />
-                      </button>
-                    </div>
+                </div>
+
+                {/* Right Column: Assistant Message */}
+                <div className="flex-1 min-w-0 relative">
+                  {firstAttemptErrorNotice}
+
+                  <FinalResponseCard
+                    attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                    content={getMessageToDisplay()}
+                    isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                    hasToolCalls={hasAgentsOrTools}
+                  />
+
+                  <div
+                    className={`transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                  >
+                    {renderResponseActionButtons(false)}
+                  </div>
+
+                  {responseStatusBadges && (
+                    <div className="mt-3 flex gap-1.5 items-center select-none">{responseStatusBadges}</div>
                   )}
                 </div>
               </div>
@@ -1571,207 +2377,56 @@ const ThreadItem = ({
         ) : (
           /* ── Multi-query chat bubble layout ── */
           <div>
-            {/* User message */}
-            {!isSingleQuery ? (
-              /* ── Stateless: new dark bubble + pill buttons ── */
-              <div className="group mb-2">
-                {/* Bubble row: message left, avatar right */}
-                <div className="flex items-start justify-end gap-3">
-                  <div
-                    className="max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words bg-neutral text-neutral-content"
-                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+            {/* User message — same dark bubble + U avatar for multi-query; buttons differ by mode */}
+            <div className={`group relative ${hasAgentsOrTools ? "mb-2" : "mb-10"}`}>
+              <div className="flex items-start justify-end gap-3">
+                <div
+                  className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words border ${
+                    isDark
+                      ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
+                      : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
+                  }`}
+                  style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                >
+                  {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
+                  <ReactMarkdown
+                    components={{
+                      code: ({ node, inline, className, children, ...props }) => (
+                        <CodeBlock className={className} {...props}>
+                          {children}
+                        </CodeBlock>
+                      ),
+                    }}
                   >
-                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                    <ReactMarkdown
-                      components={{
-                        code: ({ node, inline, className, children, ...props }) => (
-                          <CodeBlock className={className} {...props}>
-                            {children}
-                          </CodeBlock>
-                        ),
-                      }}
-                    >
-                      {item.user}
-                    </ReactMarkdown>
-                  </div>
-                  {/* Avatar */}
-                  <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-300 text-base-content/70">
-                    U
-                  </div>
+                    {item.user}
+                  </ReactMarkdown>
                 </div>
-
-                {/* Below bubble: pill buttons + time */}
-                <div className="flex flex-col gap-1 mt-3 pr-12">
-                  <div className="flex items-center justify-end gap-2 flex-wrap">
-                    <div className="flex gap-1.5 flex-wrap">
-                      <button
-                        data-testid="thread-item-user-aiconfig-button"
-                        id="thread-item-user-aiconfig-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => handleUserButtonClick("AiConfig")}
-                      >
-                        <SquareFunctionIcon className="h-3 w-3" />
-                        <span>AI Config</span>
-                      </button>
-                      <button
-                        data-testid="thread-item-user-system-prompt-button"
-                        id="thread-item-user-system-prompt-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => handleUserButtonClick("system Prompt")}
-                      >
-                        <FileClockIcon className="h-3 w-3" />
-                        <span>System Prompt</span>
-                      </button>
-                      <button
-                        data-testid="thread-item-user-more-button"
-                        id="thread-item-user-more-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => handleUserButtonClick("more")}
-                      >
-                        <AddIcon className="h-3 w-3" />
-                        <span>More...</span>
-                      </button>
-                    </div>
-
-                    {item?.variables && Object.keys(item.variables).length > 0 && (
-                      <button
-                        data-testid="thread-item-user-variables-button"
-                        id="thread-item-user-variables-button"
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                        onClick={() => setIsVariablesOpen((v) => !v)}
-                      >
-                        <Braces className="h-3 w-3" />
-                        <span>Sent Variables</span>
-                        <span className="rounded-full px-1.5 py-0 text-[10px] font-bold bg-base-300 text-base-content/60">
-                          {Object.keys(item.variables).length}
-                        </span>
-                        <ChevronDown
-                          className={`h-3 w-3 transition-transform duration-200 ${isVariablesOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                    )}
-
-                    <time className="text-xs opacity-40 shrink-0">
-                      <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
-                      <span className="hidden group-hover:inline">{formatDateAndTime(item.created_at)}</span>
-                    </time>
-                  </div>
-
-                  {/* Inline Variables Panel */}
-                  {isVariablesOpen && (
-                    <div className="mt-1 rounded-xl overflow-hidden w-[620px] ml-auto border border-base-300 bg-base-100">
-                      <div className="px-4 py-2.5 bg-base-100 border-b border-base-300">
-                        <input
-                          type="text"
-                          placeholder={`Filter ${Object.keys(item?.variables || {}).length} variables...`}
-                          value={variablesFilter}
-                          onChange={(e) => setVariablesFilter(e.target.value)}
-                          className="w-full text-sm outline-none bg-base-100 text-base-content placeholder:text-base-content/40"
-                        />
-                      </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {Object.entries(item?.variables || {})
-                          .filter(([key]) => key.toLowerCase().includes(variablesFilter.toLowerCase()))
-                          .map(([key, value], i) => (
-                            <div
-                              key={key}
-                              className={`flex items-start gap-4 px-4 py-2.5 border-b border-base-300 ${i % 2 === 0 ? "bg-base-100" : "bg-base-200/50"}`}
-                            >
-                              <span className="text-sm font-medium min-w-[120px] shrink-0 text-trace-gold">{key}</span>
-                              <span className="text-sm break-all text-base-content/80">
-                                {typeof value === "object" ? JSON.stringify(value) : String(value ?? "")}
-                              </span>
-                            </div>
-                          ))}
-                        {Object.keys(item?.variables || {}).length === 0 && (
-                          <div className="px-4 py-4 text-sm text-center text-base-content/40">No variables</div>
-                        )}
-                      </div>
-                      <div className="px-4 py-2 text-right text-xs text-base-content/40 border-t border-base-300 bg-base-100">
-                        {formatDateAndTime(item.created_at)}
-                      </div>
-                    </div>
-                  )}
+                {/* Avatar */}
+                <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-100 text-base-content/50">
+                  <User size={20} />
                 </div>
               </div>
-            ) : (
-              /* ── Stateful: original DaisyUI chat bubble + old buttons ── */
-              <div className="chat group chat-end mb-4">
-                <div className="chat-image avatar flex justify-center items-center">
-                  <div className="p-2 rounded-full bg-base-300 flex justify-center items-center hover:bg-base-300/80 transition-colors">
-                    <div className="relative rounded-full bg-base-300 flex justify-center items-center">
-                      <UserIcon size={20} className="text-base-content" />
-                    </div>
-                  </div>
-                </div>
+              {isStatelessConversation ? (
                 <div
-                  className="flex justify-start flex-row-reverse items-center gap-1"
-                  style={{ width: "-webkit-fill-available" }}
+                  className={`absolute right-12 top-[calc(100%+8px)] z-20 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                 >
-                  <div
-                    className="chat-bubble-primary chat-bubble transition-all ease-in-out duration-300 relative group break-words"
-                    style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
-                  >
-                    {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                    <ReactMarkdown
-                      components={{
-                        code: ({ node, inline, className, children, ...props }) => (
-                          <CodeBlock className={className} {...props}>
-                            {children}
-                          </CodeBlock>
-                        ),
-                      }}
-                    >
-                      {item.user}
-                    </ReactMarkdown>
-                  </div>
+                  {renderStatelessMultiQueryUserActions(true, false)}
                 </div>
-                <div className="flex flex-row-reverse gap-2 m-1 items-center justify-between">
-                  <time className="text-xs opacity-50 chat-end relative w-[140px] inline-block text-right">
-                    <span className="group-hover:hidden">{formatRelativeTime(item.created_at)}</span>
-                    <span className="hidden group-hover:inline absolute right-0 top-0">
-                      {formatDateAndTime(item.created_at)}
-                    </span>
-                  </time>
-                  <div className="flex gap-1 opacity-70 hover:opacity-100 transition-opacity see-on-hover">
-                    <button
-                      data-testid="thread-item-user-aiconfig-button"
-                      id="thread-item-user-aiconfig-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("AiConfig")}
-                    >
-                      <SquareFunctionIcon className="h-3 w-3" />
-                      <span>AI Config</span>
-                    </button>
-                    <button
-                      data-testid="thread-item-user-variables-button"
-                      id="thread-item-user-variables-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("variables")}
-                    >
-                      <Braces className="h-3 w-3" />
-                      <span>Variables</span>
-                    </button>
-                    <button
-                      data-testid="thread-item-user-system-prompt-button"
-                      id="thread-item-user-system-prompt-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("system Prompt")}
-                    >
-                      <FileClockIcon className="h-3 w-3" />
-                      <span>System Prompt</span>
-                    </button>
-                    <button
-                      data-testid="thread-item-user-more-button"
-                      id="thread-item-user-more-button"
-                      className={`btn text-xs font-normal btn-sm hover:btn-primary ${isLastMessage() ? "" : "see-on-hover"}`}
-                      onClick={() => handleUserButtonClick("more")}
-                    >
-                      <AddIcon className="h-3 w-3" />
-                      <span>More...</span>
-                    </button>
-                  </div>
+              ) : (
+                <div
+                  className={`absolute right-12 top-[calc(100%+8px)] z-20 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                >
+                  {renderStatefulMessageActionToolbar({ showTimestamp: true, pillsOnly: true })}
                 </div>
+              )}
+            </div>
+
+            {/* Render panels in relative flow if any panel is open */}
+            {isAnyPanelOpen && (
+              <div className="w-full mt-[2rem] mb-2">
+                {isStatelessConversation
+                  ? renderStatelessMultiQueryUserActions(false, true)
+                  : renderStatefulMessageActionToolbar({ panelsOnly: true })}
               </div>
             )}
 
@@ -1959,158 +2614,65 @@ const ThreadItem = ({
 
             {/* 3. Third: Render Assistant Message if exists */}
             {!item.error && (
-              <div className="w-full relative">
-                {firstAttemptErrorNotice}
-                <div
-                  className="rounded-xl px-4 py-3 text-sm text-base-content relative group"
-                  style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
-                >
-                  <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <div
-                      className="relative shrink-0 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsDropupOpen(!isDropupOpen);
-                      }}
-                    >
-                      <span
-                        data-testid="thread-item-bot-icon"
-                        id="thread-item-bot-icon"
-                        className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] ${HUE_THEME["trace-gold"].avatar}`}
-                      >
-                        {rootAgentInitials}
-                      </span>
-                      {isDropupOpen && (
-                        <div
-                          ref={dropupRef}
-                          className="absolute bg-base-100 border border-base-300 rounded-lg shadow-lg min-w-[140px] p-1"
-                          style={{ zIndex: 9999, top: "28px", left: "0" }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <p className="text-xs font-medium text-base-content/50 px-2 pt-1 pb-1">View as</p>
-                          <ul className="flex flex-col gap-0.5">
-                            {item.chatbot_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-chatbot-message"
-                                  id="thread-item-select-chatbot-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "chatbot_message" || messageType === 0 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("chatbot_message")}
-                                >
-                                  Chatbot
-                                </button>
-                              </li>
-                            )}
-                            {item.llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-llm-message"
-                                  id="thread-item-select-llm-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "llm_message" || messageType === 1 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("llm_message")}
-                                >
-                                  LLM
-                                </button>
-                              </li>
-                            )}
-                            {item.updated_llm_message && (
-                              <li>
-                                <button
-                                  data-testid="thread-item-select-updated-message"
-                                  id="thread-item-select-updated-message"
-                                  className={`w-full text-left px-2 py-1 rounded-md text-xs ${messageType === "updated_llm_message" || messageType === 2 ? "bg-primary text-white" : "hover:bg-base-200"}`}
-                                  onClick={() => selectMessageType("updated_llm_message")}
-                                >
-                                  Updated
-                                </button>
-                              </li>
-                            )}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                    <span className="truncate text-sm font-semibold text-base-content">{rootAgentName}</span>
-                    {messageType === "updated_llm_message" && (
-                      <span className="badge badge-xs badge-outline">Edited</span>
-                    )}
-                    {isBatchResponse && (
-                      <span className={`badge badge-xs gap-1 text-white ${batchStatusMeta.className}`}>
-                        <BatchStatusIcon size={10} />
-                        {batchStatusMeta.label}
-                      </span>
-                    )}
+              <div className="w-full relative flex items-start gap-3 group">
+                {/* Left Column: Avatar */}
+                <div className="shrink-0 mb-2 self-end">
+                  <div
+                    onClick={
+                      hasMultipleMessageTypes
+                        ? (e) => {
+                            e.stopPropagation();
+                            setIsDropupOpen(!isDropupOpen);
+                          }
+                        : null
+                    }
+                    className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center border border-base-content/20 bottom-[26px] relative ${
+                      hasMultipleMessageTypes ? "cursor-pointer select-none" : ""
+                    }`}
+                  >
+                    <BotIcon size={16} />
+                    {messageTypeDropdown}
                   </div>
-                  <div className={`relative pr-10 ${preFunctionEntry ? "min-w-[16rem]" : ""}`}>
-                    {preFunctionEntry && (
-                      <button
-                        type="button"
-                        onClick={handlePreFunctionClick}
-                        className="absolute -top-3 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-base-content/30 ring-1 ring-base-content/10 bg-base-100 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-base-content/50 hover:ring-base-content/20 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/35"
-                        title="Open pre-function logs"
-                        aria-label="Open pre-function logs"
-                      >
-                        <SquareFunctionIcon size={14} className="shrink-0 opacity-80" />
-                        <span className="block truncate">Pre-Function Logs: {preFunctionStripText}</span>
-                        <ChevronRight size={12} className="shrink-0 opacity-70" />
-                      </button>
-                    )}
+                </div>
 
-                    {/* Assistant attachments */}
-                    {renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                {/* Right Column: Assistant Message */}
+                <div className="flex-1 min-w-0 relative">
+                  {firstAttemptErrorNotice}
+                  {preFunctionEntry && (
+                    <button
+                      type="button"
+                      id="thread-item-pre-function-logs-button"
+                      data-testid="thread-item-pre-function-logs-button"
+                      onClick={handlePreFunctionClick}
+                      className="absolute -top-3 left-3 z-20 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full border border-base-content/30 ring-1 ring-base-content/10 bg-base-100 px-3 py-1 text-xs font-medium shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-base-content/50 hover:ring-base-content/20 hover:bg-base-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-base-content/35"
+                      title="Open pre-function logs"
+                      aria-label="Open pre-function logs"
+                    >
+                      <SquareFunctionIcon size={14} className="shrink-0 opacity-80" />
+                      <span className="block truncate">Pre-Function Logs: {preFunctionStripText}</span>
+                      <ChevronRight size={12} className="shrink-0 opacity-70" />
+                    </button>
+                  )}
+                  {responseStatusBadges && (
+                    <div className="flex gap-1.5 items-center select-none">{responseStatusBadges}</div>
+                  )}
+                  <FinalResponseCard
+                    attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
+                    content={getMessageToDisplay()}
+                    isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                    hasToolCalls={hasAgentsOrTools}
+                  />
 
-                    {/* Message content */}
-                    {isChatbotMessage() && containsHTML(getMessageToDisplay()) ? (
-                      <div dangerouslySetInnerHTML={{ __html: getMessageToDisplay() }} />
-                    ) : (
-                      <ReactMarkdown
-                        components={{
-                          code: ({ node, inline, className, children, ...props }) => (
-                            <CodeBlock className={className} {...props}>
-                              {children}
-                            </CodeBlock>
-                          ),
-                        }}
-                      >
-                        {getMessageToDisplay()}
-                      </ReactMarkdown>
-                    )}
-
-                    {/* Edit button for assistant messages */}
-                    {!item?.llm_urls?.length && !item?.fromRTLayer && (
+                  {/* Action buttons and badges below FinalResponseCard */}
+                  <div className="flex flex-wrap items-center mb-2 gap-2 z-20">
+                    {!isSingleQuery && (
                       <div
-                        className={`absolute top-2 right-2 flex items-center gap-1 transition-opacity ${isLastMessage() ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+                        className={`flex items-center gap-2 transition-opacity duration-200 ${isAnyPanelOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
                       >
-                        <div className="tooltip" data-tip="Edit message">
-                          <button
-                            id="thread-item-edit-message-button"
-                            className="btn btn-sm btn-circle btn-ghost hover:btn-primary text-base-content"
-                            onClick={handleEdit}
-                          >
-                            <PencilIcon size={14} />
-                          </button>
-                        </div>
+                        {renderResponseActionButtons(!isStatelessConversation)}
                       </div>
                     )}
                   </div>
-                </div>
-                {/* Action buttons below AI response — always visible */}
-                <div className="mt-2 flex items-center gap-1.5">
-                  <button
-                    id="thread-item-add-test-case-button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                    onClick={() => handleAddTestCase(item, index)}
-                  >
-                    <AddIcon className="h-3 w-3" />
-                    <span>Test Case</span>
-                  </button>
-                  <button
-                    id="thread-item-debug-agent-button"
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold uppercase tracking-wide transition-colors bg-base-200 text-trace-gold hover:bg-base-300"
-                    onClick={() => handleAskAi(item)}
-                  >
-                    <BotMessageIcon className="h-3 w-3" />
-                    <span>Debug Agent</span>
-                  </button>
                 </div>
               </div>
             )}
@@ -2122,10 +2684,6 @@ const ThreadItem = ({
           (isSingleQuery ? (
             /* Single-query (stateless) — match the AI Response card style */
             <div className="flex flex-col items-center py-2 w-full">
-              {/* Arrow connector — same as the non-error path */}
-              <div className="flex flex-row items-center justify-center my-2 w-full max-w-xl gap-3">
-                <ArrowDown size={20} className="text-base-content/50" />
-              </div>
               {firstAttemptErrorNotice}
               {/* Error card — mirrors the AI Response card */}
               <div className="w-full relative">
@@ -2141,7 +2699,7 @@ const ThreadItem = ({
                     <span
                       className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
                     >
-                      {rootAgentInitials}
+                      <BotIcon className="w-[17px] h-[17px]" />
                     </span>
                     <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                   </div>
@@ -2165,7 +2723,7 @@ const ThreadItem = ({
                   <span
                     className={`grid h-6 w-6 place-items-center rounded-md font-bold text-[10px] shrink-0 ${HUE_THEME["trace-gold"].avatar}`}
                   >
-                    {rootAgentInitials}
+                    <BotIcon className="w-[17px] h-[17px]" />
                   </span>
                   <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                 </div>

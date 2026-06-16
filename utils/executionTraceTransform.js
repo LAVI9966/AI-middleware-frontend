@@ -74,7 +74,7 @@ const getTokens = (message) => {
   const input = message?.tokens?.input_tokens ?? 0;
   const output = message?.tokens?.output_tokens ?? 0;
   const total = input + output;
-  return total > 0 ? total : null;
+  return total > 0 ? { input, output, total } : null;
 };
 
 const SUB_AGENT_HUES = ["trace-blue", "trace-green", "trace-gold"];

@@ -1,16 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlertTriangle,
-  BookOpen,
-  Brackets,
-  ChevronDown,
-  ChevronRight,
-  FileClock,
-  History,
-  SquareFunction,
-} from "lucide-react";
+import React, { createContext, useContext, useMemo, useState } from "react";
+import { AlertTriangle, BookOpen, Brackets, ChevronRight, History, SquareFunction } from "lucide-react";
+import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
 import {
   HUE_THEME,
   NEUTRAL_HEAD,
@@ -20,6 +12,7 @@ import {
   agentInitials,
   resolveAgentHue,
 } from "./traceTheme";
+import CodeBlock from "../../codeBlock/CodeBlock";
 
 const TRACE_HIDDEN_VAR_KEYS = new Set(["_user_message"]);
 
@@ -51,12 +44,22 @@ function formatIoValue(value) {
 
 /** Reference: bordered INPUT / OUTPUT blocks */
 function IoPanel({ label, value }) {
+  const panelKey = String(label || "").toLowerCase();
   return (
-    <div className={`mx-2 mb-2 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-base-100`}>
-      <div className="border-b border-base-content/20 bg-base-200/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/45">
+    <div
+      className={`mx-2 mb-2 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-base-100`}
+      data-testid={`io-panel-${panelKey}`}
+    >
+      <div
+        className="border-b border-base-content/20 bg-base-200/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-base-content/45"
+        data-testid={`io-panel-label-${panelKey}`}
+      >
         {label}
       </div>
-      <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-words bg-base-100 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-base-content/80">
+      <pre
+        className="max-h-52 overflow-auto whitespace-pre-wrap break-words bg-base-100 px-3 py-2.5 font-mono text-[11px] leading-relaxed text-base-content/80"
+        data-testid={`io-panel-pre-${panelKey}`}
+      >
         {formatIoValue(value)}
       </pre>
     </div>
@@ -71,7 +74,7 @@ function AgentBodyRail({ children, hue, className = "" }) {
   const railClass = hue ? HUE_THEME[hue]?.rail : NEUTRAL_RAIL;
   return (
     <TraceRailCtx.Provider value={{ railClass }}>
-      <div className={`relative ml-[13px] border-l-2 py-1.5 pl-[22px] pr-1 ${railClass} ${className}`}>{children}</div>
+      <div className={`relative ml-[13px] border-l-2 py-1 pl-[22px] pr-1 ${railClass} ${className}`}>{children}</div>
     </TraceRailCtx.Provider>
   );
 }
@@ -82,7 +85,7 @@ function TraceRow({ children, node, textRow = false }) {
     : RAIL_NODE_CLASS;
 
   return (
-    <div className="relative my-[7px]">
+    <div className="relative my-[4px]">
       {node ? <span className={nodeClasses}>{node}</span> : null}
       <div className="min-w-0">{children}</div>
     </div>
@@ -103,25 +106,21 @@ function StepIconBox({ children, className = "" }) {
   );
 }
 
-function CaretBox({ open }) {
-  return (
-    <span className="grid h-5 w-5 shrink-0 place-items-center">
-      <Caret open={open} />
-    </span>
-  );
-}
-
-function StepRowHeader({ open, inRail, icon, children, onClick, headerClass = "" }) {
+function StepRowHeader({ open, inRail, icon, children, onClick, headerClass = "", ...props }) {
   return (
     <div
-      className={`flex min-h-[38px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${TRACE_ROW_BORDER} ${headerClass}`}
+      className={`flex min-h-[30px] cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1 transition-colors ${TRACE_ROW_BORDER} ${headerClass}`}
       onClick={onClick}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick(e) : undefined}
       role="button"
       tabIndex={0}
+      {...props}
     >
-      <CaretBox open={open} />
-      {!inRail && icon}
+      <ChevronRight
+        size={14}
+        className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+      />
+      {icon}
       {children}
     </div>
   );
@@ -148,36 +147,33 @@ function AgentAvatar({ name, hue, glyph, large = false }) {
 function Meta({ latency, tokens, cost }) {
   const { showMeta } = useContext(TraceCtx);
   if (!showMeta) return null;
-  const fmt = (ms) => (ms >= 1000 ? `${(ms / 1000).toFixed(ms >= 10000 ? 0 : 1)}s` : `${Math.round(ms)}ms`);
+  const fmt = (s) => {
+    const num = Number(s);
+    if (num >= 1) return `${num.toFixed(1)}s`;
+    return `${(num * 1000).toFixed(0)}ms`;
+  };
+  const tokObj = tokens && typeof tokens === "object" ? tokens : null;
+  const tokTotal = tokObj ? tokObj.total : tokens;
   return (
-    <div className="flex shrink-0 gap-1.5">
-      {latency != null && (
-        <span className="inline-flex items-center gap-1 text-[11px] font-mono text-base-content/50" title="latency">
-          <span className="h-1 w-1 rounded-full bg-base-content/40" />
-          {fmt(latency)}
+    <div className="flex items-center gap-1.5 text-[11px] text-base-content/45 font-medium shrink-0 ml-auto mr-1 select-none">
+      {latency != null && <span>{fmt(latency)}</span>}
+      {tokObj ? (
+        <span
+          className="cursor-help"
+          title={`Tokens: ${(tokObj.input ?? 0).toLocaleString()} input • ${(tokObj.output ?? 0).toLocaleString()} output • ${(tokObj.total ?? (tokObj.input ?? 0) + (tokObj.output ?? 0)).toLocaleString()} total`}
+        >
+          {(tokObj.input ?? 0).toLocaleString()} IN • {(tokObj.output ?? 0).toLocaleString()} OUT •{" "}
+          {(tokObj.total ?? (tokObj.input ?? 0) + (tokObj.output ?? 0)).toLocaleString()} TOTAL
         </span>
+      ) : (
+        tokTotal != null && (
+          <span className="cursor-help" title={`Total Tokens: ${tokTotal.toLocaleString()}`}>
+            {tokTotal.toLocaleString()} TOTAL
+          </span>
+        )
       )}
-      {tokens != null && (
-        <span className="text-[11px] font-mono text-base-content/50" title="tokens">
-          {tokens.toLocaleString()} tok
-        </span>
-      )}
-      {cost != null && (
-        <span className="text-[11px] font-mono text-base-content/50" title="cost">
-          ${Number(cost).toFixed(4)}
-        </span>
-      )}
+      {cost != null && <span>${Number(cost).toFixed(3)}</span>}
     </div>
-  );
-}
-
-function Caret({ open, className = "", style }) {
-  return (
-    <ChevronRight
-      size={14}
-      style={style}
-      className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""} ${className}`}
-    />
   );
 }
 
@@ -194,7 +190,12 @@ function TextStep({ step }) {
   return (
     <TraceRow textRow>
       <div className="min-w-0">
-        <StepRowHeader open={open} headerClass={NEUTRAL_HEAD} onClick={() => setOpen((o) => !o)}>
+        <StepRowHeader
+          open={open}
+          headerClass={NEUTRAL_HEAD}
+          onClick={() => setOpen((o) => !o)}
+          data-testid="text-step-header"
+        >
           <span className="text-xs font-medium text-base-content/70">Message</span>
         </StepRowHeader>
         {open && (
@@ -233,6 +234,51 @@ function VarsNodeIcon({ size = 12 }) {
   );
 }
 
+function VariableRow({ label, value, isLong, ...props }) {
+  // Parse JSON if possible
+  const parsedJson = useMemo(() => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return JSON.parse(trimmed);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [value]);
+
+  return (
+    <div
+      className="grid grid-cols-[minmax(120px,180px)_1fr] gap-4 border-b border-base-content/15 px-4 py-2.5 text-xs last:border-0"
+      {...props}
+    >
+      <span className="font-mono font-medium text-trace-blue break-words">{label}</span>
+      <div className="font-mono text-base-content overflow-hidden w-full">
+        {parsedJson !== null ? (
+          (() => {
+            const prettyJson = JSON.stringify(parsedJson, null, 2);
+            return (
+              <ExpandCollapse collapsedHeight={150} fadeHeight={50}>
+                <CodeBlock className="language-json" showCopy={false}>
+                  {prettyJson}
+                </CodeBlock>
+              </ExpandCollapse>
+            );
+          })()
+        ) : (
+          <span className="break-all whitespace-pre-wrap block">
+            <ExpandCollapse collapsedHeight={150} fadeHeight={40}>
+              {value}
+            </ExpandCollapse>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function VariablesBlock({ vars, inRail = true }) {
   const entries = Object.entries(vars || {}).filter(([k]) => !TRACE_HIDDEN_VAR_KEYS.has(k));
   const [open, setOpen] = useState(false);
@@ -243,72 +289,79 @@ function VariablesBlock({ vars, inRail = true }) {
   const varsHead = "bg-gradient-to-r from-trace-gold/14 via-trace-gold/6 to-transparent hover:from-trace-gold/20";
 
   const body = (
-    <div className="min-w-0">
+    <div className="min-w-0" data-testid="variables-block">
       <StepRowHeader
         open={open}
         inRail={inRail}
         icon={<VarsNodeIcon />}
         headerClass={varsHead}
         onClick={() => setOpen((o) => !o)}
+        data-testid="variables-block-header"
       >
-        <KindTag className="inline-flex items-center gap-1 text-trace-gold">
+        <KindTag className="inline-flex items-center gap-1 text-trace-gold" data-testid="variables-block-tag">
           <Brackets size={12} /> variables
         </KindTag>
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-trace-blue/20 bg-trace-blue/10 px-1.5 text-[11px] font-mono text-trace-blue">
+        <span
+          className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-trace-blue/20 bg-trace-blue/10 px-1.5 text-[11px] font-mono text-trace-blue"
+          data-testid="variables-block-count"
+        >
           {entries.length}
         </span>
         {!open &&
           previewKeys.map(([k]) => (
-            <span key={k} className="rounded-md bg-trace-gold/8 px-2 py-0.5 text-[11px] font-mono text-base-content/60">
+            <span
+              key={k}
+              className="rounded-md bg-trace-gold/8 px-2 py-0.5 text-[11px] font-mono text-base-content/60"
+              data-testid={`variables-block-preview-${k}`}
+            >
               {k}
             </span>
           ))}
-        {!open && overflow > 0 && <span className="text-[11px] font-mono text-base-content/50">+{overflow}</span>}
+        {!open && overflow > 0 && (
+          <span className="text-[11px] font-mono text-base-content/50" data-testid="variables-block-overflow">
+            +{overflow}
+          </span>
+        )}
       </StepRowHeader>
       {open && (
-        <div className={`mt-1.5 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06]`}>
-          {entries.map(([k, v]) => (
-            <div
-              key={k}
-              className="grid grid-cols-[minmax(120px,180px)_1fr] gap-4 border-b border-base-content/15 px-4 py-2.5 text-xs last:border-0"
-            >
-              <span className="font-mono font-medium text-trace-blue break-words">{k}</span>
-              <span className="font-mono text-base-content break-words">{String(v)}</span>
-            </div>
-          ))}
+        <div
+          className={`mt-1.5 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06]`}
+          data-testid="variables-block-expanded"
+        >
+          {entries.map(([k, v]) => {
+            const raw = typeof v === "object" && v !== null ? JSON.stringify(v, null, 2) : String(v ?? "");
+            const isLong = raw.length > 200;
+            return (
+              <VariableRow key={k} label={k} value={raw} isLong={isLong} data-testid={`variables-block-row-${k}`} />
+            );
+          })}
         </div>
       )}
     </div>
   );
 
-  if (!inRail) return <FlatRow>{body}</FlatRow>;
-  return <TraceRow node={<VarsNodeIcon />}>{body}</TraceRow>;
+  if (!inRail) return <FlatRow data-testid="variables-block-flat-row">{body}</FlatRow>;
+  return (
+    <TraceRow node={<VarsNodeIcon />} data-testid="variables-block-trace-row">
+      {body}
+    </TraceRow>
+  );
 }
 
 function ToolActionButtons({ rawTool, isRag }) {
-  const { onToolLogsClick, onToolDataClick } = useContext(TraceCtx);
+  const { onToolLogsClick } = useContext(TraceCtx);
   if (!rawTool) return null;
 
   return (
-    <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+    <div className="flex shrink-0 items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
       {!isRag && onToolLogsClick && (
         <button
           type="button"
-          className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
+          className="flex items-center gap-1 rounded border border-primary/30 bg-primary/5 hover:bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary transition-all duration-100 active:scale-95 cursor-pointer shadow-xs"
           title="function logs"
           onClick={(e) => onToolLogsClick(e, rawTool)}
         >
-          <SquareFunction size={14} />
-        </button>
-      )}
-      {onToolDataClick && (
-        <button
-          type="button"
-          className="grid h-5 w-5 place-items-center rounded hover:bg-base-300/80 text-base-content/60 hover:text-base-content"
-          title={isRag ? "knowledge base data" : "function data"}
-          onClick={() => onToolDataClick(rawTool)}
-        >
-          <FileClock size={14} />
+          <span>Logs</span>
         </button>
       )}
     </div>
@@ -345,6 +398,7 @@ function ToolStep({ step, inRail = true }) {
         icon={<ToolNodeIcon err={err} />}
         headerClass={toolHead}
         onClick={() => setOpen((o) => !o)}
+        data-testid={`trace-tool-header-${formatToolName(step.name)}`}
       >
         {kindTag}
         <span
@@ -381,7 +435,10 @@ function VarsStep({ step, inRail = true }) {
 function KbQueryBox({ query }) {
   if (!query) return null;
   return (
-    <div className={`mx-2 mb-2 rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06] px-3 py-2`}>
+    <div
+      className={`mx-2 mb-2 rounded-lg ${TRACE_ROW_BORDER} bg-trace-blue/[0.06] px-3 py-2`}
+      data-testid="kb-query-box"
+    >
       <div className="text-[10px] font-semibold uppercase tracking-wider text-base-content/45">Query</div>
       <div className="mt-1 text-xs leading-relaxed text-base-content/80">{query}</div>
     </div>
@@ -391,7 +448,10 @@ function KbQueryBox({ query }) {
 function KbChunkCard({ chunk, index }) {
   const scorePct = chunk.score != null ? Math.round(Number(chunk.score) * 100) : null;
   return (
-    <div className={`mx-2 mb-2 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-base-100`}>
+    <div
+      className={`mx-2 mb-2 overflow-hidden rounded-lg ${TRACE_ROW_BORDER} bg-base-100`}
+      data-testid={`kb-chunk-card-${index}`}
+    >
       <div className="flex items-center justify-between gap-2 border-b border-base-content/20 bg-base-200/50 px-3 py-1.5 text-[11px]">
         <span className="truncate text-base-content/55">{chunk.source || `chunk ${index + 1}`}</span>
         {scorePct != null && (
@@ -421,6 +481,7 @@ function KbStep({ step, inRail = true }) {
         icon={<KbNodeIcon />}
         headerClass={kbHead}
         onClick={() => setOpen((o) => !o)}
+        data-testid={`trace-kb-header-${step.name || "kb"}`}
       >
         <KindTag className="border border-trace-blue/20 bg-trace-blue/10 text-trace-blue">knowledge base</KindTag>
         <span className="truncate text-xs font-medium text-base-content">{step.name}</span>
@@ -453,29 +514,6 @@ function KbStep({ step, inRail = true }) {
 const TRACE_BUBBLE_CLAMP_HEIGHT = 120;
 
 function MessageBubble({ text, align = "left", expandable = true }) {
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const contentRef = useRef(null);
-
-  useEffect(() => {
-    setExpanded(false);
-  }, [text]);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el || !expandable || !text) {
-      setOverflows(false);
-      return;
-    }
-    const measure = () => {
-      setOverflows(el.scrollHeight > TRACE_BUBBLE_CLAMP_HEIGHT);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [text, expandable]);
-
   if (!text) return null;
 
   const isLeft = align === "left";
@@ -487,26 +525,18 @@ function MessageBubble({ text, align = "left", expandable = true }) {
           isLeft ? "rounded-[4px_12px_12px_12px] text-left" : "rounded-[12px_4px_12px_12px] text-right"
         }`}
       >
-        <div
-          ref={contentRef}
-          className={
-            expandable && !expanded ? "line-clamp-6 overflow-hidden whitespace-pre-line" : "whitespace-pre-wrap"
-          }
-        >
-          {text}
-        </div>
-        {expandable && overflows && (
-          <button
-            type="button"
-            className={`mt-1 flex items-center gap-0.5 text-[11px] text-primary hover:underline ${isLeft ? "" : "ml-auto"}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpanded((o) => !o);
+        {expandable ? (
+          <ExpandCollapse
+            collapsedHeight={TRACE_BUBBLE_CLAMP_HEIGHT}
+            fadeHeight={40}
+            style={{
+              "--expand-collapse-fade": "oklch(var(--b2) / 0.55)",
             }}
           >
-            <ChevronDown size={11} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
-            {expanded ? "Show less" : "Show more"}
-          </button>
+            <div className="whitespace-pre-wrap">{text}</div>
+          </ExpandCollapse>
+        ) : (
+          <div className="whitespace-pre-wrap">{text}</div>
         )}
       </div>
     </div>
@@ -521,23 +551,20 @@ function ResponseBubble({ text }) {
   return <MessageBubble text={text} align="left" expandable />;
 }
 
-function UserMessageBubble({ text }) {
-  return <MessageBubble text={text} align="left" expandable />;
-}
-
 function canOpenAgentHistory(rawTool) {
-  return rawTool?.data?.metadata?.type === "agent" && Boolean(rawTool?.data?.metadata?.agent_id);
+  const isAgent = rawTool?.data?.metadata?.type === "agent" || rawTool?.type === "AGENT" || Boolean(rawTool?.bridge_id);
+  const agentId = rawTool?.data?.metadata?.agent_id || rawTool?.bridge_id;
+  return isAgent && Boolean(agentId);
 }
 
 const AGENT_ROW_BTN =
   "grid h-5 w-5 shrink-0 place-items-center rounded text-base-content/60 hover:bg-base-300/50 hover:text-primary";
 
 function AgentActionButtons({ payload, rawTool }) {
-  const { onAgentDataClick, onAgentHistoryClick } = useContext(TraceCtx);
-  const canViewData = Boolean(onAgentDataClick && (rawTool || payload?.functionData));
+  const { onAgentHistoryClick } = useContext(TraceCtx);
   const canHistory = Boolean(onAgentHistoryClick && canOpenAgentHistory(rawTool));
 
-  if (!canViewData && !canHistory) return null;
+  if (!canHistory) return null;
 
   return (
     <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -549,16 +576,6 @@ function AgentActionButtons({ payload, rawTool }) {
           onClick={(e) => onAgentHistoryClick(e, rawTool)}
         >
           <History size={14} />
-        </button>
-      )}
-      {canViewData && (
-        <button
-          type="button"
-          className={AGENT_ROW_BTN}
-          title="View agent data"
-          onClick={() => onAgentDataClick(rawTool || payload?.functionData)}
-        >
-          <FileClock size={14} />
         </button>
       )}
     </div>
@@ -665,46 +682,38 @@ function StepCountBadges({ stepCounts, responsePreview }) {
 
 /** Parent agent wrapper — gold shell/header, user message + colored rail for children */
 function RootExecutionShell({ node, agents, userMessage }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const steps = node.steps || [];
-  const hasUserMessage = Boolean(userMessage?.trim());
-  if (steps.length === 0 && !hasUserMessage) return null;
+  if (steps.length === 0) return null;
 
-  const a = agents[node.agent] || {
-    name: node.agent,
-    model: "—",
-    role: "Orchestrator",
-  };
-  const stepCounts = useMemo(() => countExecutionSteps(steps), [steps]);
-  const hasBody = steps.length > 0 || hasUserMessage;
-  const hue = resolveAgentHue(a, node.agent);
-  const theme = HUE_THEME[hue];
-  const shellClass = !(open && hasBody) ? theme.shell : "";
-  const headClass = open && hasBody ? theme.headOpen : theme.head;
-  const sliderPayload = useMemo(() => buildAgentSliderPayload(node, agents, a), [node, agents, a]);
+  const totalSteps = steps.length;
 
   return (
-    <div className={`w-full overflow-hidden ${shellClass}`}>
+    <div className="w-full flex flex-col gap-2 items-start">
+      {/* Accordion Header */}
       <div
-        className={`flex min-h-[40px] cursor-pointer items-center gap-2 rounded-lg px-2 py-2 transition-colors ${headClass}`}
+        className="inline-flex items-center gap-2 cursor-pointer select-none rounded-lg px-3 transition-all duration-200"
         onClick={() => setOpen((o) => !o)}
+        data-testid="trace-tool-calls-header"
       >
-        <CaretBox open={open} />
-        <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large />
-        <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
-        {a.model && a.model !== "—" && (
-          <span className="hidden truncate text-[11px] text-base-content/45 sm:inline">{a.model}</span>
-        )}
-        {!open && <StepCountBadges stepCounts={stepCounts} />}
-        <span className="flex-1" />
-        <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
-        <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
+        <ChevronRight
+          size={13}
+          className={`shrink-0 text-base-content/50 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+        />
+        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-base-content/70">
+          <span className="font-mono text-xs text-trace-blue font-bold">&lt;&gt;</span>
+          <span>Tool Calls</span>
+        </span>
+        <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold bg-trace-blue/10 text-trace-blue border border-trace-blue/20 leading-none">
+          {totalSteps}
+        </span>
       </div>
-      {open && hasBody && (
-        <AgentBodyRail hue={hue} className="pt-1">
-          <UserMessageBubble text={userMessage} />
-          <HistoryExecutionSteps node={node} agents={agents} inRail />
-        </AgentBodyRail>
+
+      {/* Expanded Container */}
+      {open && (
+        <div className="w-full border border-base-300 rounded-xl p-4 bg-base-200/10 shadow-sm space-y-2">
+          <HistoryExecutionSteps node={node} agents={agents} inRail={false} />
+        </div>
       )}
     </div>
   );
@@ -728,7 +737,7 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
 
   const hue = root && !embedded ? null : resolveAgentHue(a, node.agent, node.hue);
   const theme = hue ? HUE_THEME[hue] : null;
-  const shellClass = theme && !(open && hasBody) ? theme.shell : "";
+  const shellClass = theme ? theme.shell : "";
 
   const renderStep = (s, i) => {
     if (s.type === "text") return <TextStep key={i} step={s} />;
@@ -746,28 +755,41 @@ function AgentBlock({ node, agents, root, embedded, depth = 1 }) {
 
   const headClass = open && hasBody ? theme?.headOpen || NEUTRAL_HEAD_OPEN : theme?.head || NEUTRAL_HEAD;
 
-  const renderAgentHeader = () => (
-    <div
-      className={`flex min-h-[38px] cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 transition-colors ${headClass}`}
-      onClick={() => setOpen((o) => !o)}
-    >
-      <CaretBox open={open} />
-      <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large={root && !embedded} />
-      <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
-      <span
-        className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wider ${theme?.roleTag || "border-base-300/40 bg-base-300/30 text-base-content/55"}`}
+  const renderAgentHeader = () => {
+    const barColor =
+      hue === "trace-blue"
+        ? "bg-trace-blue/40"
+        : hue === "trace-green"
+          ? "bg-trace-green/40"
+          : hue === "trace-gold"
+            ? "bg-trace-gold/40"
+            : "bg-base-content/10";
+    return (
+      <div
+        className={`relative flex min-h-[30px] cursor-pointer items-center gap-2 rounded-lg pl-4 pr-3 py-1 transition-colors ${headClass}`}
+        onClick={() => setOpen((o) => !o)}
+        data-testid={`trace-agent-header-${a.name}`}
       >
-        {a.role}
-      </span>
-      {a.model && a.model !== "—" && (
-        <span className="hidden truncate text-[11px] text-base-content/45 sm:inline">{a.model}</span>
-      )}
-      {!open && stepCountBadges}
-      <span className="flex-1" />
-      <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
-      <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
-    </div>
-  );
+        <div className={`absolute left-0 top-0 bottom-0 w-[2px] rounded-l-lg ${barColor}`} />
+
+        <ChevronRight
+          size={14}
+          className={`shrink-0 text-base-content/40 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+        />
+        <AgentAvatar name={a.name} hue={hue} glyph={a.glyph} large={root && !embedded} />
+        <span className="truncate text-sm font-semibold text-base-content">{a.name}</span>
+        <span
+          className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] uppercase tracking-wider font-semibold ${theme?.roleTag || "border-base-300/40 bg-base-300/30 text-base-content/55"}`}
+        >
+          {a.role}
+        </span>
+        {!open && stepCountBadges}
+        <span className="flex-1" />
+        <Meta latency={node.latency} tokens={node.tokens} cost={node.cost} />
+        <AgentActionButtons payload={sliderPayload} rawTool={node.rawTool} />
+      </div>
+    );
+  };
 
   const renderExpandedBody = () => {
     const hasInnerContent = (node.steps?.length ?? 0) > 0 || question || hasVars || node.responseText;
@@ -869,7 +891,16 @@ export default function ExecutionTraceView({
   const meta = trace.meta || {};
 
   return (
-    <TraceCtx.Provider value={{ detail, showMeta }}>
+    <TraceCtx.Provider
+      value={{
+        detail,
+        showMeta,
+        onToolLogsClick,
+        onToolDataClick,
+        onAgentDataClick,
+        onAgentHistoryClick,
+      }}
+    >
       <div className="bg-base-100 text-base-content">
         <div className="flex flex-wrap items-center gap-4 border-b border-base-300 px-4 py-3">
           <div>
@@ -888,15 +919,40 @@ export default function ExecutionTraceView({
               </div>
             )}
             {meta.totalTokens != null && (
-              <div className="flex flex-col">
-                <b className="text-sm">{meta.totalTokens.toLocaleString()}</b>
+              <div
+                className="flex flex-col cursor-help"
+                title={
+                  typeof meta.totalTokens === "object"
+                    ? `Tokens: ${meta.totalTokens.input.toLocaleString()} input • ${meta.totalTokens.output.toLocaleString()} output • ${(meta.totalTokens.total ?? (meta.totalTokens.input ?? 0) + (meta.totalTokens.output ?? 0)).toLocaleString()} total`
+                    : `Total Tokens: ${meta.totalTokens.toLocaleString()}`
+                }
+              >
+                {typeof meta.totalTokens === "object" ? (
+                  <b className="text-sm">
+                    {meta.totalTokens.input.toLocaleString()}IN {meta.totalTokens.output.toLocaleString()}OUT{" "}
+                    {(
+                      meta.totalTokens.total ?? (meta.totalTokens.input ?? 0) + (meta.totalTokens.output ?? 0)
+                    ).toLocaleString()}
+                    TOTAL
+                  </b>
+                ) : (
+                  <b className="text-sm">{meta.totalTokens.toLocaleString()}</b>
+                )}
                 <span className="text-[11px] text-base-content/50">tokens</span>
               </div>
             )}
           </div>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-4 py-5">
-          <MessageRunTrace run={turn.run} agents={agents} embedded={false} />
+          <MessageRunTrace
+            run={turn.run}
+            agents={agents}
+            embedded={false}
+            onToolLogsClick={onToolLogsClick}
+            onToolDataClick={onToolDataClick}
+            onAgentDataClick={onAgentDataClick}
+            onAgentHistoryClick={onAgentHistoryClick}
+          />
         </div>
       </div>
     </TraceCtx.Provider>

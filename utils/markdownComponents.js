@@ -23,7 +23,7 @@ export function buildMdComponents({ isDark = false } = {}) {
 
     ul: ({ children }) => (
       <OrderedListContext.Provider value={false}>
-        <ul className="list-none pl-0 mb-2">{children}</ul>
+        <ul className="list-disc list-outside pl-5 mb-3 space-y-1">{children}</ul>
       </OrderedListContext.Provider>
     ),
 
@@ -32,7 +32,7 @@ export function buildMdComponents({ isDark = false } = {}) {
       counterRef.current = typeof start === "number" ? start - 1 : 0;
       return (
         <OrderedListContext.Provider value={{ counterRef }}>
-          <ol className="list-none pl-0 mb-2">{children}</ol>
+          <ol className="list-decimal list-outside pl-5 mb-3 space-y-1">{children}</ol>
         </OrderedListContext.Provider>
       );
     },
@@ -43,39 +43,28 @@ export function buildMdComponents({ isDark = false } = {}) {
 
       if (isOrdered) {
         olCtx.counterRef.current += 1;
-        const itemNumber = olCtx.counterRef.current;
         return (
-          <li className="flex gap-2 leading-relaxed my-0" {...props}>
-            <span
-              className="shrink-0 min-w-[1.5rem] text-right opacity-70 select-none font-normal leading-relaxed"
-              aria-hidden
-            >
-              {itemNumber}
-              {"."}
-            </span>
-            <span className="flex-1 [&>p]:m-0 [&>p]:inline">{children}</span>
+          <li className="leading-relaxed my-1" {...props}>
+            <span className="[&>p]:m-0 [&>p]:inline">{children}</span>
           </li>
         );
       }
 
       return (
-        <li className="flex items-baseline gap-2 leading-relaxed my-0" {...props}>
-          <span className="shrink-0 opacity-70 select-none text-[0.5em] translate-y-[-0.1em]" aria-hidden>
-            ●
-          </span>
-          <span className="flex-1 [&>p]:m-0 [&>p]:inline">{children}</span>
+        <li className="leading-relaxed my-1" {...props}>
+          <span className="[&>p]:m-0 [&>p]:inline">{children}</span>
         </li>
       );
     },
 
     blockquote: ({ children }) => (
-      <blockquote className="border-l-4 border-base-content/30 pl-3 italic opacity-80 my-2">{children}</blockquote>
+      <blockquote className="border-l-4 border-base-content/30 pl-4 italic opacity-80 my-3 py-1">{children}</blockquote>
     ),
 
-    h1: ({ children }) => <h1 className="text-xl font-bold mt-3 mb-1 leading-tight">{children}</h1>,
-    h2: ({ children }) => <h2 className="text-lg font-semibold mt-3 mb-1 leading-tight">{children}</h2>,
-    h3: ({ children }) => <h3 className="text-base font-semibold mt-2 mb-1 leading-tight">{children}</h3>,
-    h4: ({ children }) => <h4 className="text-sm font-semibold mt-2 mb-0.5">{children}</h4>,
+    h1: ({ children }) => <h1 className="text-2xl font-bold mt-4 mb-2 leading-tight">{children}</h1>,
+    h2: ({ children }) => <h2 className="text-xl font-bold mt-4 mb-2 leading-tight">{children}</h2>,
+    h3: ({ children }) => <h3 className="text-lg font-semibold mt-3 mb-1.5 leading-tight">{children}</h3>,
+    h4: ({ children }) => <h4 className="text-base font-semibold mt-2 mb-1">{children}</h4>,
 
     // ── Inline elements ─────────────────────────────────────────────────────
     a: ({ href, children }) => (
@@ -106,7 +95,7 @@ export function buildMdComponents({ isDark = false } = {}) {
         );
       }
       return (
-        <code className="px-1.5 py-0.5 rounded text-[0.8em] font-mono bg-base-200 text-base-content" {...props}>
+        <code className="px-1.5 py-0.5 rounded text-[0.8em] font-mono bg-base-200" {...props}>
           {children}
         </code>
       );

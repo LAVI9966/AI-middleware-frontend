@@ -9,6 +9,7 @@ import ThreadItem from "./ThreadItem";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { scrollToBottom, scrollToTop } from "./AssistFile";
 import { getThread, updateContentHistory } from "@/store/action/historyAction";
+import { clearThreadData } from "@/store/reducer/historyReducer";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { closeModal, openModal } from "@/utils/utility";
 import { MODAL_TYPE } from "@/utils/enums";
@@ -378,6 +379,7 @@ const ThreadContainer = ({
       // Detect thread switch and set flag immediately (synchronous)
       const isThreadSwitch = lastFetchedThreadKeyRef.current && lastFetchedThreadKeyRef.current !== fetchKey;
       if (isThreadSwitch) {
+        dispatch(clearThreadData());
         setLoadingData(true);
       }
 
@@ -559,7 +561,7 @@ const ThreadContainer = ({
               inverse={flexDirection === "column-reverse"}
               scrollableTarget="scrollableDiv"
             >
-              <div ref={contentRef} className="pb-16 px-3 pt-4" style={{ width: "100%" }}>
+              <div ref={contentRef} className="pb-16 px-4 pt-4 w-full overflow-hidden">
                 {Array.isArray(thread) &&
                   thread.map((item, index) => (
                     <ThreadItem
@@ -604,6 +606,9 @@ const ThreadContainer = ({
           <div className="flex items-center gap-2 border border-base-200 rounded-lg px-3 py-2 bg-history-page focus-within:border-primary/50 transition-colors">
             <BotMessageIcon className="h-3.5 w-3.5 text-base-content/40 shrink-0" />
             <input
+              autoComplete="off"
+              data-testid="thread-container-debug-input"
+              id="thread-container-debug-input"
               type="text"
               value={debugQuery}
               onChange={(e) => setDebugQuery(e.target.value)}
@@ -613,13 +618,14 @@ const ThreadContainer = ({
                 }
               }}
               placeholder="Debug with me..."
-              className="flex-1 bg-transparent text-sm outline-none text-base-content placeholder:text-base-content/30"
+              className="flex-1 bg-history-page  text-sm outline-none text-base-content placeholder:text-base-content/30"
             />
             <button
               id="thread-container-debug-agent-button"
+              data-testid="thread-container-debug-agent-button"
               disabled={!debugQuery.trim()}
               onClick={handleAskAi}
-              className="btn btn-primary btn-xs rounded-md"
+              className="btn btn-primary btn-xs text-black rounded-md"
             >
               Send
             </button>

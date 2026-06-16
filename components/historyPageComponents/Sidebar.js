@@ -1,6 +1,11 @@
 import { useCustomSelector } from "@/customHooks/customSelector.js";
 import { getHistoryAction, getSubThreadsAction } from "@/store/action/historyAction.js";
-import { clearSubThreadData, clearThreadData, setSelectedVersion } from "@/store/reducer/historyReducer.js";
+import {
+  clearSubThreadData,
+  clearThreadData,
+  setSelectedVersion,
+  clearRecursiveHistory,
+} from "@/store/reducer/historyReducer.js";
 import { USER_FEEDBACK_FILTER_OPTIONS, HISTORY_FILTER_BY_FIELDS } from "@/utils/enums.js";
 import { formatDate, formatRelativeTime } from "@/utils/utility.js";
 import { ThumbsDownIcon, ThumbsUpIcon, UserIcon, MessageCircleIcon } from "@/components/Icons";
@@ -34,13 +39,19 @@ const Sidebar = memo(
     isErrorTrue,
     activeFilterByRef,
   }) => {
-    const { subThreads, userFeedbackCount, bridgeVersionsArray } = useCustomSelector((state) => ({
-      subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
-      userFeedbackCount: state?.historyReducer?.userFeedbackCount,
-      bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
-        ? state.bridgeReducer.allBridgesMap[params.id].versions
-        : [],
-    }));
+    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType } = useCustomSelector(
+      (state) => ({
+        subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
+        subThreadsParentId: state?.historyReducer?.subThreadsParentId,
+        userFeedbackCount: state?.historyReducer?.userFeedbackCount,
+        bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
+          ? state.bridgeReducer.allBridgesMap[params.id].versions
+          : [],
+        bridgeType:
+          state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType ||
+          state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridge_type,
+      })
+    );
 
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
     const [expandedThreads, setExpandedThreads] = useState([]);
@@ -55,6 +66,7 @@ const Sidebar = memo(
 
     useEffect(() => {
       if (
+        subThreadsParentId === searchParams?.thread_id &&
         expandedThreads?.includes(searchParams?.thread_id) &&
         subThreads?.length > 0 &&
         searchParams?.thread_id &&
@@ -76,11 +88,24 @@ const Sidebar = memo(
           }
         }
       }
-    }, [subThreads, expandedThreads, searchParams?.thread_id, searchParams?.subThread_id]);
+    }, [
+      subThreads,
+      subThreadsParentId,
+      expandedThreads,
+      searchParams?.thread_id,
+      searchParams?.subThread_id,
+      searchParams?.version,
+      searchParams?.message_id,
+      searchParams?.type,
+      pathName,
+      router,
+    ]);
 
     const handleVersionChange = async (event) => {
       const version = event.target.value;
       dispatch(clearSubThreadData());
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       dispatch(setSelectedVersion(version));
     };
 
@@ -97,7 +122,7 @@ const Sidebar = memo(
           })
         );
       }
-    }, [searchParams?.thread_id]);
+    }, [searchParams?.thread_id, isErrorTrue, params.id, selectedVersion, dispatch]);
 
     useEffect(() => {
       const p = new URLSearchParams(window.location.search);
@@ -107,14 +132,14 @@ const Sidebar = memo(
       if (!liveThreadId || !liveVersion || versionMismatch) {
         return;
       }
-      if (subThreads?.length > 0 && expandedThreads?.includes(liveThreadId)) {
+      if (subThreadsParentId === liveThreadId && subThreads?.length > 0 && expandedThreads?.includes(liveThreadId)) {
         const firstSubThreadId = subThreads[0]?.sub_thread_id;
         if (firstSubThreadId) {
           const url = `${pathName}?version=${liveVersion}&thread_id=${liveThreadId}&subThread_id=${firstSubThreadId}&start=${p.get("start") || ""}&end=${p.get("end") || ""}${p.get("message_id") ? `&message_id=${p.get("message_id")}` : ""}&type=${p.get("type") || ""}`;
           router.push(url, undefined, { shallow: true });
         }
       }
-    }, [subThreads, selectedVersion, expandedThreads]);
+    }, [subThreads, subThreadsParentId, selectedVersion, expandedThreads, pathName, router]);
     const debounce = (func, delay) => {
       let timeoutId;
       return (...args) => {
@@ -311,6 +336,8 @@ const Sidebar = memo(
     };
 
     const handleSelectSubThread = async (subThreadId, threadId) => {
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       setThreadPage(1);
       setExpandedThreads([threadId]);
       const start = searchParams?.start;
@@ -323,6 +350,8 @@ const Sidebar = memo(
     };
 
     const handleFilterChange = async (user_feedback) => {
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       setFilterOption(user_feedback);
       setThreadPage(1);
     };
@@ -340,6 +369,8 @@ const Sidebar = memo(
     );
 
     const handleCheckError = async (isError) => {
+      dispatch(clearThreadData());
+      dispatch(clearRecursiveHistory());
       if (isError === true) {
         const newSearchParams = new URLSearchParams(searchParams);
         newSearchParams.set("error", "true");
@@ -348,7 +379,6 @@ const Sidebar = memo(
         setThreadPage(1);
         setIsErrorTrue(true);
         setHasMore(true);
-        dispatch(clearThreadData());
         window.history.replaceState(null, "", `?${queryString}`);
       } else {
         setIsErrorTrue(false);
@@ -364,7 +394,7 @@ const Sidebar = memo(
 
     return (
       <div
-        className="drawer-side justify-items-stretch text-xs bg-base-200 w-[220px] min-w-[220px] max-w-[220px] border-r border-base-300 relative h-screen overflow-y-auto overflow-x-hidden"
+        className="drawer-side justify-items-stretch text-xs bg-base-200 w-[280px] min-w-[280px] max-w-[280px] border-r border-base-300 relative h-screen overflow-y-auto overflow-x-hidden ml-4"
         id="sidebar"
       >
         <CreateFineTuneModal params={params} selectedThreadIds={selectedThreadIds} />
@@ -372,7 +402,7 @@ const Sidebar = memo(
           <div
             data-testid="history-sidebar-advance-filter"
             id="history-sidebar-advance-filter"
-            className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-lg min-h-0 overflow-hidden"
+            className="collapse collapse-arrow border border-base-300 bg-base-100 min-h-0 overflow-hidden"
           >
             <input
               autoComplete="off"
@@ -396,7 +426,7 @@ const Sidebar = memo(
                   isErrorTrue={isErrorTrue}
                 />
 
-                <div className="p-2 bg-base-200 rounded-lg">
+                <div className="p-2 bg-base-200">
                   <p className="text-center mb-2 text-xs font-medium">Filter Response</p>
                   <div className="flex items-center justify-center mb-2 gap-2">
                     {USER_FEEDBACK_FILTER_OPTIONS?.map((value, index) => (
@@ -440,7 +470,7 @@ const Sidebar = memo(
                   </div>
                 </div>
 
-                <div className="p-2 bg-base-200 rounded-lg w-full min-w-0">
+                <div className="p-2 bg-base-200 w-full min-w-0">
                   <p className="text-center mb-2 text-xs font-medium">Search by Fields</p>
                   <p className="text-xs text-base-content/60 mb-2">
                     Fill in values for fields you want to search. Leave empty to skip that field.
@@ -455,6 +485,7 @@ const Sidebar = memo(
                           </label>
                           <input
                             autoComplete="off"
+                            data-testid={`history-sidebar-filter-by-${fieldKey}`}
                             type="text"
                             className="input input-xs input-bordered w-full text-xs"
                             placeholder={`Search ${fieldKey.replace(/_/g, " ")}...`}
@@ -468,6 +499,7 @@ const Sidebar = memo(
                       <div className="flex gap-1 w-full min-w-0">
                         <input
                           autoComplete="off"
+                          data-testid="history-sidebar-filter-by-variable-key"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="key"
@@ -476,6 +508,7 @@ const Sidebar = memo(
                         />
                         <input
                           autoComplete="off"
+                          data-testid="history-sidebar-filter-by-variable-value"
                           type="text"
                           className="input input-xs input-bordered flex-1 min-w-0 text-xs"
                           placeholder="value"
@@ -593,7 +626,7 @@ const Sidebar = memo(
               scrollableTarget="sidebar"
             >
               <div className="slider-container min-w-[45%] w-full overflow-x-auto pb-20">
-                <ul className="menu min-h-full text-base-content flex flex-col space-y-1">
+                <ul className="menu min-h-full text-base-content flex flex-col space-y-2">
                   {historyData.map((item) => (
                     <div className={`${"flex-col"}`} key={item?.thread_id}>
                       <div className="flex flex-col">
@@ -602,8 +635,8 @@ const Sidebar = memo(
                           id={`history-sidebar-thread-${item?.thread_id}`}
                           className={`${
                             decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                              ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary rounded-md"
-                              : ""
+                              ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary shadow-md"
+                              : "hover:bg-base-300/50 transition-colors duration-200"
                           } flex-grow cursor-pointer group`}
                           onClick={() => {
                             const isCurrentlySelected = decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
@@ -613,27 +646,78 @@ const Sidebar = memo(
                               handleToggleThread(item?.thread_id);
                             } else {
                               // Otherwise, select the thread
-                              threadHandler(item?.thread_id);
+                              dispatch(clearThreadData());
+                              dispatch(clearRecursiveHistory());
+                              threadHandler(item?.thread_id, item);
                             }
                           }}
                         >
-                          <a className="w-full h-full flex items-center relative">
-                            <span className="truncate flex-1 text-xs">
-                              <span className="group-hover:hidden">
-                                {formatRelativeTime(item?.updated_at || item?.created_at)}
-                              </span>
-                              <span className="hidden group-hover:inline">
-                                {formatDate(item?.updated_at || item?.created_at)}
-                              </span>
-                            </span>
+                          <a className="w-full h-full flex flex-col relative px-2 py-1.5">
+                            {bridgeType?.toLowerCase() === "chatbot" || bridgeType === "chatbot" ? (
+                              <div
+                                className={`flex items-start gap-1 mb-1 w-full justify-between group ${
+                                  decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
+                                }`}
+                              >
+                                <p
+                                  className={`text-xs truncate ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-100"
+                                      : "text-base-content"
+                                  }`}
+                                >
+                                  {truncate(item?.thread_id, 22)}
+                                </p>
+                                <span
+                                  className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                </span>
+                                <span
+                                  className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatDate(item?.updated_at || item?.created_at)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div
+                                className={`flex items-start gap-1 mb-1 w-full group ${
+                                  decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
+                                }`}
+                              >
+                                <span
+                                  className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                </span>
+                                <span
+                                  className={`text-xs whitespace-nowrap group-hover:inline ${
+                                    decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                      ? "text-base-primary"
+                                      : "text-base-content/50"
+                                  }`}
+                                >
+                                  {formatDate(item?.updated_at || item?.created_at)}
+                                </span>
+                              </div>
+                            )}
                           </a>
                         </li>
                         {decodeURIComponent(searchParams?.thread_id) === item?.thread_id && (
                           <div className="space-y-3">
-                            <div
-                              key={item.id}
-                              className="rounded-x-lg rounded-b-lg shadow-sm bg-base-100 overflow-hidden"
-                            >
+                            <div key={item.id} className="shadow-sm bg-base-100 overflow-hidden">
                               {item?.sub_thread && item.sub_thread?.length > 0 && (
                                 <div className="bg-base-100">
                                   <div className="p-2">
@@ -646,8 +730,8 @@ const Sidebar = memo(
                                             className={`ml-4 ${
                                               decodeURIComponent(searchParams?.subThread_id) ===
                                               subThread?.sub_thread_id
-                                                ? "cursor-pointer hover:bg-base-primary hover:text-base-100 rounded-md transition-all duration-200 text-xs bg-primary text-base-100"
-                                                : "cursor-pointer hover:bg-base-300 hover:text-base-content rounded-md transition-all duration-200 text-xs"
+                                                ? "cursor-pointer hover:bg-base-primary hover:text-base-100 transition-all duration-200 text-xs bg-primary text-base-100"
+                                                : "cursor-pointer hover:bg-base-300 hover:text-base-content transition-all duration-200 text-xs"
                                             } flex-grow group`}
                                             onClick={() =>
                                               handleSelectSubThread(subThread?.sub_thread_id, item?.thread_id)
@@ -684,7 +768,7 @@ const Sidebar = memo(
                                                   id={`history-sidebar-message-${msg?.message_id}`}
                                                   key={msgIndex}
                                                   onClick={() => handleSetMessageId(msg?.message_id)}
-                                                  className={`cursor-pointer rounded-md transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
+                                                  className={`cursor-pointer transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
                                                 >
                                                   <div className="flex items-start gap-1.5">
                                                     <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />
@@ -709,7 +793,7 @@ const Sidebar = memo(
                                         id={`history-sidebar-thread-message-${msg?.message_id}`}
                                         key={index}
                                         onClick={() => handleSetMessageId(msg?.message_id)}
-                                        className={`cursor-pointer p-2 rounded-md transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content hover:text-gray-800 border-l-2 border-transparent hover:border-base-300`}
+                                        className={`cursor-pointer p-2 transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content hover:text-gray-800 border-l-2 border-transparent hover:border-base-300`}
                                       >
                                         <div className="flex items-start gap-1.5">
                                           <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />

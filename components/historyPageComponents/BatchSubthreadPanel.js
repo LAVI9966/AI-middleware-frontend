@@ -14,43 +14,55 @@ const getBatchStatusMeta = (status) => {
 const BatchSubthreadPanel = ({
   thread,
   subThreadIdFromURL,
+  parentThreadId,
   selectedBatchMessageId,
   onSelectBatch,
   onSelectSubThread,
 }) => {
-  const subThreads = useCustomSelector((state) =>
-    Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : []
-  );
+  const { subThreads, subThreadsParentId } = useCustomSelector((state) => ({
+    subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
+    subThreadsParentId: state?.historyReducer?.subThreadsParentId,
+  }));
+
+  const activeSubThreads = subThreadsParentId === parentThreadId ? subThreads : [];
 
   const batchMessages = Array.isArray(thread) ? thread.filter((msg) => msg?.batch_data?.batch_id) : [];
   const showBatches = batchMessages.length > 0;
-  const showSubThreads = subThreads.length > 1;
+  const showSubThreads = activeSubThreads.length > 1;
   const isVisible = showBatches || showSubThreads;
   const showBoth = showBatches && showSubThreads;
   const panelWidth = showBoth ? 384 : 192;
-  const sortedSubThreads = [...subThreads].sort(
+  const sortedSubThreads = [...activeSubThreads].sort(
     (a, b) => new Date(b?.created_at || b?.updated_at || 0) - new Date(a?.created_at || a?.updated_at || 0)
   );
 
   const batchesColumn = showBatches && (
     <div className="w-48 shrink-0 border-r border-base-300 last:border-r-0">
       <div className="px-3 py-2 border-b border-base-300 text-xs font-semibold text-base-content/60 uppercase tracking-wider sticky top-0 bg-base-200 z-10 whitespace-nowrap">
-        Batches
+        Batch Values
       </div>
       <ul className="flex flex-col gap-1 p-2">
         {batchMessages.map((msg, index) => {
           const meta = getBatchStatusMeta(msg.batch_data.status);
           const Icon = meta.icon;
           const isActive = selectedBatchMessageId === msg.message_id;
+          const userVal = msg?.user || "";
+          const batchLabel = userVal
+            ? `Value ${index + 1} (${userVal.length > 18 ? userVal.slice(0, 18) + "..." : userVal})`
+            : `Value ${index + 1}`;
           return (
             <li
               key={msg.message_id || index}
+              data-testid={`batch-item-${msg.message_id || index}`}
+              id={`batch-item-${msg.message_id || index}`}
               onClick={() => onSelectBatch(msg.message_id)}
               className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-colors duration-150 ${
                 isActive ? "bg-primary text-primary-content" : "hover:bg-base-300 text-base-content"
               }`}
             >
-              <span className="font-medium truncate flex-1">Batch {index + 1}</span>
+              <span className="font-medium truncate flex-1" title={userVal || undefined}>
+                {batchLabel}
+              </span>
               <Icon size={13} className={isActive ? "text-primary-content" : meta.className} />
             </li>
           );
@@ -70,6 +82,8 @@ const BatchSubthreadPanel = ({
           return (
             <li
               key={st.sub_thread_id}
+              data-testid={`subthread-item-${st.sub_thread_id}`}
+              id={`subthread-item-${st.sub_thread_id}`}
               onClick={() => onSelectSubThread(st.sub_thread_id)}
               className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg cursor-pointer text-xs transition-colors duration-150 ${
                 isActive ? "bg-primary text-primary-content" : "hover:bg-base-300 text-base-content"

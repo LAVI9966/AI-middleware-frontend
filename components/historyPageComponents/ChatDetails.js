@@ -1,356 +1,99 @@
 "use client";
 import { MODAL_TYPE } from "@/utils/enums";
-import { allowedAttributes, generateKeyValuePairs, openModal } from "@/utils/utility";
-import { CloseCircleIcon, CopyIcon } from "@/components/Icons";
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { toast } from "react-toastify";
-import { Check, ChevronDown } from "lucide-react";
-import ChatAiConfigDeatilViewModal from "../modals/ChatAiConfigDeatilViewModal";
-import { truncate, useCloseSliderOnEsc } from "./AssistFile";
+import { allowedAttributes, openModal, closeModal } from "@/utils/utility";
+import { CloseCircleIcon } from "@/components/Icons";
+import { useEffect } from "react";
+import Modal from "@/components/UI/Modal";
 
 const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) => {
-  if (!selectedItem) return null;
-
-  const variablesKeyValue = selectedItem && selectedItem["variables"] ? selectedItem["variables"] : {};
-  const batchData =
-    selectedItem && typeof selectedItem["batch_data"] === "object" && selectedItem["batch_data"] !== null
-      ? selectedItem["batch_data"]
-      : null;
-  const [modalContent, setModalContent] = useState(null);
-  const [modalTitle, setModalTitle] = useState("");
-  const [copiedId, setCopiedId] = useState(null);
-  const sidebarRef = useRef(null);
-
-  const attributeDisplayMap = useMemo(() => {
-    const allAttributes = [...allowedAttributes.important, ...allowedAttributes.optional];
-    return new Map(allAttributes);
-  }, []);
-
-  const getDisplayTitle = useCallback(
-    (key) => {
-      if (attributeDisplayMap.has(key)) return attributeDisplayMap.get(key);
-
-      return String(key || "Details")
-        .replace(/([a-z])([A-Z])/g, "$1 $2")
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-    },
-    [attributeDisplayMap]
-  );
-
   useEffect(() => {
-    const closeSliderOnEsc = (event) => {
-      if (event.key === "Escape") {
-        setIsSliderOpen(false);
-      }
-    };
-
-    const handleClickOutside = (event) => {
-      // Don't close the slider if the click is inside a dialog/modal
-      if (event.target.closest("dialog")) return;
-      if (sidebarRef.current && !sidebarRef.current.contains(event.target)) {
-        setIsSliderOpen(false);
-      }
-    };
-
-    document.addEventListener("keydown", closeSliderOnEsc);
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("keydown", closeSliderOnEsc);
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  useCloseSliderOnEsc(setIsSliderOpen);
-
-  const copyToClipboard = (content, message = "Copied to clipboard", id = null) => {
-    navigator.clipboard
-      .writeText(typeof content === "string" ? content : JSON.stringify(content))
-      .then(() => {
-        toast.success(message);
-        if (id) {
-          setCopiedId(id);
-          setTimeout(() => setCopiedId(null), 2000); // Reset after 2 seconds
-        }
-      })
-      .catch((error) => {
-        toast.error(`Error while copying to clipboard`);
-        console.error(error);
-      });
-  };
-
-  const replaceVariablesInPrompt = (prompt) => {
-    const promptStr =
-      typeof prompt === "object" && prompt !== null ? Object.values(prompt).join(" ") : String(prompt || "");
-    return promptStr.replace(/{{(.*?)}}/g, (_, variableName) => {
-      const value = variablesKeyValue[variableName];
-      if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-        return value;
-      }
-      return `{{${variableName}}}`;
-    });
-  };
-
-  const handleObjectClick = useCallback(
-    (key, displayValue) => {
-      setModalTitle(getDisplayTitle(key));
-      setModalContent(displayValue);
-      openModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL);
-    },
-    [getDisplayTitle]
-  );
-
-  const resolveSelectedValueKey = useCallback((key) => {
-    if (key === "system Prompt") return "prompt";
-    return key;
-  }, []);
-
-  // Open modal if selectedItem.value matches a key
-  useEffect(() => {
-    if (selectedItem?.value) {
-      const key = resolveSelectedValueKey(selectedItem.value);
-      const value = key === "prompt" ? (selectedItem.prompt ?? selectedItem["system Prompt"]) : selectedItem[key];
-      if (value) {
-        handleObjectClick(key, value);
-      }
+    if (isSliderOpen) {
+      openModal(MODAL_TYPE.CHAT_DETAILS_MODAL);
+    } else {
+      closeModal(MODAL_TYPE.CHAT_DETAILS_MODAL);
     }
-  }, [selectedItem, handleObjectClick, resolveSelectedValueKey]);
+  }, [isSliderOpen]);
 
   return (
-    <div
-      data-testid="chat-details-slider"
-      id="chat-details-slider"
-      ref={sidebarRef}
-      className={`fixed inset-y-0 right-0 border-l-2 bg-base-100 shadow-2xl rounded-md ${
-        isSliderOpen ? "w-full md:w-1/2 lg:w-1/2 opacity-100" : "w-0"
-      } overflow-y-auto bg-gradient-to-br from-base-200 to-base-100 transition-all duration-300 ease-in-out z-very-high`}
-    >
+    <Modal MODAL_ID={MODAL_TYPE.CHAT_DETAILS_MODAL} onClose={() => setIsSliderOpen(false)}>
       {selectedItem && (
-        <aside className="flex flex-col h-screen overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-base-content tracking-tight">Chat Details</h2>
+        <div
+          className="fixed inset-0 z-low-medium flex min-h-[100vh] min-w-[100vw] items-center justify-center overflow-auto bg-black/60 py-8"
+          onClick={() => setIsSliderOpen(false)}
+        >
+          <div
+            id="chat-details-modal-container"
+            data-testid="chat-details-modal"
+            className="relative flex w-[min(640px,92vw)] max-h-[88vh] flex-col overflow-hidden rounded-xl border border-base-content/10 shadow-2xl bg-base-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-base-content/10 px-5 py-4 bg-base-200">
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-base font-semibold text-base-content">Chat Details</h3>
+              </div>
               <button
+                type="button"
                 data-testid="chat-details-close-button"
                 id="chat-details-close-button"
+                className="rounded-md p-1.5 text-base-content/60 transition-colors hover:bg-base-content/10 hover:text-base-content"
                 onClick={() => setIsSliderOpen(false)}
-                className="btn btn-ghost btn-circle hover:bg-base-100 transition-colors duration-200"
               >
-                <CloseCircleIcon size={20} className="bg-base-100" />
+                <CloseCircleIcon size={18} />
               </button>
             </div>
-            <div className="bg-base-100 rounded-md shadow-sm">
-              <div className="w-full">
-                <div className="w-full">
-                  {/* Important attributes first */}
-                  {allowedAttributes.important
-                    .sort((a, b) => a[1].localeCompare(b[1]))
-                    .map(([key, displayKey]) => {
-                      if (key === "latency" && batchData) return null;
 
-                      const value =
-                        key === "prompt" ? (selectedItem.prompt ?? selectedItem["system Prompt"]) : selectedItem[key];
-                      if (value === undefined) return null;
-
-                      let displayValue = value;
-                      let rawSystemPrompt;
-                      if (key === "prompt" && typeof value === "string") {
-                        rawSystemPrompt = replaceVariablesInPrompt(value);
-                        displayValue = rawSystemPrompt;
-                      }
-
-                      return (
-                        <div key={key} className="border-b border-base-300 bg-base-100 transition-colors duration-150">
-                          <div className="pt-4 px-4 text-sm font-semibold capitalize">{displayKey}</div>
-                          <div className="py-4 px-4">
-                            {typeof displayValue === "object" ? (
-                              <div className="relative">
-                                <pre
-                                  id={`chat-details-${key}-value`}
-                                  className={`bg-base-200 p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap border border-base-200 ${
-                                    JSON.stringify(displayValue).length > 200
-                                      ? "cursor-pointer hover:border-primary transition-colors duration-200"
-                                      : ""
-                                  }`}
-                                  onClick={() => handleObjectClick(key, displayValue)}
-                                >
-                                  {truncate(JSON.stringify(displayValue, null, 2), 210)}
-                                </pre>
-                                {key === "variables" && displayValue && (
-                                  <div className="absolute top-2 right-2">
-                                    <div className="dropdown dropdown-end">
-                                      <div
-                                        data-testid="chat-details-variables-copy-dropdown"
-                                        id="chat-details-variables-copy-dropdown"
-                                        tabIndex={0}
-                                        role="button"
-                                        className="btn btn-sm btn-ghost tooltip tooltip-primary tooltip-left hover:bg-base-300 transition-colors duration-200"
-                                        data-tip="Copy options"
-                                      >
-                                        <CopyIcon size={16} className="text-base-content" />
-                                        <ChevronDown size={12} className="text-base-content" />
-                                      </div>
-                                      <ul
-                                        tabIndex={0}
-                                        className="dropdown-content menu rounded-box z-high w-64 p-2 shadow bg-base-100 border border-base-300"
-                                      >
-                                        <li>
-                                          <a
-                                            data-testid="chat-details-copy-current-values"
-                                            id="chat-details-copy-current-values"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              copyToClipboard(
-                                                displayValue,
-                                                "Current values copied to clipboard",
-                                                `current-${key}`
-                                              );
-                                            }}
-                                            className="flex items-center gap-2 text-sm"
-                                          >
-                                            <CopyIcon size={14} />
-                                            <div>
-                                              <div className="font-medium">Copy Current Values</div>
-                                              <div className="text-xs opacity-70">Copy actual runtime values</div>
-                                            </div>
-                                          </a>
-                                        </li>
-                                        <li>
-                                          <a
-                                            data-testid="chat-details-copy-key-value-pairs"
-                                            id="chat-details-copy-key-value-pairs"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              const keyValuePairs = generateKeyValuePairs(displayValue);
-                                              copyToClipboard(
-                                                JSON.stringify(keyValuePairs, null, 2),
-                                                "Key-value pairs copied to clipboard",
-                                                `keyvalue-${key}`
-                                              );
-                                            }}
-                                            className="flex items-center gap-2 text-sm"
-                                          >
-                                            <CopyIcon size={14} />
-                                            <div>
-                                              <div className="font-medium">Copy Key-Value Pairs</div>
-                                              <div className="text-xs opacity-70">Copy structure with data types</div>
-                                            </div>
-                                          </a>
-                                        </li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div
-                                className={`relative bg-base-200 p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap border border-base-200 ${
-                                  key === "prompt"
-                                    ? "cursor-pointer hover:border-primary transition-colors duration-200"
-                                    : ""
-                                }`}
-                                onClick={() => {
-                                  if (key === "prompt") {
-                                    handleObjectClick(key, rawSystemPrompt || value);
-                                  }
-                                }}
-                              >
-                                <div className="text-base-content break-words whitespace-pre-wrap">
-                                  {displayValue?.toString()}
-                                </div>
-                                {key === "prompt" && (
-                                  <button
-                                    data-testid="chat-details-copy-system-prompt"
-                                    id="chat-details-copy-system-prompt"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      copyToClipboard(
-                                        rawSystemPrompt,
-                                        "System prompt copied to clipboard",
-                                        "system-prompt"
-                                      );
-                                    }}
-                                    className="absolute top-2 right-2 btn btn-ghost btn-sm p-1.5 rounded-md hover:bg-base-300 transition-colors duration-200"
-                                    title="Copy system prompt"
-                                  >
-                                    {copiedId === "system-prompt" ? (
-                                      <Check size={16} className="text-success" />
-                                    ) : (
-                                      <CopyIcon size={16} className="text-base-content" />
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                  {batchData && (
-                    <div className="border-b border-base-300 bg-base-100 transition-colors duration-150">
-                      <div className="pt-4 px-4 text-sm font-semibold capitalize">Batch Details</div>
-                      <div className="py-4 px-4">
-                        <div className="relative">
-                          <pre
-                            id="chat-details-batch-data-value"
-                            className={`bg-base-200 p-4 rounded-lg text-sm overflow-auto whitespace-pre-wrap border border-base-200 ${
-                              JSON.stringify(batchData).length > 200
-                                ? "cursor-pointer hover:border-primary transition-colors duration-200"
-                                : ""
-                            }`}
-                            onClick={() => handleObjectClick("batch_data", batchData)}
-                          >
-                            {truncate(JSON.stringify(batchData, null, 2), 210)}
-                          </pre>
-                          <div className="absolute top-2 right-2">
-                            <button
-                              data-testid="chat-details-copy-batch-data"
-                              id="chat-details-copy-batch-data"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                copyToClipboard(batchData, "Batch data copied to clipboard", "batch-data");
-                              }}
-                              className="btn btn-ghost btn-sm p-1.5 rounded-md hover:bg-base-300"
-                              title="Copy batch data"
-                            >
-                              {copiedId === "batch-data" ? (
-                                <Check size={16} className="text-success" />
-                              ) : (
-                                <CopyIcon size={16} className="text-base-content" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bg-base-200">
-                    <div className="py-2 px-6 text-sm font-semibold text-base-content border-b border-base-300">
-                      Optional Details
-                    </div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-5 pb-6 space-y-6">
+              {/* Latency Section */}
+              {selectedItem.latency !== undefined && (
+                <div>
+                  <div className="text-xs font-semibold text-base-content/70 mb-2 uppercase tracking-wide">Latency</div>
+                  <div className="bg-base-200 p-4 rounded-lg border border-base-content/10 flex items-center justify-between">
+                    <span className="text-sm font-medium text-base-content">Response Time</span>
+                    <span className="text-sm font-semibold text-primary">
+                      {(() => {
+                        if (typeof selectedItem.latency === "object" && selectedItem.latency !== null) {
+                          const time = selectedItem.latency.over_all_time ?? selectedItem.latency.model_execution_time;
+                          return time != null ? `${parseFloat(time).toFixed(2)}s` : "0.00s";
+                        }
+                        const latStr = selectedItem.latency?.toString() || "";
+                        return latStr.endsWith("s") ? latStr : `${parseFloat(latStr || 0).toFixed(2)}s`;
+                      })()}
+                    </span>
                   </div>
+                </div>
+              )}
 
+              {/* Optional Details Section */}
+              <div>
+                <div className="text-xs font-semibold text-base-content/70 mb-2 uppercase tracking-wide">
+                  Optional Details
+                </div>
+                <div className="border border-base-content/10 rounded-lg overflow-hidden bg-base-100 divide-y divide-base-content/10">
                   {allowedAttributes.optional
                     .sort((a, b) => a[1].localeCompare(b[1]))
                     .map(([key, displayKey]) => {
-                      const value = selectedItem[key];
+                      // Handle nested keys like "batch_data.batch_id"
+                      const keys = key.includes(".") ? key.split(".") : [key];
+                      let value = selectedItem;
+                      for (const k of keys) {
+                        value = value?.[k];
+                      }
                       if (value === undefined) return null;
 
-                      // If the value is an object, render each property as separate rows
-                      if (typeof value === "object" && value !== null && key !== "createdAt") {
+                      // If the value is an object (but not a Date or array), render each property as separate rows
+                      if (typeof value === "object" && value !== null && key !== "createdAt" && !Array.isArray(value)) {
                         return Object.entries(value).map(([objKey, objValue]) => (
                           <div
                             key={`${key}-${objKey}`}
-                            className="border-b border-base-300 bg-base-100 transition-colors duration-150 flex"
+                            className="bg-base-100 transition-colors duration-150 flex px-4 py-3"
                           >
-                            <div className="py-4 px-6 text-sm font-semibold capitalize w-1/2">
+                            <div className="text-xs font-semibold capitalize w-1/2 text-base-content/85">
                               {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                             </div>
-                            <div className="py-4 px-6 w-1/2">
-                              <span className="text-gray-600 break-words">{objValue?.toString()}</span>
+                            <div className="w-1/2 text-xs text-base-content">
+                              <span className="break-words font-medium">{objValue?.toString()}</span>
                             </div>
                           </div>
                         ));
@@ -358,13 +101,12 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
 
                       // Regular single value display
                       return (
-                        <div
-                          key={key}
-                          className="border-b border-base-300 bg-base-100 transition-colors duration-150 flex"
-                        >
-                          <div className="py-4 px-6 text-sm font-semibold capitalize w-1/2">{displayKey}</div>
-                          <div className="py-4 px-6 w-1/2">
-                            <span className="text-gray-600 break-words">
+                        <div key={key} className="bg-base-100 transition-colors duration-150 flex px-4 py-3">
+                          <div className="text-xs font-semibold capitalize w-1/2 text-base-content/85">
+                            {displayKey}
+                          </div>
+                          <div className="w-1/2 text-xs text-base-content">
+                            <span className="break-words font-medium">
                               {key === "createdAt" ? new Date(value).toLocaleString() : value?.toString()}
                             </span>
                           </div>
@@ -375,10 +117,9 @@ const ChatDetails = ({ selectedItem, setIsSliderOpen, isSliderOpen, params }) =>
               </div>
             </div>
           </div>
-        </aside>
+        </div>
       )}
-      <ChatAiConfigDeatilViewModal modalContent={modalContent} modalTitle={modalTitle} />
-    </div>
+    </Modal>
   );
 };
 
