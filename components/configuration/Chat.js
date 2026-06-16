@@ -1190,15 +1190,17 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                             </div>
                           ) : (
                             /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
-                            <div className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : ""}`}>
+                            <div
+                              className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : "w-fit max-w-[75%]"}`}
+                            >
                               <div
                                 data-testid={`playground-ai-response-message-${message.id}`}
-                                className={`break-words gap-0 justify-start relative min-w-0 ${
+                                className={`gap-0 justify-start relative min-w-0 ${
                                   message.sender === "assistant"
-                                    ? `mr-8 w-full rounded-xl ${message.content ? "px-4 py-3 border border-base-content/20" : ""}`
+                                    ? `mr-8 w-full rounded-xl break-words ${message.content ? "px-4 py-3 border border-base-content/20" : ""}`
                                     : message.sender === "error"
-                                      ? "rounded-xl w-fit max-w-[75%] overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
-                                      : "chat-bubble w-fit max-w-[75%] text-sm text-neutral-content"
+                                      ? "rounded-xl w-full overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
+                                      : "chat-bubble w-full text-sm text-neutral-content"
                                 } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
                               >
                                 {/* Show loader overlay if this is the message being tested and no result yet */}
@@ -1296,21 +1298,31 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                       ) : (
                                         /* Regular message with markdown */
                                         <div className={message.sender === "assistant" ? mdProseClass.dark : undefined}>
-                                          <ReactMarkdown components={mdComponents} remarkPlugins={mdRemarkPlugins}>
-                                            {message.type !== "template" && message.type !== "richui_json"
-                                              ? (() => {
-                                                  const raw =
-                                                    message.testCaseResult && message.sender === "assistant"
-                                                      ? message.testCaseResult.actual_result || message.content
-                                                      : message.content;
-                                                  return typeof raw === "string"
-                                                    ? raw
-                                                    : raw != null
-                                                      ? JSON.stringify(raw)
-                                                      : "";
-                                                })()
-                                              : ""}
-                                          </ReactMarkdown>
+                                          {message.sender === "assistant" ? (
+                                            <ReactMarkdown components={mdComponents} remarkPlugins={mdRemarkPlugins}>
+                                              {message.type !== "template" && message.type !== "richui_json"
+                                                ? (() => {
+                                                    const raw =
+                                                      message.testCaseResult && message.sender === "assistant"
+                                                        ? message.testCaseResult.actual_result || message.content
+                                                        : message.content;
+                                                    return typeof raw === "string"
+                                                      ? raw
+                                                      : raw != null
+                                                        ? JSON.stringify(raw)
+                                                        : "";
+                                                  })()
+                                                : ""}
+                                            </ReactMarkdown>
+                                          ) : (
+                                            <div className="whitespace-pre-wrap">
+                                              {typeof message.content === "string"
+                                                ? message.content
+                                                : message.content != null
+                                                  ? JSON.stringify(message.content)
+                                                  : ""}
+                                            </div>
+                                          )}
                                         </div>
                                       )}
 
