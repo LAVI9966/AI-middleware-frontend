@@ -461,6 +461,7 @@ const TestCaseDetailsPanel = ({
                           </div>
                           {isLastUserMessage && (
                             <button
+                              data-testid={`testcase-delete-msg-btn-${idx}`}
                               onClick={async () => {
                                 const newConversation = editedConversation.filter((_, i) => i !== idx && i !== idx + 1);
                                 setEditedConversation(newConversation);
@@ -750,6 +751,7 @@ const TestCaseDetailsPanel = ({
                             {totalRuns > 1 && (
                               <div className="flex items-center gap-1 ml-1">
                                 <button
+                                  data-testid={`testcase-version-output-prev-run-${versions.indexOf(version) + 1}`}
                                   onClick={goPrev}
                                   disabled={safeIdx >= totalRuns - 1}
                                   className="w-6 h-6 flex items-center justify-center rounded border border-base-300 bg-base-100 text-base-content/70 hover:bg-base-200 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -761,6 +763,7 @@ const TestCaseDetailsPanel = ({
                                   {totalRuns - safeIdx}/{totalRuns}
                                 </span>
                                 <button
+                                  data-testid={`testcase-version-output-next-run-${versions.indexOf(version) + 1}`}
                                   onClick={goNext}
                                   disabled={safeIdx <= 0}
                                   className="w-6 h-6 flex items-center justify-center rounded border border-base-300 bg-base-100 text-base-content/70 hover:bg-base-200 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -839,6 +842,7 @@ const TestCaseDetailsPanel = ({
                               return (
                                 <div
                                   key={toolIdx}
+                                  data-testid={`testcase-version-${versions.indexOf(version) + 1}-tool-${toolIdx}`}
                                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 border rounded-md text-xs font-medium transition-colors ${
                                     isRAGTool
                                       ? "bg-info/10 border-info/30 text-info hover:bg-info/20 cursor-default"
@@ -860,6 +864,7 @@ const TestCaseDetailsPanel = ({
                                     }
                                   >
                                     <FileClockIcon
+                                      data-testid={`testcase-version-${versions.indexOf(version) + 1}-tool-logs-${toolIdx}`}
                                       size={12}
                                       className="opacity-50 hover:opacity-100 ml-1"
                                       onClick={(e) => {

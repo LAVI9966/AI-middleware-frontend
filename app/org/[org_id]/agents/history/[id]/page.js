@@ -242,7 +242,13 @@ function Page({ params, searchParams }) {
   return (
     <div className="bg-history-page relative scrollbar-hide text-base-content max-h-[calc(100vh-9rem)]">
       <div className="drawer drawer-open overflow-hidden bg-history-page">
-        <input autoComplete="off" id="my-drawer-2" type="checkbox" className="drawer-toggle" />
+        <input
+          autoComplete="off"
+          id="my-drawer-2"
+          type="checkbox"
+          className="drawer-toggle"
+          data-testid="history-drawer-toggle"
+        />
         <div className="drawer-content flex flex-row overflow-hidden bg-history-page min-h-full">
           {batchPanel}
           <div className="flex-1 overflow-hidden bg-history-page min-h-full">
