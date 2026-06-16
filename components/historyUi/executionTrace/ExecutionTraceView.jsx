@@ -271,16 +271,8 @@ function VariablesBlock({ vars, inRail = true }) {
 
   const body = (
     <div className="min-w-0">
-      <StepRowHeader
-        open={open}
-        inRail={inRail}
-        icon={<VarsNodeIcon />}
-        headerClass={varsHead}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <KindTag className="inline-flex items-center gap-1 text-trace-gold">
-          <Brackets size={12} /> variables
-        </KindTag>
+      <StepRowHeader open={open} inRail={inRail} headerClass={varsHead} onClick={() => setOpen((o) => !o)}>
+        <KindTag className="inline-flex items-center gap-1 text-trace-gold">variables</KindTag>
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-trace-blue/20 bg-trace-blue/10 px-1.5 text-[11px] font-mono text-trace-blue">
           {entries.length}
         </span>
@@ -662,7 +654,7 @@ function RootExecutionShell({ node, agents, userMessage }) {
 
       {/* Expanded Container */}
       {open && (
-        <div className="w-full border border-base-300 rounded-xl p-4 bg-base-200/10 shadow-sm space-y-2">
+        <div className="w-full border border-base-400 rounded-xl p-4 bg-base-200/10 shadow-sm space-y-2">
           <HistoryExecutionSteps node={node} agents={agents} inRail={false} />
         </div>
       )}
