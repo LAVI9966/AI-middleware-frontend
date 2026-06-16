@@ -382,3 +382,51 @@ export const DEFAULT_STARTER_QUESTIONS = [
   "How do I get started?",
   "What kind of questions can I ask you?",
 ];
+
+export const TOKEN_CATEGORIES = [
+  {
+    label: "Text Input",
+    tokenKeys: ["text_input_tokens", "input_tokens"],
+    costKeys: ["text_input_cost", "input_cost"],
+  },
+  {
+    label: "Text Output",
+    tokenKeys: ["text_output_tokens", "output_tokens"],
+    costKeys: ["text_output_cost", "output_cost"],
+  },
+  {
+    label: "Image Input",
+    tokenKeys: ["image_input_tokens"],
+    costKeys: ["image_input_cost"],
+  },
+  {
+    label: "Image Output",
+    tokenKeys: ["image_output_tokens", "total_images_generated"],
+    costKeys: ["image_output_cost"],
+  },
+  {
+    label: "Cached Input",
+    tokenKeys: ["cached_text_input_tokens", "cached_tokens", "cache_read_input_tokens"],
+    costKeys: ["cached_text_input_cost", "cached_cost", "cache_read_cost"],
+  },
+  {
+    label: "Cached Image Input",
+    tokenKeys: ["cached_image_input_tokens"],
+    costKeys: ["cached_image_input_cost"],
+  },
+  {
+    label: "Cache Creation Input",
+    tokenKeys: ["cache_creation_input_tokens"],
+    costKeys: ["cache_creation_cost"],
+  },
+  {
+    label: "Reasoning",
+    tokenKeys: ["reasoning_tokens"],
+    costKeys: ["reasoning_cost"],
+  },
+  {
+    label: "Audio",
+    tokenKeys: ["audio_duration_seconds", "audio_duration_minutes"],
+    costKeys: ["audio_cost"],
+  },
+];
