@@ -381,7 +381,8 @@ function TestCases({ params }) {
               <div className="dropdown">
                 <button
                   tabIndex={0}
-                  className="flex items-center gap-2 px-2 py-1.5 bg-transparent border border-base-content/20 rounded-lg text-xs font-semibold text-base-content/70 cursor-pointer hover:bg-base-200 transition-colors"
+                  data-testid="testcase-versions-dropdown-btn"
+                  className="flex items-center gap-2 px-2 py-1.5 bg-transparent border border-base-200 rounded-lg text-xs font-semibold text-base-content/70 cursor-pointer hover:bg-base-200 transition-colors"
                 >
                   <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-[7px] bg-primary text-primary-content text-xs font-extrabold">
                     {selectedVersions.length}
@@ -398,6 +399,11 @@ function TestCases({ params }) {
                       Select versions
                     </span>
                     <button
+                      data-testid={
+                        selectedVersions.length === versions.length
+                          ? "testcase-versions-clear-btn"
+                          : "testcase-versions-select-all-btn"
+                      }
                       onClick={() =>
                         setSelectedVersions(selectedVersions.length === versions.length ? [versions[0]] : [...versions])
                       }
@@ -413,6 +419,7 @@ function TestCases({ params }) {
                       return (
                         <button
                           key={idx}
+                          data-testid={`testcase-version-option-${idx + 1}`}
                           onClick={() =>
                             !isLast &&
                             setSelectedVersions((prev) => {
@@ -448,6 +455,7 @@ function TestCases({ params }) {
 
               {/* Run All Button */}
               <button
+                data-testid="testcase-run-all-btn"
                 onClick={handleRunAllTestCases}
                 disabled={
                   !Array.isArray(testCases) ||
@@ -751,7 +759,11 @@ function TestCases({ params }) {
                       : "Add test cases from chat history to compare outputs across different versions and prompts."}
                   </p>
                   {searchKeyword && !isLoadingTestCases && (
-                    <button onClick={() => handleSearchChange("")} className="btn btn-sm btn-primary mt-4">
+                    <button
+                      data-testid="testcase-empty-clear-search-btn"
+                      onClick={() => handleSearchChange("")}
+                      className="btn btn-sm btn-primary mt-4"
+                    >
                       Clear Search
                     </button>
                   )}
