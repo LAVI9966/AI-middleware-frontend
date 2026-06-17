@@ -238,48 +238,6 @@ function ChatTextInput({
     if (inputRef.current) {
       inputRef.current.style.height = "40px"; // Set initial height
     }
-    // Skip prompt validation for chat models - they don't require a system prompt
-    // Extract text from prompt (handle both string and object formats)
-    let promptText = "";
-    if (typeof activePrompt === "string") {
-      promptText = activePrompt;
-    } else if (typeof activePrompt === "object" && activePrompt !== null) {
-      // Check if this is embed user format (has customPrompt and useDefaultPrompt is false)
-      const isEmbedFormat = activePrompt.customPrompt && activePrompt.useDefaultPrompt === false;
-
-      if (isEmbedFormat) {
-        // For embed users: only extract from visible embedFields (not hidden)
-        if (Array.isArray(activePrompt.embedFields)) {
-          activePrompt.embedFields.forEach((field) => {
-            // Only include visible fields (not hidden)
-            if (!field.hidden && field.value) {
-              promptText += field.value + " ";
-            }
-          });
-        }
-      } else {
-        // For main users: extract from default fields (role, goal, instruction)
-        if (activePrompt.role) promptText += activePrompt.role + " ";
-        if (activePrompt.goal) promptText += activePrompt.goal + " ";
-        if (activePrompt.instruction) promptText += activePrompt.instruction + " ";
-        // Also extract from embedFields if present (for backward compatibility)
-        if (Array.isArray(activePrompt.embedFields)) {
-          activePrompt.embedFields.forEach((field) => {
-            if (field.value) promptText += field.value + " ";
-          });
-        }
-      }
-    }
-    if (
-      promptText.trim() === "" &&
-      modelType !== "completion" &&
-      modelType !== "embedding" &&
-      modelType !== "chat" &&
-      modelType !== "image"
-    ) {
-      dispatch(setChatError(channelIdentifier, "Prompt is required"));
-      return;
-    }
 
     const isSliderAutoOpenDisabled =
       typeof window !== "undefined" && sessionStorage.getItem(VARIABLE_SLIDER_DISABLE_KEY) === "true";
