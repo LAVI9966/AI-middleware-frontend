@@ -16,7 +16,9 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import Sidebar from "@/components/historyPageComponents/Sidebar";
 import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
 import ThreadContainer from "@/components/historyPageComponents/ThreadContainer";
-import { getStatsConfig } from "@/utils/enums";
+import { getStatsConfig, MODAL_TYPE } from "@/utils/enums";
+import { openModal } from "@/utils/utility";
+import ChatAiConfigDeatilViewModal from "@/components/modals/ChatAiConfigDeatilViewModal";
 
 const CHART_STYLE = {
   grid: "#f3f4f6",
@@ -60,6 +62,7 @@ function Page({ params, searchParams }) {
   const [selectedSubThreadId, setSelectedSubThreadId] = useState(null);
   const [selectedBatchMessageId, setSelectedBatchMessageId] = useState(null);
   const [isSliderOpen, setIsSliderOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const router = useRouter();
   const searchRef = useRef(null);
@@ -356,6 +359,13 @@ function Page({ params, searchParams }) {
 
   const handleSelectBatch = useCallback((messageId) => {
     setSelectedBatchMessageId(messageId);
+  }, []);
+
+  const handleThreadItemClick = useCallback((thread_id, item, value) => {
+    if (value === "AiConfig" || value === "Latency") {
+      setSelectedItem({ variables: item.variables, ...item, value });
+      openModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL);
+    }
   }, []);
 
   const applyFilters = (updates = {}) => {
@@ -824,7 +834,7 @@ function Page({ params, searchParams }) {
                     pathName={pathName}
                     search={search}
                     historyData={historyData}
-                    threadHandler={() => {}}
+                    threadHandler={handleThreadItemClick}
                     setLoading={() => {}}
                     threadPage={1}
                     setThreadPage={() => {}}
@@ -840,6 +850,10 @@ function Page({ params, searchParams }) {
           </aside>
         )}
       </div>
+      <ChatAiConfigDeatilViewModal
+        modalContent={selectedItem?.value === "Latency" ? selectedItem?.latency : selectedItem?.AiConfig}
+        modalTitle={selectedItem?.value === "Latency" ? "Latency Details" : "AI Configuration"}
+      />
     </div>
   );
 }

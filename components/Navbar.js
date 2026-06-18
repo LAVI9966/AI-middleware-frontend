@@ -671,7 +671,7 @@ const Navbar = ({ isEmbedUser, params }) => {
             {/* Navigation Tabs - Fixed Position with Sliding Animation */}
             <div className="flex items-center gap-1 flex-shrink-0">
               {TABS.length > 1 ? (
-                <div className="relative flex items-center gap-1" style={{ width: `${TAB_WIDTH * TABS.length}px` }}>
+                <div className="relative flex items-center" style={{ width: `${TAB_WIDTH * TABS.length}px` }}>
                   {/* Sliding background indicator */}
                   <span
                     className="absolute top-0 left-0 h-full rounded-lg bg-primary shadow-sm transition-transform duration-300 ease-in-out"

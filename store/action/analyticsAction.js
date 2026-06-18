@@ -7,7 +7,7 @@ export const getAgentAnalyticsAction =
     dispatch(fetchAnalyticsStart());
     try {
       const response = await getAgentAnalyticsApi(bridge_id, queryParams);
-      dispatch(fetchAnalyticsSuccess(response));
+      dispatch(fetchAnalyticsSuccess({ ...response, bridge_id }));
       return response;
     } catch (error) {
       console.error("Error in getAgentAnalyticsAction:", error);
