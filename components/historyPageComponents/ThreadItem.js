@@ -1108,7 +1108,7 @@ const ThreadItem = ({
               const rows = formatTokensTable(tokensVal);
               if (rows && rows.length > 0) {
                 return (
-                  <div key="tokens" className="flex flex-col gap-2 border-t border-base-content/10 px-4 py-3">
+                  <div key="tokens" className="flex flex-col gap-2  px-4 py-3">
                     <span className="text-xs font-semibold text-trace-gold uppercase tracking-wide">
                       Token and Cost
                     </span>
@@ -1587,7 +1587,7 @@ const ThreadItem = ({
                                 </th>
                               </tr>
                             </thead>
-                            <tbody className="divide-y divide-base-content/5">
+                            <tbody className="">
                               {rows.map((row, idx) => (
                                 <tr
                                   key={idx}

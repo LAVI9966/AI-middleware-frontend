@@ -795,8 +795,8 @@ const Sidebar = memo(
                                           <span
                                             className={`text-xs whitespace-nowrap group-hover:hidden ${
                                               decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-primary"
-                                                : "text-base-content/50"
+                                                ? "text-base-100"
+                                                : "text-base-content"
                                             }`}
                                           >
                                             {formatRelativeTime(item?.updated_at || item?.created_at)}
@@ -804,8 +804,8 @@ const Sidebar = memo(
                                           <span
                                             className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
                                               decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-primary"
-                                                : "text-base-content/50"
+                                                ? "text-base-100"
+                                                : "text-base-content"
                                             }`}
                                           >
                                             {formatDate(item?.updated_at || item?.created_at)}
@@ -820,8 +820,8 @@ const Sidebar = memo(
                                           <span
                                             className={`text-xs whitespace-nowrap group-hover:hidden ${
                                               decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-primary"
-                                                : "text-base-content/50"
+                                                ? "text-base-100"
+                                                : "text-base-content"
                                             }`}
                                           >
                                             {formatRelativeTime(item?.updated_at || item?.created_at)}
@@ -829,8 +829,8 @@ const Sidebar = memo(
                                           <span
                                             className={`text-xs whitespace-nowrap group-hover:inline ${
                                               decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-primary"
-                                                : "text-base-content/50"
+                                                ? "text-base-100"
+                                                : "text-base-content"
                                             }`}
                                           >
                                             {formatDate(item?.updated_at || item?.created_at)}
@@ -922,7 +922,7 @@ const Sidebar = memo(
                                                   id={`history-sidebar-thread-message-${msg?.message_id}`}
                                                   key={index}
                                                   onClick={() => handleSetMessageId(msg?.message_id)}
-                                                  className={`cursor-pointer p-2 transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content hover:text-gray-800 border-l-2 border-transparent hover:border-base-300`}
+                                                  className={`cursor-pointer p-2 transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
                                                 >
                                                   <div className="flex items-start gap-1.5">
                                                     <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />
