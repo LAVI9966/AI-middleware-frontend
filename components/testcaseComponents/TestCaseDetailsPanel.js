@@ -23,6 +23,7 @@ import ToolsDataModal from "@/components/historyPageComponents/ToolsDataModal";
 import { FileClockIcon } from "@/components/Icons";
 import InfoTooltip from "@/components/InfoTooltip";
 import { setTestCaseConfig } from "@/store/reducer/testCaseConfigReducer";
+import ExpandCollapse from "@/components/UI/ExpandCollapse";
 
 const TestCaseDetailsPanel = ({
   selectedTestCase,
@@ -169,7 +170,6 @@ const TestCaseDetailsPanel = ({
       setTimeout(() => setCopiedVersion((curr) => (curr === versionId ? null : curr)), 1500);
     });
   }, []);
-  const [isExpectedExpanded, setIsExpectedExpanded] = useState(false);
   const toolsDataModalRef = useRef(null);
 
   const handleCloseToolsDataModal = () => {
@@ -241,7 +241,6 @@ const TestCaseDetailsPanel = ({
     setEditedConversation(selectedTestCase?.conversation ? [...selectedTestCase.conversation] : []);
     setEditedExpected(getExpectedValue(selectedTestCase));
     setHasUnsavedChanges(false);
-    setIsExpectedExpanded(false);
   }, [selectedTestCase?._id]);
 
   const trimConversation = (conv) =>
@@ -527,13 +526,17 @@ const TestCaseDetailsPanel = ({
                                 : "bg-base-200 text-base-content rounded-bl-none"
                             }`}
                           >
-                            {isStringContent ? (
-                              <div className="text-sm leading-relaxed break-words">{message?.content || ""}</div>
-                            ) : (
-                              <div className="text-sm leading-relaxed break-words">
-                                {JSON.stringify(message?.content)}
-                              </div>
-                            )}
+                            <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                              {isStringContent ? (
+                                <div className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                                  {message?.content || ""}
+                                </div>
+                              ) : (
+                                <div className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                                  {JSON.stringify(message?.content)}
+                                </div>
+                              )}
+                            </ExpandCollapse>
                           </div>
                           {isLastUserMessage && (
                             <button
@@ -604,13 +607,15 @@ const TestCaseDetailsPanel = ({
                   className="bg-base-50 rounded-lg px-4 py-3 border border-base-200"
                   data-testid="testcase-input-panel"
                 >
-                  <AutoResizeTextarea
-                    data-testid="testcase-input-textarea"
-                    value={typeof lastUserContent === "string" ? lastUserContent : JSON.stringify(lastUserContent)}
-                    onChange={(e) => handleConversationChange(lastUserIdx, e.target.value)}
-                    onBlur={() => handleConversationBlur(lastUserIdx)}
-                    className="w-full bg-transparent text-sm text-base-content leading-relaxed outline-none"
-                  />
+                  <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                    <AutoResizeTextarea
+                      data-testid="testcase-input-textarea"
+                      value={typeof lastUserContent === "string" ? lastUserContent : JSON.stringify(lastUserContent)}
+                      onChange={(e) => handleConversationChange(lastUserIdx, e.target.value)}
+                      onBlur={() => handleConversationBlur(lastUserIdx)}
+                      className="w-full bg-transparent text-sm text-base-content leading-relaxed outline-none"
+                    />
+                  </ExpandCollapse>
                 </div>
               </div>
             );
@@ -624,15 +629,11 @@ const TestCaseDetailsPanel = ({
             >
               Expected Output
             </div>
-            <div className="bg-base-50 rounded-lg border border-base-200" data-testid="testcase-expected-panel">
-              {/* Clipped content area */}
-              <div
-                style={{
-                  maxHeight: isExpectedExpanded ? "none" : "calc(4 * 1.625rem)",
-                  overflow: "hidden",
-                }}
-                className="px-4 pt-3 pb-1"
-              >
+            <div
+              className="bg-base-50 rounded-lg border border-base-200 px-4 pt-3 pb-2"
+              data-testid="testcase-expected-panel"
+            >
+              <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
                 <AutoResizeTextarea
                   data-testid="testcase-expected-textarea"
                   value={editedExpected}
@@ -641,30 +642,7 @@ const TestCaseDetailsPanel = ({
                   minRows={2}
                   className="w-full bg-transparent text-sm text-base-content leading-relaxed outline-none"
                 />
-              </div>
-
-              {/* Show more / Show less row - only show if content exceeds 4 lines */}
-              {editedExpected && editedExpected.split("\n").length > 4 && (
-                <div className="px-4 pb-2">
-                  {!isExpectedExpanded ? (
-                    <button
-                      onClick={() => setIsExpectedExpanded(true)}
-                      className="text-xs text-primary hover:text-primary transition-colors"
-                      data-testid="testcase-expected-show-more"
-                    >
-                      ... show more
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => setIsExpectedExpanded(false)}
-                      className="text-xs text-base-content/50 hover:text-primary transition-colors"
-                      data-testid="testcase-expected-show-less"
-                    >
-                      show less
-                    </button>
-                  )}
-                </div>
-              )}
+              </ExpandCollapse>
             </div>
           </div>
           {/* Version Comparison — driven by header "Versions" selector (single source of truth) */}
@@ -712,10 +690,11 @@ const TestCaseDetailsPanel = ({
                     const seen = new Set();
                     const tabs = [];
                     allRunsForVersion.forEach((run) => {
+                      if (!run?.model) return; // skip runs with no model (dead "Default" tab)
                       const key = buildRunModelKey(run);
                       if (seen.has(key)) return;
                       seen.add(key);
-                      tabs.push({ key, model: run?.model || "", service: run?.service || "" });
+                      tabs.push({ key, model: run.model, service: run?.service || "" });
                     });
                     return tabs;
                   })();
@@ -818,7 +797,7 @@ const TestCaseDetailsPanel = ({
                             >
                               {modelTabs.map((tab) => {
                                 const isActive = tab.key === activeTab?.key;
-                                const label = tab.model || "Default";
+                                const label = tab.model;
                                 return (
                                   <button
                                     key={tab.key}
@@ -826,13 +805,18 @@ const TestCaseDetailsPanel = ({
                                     aria-selected={isActive}
                                     title={tab.service ? `${tab.service} • ${label}` : label}
                                     onClick={() => setActiveModelByVersion((prev) => ({ ...prev, [version]: tab.key }))}
-                                    className={`px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
                                       isActive
                                         ? "bg-primary/10 text-primary border border-primary/30"
                                         : "bg-base-200/60 text-base-content/60 border border-transparent hover:bg-base-200"
                                     }`}
                                   >
-                                    {label}
+                                    {tab.service && (
+                                      <span className="inline-flex items-center mt-1 flex-shrink-0">
+                                        {getIconOfService(tab.service, 12, 12)}
+                                      </span>
+                                    )}
+                                    <span>{label}</span>
                                   </button>
                                 );
                               })}
@@ -923,19 +907,6 @@ const TestCaseDetailsPanel = ({
                                 className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px] text-base-content/60 font-medium w-full min-w-0"
                                 title={currentRun?.service || ""}
                               >
-                                {(currentRun?.model || currentRun?.metadata?.model) && (
-                                  <div className="flex items-center gap-1 min-w-0">
-                                    {currentRun?.service && (
-                                      <span className="inline-flex items-center flex-shrink-0">
-                                        {getIconOfService(currentRun.service, 12, 12)}
-                                      </span>
-                                    )}
-                                    <span className="truncate max-w-[140px]">
-                                      {currentRun?.model || currentRun?.metadata?.model}
-                                    </span>
-                                  </div>
-                                )}
-
                                 {hasRun && !runErrorMessage && currentRun?.tokens?.total_tokens > 0 && (
                                   <span
                                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-base-200/60"
