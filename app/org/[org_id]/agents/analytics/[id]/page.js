@@ -6,12 +6,13 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { getHistoryAction, getThread } from "@/store/action/historyAction";
 import { getAgentAnalyticsAction } from "@/store/action/analyticsAction";
+import { getAgentAnalyticsFiltersApi } from "@/config";
 import { setSelectedVersion } from "@/store/reducer/historyReducer";
 import Protected from "@/components/Protected";
 import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
-import { Activity, TrendingDown, TrendingUp, X, Bot } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, BarChart3, TrendingDown, TrendingUp, X, Bot } from "lucide-react";
+import Chart from "@/components/LazyApexChart";
 
 import Sidebar from "@/components/historyPageComponents/Sidebar";
 import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
@@ -19,18 +20,6 @@ import ThreadContainer from "@/components/historyPageComponents/ThreadContainer"
 import { getStatsConfig, MODAL_TYPE } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
 import ChatAiConfigDeatilViewModal from "@/components/modals/ChatAiConfigDeatilViewModal";
-
-const CHART_STYLE = {
-  grid: "#f3f4f6",
-  axis: "#9ca3af",
-  tooltip: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    fontSize: "12px",
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-  },
-};
 
 function Page({ params, searchParams }) {
   const resolvedSearchParams = use(searchParams);
@@ -63,12 +52,26 @@ function Page({ params, searchParams }) {
   const [selectedBatchMessageId, setSelectedBatchMessageId] = useState(null);
   const [isSliderOpen, setIsSliderOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [executionChartType, setExecutionChartType] = useState("area");
+  const [latencyChartType, setLatencyChartType] = useState("area");
 
   const router = useRouter();
   const searchRef = useRef(null);
   const isFirstRender = useRef(true);
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const customDropdownRef = useRef(null);
+
+  // Search-by-fields state (moved out from sidebar for analytics)
+  const [filterByFields, setFilterByFields] = useState({
+    thread_id: "",
+    sub_thread_id: "",
+    message_id: "",
+    batch_id: "",
+    user: "",
+    llm_message: "",
+  });
+  const [filterVariableKey, setFilterVariableKey] = useState("");
+  const [filterVariableValue, setFilterVariableValue] = useState("");
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -100,6 +103,9 @@ function Page({ params, searchParams }) {
   const [filterInterval, setFilterInterval] = useState(resolvedSearchParams?.interval || "");
   const [filterFeedback, setFilterFeedback] = useState(resolvedSearchParams?.feedback || "all");
   const [filterError, setFilterError] = useState(resolvedSearchParams?.error === "true");
+  const [filterTool, setFilterTool] = useState(resolvedSearchParams?.tool_id || "");
+  const [filterModel, setFilterModel] = useState(resolvedSearchParams?.model || "");
+  const [filterOptions, setFilterOptions] = useState({ tools_data: {}, unique_model: {} });
 
   const summary = analyticsData?.summary || {};
   const requestsOverTime = analyticsData?.requests_over_time || [];
@@ -152,6 +158,19 @@ function Page({ params, searchParams }) {
     };
   }, [dispatch]);
 
+  useEffect(() => {
+    if (!resolvedParams?.id) return;
+    const fetchFilters = async () => {
+      try {
+        const data = await getAgentAnalyticsFiltersApi(resolvedParams.id);
+        setFilterOptions({ tools_data: data.tools_data || {}, unique_model: data.unique_model || {} });
+      } catch (e) {
+        console.error("Failed to fetch filter options:", e);
+      }
+    };
+    fetchFilters();
+  }, [resolvedParams?.id]);
+
   // Fetch agent analytics (with a 1-second delay on refresh/initial mount, and immediately on subsequent updates)
   useEffect(() => {
     if (!resolvedParams?.id) return;
@@ -163,6 +182,23 @@ function Page({ params, searchParams }) {
       queryParams.range = queryParams.range || "30d";
     }
     queryParams.version = selectedVersion;
+
+    // Build filter_by from search-by-fields state
+    const activeFilterBy = {};
+    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
+    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
+    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
+    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
+    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
+    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
+    if (filterVariableKey.trim() && filterVariableValue.trim()) {
+      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
+    } else if (filterVariableValue.trim()) {
+      activeFilterBy.variables = filterVariableValue.trim();
+    }
+    if (Object.keys(activeFilterBy).length > 0) {
+      queryParams.filter_by = activeFilterBy;
+    }
 
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -181,7 +217,12 @@ function Page({ params, searchParams }) {
     resolvedSearchParams?.interval,
     resolvedSearchParams?.feedback,
     resolvedSearchParams?.error,
+    resolvedSearchParams?.tool_id,
+    resolvedSearchParams?.model,
     selectedVersion,
+    filterByFields,
+    filterVariableKey,
+    filterVariableValue,
     dispatch,
   ]);
 
@@ -193,8 +234,21 @@ function Page({ params, searchParams }) {
       const feedback = resolvedSearchParams?.feedback || "all";
       const isError = resolvedSearchParams?.error === "true";
 
+      const activeFilterBy = {};
+      if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
+      if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
+      if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
+      if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
+      if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
+      if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
+      if (filterVariableKey.trim() && filterVariableValue.trim()) {
+        activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
+      } else if (filterVariableValue.trim()) {
+        activeFilterBy.variables = filterVariableValue.trim();
+      }
+
       const result = await dispatch(
-        getHistoryAction(resolvedParams.id, 1, feedback, isError, selectedVersion, "", startDate, endDate)
+        getHistoryAction(resolvedParams.id, 1, feedback, isError, selectedVersion, "", startDate, endDate, Object.keys(activeFilterBy).length > 0 ? activeFilterBy : undefined)
       );
       if (result && result.length > 0) {
         setHasMore(result.length >= 40); // PAGE_SIZE is usually 40
@@ -212,6 +266,9 @@ function Page({ params, searchParams }) {
     resolvedSearchParams?.feedback,
     resolvedSearchParams?.error,
     selectedVersion,
+    filterByFields,
+    filterVariableKey,
+    filterVariableValue,
   ]);
 
   const fetchMoreData = async () => {
@@ -221,8 +278,21 @@ function Page({ params, searchParams }) {
     const feedback = resolvedSearchParams?.feedback || "all";
     const isError = resolvedSearchParams?.error === "true";
 
+    const activeFilterBy = {};
+    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
+    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
+    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
+    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
+    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
+    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
+    if (filterVariableKey.trim() && filterVariableValue.trim()) {
+      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
+    } else if (filterVariableValue.trim()) {
+      activeFilterBy.variables = filterVariableValue.trim();
+    }
+
     const result = await dispatch(
-      getHistoryAction(resolvedParams.id, nextPage, feedback, isError, selectedVersion, searchQuery, startDate, endDate)
+      getHistoryAction(resolvedParams.id, nextPage, feedback, isError, selectedVersion, searchQuery, startDate, endDate, Object.keys(activeFilterBy).length > 0 ? activeFilterBy : undefined)
     );
     if (result && result.length > 0) {
       setPage(nextPage);
@@ -240,8 +310,21 @@ function Page({ params, searchParams }) {
     const feedback = resolvedSearchParams?.feedback || "all";
     const isError = resolvedSearchParams?.error === "true";
 
+    const activeFilterBy = {};
+    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
+    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
+    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
+    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
+    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
+    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
+    if (filterVariableKey.trim() && filterVariableValue.trim()) {
+      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
+    } else if (filterVariableValue.trim()) {
+      activeFilterBy.variables = filterVariableValue.trim();
+    }
+
     const result = await dispatch(
-      getHistoryAction(resolvedParams.id, 1, feedback, isError, selectedVersion, query, startDate, endDate)
+      getHistoryAction(resolvedParams.id, 1, feedback, isError, selectedVersion, query, startDate, endDate, Object.keys(activeFilterBy).length > 0 ? activeFilterBy : undefined)
     );
     if (result && result.length > 0) {
       setHasMore(result.length >= 40);
@@ -287,6 +370,8 @@ function Page({ params, searchParams }) {
       const interval = search.get("interval") || "";
       const feedback = search.get("feedback") || "";
       const error = search.get("error") || "";
+      const tool_id = search.get("tool_id") || "";
+      const model = search.get("model") || "";
 
       const encodedThreadId = encodeURIComponent(thread_id.replace(/&/g, "%26"));
       const firstSubThreadId = item?.sub_thread?.[0]?.sub_thread_id || thread_id;
@@ -299,6 +384,8 @@ function Page({ params, searchParams }) {
       if (interval) paramsObj.set("interval", interval);
       if (feedback) paramsObj.set("feedback", feedback);
       if (error) paramsObj.set("error", error);
+      if (tool_id) paramsObj.set("tool_id", tool_id);
+      if (model) paramsObj.set("model", model);
       paramsObj.set("thread_id", encodedThreadId);
       paramsObj.set("subThread_id", encodedSubThreadId);
 
@@ -316,6 +403,8 @@ function Page({ params, searchParams }) {
       const interval = search.get("interval") || "";
       const feedback = search.get("feedback") || "";
       const error = search.get("error") || "";
+      const tool_id = search.get("tool_id") || "";
+      const model = search.get("model") || "";
       const threadId = search.get("thread_id") || "";
 
       const paramsObj = new URLSearchParams();
@@ -325,6 +414,8 @@ function Page({ params, searchParams }) {
       if (interval) paramsObj.set("interval", interval);
       if (feedback) paramsObj.set("feedback", feedback);
       if (error) paramsObj.set("error", error);
+      if (tool_id) paramsObj.set("tool_id", tool_id);
+      if (model) paramsObj.set("model", model);
       if (threadId) paramsObj.set("thread_id", threadId);
       paramsObj.set("subThread_id", encodeURIComponent(subThreadId.replace(/&/g, "%26")));
 
@@ -345,6 +436,8 @@ function Page({ params, searchParams }) {
     const interval = search.get("interval") || "";
     const feedback = search.get("feedback") || "";
     const error = search.get("error") || "";
+    const tool_id = search.get("tool_id") || "";
+    const model = search.get("model") || "";
 
     const paramsObj = new URLSearchParams();
     if (start) paramsObj.set("start", start);
@@ -353,6 +446,8 @@ function Page({ params, searchParams }) {
     if (interval) paramsObj.set("interval", interval);
     if (feedback) paramsObj.set("feedback", feedback);
     if (error) paramsObj.set("error", error);
+    if (tool_id) paramsObj.set("tool_id", tool_id);
+    if (model) paramsObj.set("model", model);
 
     router.push(`${pathName}?${paramsObj.toString()}`, undefined, { shallow: true });
   }, [pathName, router, search]);
@@ -377,6 +472,8 @@ function Page({ params, searchParams }) {
     const newInterval = updates.interval !== undefined ? updates.interval : filterInterval;
     const newFeedback = updates.feedback !== undefined ? updates.feedback : filterFeedback;
     const newError = updates.error !== undefined ? updates.error : filterError;
+    const newTool = updates.tool_id !== undefined ? updates.tool_id : filterTool;
+    const newModel = updates.model !== undefined ? updates.model : filterModel;
 
     if (newStart) currentUrl.searchParams.set("start", newStart);
     else currentUrl.searchParams.delete("start");
@@ -396,6 +493,12 @@ function Page({ params, searchParams }) {
     if (newError) currentUrl.searchParams.set("error", "true");
     else currentUrl.searchParams.delete("error");
 
+    if (newTool) currentUrl.searchParams.set("tool_id", newTool);
+    else currentUrl.searchParams.delete("tool_id");
+
+    if (newModel) currentUrl.searchParams.set("model", newModel);
+    else currentUrl.searchParams.delete("model");
+
     router.push(currentUrl.pathname + currentUrl.search);
   };
 
@@ -406,6 +509,11 @@ function Page({ params, searchParams }) {
     setFilterInterval("");
     setFilterFeedback("all");
     setFilterError(false);
+    setFilterTool("");
+    setFilterModel("");
+    setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
+    setFilterVariableKey("");
+    setFilterVariableValue("");
     dispatch(setSelectedVersion("all"));
     setIsCustomOpen(false);
 
@@ -416,6 +524,8 @@ function Page({ params, searchParams }) {
     currentUrl.searchParams.delete("interval");
     currentUrl.searchParams.delete("feedback");
     currentUrl.searchParams.delete("error");
+    currentUrl.searchParams.delete("tool_id");
+    currentUrl.searchParams.delete("model");
     router.push(currentUrl.pathname + currentUrl.search);
 
     if (document.activeElement) {
@@ -425,35 +535,47 @@ function Page({ params, searchParams }) {
 
   return (
     <div className="flex h-[calc(100vh-40px)] w-full overflow-hidden bg-base-200/50">
-      {/* Left Sidebar */}
-      <div className="pl-4 h-full shrink-0 z-50 flex relative">
-        <Sidebar
-          historyData={historyData}
-          threadHandler={threadHandler}
-          fetchMoreData={fetchMoreData}
-          hasMore={hasMore}
-          loading={loading}
-          params={resolvedParams}
-          searchParams={Object.fromEntries(search.entries())}
-          setSearchMessageId={setSelectedBatchMessageId}
-          setPage={setPage}
-          setHasMore={setHasMore}
-          filterOption={filterFeedback}
-          setFilterOption={setFilterFeedback}
-          searchRef={searchRef}
-          setThreadPage={() => {}}
-          selectedVersion={selectedVersion}
-          setIsErrorTrue={setFilterError}
-          isErrorTrue={filterError}
-          activeFilterByRef={undefined}
-          isAnalytics={true}
-          handleSearch={handleSearch}
-        />
-      </div>
-
       {/* Main Dashboard Area */}
       <div className="flex-1 relative flex flex-row max-w-full overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
+          {selectedThreadId ? (
+            <div className="flex flex-col h-full bg-base-100">
+              <div className="h-14 border-b border-base-300 flex items-center justify-between px-4 bg-base-100 shrink-0">
+                <h3 className="font-semibold text-sm truncate">Thread Details</h3>
+                <button onClick={handleCloseAside} className="btn btn-ghost btn-sm btn-circle shrink-0">
+                  <X size={16} className="text-base-content/60 hover:text-base-content" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <ThreadContainer
+                  thread={
+                    selectedBatchMessageId
+                      ? thread.filter((msg) => msg?.message_id === selectedBatchMessageId)
+                      : thread
+                  }
+                  searchParamsHook={search}
+                  isSingleQuery={false}
+                  isFetchingMore={false}
+                  setIsFetchingMore={() => {}}
+                  searchMessageId={null}
+                  setSearchMessageId={() => {}}
+                  pathName={pathName}
+                  search={search}
+                  historyData={historyData}
+                  threadHandler={handleThreadItemClick}
+                  setLoading={() => {}}
+                  threadPage={1}
+                  setThreadPage={() => {}}
+                  hasMoreThreadData={false}
+                  setHasMoreThreadData={() => {}}
+                  selectedVersion={"all"}
+                  previousPrompt={""}
+                  isErrorTrue={false}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="p-6">
           {/* Dashboard Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -645,6 +767,149 @@ function Page({ params, searchParams }) {
                 />
                 <span className="text-xs font-medium text-base-content/70">Error History</span>
               </label>
+
+              <div className="w-px h-4 bg-base-300 shrink-0" />
+
+              {/* Tool Filter - Badge style */}
+              <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">Tool</span>
+              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                <button
+                  onClick={() => {
+                    const val = filterTool === "" ? "" : "";
+                    setFilterTool(val);
+                    applyFilters({ tool_id: val });
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    filterTool === ""
+                      ? "bg-blue-500 text-white"
+                      : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                  }`}
+                >
+                  All
+                </button>
+                {Object.entries(filterOptions.tools_data).map(([name, id]) => (
+                  <button
+                    key={id}
+                    onClick={() => {
+                      const val = filterTool === id ? "" : id;
+                      setFilterTool(val);
+                      applyFilters({ tool_id: val });
+                    }}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      filterTool === id
+                        ? "bg-blue-500 text-white"
+                        : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                    }`}
+                    title={name}
+                  >
+                    {name.length > 20 ? name.slice(0, 20) + "..." : name}
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-px h-4 bg-base-300 shrink-0" />
+
+              {/* Model Filter */}
+              <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">Model</span>
+              <select
+                className="select select-sm select-bordered text-xs min-w-[8rem]"
+                value={filterModel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFilterModel(val);
+                  applyFilters({ model: val });
+                }}
+              >
+                <option value="">All</option>
+                {Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
+                  models.map((m) => (
+                    <option key={`${service}-${m}`} value={m}>
+                      {m} ({service})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+
+          {/* Advance Filters Accordion */}
+          <div className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-lg mb-8 overflow-hidden">
+            <input type="checkbox" className="peer" />
+            <div className="collapse-title font-semibold min-h-0 py-3 flex items-center">
+              <span className="text-xs">Advance Filters</span>
+            </div>
+            <div className="collapse-content !p-0 w-full min-w-0">
+              <div className="p-4 bg-base-200 space-y-4">
+                {/* Search by Fields */}
+                <div>
+                  <p className="text-xs font-medium text-base-content mb-2">Search by Fields</p>
+                  <p className="text-[11px] text-base-content/60 mb-3">
+                    Fill in values for fields you want to search. Leave empty to skip that field.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { key: "thread_id", label: "Thread ID" },
+                      { key: "sub_thread_id", label: "Sub Thread ID" },
+                      { key: "message_id", label: "Message ID" },
+                      { key: "batch_id", label: "Batch ID" },
+                      { key: "user", label: "User" },
+                      { key: "llm_message", label: "LLM Message" },
+                    ].map((f) => (
+                      <div key={f.key}>
+                        <label className="block text-xs font-medium text-base-content/70 mb-0.5">{f.label}</label>
+                        <input
+                          type="text"
+                          className="input input-sm input-bordered w-full text-xs"
+                          placeholder={`Search ${f.label.toLowerCase()}...`}
+                          value={filterByFields[f.key] || ""}
+                          onChange={(e) =>
+                            setFilterByFields((prev) => ({ ...prev, [f.key]: e.target.value }))
+                          }
+                        />
+                      </div>
+                    ))}
+                    <div className="col-span-2 md:col-span-3">
+                      <label className="block text-xs font-medium text-base-content/70 mb-0.5">Variables</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          className="input input-sm input-bordered flex-1 text-xs"
+                          placeholder="key"
+                          value={filterVariableKey}
+                          onChange={(e) => setFilterVariableKey(e.target.value)}
+                        />
+                        <input
+                          type="text"
+                          className="input input-sm input-bordered flex-1 text-xs"
+                          placeholder="value"
+                          value={filterVariableValue}
+                          onChange={(e) => setFilterVariableValue(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => {
+                        if (document.activeElement) document.activeElement.blur();
+                      }}
+                    >
+                      Apply Filter
+                    </button>
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      onClick={() => {
+                        setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
+                        setFilterVariableKey("");
+                        setFilterVariableValue("");
+                      }}
+                    >
+                      Reset Fields
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -686,47 +951,46 @@ function Page({ params, searchParams }) {
                   <h3 className="text-base font-semibold text-base-content">Execution Volume</h3>
                   <p className="text-xs text-base-content/60">Success vs Failed runs over time</p>
                 </div>
-                <span className="span">
-                  <Bot size={16} />
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setExecutionChartType((prev) => (prev === "area" ? "bar" : "area"))}
+                    className="btn btn-ghost btn-xs btn-circle"
+                    title="Toggle bar / area"
+                  >
+                    <BarChart3 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 min-h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={executionData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gSuccess" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="gFailed" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.15} />
-                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_STYLE.grid} vertical={false} />
-                    <XAxis dataKey="time" stroke={CHART_STYLE.axis} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={CHART_STYLE.axis} fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={CHART_STYLE.tooltip} cursor={{ stroke: "#d4d4d4", strokeWidth: 1 }} />
-                    <Area
-                      type="monotone"
-                      dataKey="success"
-                      stroke="#10b981"
-                      fill="url(#gSuccess)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Success"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="failed"
-                      stroke="#ef4444"
-                      fill="url(#gFailed)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Failed"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <Chart
+                  type={executionChartType}
+                  height="100%"
+                  options={{
+                    chart: { type: executionChartType, toolbar: { show: false }, animations: { enabled: true }, zoom: { enabled: false }, pan: { enabled: false } },
+                    colors: ["#10b981", "#ef4444"],
+                    stroke: { curve: "smooth", width: 2 },
+                    fill: executionChartType === "area" ? {
+                      type: "gradient",
+                      gradient: { shadeIntensity: 1, opacityFrom: 0.2, opacityTo: 0.02, stops: [0, 100] },
+                    } : { type: "solid", opacity: 1 },
+                    plotOptions: { bar: { columnWidth: "55%", borderRadius: 4 } },
+                    dataLabels: { enabled: false },
+                    grid: { strokeDashArray: 3, borderColor: "#f3f4f6", xaxis: { lines: { show: false } } },
+                    xaxis: {
+                      categories: executionData.map((d) => d.time),
+                      labels: { style: { colors: "#9ca3af", fontSize: "11px" } },
+                      axisBorder: { show: false },
+                      axisTicks: { show: false },
+                    },
+                    yaxis: { labels: { style: { colors: "#9ca3af", fontSize: "11px" } } },
+                    tooltip: { theme: "light", style: { fontSize: "12px" } },
+                    legend: { show: false },
+                  }}
+                  series={[
+                    { name: "Success", data: executionData.map((d) => d.success) },
+                    { name: "Failed", data: executionData.map((d) => d.failed) },
+                  ]}
+                />
               </div>
             </div>
 
@@ -737,119 +1001,93 @@ function Page({ params, searchParams }) {
                   <h3 className="text-base font-semibold text-base-content">Average Latency</h3>
                   <p className="text-xs text-base-content/60">Agent response time (s)</p>
                 </div>
-                <span className="span">
-                  <Activity size={16} />
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setLatencyChartType((prev) => (prev === "area" ? "bar" : "area"))}
+                    className="btn btn-ghost btn-xs btn-circle"
+                    title="Toggle bar / area"
+                  >
+                    <BarChart3 size={16} />
+                  </button>
+                </div>
               </div>
               <div className="flex-1 min-h-[240px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={latencyData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gTypical" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="gSlow" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.2} />
-                        <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="gWorst" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.15} />
-                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_STYLE.grid} vertical={false} />
-                    <XAxis dataKey="time" stroke={CHART_STYLE.axis} fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke={CHART_STYLE.axis} fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip contentStyle={CHART_STYLE.tooltip} cursor={{ stroke: "#d4d4d4", strokeWidth: 1 }} />
-                    <Area
-                      type="monotone"
-                      dataKey="worst"
-                      stroke="#ef4444"
-                      fill="url(#gWorst)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Worst (s)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="slow"
-                      stroke="#f59e0b"
-                      fill="url(#gSlow)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Slow (s)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="typical"
-                      stroke="#3b82f6"
-                      fill="url(#gTypical)"
-                      strokeWidth={2}
-                      dot={false}
-                      name="Typical (s)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <Chart
+                  type={latencyChartType}
+                  height="100%"
+                  options={{
+                    chart: { type: latencyChartType, toolbar: { show: false }, animations: { enabled: true }, zoom: { enabled: false }, pan: { enabled: false } },
+                    colors: ["#ef4444", "#f59e0b", "#3b82f6"],
+                    stroke: { curve: "smooth", width: 2 },
+                    fill: latencyChartType === "area" ? {
+                      type: "gradient",
+                      gradient: { shadeIntensity: 1, opacityFrom: 0.2, opacityTo: 0.02, stops: [0, 100] },
+                    } : { type: "solid", opacity: 1 },
+                    plotOptions: { bar: { columnWidth: "55%", borderRadius: 4 } },
+                    dataLabels: { enabled: false },
+                    grid: { strokeDashArray: 3, borderColor: "#f3f4f6", xaxis: { lines: { show: false } } },
+                    xaxis: {
+                      categories: latencyData.map((d) => d.time),
+                      labels: { style: { colors: "#9ca3af", fontSize: "11px" } },
+                      axisBorder: { show: false },
+                      axisTicks: { show: false },
+                    },
+                    yaxis: { labels: { style: { colors: "#9ca3af", fontSize: "11px" } } },
+                    tooltip: { theme: "light", style: { fontSize: "12px" } },
+                    legend: { show: false },
+                  }}
+                  series={[
+                    { name: "Worst (s)", data: latencyData.map((d) => d.worst) },
+                    { name: "Slow (s)", data: latencyData.map((d) => d.slow) },
+                    { name: "Typical (s)", data: latencyData.map((d) => d.typical) },
+                  ]}
+                />
               </div>
             </div>
           </div>
+            </div>
+          )}
         </div>
 
-        {/* Thread Details aside panel */}
-        {isSliderOpen && selectedThreadId && (
-          <aside className="absolute left-0 top-0 bottom-0 w-full border-l border-base-300 shadow-2xl bg-base-100 flex h-full shrink-0 z-40 animate-in slide-in-from-left duration-300 ease-out">
-            <div className="flex h-full w-full">
-              {/* Optional Batch/Subthread Panel (appears on left of the slider) */}
-              <BatchSubthreadPanel
-                thread={thread}
-                subThreadIdFromURL={selectedSubThreadId}
-                parentThreadId={selectedThreadId}
-                selectedBatchMessageId={selectedBatchMessageId}
-                onSelectBatch={handleSelectBatch}
-                onSelectSubThread={handleSelectSubThread}
-              />
-
-              {/* Thread Messages */}
-              <div className="flex-1 flex flex-col relative min-w-0 h-full">
-                <div className="h-14 border-b border-base-300 flex items-center justify-between px-4 bg-base-100 shrink-0">
-                  <h3 className="font-semibold text-sm truncate">Thread Details</h3>
-                  <button onClick={handleCloseAside} className="btn btn-ghost btn-sm btn-circle shrink-0">
-                    <X size={16} className="text-base-content/60 hover:text-base-content" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  <ThreadContainer
-                    thread={
-                      selectedBatchMessageId
-                        ? thread.filter((msg) => msg?.message_id === selectedBatchMessageId)
-                        : thread
-                    }
-                    searchParamsHook={search}
-                    isSingleQuery={false}
-                    isFetchingMore={false}
-                    setIsFetchingMore={() => {}}
-                    searchMessageId={null}
-                    setSearchMessageId={() => {}}
-                    pathName={pathName}
-                    search={search}
-                    historyData={historyData}
-                    threadHandler={handleThreadItemClick}
-                    setLoading={() => {}}
-                    threadPage={1}
-                    setThreadPage={() => {}}
-                    hasMoreThreadData={false}
-                    setHasMoreThreadData={() => {}}
-                    selectedVersion={"all"}
-                    previousPrompt={""}
-                    isErrorTrue={false}
-                  />
-                </div>
-              </div>
-            </div>
-          </aside>
+        {/* Batch Subthread Panel - between main content and sidebar */}
+        {selectedThreadId && (
+          <BatchSubthreadPanel
+            thread={thread}
+            subThreadIdFromURL={selectedSubThreadId}
+            parentThreadId={selectedThreadId}
+            selectedBatchMessageId={selectedBatchMessageId}
+            onSelectBatch={handleSelectBatch}
+            onSelectSubThread={handleSelectSubThread}
+          />
         )}
       </div>
+
+      {/* Right Sidebar */}
+      <div className="pr-4 h-full shrink-0 z-50 flex relative">
+        <Sidebar
+          historyData={historyData}
+          threadHandler={threadHandler}
+          fetchMoreData={fetchMoreData}
+          hasMore={hasMore}
+          loading={loading}
+          params={resolvedParams}
+          searchParams={Object.fromEntries(search.entries())}
+          setSearchMessageId={setSelectedBatchMessageId}
+          setPage={setPage}
+          setHasMore={setHasMore}
+          filterOption={filterFeedback}
+          setFilterOption={setFilterFeedback}
+          searchRef={searchRef}
+          setThreadPage={() => {}}
+          selectedVersion={selectedVersion}
+          setIsErrorTrue={setFilterError}
+          isErrorTrue={filterError}
+          activeFilterByRef={undefined}
+          isAnalytics={true}
+          handleSearch={handleSearch}
+        />
+      </div>
+
       <ChatAiConfigDeatilViewModal
         modalContent={selectedItem?.value === "Latency" ? selectedItem?.latency : selectedItem?.AiConfig}
         modalTitle={selectedItem?.value === "Latency" ? "Latency Details" : "AI Configuration"}

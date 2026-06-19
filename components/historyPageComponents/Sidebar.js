@@ -453,8 +453,8 @@ const Sidebar = memo(
       <div
         className={`h-full flex flex-col text-xs bg-base-200 transition-all duration-300 ease-in-out overflow-hidden ${
           isCollapsed
-            ? "w-[48px] min-w-[48px] max-w-[48px] border-r border-base-300 ml-4"
-            : "w-[280px] min-w-[280px] max-w-[280px] border-r border-base-300 relative ml-4"
+            ? `w-[48px] min-w-[48px] max-w-[48px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 ${isAnalytics ? "mr-4" : "ml-4"}`
+            : `w-[280px] min-w-[280px] max-w-[280px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 relative ${isAnalytics ? "mr-4" : "ml-4"}`
         }`}
       >
         {isCollapsed ? (
@@ -467,7 +467,7 @@ const Sidebar = memo(
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-base-300 text-base-content/60 hover:text-base-content transition-all"
                 title="Expand sidebar"
               >
-                <ChevronRight size={16} />
+                {isAnalytics ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
               </button>
               <div className="w-full border-b border-base-300 mt-3" />
             </div>
@@ -500,37 +500,37 @@ const Sidebar = memo(
                   className="btn btn-ghost btn-xs btn-circle text-base-content/60 hover:text-base-content hover:bg-base-300 transition-colors"
                   title="Collapse sidebar"
                 >
-                  <ChevronLeft size={14} />
+                  {isAnalytics ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>
               </div>
-              <div
-                data-testid="history-sidebar-advance-filter"
-                id="history-sidebar-advance-filter"
-                className="collapse collapse-arrow border border-base-300 bg-base-100 min-h-0 overflow-hidden"
-              >
-                <input
-                  autoComplete="off"
-                  data-testid="history-sidebar-advance-filter-toggle"
-                  id="history-sidebar-advance-filter-toggle"
-                  type="checkbox"
-                  className="peer"
-                />
-                <div className="collapse-title font-semibold min-h-0 py-3 flex items-center">
-                  <span className="text-xs">Advance Filter</span>
-                </div>
-                <div className="collapse-content !p-0 w-full min-w-0">
-                  <div className="space-y-2 px-2 pb-2 w-full min-w-0">
-                    <DateRangePicker
-                      params={params}
-                      setFilterOption={setFilterOption}
-                      setHasMore={setHasMore}
-                      setPage={setPage}
-                      selectedVersion={selectedVersion}
-                      filterOption={filterOption}
-                      isErrorTrue={isErrorTrue}
-                    />
+              {!isAnalytics && (
+                <div
+                  data-testid="history-sidebar-advance-filter"
+                  id="history-sidebar-advance-filter"
+                  className="collapse collapse-arrow border border-base-300 bg-base-100 min-h-0 overflow-hidden"
+                >
+                  <input
+                    autoComplete="off"
+                    data-testid="history-sidebar-advance-filter-toggle"
+                    id="history-sidebar-advance-filter-toggle"
+                    type="checkbox"
+                    className="peer"
+                  />
+                  <div className="collapse-title font-semibold min-h-0 py-3 flex items-center">
+                    <span className="text-xs">Advance Filter</span>
+                  </div>
+                  <div className="collapse-content !p-0 w-full min-w-0">
+                    <div className="space-y-2 px-2 pb-2 w-full min-w-0">
+                      <DateRangePicker
+                        params={params}
+                        setFilterOption={setFilterOption}
+                        setHasMore={setHasMore}
+                        setPage={setPage}
+                        selectedVersion={selectedVersion}
+                        filterOption={filterOption}
+                        isErrorTrue={isErrorTrue}
+                      />
 
-                    {!isAnalytics && (
                       <div className="p-2 bg-base-200">
                         <p className="text-center mb-2 text-xs font-medium">Filter Response</p>
                         <div className="flex items-center justify-center mb-2 gap-2">
@@ -574,96 +574,96 @@ const Sidebar = memo(
                           />
                         </div>
                       </div>
-                    )}
 
-                    <div className="p-2 bg-base-200 w-full min-w-0">
-                      <p className="text-center mb-2 text-xs font-medium">Search by Fields</p>
-                      <p className="text-xs text-base-content/60 mb-2">
-                        Fill in values for fields you want to search. Leave empty to skip that field.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {Object.keys(HISTORY_FILTER_BY_FIELDS)
-                          .filter((k) => k !== "variables")
-                          .map((fieldKey) => (
-                            <div key={fieldKey} className="flex flex-col gap-0.5">
-                              <label className="text-xs text-base-content/70 capitalize">
-                                {fieldKey.replace(/_/g, " ")}
-                              </label>
+                      <div className="p-2 bg-base-200 w-full min-w-0">
+                        <p className="text-center mb-2 text-xs font-medium">Search by Fields</p>
+                        <p className="text-xs text-base-content/60 mb-2">
+                          Fill in values for fields you want to search. Leave empty to skip that field.
+                        </p>
+                        <div className="flex flex-col gap-2">
+                          {Object.keys(HISTORY_FILTER_BY_FIELDS)
+                            .filter((k) => k !== "variables")
+                            .map((fieldKey) => (
+                              <div key={fieldKey} className="flex flex-col gap-0.5">
+                                <label className="text-xs text-base-content/70 capitalize">
+                                  {fieldKey.replace(/_/g, " ")}
+                                </label>
+                                <input
+                                  autoComplete="off"
+                                  data-testid={`history-sidebar-filter-by-${fieldKey}`}
+                                  type="text"
+                                  className="input input-xs input-bordered w-full text-xs"
+                                  placeholder={`Search ${fieldKey.replace(/_/g, " ")}...`}
+                                  value={filterByFields[fieldKey] || ""}
+                                  onChange={(e) => setFilterByFields((prev) => ({ ...prev, [fieldKey]: e.target.value }))}
+                                />
+                              </div>
+                            ))}
+                          <div className="flex flex-col gap-0.5">
+                            <label className="text-xs text-base-content/70 capitalize">variables</label>
+                            <div className="flex gap-1 w-full min-w-0">
                               <input
                                 autoComplete="off"
-                                data-testid={`history-sidebar-filter-by-${fieldKey}`}
+                                data-testid="history-sidebar-filter-by-variable-key"
                                 type="text"
-                                className="input input-xs input-bordered w-full text-xs"
-                                placeholder={`Search ${fieldKey.replace(/_/g, " ")}...`}
-                                value={filterByFields[fieldKey] || ""}
-                                onChange={(e) => setFilterByFields((prev) => ({ ...prev, [fieldKey]: e.target.value }))}
+                                className="input input-xs input-bordered flex-1 min-w-0 text-xs"
+                                placeholder="key"
+                                value={variableKey}
+                                onChange={(e) => setVariableKey(e.target.value)}
+                              />
+                              <input
+                                autoComplete="off"
+                                data-testid="history-sidebar-filter-by-variable-value"
+                                type="text"
+                                className="input input-xs input-bordered flex-1 min-w-0 text-xs"
+                                placeholder="value"
+                                value={variableValue}
+                                onChange={(e) => setVariableValue(e.target.value)}
                               />
                             </div>
-                          ))}
-                        <div className="flex flex-col gap-0.5">
-                          <label className="text-xs text-base-content/70 capitalize">variables</label>
-                          <div className="flex gap-1 w-full min-w-0">
-                            <input
-                              autoComplete="off"
-                              data-testid="history-sidebar-filter-by-variable-key"
-                              type="text"
-                              className="input input-xs input-bordered flex-1 min-w-0 text-xs"
-                              placeholder="key"
-                              value={variableKey}
-                              onChange={(e) => setVariableKey(e.target.value)}
-                            />
-                            <input
-                              autoComplete="off"
-                              data-testid="history-sidebar-filter-by-variable-value"
-                              type="text"
-                              className="input input-xs input-bordered flex-1 min-w-0 text-xs"
-                              placeholder="value"
-                              value={variableValue}
-                              onChange={(e) => setVariableValue(e.target.value)}
-                            />
                           </div>
                         </div>
-                      </div>
-                      <button
-                        data-testid="history-sidebar-filter-by-apply"
-                        id="history-sidebar-filter-by-apply"
-                        disabled={
-                          !Object.entries(filterByFields)
-                            .filter(([k]) => k !== "variables")
-                            .some(([, v]) => v && v.trim() !== "") &&
-                          !variableKey.trim() &&
-                          !variableValue.trim()
-                        }
-                        className="btn btn-primary btn-xs w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => {
-                          const filterBy = { ...filterByFields };
-                          if (variableValue.trim()) {
-                            filterBy.variables = { [variableKey.trim() || "value"]: variableValue.trim() };
-                          } else {
-                            delete filterBy.variables;
+                        <button
+                          data-testid="history-sidebar-filter-by-apply"
+                          id="history-sidebar-filter-by-apply"
+                          disabled={
+                            !Object.entries(filterByFields)
+                              .filter(([k]) => k !== "variables")
+                              .some(([, v]) => v && v.trim() !== "") &&
+                            !variableKey.trim() &&
+                            !variableValue.trim()
                           }
-                          handleSearchInternal(null, searchRef?.current?.value || "", filterBy);
-                        }}
-                      >
-                        Apply Filter
-                      </button>
-                      <button
-                        data-testid="history-sidebar-filter-by-reset"
-                        id="history-sidebar-filter-by-reset"
-                        className="btn btn-ghost btn-xs w-full mt-1"
-                        onClick={() => {
-                          setFilterByFields({ ...HISTORY_FILTER_BY_FIELDS, variables: {} });
-                          setVariableKey("");
-                          setVariableValue("");
-                          clearInput();
-                        }}
-                      >
-                        Reset Fields
-                      </button>
+                          className="btn btn-primary btn-xs w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => {
+                            const filterBy = { ...filterByFields };
+                            if (variableValue.trim()) {
+                              filterBy.variables = { [variableKey.trim() || "value"]: variableValue.trim() };
+                            } else {
+                              delete filterBy.variables;
+                            }
+                            handleSearchInternal(null, searchRef?.current?.value || "", filterBy);
+                          }}
+                        >
+                          Apply Filter
+                        </button>
+                        <button
+                          data-testid="history-sidebar-filter-by-reset"
+                          id="history-sidebar-filter-by-reset"
+                          className="btn btn-ghost btn-xs w-full mt-1"
+                          onClick={() => {
+                            setFilterByFields({ ...HISTORY_FILTER_BY_FIELDS, variables: {} });
+                            setVariableKey("");
+                            setVariableValue("");
+                            clearInput();
+                          }}
+                        >
+                          Reset Fields
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
               <div className="flex items-center">
                 <select
                   data-testid="history-sidebar-version-select"
