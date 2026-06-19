@@ -1167,11 +1167,11 @@ const ThreadItem = ({
   };
 
   const renderSystemPromptPanel = (panelClassName = "max-w-[620px] w-full ml-auto") => {
+    if (!isSystemPromptExpanded) return null;
     const prompt = item?.prompt || (item?.user && thread?.[index + 1]?.prompt);
-    if (!isSystemPromptExpanded || !prompt) return null;
     return (
       <ThreadSystemPromptPanel className={panelClassName}>
-        {renderHighlightedSystemPrompt(prompt)}
+        {prompt ? renderHighlightedSystemPrompt(prompt) : null}
       </ThreadSystemPromptPanel>
     );
   };
@@ -1397,8 +1397,17 @@ const ThreadItem = ({
           <button
             data-testid="thread-item-user-system-prompt-button"
             id="thread-item-user-system-prompt-button"
-            className={statelessBtnClass}
-            onClick={() => handleUserButtonClick("system Prompt")}
+            className={`${statelessBtnClass} ${isSystemPromptExpanded ? "bg-base-300" : ""}`}
+            onClick={() => {
+              setIsSystemPromptExpanded((v) => {
+                const newVal = !v;
+                if (newVal) {
+                  setIsVariablesOpen(false);
+                  setIsMoreDetailsExpanded(false);
+                }
+                return newVal;
+              });
+            }}
           >
             <FileClockIcon className="h-3 w-3" />
             <span>System Prompt</span>
@@ -1624,6 +1633,7 @@ const ThreadItem = ({
             </div>
           </div>
         ) : null}
+        {renderSystemPromptPanel("max-w-[620px] w-full ml-auto")}
       </>
     );
 
