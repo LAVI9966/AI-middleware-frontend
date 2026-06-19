@@ -243,7 +243,7 @@ function Page({ params, searchParams }) {
     <div className="bg-history-page relative scrollbar-hide text-base-content h-[calc(100vh-40px)]">
       <div className="flex flex-row overflow-hidden bg-history-page min-h-full h-full relative">
         <React.Suspense>
-          <div className="pl-4 h-full shrink-0 z-50 flex relative">
+          <div className="h-full shrink-0 z-50 flex relative">
             <Sidebar
               historyData={historyData}
               threadHandler={threadHandler}

@@ -1,17 +1,17 @@
 "use client";
 
-import React, { use, useCallback, useEffect, useState, useRef } from "react";
+import React, { use, useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { getHistoryAction, getThread } from "@/store/action/historyAction";
+import { getThread } from "@/store/action/historyAction";
 import { getAgentAnalyticsAction } from "@/store/action/analyticsAction";
 import { getAgentAnalyticsFiltersApi } from "@/config";
 import { setSelectedVersion } from "@/store/reducer/historyReducer";
 import Protected from "@/components/Protected";
 import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
-import { Activity, BarChart3, TrendingDown, TrendingUp, X, Bot } from "lucide-react";
+import { Activity, BarChart3, TrendingDown, TrendingUp, X, Bot, Filter, ChevronDown } from "lucide-react";
 import Chart from "@/components/LazyApexChart";
 
 import Sidebar from "@/components/historyPageComponents/Sidebar";
@@ -34,18 +34,32 @@ function Page({ params, searchParams }) {
       : "";
   useRtLayerEventHandler(channelId);
 
-  const { historyData, thread, analyticsData, selectedVersion } = useCustomSelector((state) => {
+  const { thread, analyticsData, selectedVersion } = useCustomSelector((state) => {
     return {
-      historyData: state?.historyReducer?.history || [],
       thread: state?.historyReducer?.thread || [],
       analyticsData: state?.analyticsReducer?.analyticsData?.[resolvedParams.id] || {},
       selectedVersion: state?.historyReducer?.selectedVersion || "all",
     };
   });
 
+  // Derive sidebar thread list from analytics API response threads
+  const historyData = useMemo(() => {
+    const threads = analyticsData?.threads || [];
+    // Transform analytics thread shape to history thread shape expected by Sidebar
+    return threads.map((t) => ({
+      ...t,
+      thread_id: t.thread_id,
+      updated_at: t.updated_at,
+      // Sidebar expects sub_thread array; analytics gives flat sub_thread_id
+      sub_thread: t.sub_thread_id ? [{ sub_thread_id: t.sub_thread_id }] : [],
+    }));
+  }, [analyticsData?.threads]);
+
+  // Derive pagination from analytics response
+  const hasMore = analyticsData?.pagination?.has_more ?? false;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [selectedSubThreadId, setSelectedSubThreadId] = useState(null);
@@ -72,6 +86,9 @@ function Page({ params, searchParams }) {
   });
   const [filterVariableKey, setFilterVariableKey] = useState("");
   const [filterVariableValue, setFilterVariableValue] = useState("");
+  const [isAdvanceFilterOpen, setIsAdvanceFilterOpen] = useState(false);
+  const [showAllTools, setShowAllTools] = useState(false);
+  const [showAllModels, setShowAllModels] = useState(false);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -158,6 +175,19 @@ function Page({ params, searchParams }) {
     };
   }, [dispatch]);
 
+  // Clear stale thread slider params from URL on mount so no thread looks selected
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.has("thread_id") || p.has("subThread_id") || p.has("message_id") || p.has("batch_id")) {
+      p.delete("thread_id");
+      p.delete("subThread_id");
+      p.delete("message_id");
+      p.delete("batch_id");
+      router.replace(`${pathName}?${p.toString()}`, undefined, { shallow: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!resolvedParams?.id) return;
     const fetchFilters = async () => {
@@ -176,6 +206,17 @@ function Page({ params, searchParams }) {
     if (!resolvedParams?.id) return;
 
     const queryParams = { ...resolvedSearchParams };
+    // Strip UI-only params that are for the thread slider, not analytics filters
+    delete queryParams.thread_id;
+    delete queryParams.sub_thread_id;
+    delete queryParams.batch_id;
+    delete queryParams.message_id;
+    // Strip empty optional filters so only selected ones go to the API
+    if (!queryParams.tool_id) delete queryParams.tool_id;
+    if (!queryParams.model) delete queryParams.model;
+    if (!queryParams.interval) delete queryParams.interval;
+    if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
+
     if (queryParams.start) queryParams.start_date = queryParams.start;
     if (queryParams.end) queryParams.end_date = queryParams.end;
     if (!queryParams.start && !queryParams.end) {
@@ -200,6 +241,7 @@ function Page({ params, searchParams }) {
       queryParams.filter_by = activeFilterBy;
     }
 
+    setPage(1);
     if (isFirstRender.current) {
       isFirstRender.current = false;
       const timer = setTimeout(() => {
@@ -220,63 +262,30 @@ function Page({ params, searchParams }) {
     resolvedSearchParams?.tool_id,
     resolvedSearchParams?.model,
     selectedVersion,
-    filterByFields,
-    filterVariableKey,
-    filterVariableValue,
     dispatch,
   ]);
 
-  // Initial fetch for history
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      setLoading(true);
-      const { startDate, endDate } = getDates();
-      const feedback = resolvedSearchParams?.feedback || "all";
-      const isError = resolvedSearchParams?.error === "true";
+  // Helper to dispatch analytics with current advanced filter fields
+  const dispatchAnalyticsWithAdvancedFilters = () => {
+    if (!resolvedParams?.id) return;
+    const queryParams = { ...resolvedSearchParams };
+    // Strip UI-only params that are for the thread slider, not analytics filters
+    delete queryParams.thread_id;
+    delete queryParams.sub_thread_id;
+    delete queryParams.batch_id;
+    delete queryParams.message_id;
+    // Strip empty optional filters so only selected ones go to the API
+    if (!queryParams.tool_id) delete queryParams.tool_id;
+    if (!queryParams.model) delete queryParams.model;
+    if (!queryParams.interval) delete queryParams.interval;
+    if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
 
-      const activeFilterBy = {};
-      if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
-      if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
-      if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
-      if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
-      if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
-      if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
-      if (filterVariableKey.trim() && filterVariableValue.trim()) {
-        activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
-      } else if (filterVariableValue.trim()) {
-        activeFilterBy.variables = filterVariableValue.trim();
-      }
-
-      const result = await dispatch(
-        getHistoryAction(resolvedParams.id, 1, feedback, isError, selectedVersion, "", startDate, endDate, Object.keys(activeFilterBy).length > 0 ? activeFilterBy : undefined)
-      );
-      if (result && result.length > 0) {
-        setHasMore(result.length >= 40); // PAGE_SIZE is usually 40
-      } else {
-        setHasMore(false);
-      }
-      setLoading(false);
-    };
-    fetchInitialData();
-  }, [
-    resolvedParams.id,
-    resolvedSearchParams?.start,
-    resolvedSearchParams?.end,
-    resolvedSearchParams?.range,
-    resolvedSearchParams?.feedback,
-    resolvedSearchParams?.error,
-    selectedVersion,
-    filterByFields,
-    filterVariableKey,
-    filterVariableValue,
-  ]);
-
-  const fetchMoreData = async () => {
-    if (!hasMore || loading) return;
-    const nextPage = page + 1;
-    const { startDate, endDate } = getDates();
-    const feedback = resolvedSearchParams?.feedback || "all";
-    const isError = resolvedSearchParams?.error === "true";
+    if (queryParams.start) queryParams.start_date = queryParams.start;
+    if (queryParams.end) queryParams.end_date = queryParams.end;
+    if (!queryParams.start && !queryParams.end) {
+      queryParams.range = queryParams.range || "30d";
+    }
+    queryParams.version = selectedVersion;
 
     const activeFilterBy = {};
     if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
@@ -290,77 +299,65 @@ function Page({ params, searchParams }) {
     } else if (filterVariableValue.trim()) {
       activeFilterBy.variables = filterVariableValue.trim();
     }
-
-    const result = await dispatch(
-      getHistoryAction(resolvedParams.id, nextPage, feedback, isError, selectedVersion, searchQuery, startDate, endDate, Object.keys(activeFilterBy).length > 0 ? activeFilterBy : undefined)
-    );
-    if (result && result.length > 0) {
-      setPage(nextPage);
-      setHasMore(result.length >= 40);
-    } else {
-      setHasMore(false);
+    if (Object.keys(activeFilterBy).length > 0) {
+      queryParams.filter_by = activeFilterBy;
     }
+    dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+  };
+
+  const buildAnalyticsQueryParams = (extra = {}) => {
+    const queryParams = { ...resolvedSearchParams };
+    delete queryParams.thread_id;
+    delete queryParams.sub_thread_id;
+    delete queryParams.batch_id;
+    delete queryParams.message_id;
+    if (!queryParams.tool_id) delete queryParams.tool_id;
+    if (!queryParams.model) delete queryParams.model;
+    if (!queryParams.interval) delete queryParams.interval;
+    if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
+
+    if (queryParams.start) queryParams.start_date = queryParams.start;
+    if (queryParams.end) queryParams.end_date = queryParams.end;
+    if (!queryParams.start && !queryParams.end) {
+      queryParams.range = queryParams.range || "30d";
+    }
+    queryParams.version = selectedVersion;
+
+    const activeFilterBy = {};
+    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
+    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
+    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
+    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
+    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
+    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
+    if (filterVariableKey.trim() && filterVariableValue.trim()) {
+      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
+    } else if (filterVariableValue.trim()) {
+      activeFilterBy.variables = filterVariableValue.trim();
+    }
+    if (Object.keys(activeFilterBy).length > 0) {
+      queryParams.filter_by = activeFilterBy;
+    }
+
+    return { ...queryParams, ...extra };
+  };
+
+  const fetchMoreData = async () => {
+    if (!hasMore || loading) return;
+    const nextPage = page + 1;
+    const queryParams = buildAnalyticsQueryParams({ page: nextPage });
+    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+    setPage(nextPage);
   };
 
   const handleSearch = async (query) => {
     setSearchQuery(query);
     setPage(1);
     setLoading(true);
-    const { startDate, endDate } = getDates();
-    const feedback = resolvedSearchParams?.feedback || "all";
-    const isError = resolvedSearchParams?.error === "true";
-
-    const activeFilterBy = {};
-    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
-    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
-    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
-    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
-    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
-    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
-    if (filterVariableKey.trim() && filterVariableValue.trim()) {
-      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
-    } else if (filterVariableValue.trim()) {
-      activeFilterBy.variables = filterVariableValue.trim();
-    }
-
-    const result = await dispatch(
-      getHistoryAction(resolvedParams.id, 1, feedback, isError, selectedVersion, query, startDate, endDate, Object.keys(activeFilterBy).length > 0 ? activeFilterBy : undefined)
-    );
-    if (result && result.length > 0) {
-      setHasMore(result.length >= 40);
-    } else {
-      setHasMore(false);
-    }
+    const queryParams = buildAnalyticsQueryParams({ keyword: query, page: 1 });
+    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
     setLoading(false);
   };
-
-  const urlThreadId = search.get("thread_id");
-  const urlSubThreadId = search.get("subThread_id");
-
-  useEffect(() => {
-    if (urlThreadId) {
-      const activeSubThread = urlSubThreadId || urlThreadId;
-      setSelectedThreadId(urlThreadId);
-      setSelectedSubThreadId(activeSubThread);
-      setIsSliderOpen(true);
-
-      dispatch(
-        getThread({
-          threadId: urlThreadId,
-          bridgeId: resolvedParams.id,
-          nextPage: 1,
-          user_feedback: "all",
-          subThreadId: activeSubThread,
-          versionId: "",
-          error: false,
-        })
-      );
-    } else {
-      setSelectedThreadId(null);
-      setSelectedSubThreadId(null);
-      setIsSliderOpen(false);
-    }
-  }, [urlThreadId, urlSubThreadId, resolvedParams.id, dispatch]);
 
   const threadHandler = useCallback(
     async (thread_id, item, value) => {
@@ -389,9 +386,24 @@ function Page({ params, searchParams }) {
       paramsObj.set("thread_id", encodedThreadId);
       paramsObj.set("subThread_id", encodedSubThreadId);
 
+      setSelectedThreadId(thread_id);
+      setSelectedSubThreadId(firstSubThreadId);
+      setIsSliderOpen(true);
+      dispatch(
+        getThread({
+          threadId: thread_id,
+          bridgeId: resolvedParams.id,
+          nextPage: 1,
+          user_feedback: "all",
+          subThreadId: firstSubThreadId,
+          versionId: "",
+          error: false,
+        })
+      );
+
       router.push(`${pathName}?${paramsObj.toString()}`, undefined, { shallow: true });
     },
-    [pathName, router, search]
+    [pathName, router, search, resolvedParams.id, dispatch]
   );
 
   const handleSelectSubThread = useCallback(
@@ -538,44 +550,7 @@ function Page({ params, searchParams }) {
       {/* Main Dashboard Area */}
       <div className="flex-1 relative flex flex-row max-w-full overflow-hidden">
         <div className="flex-1 overflow-y-auto">
-          {selectedThreadId ? (
-            <div className="flex flex-col h-full bg-base-100">
-              <div className="h-14 border-b border-base-300 flex items-center justify-between px-4 bg-base-100 shrink-0">
-                <h3 className="font-semibold text-sm truncate">Thread Details</h3>
-                <button onClick={handleCloseAside} className="btn btn-ghost btn-sm btn-circle shrink-0">
-                  <X size={16} className="text-base-content/60 hover:text-base-content" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <ThreadContainer
-                  thread={
-                    selectedBatchMessageId
-                      ? thread.filter((msg) => msg?.message_id === selectedBatchMessageId)
-                      : thread
-                  }
-                  searchParamsHook={search}
-                  isSingleQuery={false}
-                  isFetchingMore={false}
-                  setIsFetchingMore={() => {}}
-                  searchMessageId={null}
-                  setSearchMessageId={() => {}}
-                  pathName={pathName}
-                  search={search}
-                  historyData={historyData}
-                  threadHandler={handleThreadItemClick}
-                  setLoading={() => {}}
-                  threadPage={1}
-                  setThreadPage={() => {}}
-                  hasMoreThreadData={false}
-                  setHasMoreThreadData={() => {}}
-                  selectedVersion={"all"}
-                  previousPrompt={""}
-                  isErrorTrue={false}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="p-6">
+          <div className="p-6">
           {/* Dashboard Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -584,14 +559,43 @@ function Page({ params, searchParams }) {
             </div>
           </div>
 
-          {/* Horizontal Filter Bar */}
-          <div className="flex items-center justify-between w-full bg-base-100 border border-base-300 rounded-lg px-4 py-2.5 mb-8 shadow-sm">
-            <div className="flex items-center gap-4 flex-wrap">
+          {/* KPI Stats Row */}
+          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
+            {getStatsConfig(summary).map((stat, idx) => {
+              const Icon = stat.icon;
+              return (
+                <div
+                  key={idx}
+                  className="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
+                      <Icon size={16} />
+                    </div>
+                    <div
+                      className={`flex items-center gap-1 text-xs font-semibold ${stat.trend === "up" ? "text-emerald-500" : "text-red-500"}`}
+                    >
+                      {stat.change}
+                    </div>
+                  </div>
+                  <div className="flex flex-col mt-2">
+                    <p className="text-xl font-bold text-base-content">{stat.value}</p>
+                    <h3 className="text-[11px] font-medium text-base-content/60 mt-0.5">{stat.title}</h3>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Filters Container */}
+          <div className="bg-base-100 border border-base-300 rounded-lg  mb-8 shadow-sm">
+            {/* Row 1: Time Range, Interval, Feedback, Error, Advance Toggle */}
+            <div className="flex items-center gap-4 px-4 py-2.5 flex-wrap">
               {/* Time Range */}
               <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">
                 Time Range
               </span>
-              <div className="flex gap-1.5 shrink-0">
+              <div className="flex gap-1.5 shrink-0 ">
                 {[
                   { label: "24h", value: "24h" },
                   { label: "7d", value: "7d" },
@@ -691,7 +695,7 @@ function Page({ params, searchParams }) {
                 </div>
               </div>
 
-              <div className="w-px h-4 bg-base-300 shrink-0" />
+              <div className="w-px h-4 bg-base-300 shrink-0"></div>
 
               {/* Interval */}
               <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">
@@ -723,7 +727,7 @@ function Page({ params, searchParams }) {
                 ))}
               </div>
 
-              <div className="w-px h-4 bg-base-300 shrink-0" />
+              <div className="w-px h-4 bg-base-300 shrink-0"></div>
 
               {/* Feedback */}
               <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">
@@ -752,7 +756,7 @@ function Page({ params, searchParams }) {
                 ))}
               </div>
 
-              <div className="w-px h-4 bg-base-300 shrink-0" />
+              <div className="w-px h-4 bg-base-300 shrink-0"></div>
 
               {/* Error Toggle */}
               <label className="flex items-center gap-2 cursor-pointer shrink-0">
@@ -768,84 +772,139 @@ function Page({ params, searchParams }) {
                 <span className="text-xs font-medium text-base-content/70">Error History</span>
               </label>
 
-              <div className="w-px h-4 bg-base-300 shrink-0" />
+              <div className="w-px h-4 bg-base-300 shrink-0"></div>
 
-              {/* Tool Filter - Badge style */}
-              <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">Tool</span>
-              <div className="flex items-center gap-1.5 flex-wrap shrink-0">
-                <button
-                  onClick={() => {
-                    const val = filterTool === "" ? "" : "";
-                    setFilterTool(val);
-                    applyFilters({ tool_id: val });
-                  }}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    filterTool === ""
-                      ? "bg-blue-500 text-white"
-                      : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                  }`}
-                >
-                  All
-                </button>
-                {Object.entries(filterOptions.tools_data).map(([name, id]) => (
-                  <button
-                    key={id}
-                    onClick={() => {
-                      const val = filterTool === id ? "" : id;
-                      setFilterTool(val);
-                      applyFilters({ tool_id: val });
-                    }}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      filterTool === id
-                        ? "bg-blue-500 text-white"
-                        : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                    }`}
-                    title={name}
-                  >
-                    {name.length > 20 ? name.slice(0, 20) + "..." : name}
-                  </button>
-                ))}
-              </div>
-
-              <div className="w-px h-4 bg-base-300 shrink-0" />
-
-              {/* Model Filter */}
-              <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">Model</span>
-              <select
-                className="select select-sm select-bordered text-xs min-w-[8rem]"
-                value={filterModel}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFilterModel(val);
-                  applyFilters({ model: val });
-                }}
+              {/* Advance Filter Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsAdvanceFilterOpen(!isAdvanceFilterOpen)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border ${
+                  isAdvanceFilterOpen
+                    ? "bg-primary/10 text-primary border-primary/30 dark:bg-primary/20 dark:border-primary/40"
+                    : "bg-base-100 text-base-content/70 border-base-300 hover:bg-primary/5 hover:text-primary hover:border-primary/40 dark:bg-base-100 dark:hover:bg-primary/10 dark:hover:text-primary"
+                }`}
               >
-                <option value="">All</option>
-                {Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
-                  models.map((m) => (
-                    <option key={`${service}-${m}`} value={m}>
-                      {m} ({service})
-                    </option>
-                  ))
-                )}
-              </select>
+                <Filter className="w-4 h-4" />
+                Search by Fields
+                <ChevronDown className={`w-4 h-4 transition-transform ${isAdvanceFilterOpen ? "rotate-180" : ""}`} />
+              </button>
             </div>
-          </div>
 
-          {/* Advance Filters Accordion */}
-          <div className="collapse collapse-arrow border border-base-300 bg-base-100 rounded-lg mb-8 overflow-hidden">
-            <input type="checkbox" className="peer" />
-            <div className="collapse-title font-semibold min-h-0 py-3 flex items-center">
-              <span className="text-xs">Advance Filters</span>
-            </div>
-            <div className="collapse-content !p-0 w-full min-w-0">
-              <div className="p-4 bg-base-200 space-y-4">
+            {/* Row 2: Advance Filters (expandable inside same container) */}
+            <div
+              className={`overflow-hidden px-4 transition-all duration-300 ${
+                isAdvanceFilterOpen
+                  ? "max-h-[600px] opacity-100 mt-3 pt-3 pb-3 rounded-lg border-base-300 bg-base-200/50 space-y-4"
+                  : "max-h-0 opacity-0"
+              }`}
+            >
+              {/* Tool & Model badges */}
+              <div className="grid grid-cols-2 gap-4 px-4 ">
+                  {/* Tool Column */}
+                  <div>
+                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Tool</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          const val = "";
+                          setFilterTool(val);
+                          applyFilters({ tool_id: val });
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          filterTool === ""
+                            ? "bg-blue-500 text-white"
+                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {(showAllTools
+                        ? Object.entries(filterOptions.tools_data)
+                        : Object.entries(filterOptions.tools_data).slice(0, 4)
+                      ).map(([name, id]) => (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            const val = filterTool === id ? "" : id;
+                            setFilterTool(val);
+                            applyFilters({ tool_id: val });
+                          }}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            filterTool === id
+                              ? "bg-blue-500 text-white"
+                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                          }`}
+                          title={name}
+                        >
+                          {name.length > 20 ? name.slice(0, 20) + "..." : name}
+                        </button>
+                      ))}
+                      {Object.entries(filterOptions.tools_data).length > 4 && (
+                        <button
+                          onClick={() => setShowAllTools(!showAllTools)}
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                        >
+                          {showAllTools ? "Less" : `+${Object.entries(filterOptions.tools_data).length - 4} More`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* Model Column */}
+                  <div>
+                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Model</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          const val = "";
+                          setFilterModel(val);
+                          applyFilters({ model: val });
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          filterModel === ""
+                            ? "bg-blue-500 text-white"
+                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {(showAllModels
+                        ? Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
+                            models.map((m) => ({ service, model: m }))
+                          )
+                        : Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
+                            models.map((m) => ({ service, model: m }))
+                          ).slice(0, 4)
+                      ).map(({ service, model: m }) => (
+                        <button
+                          key={`${service}-${m}`}
+                          onClick={() => {
+                            const val = filterModel === m ? "" : m;
+                            setFilterModel(val);
+                            applyFilters({ model: val });
+                          }}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            filterModel === m
+                              ? "bg-blue-500 text-white"
+                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                          }`}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                      {Object.entries(filterOptions.unique_model).flatMap(([service, models]) => models.map((m) => m)).length > 4 && (
+                        <button
+                          onClick={() => setShowAllModels(!showAllModels)}
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                        >
+                          {showAllModels ? "Less" : `+${Object.entries(filterOptions.unique_model).flatMap(([service, models]) => models.map((m) => m)).length - 4} More`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Search by Fields */}
-                <div>
-                  <p className="text-xs font-medium text-base-content mb-2">Search by Fields</p>
-                  <p className="text-[11px] text-base-content/60 mb-3">
-                    Fill in values for fields you want to search. Leave empty to skip that field.
-                  </p>
+                <div className="px-4">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
                       { key: "thread_id", label: "Thread ID" },
@@ -859,7 +918,7 @@ function Page({ params, searchParams }) {
                         <label className="block text-xs font-medium text-base-content/70 mb-0.5">{f.label}</label>
                         <input
                           type="text"
-                          className="input input-sm input-bordered w-full text-xs"
+                          className="input input-sm input-bordered w-full rounded-lg text-xs"
                           placeholder={`Search ${f.label.toLowerCase()}...`}
                           value={filterByFields[f.key] || ""}
                           onChange={(e) =>
@@ -873,14 +932,14 @@ function Page({ params, searchParams }) {
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          className="input input-sm input-bordered flex-1 text-xs"
+                          className="input input-sm rounded-lg input-bordered flex-1 text-xs"
                           placeholder="key"
                           value={filterVariableKey}
                           onChange={(e) => setFilterVariableKey(e.target.value)}
                         />
                         <input
                           type="text"
-                          className="input input-sm input-bordered flex-1 text-xs"
+                          className="input input-sm rounded-lg input-bordered flex-1 text-xs"
                           placeholder="value"
                           value={filterVariableValue}
                           onChange={(e) => setFilterVariableValue(e.target.value)}
@@ -888,58 +947,30 @@ function Page({ params, searchParams }) {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex justify-end gap-3 mt-3">
                     <button
-                      className="btn btn-sm btn-primary"
-                      onClick={() => {
-                        if (document.activeElement) document.activeElement.blur();
-                      }}
-                    >
-                      Apply Filter
-                    </button>
-                    <button
-                      className="btn btn-sm btn-ghost"
+                      className="px-5 py-1 rounded-lg text-sm font-medium border-2 border-base-300 text-base-content/60 hover:border-base-400 hover:text-base-content transition-colors"
                       onClick={() => {
                         setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
                         setFilterVariableKey("");
                         setFilterVariableValue("");
+                        dispatchAnalyticsWithAdvancedFilters();
                       }}
                     >
                       Reset Fields
                     </button>
+                    <button
+                      className="px-5 py-1   rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-lg"
+                      onClick={() => {
+                        if (document.activeElement) document.activeElement.blur();
+                        dispatchAnalyticsWithAdvancedFilters();
+                      }}
+                    >
+                      Apply Filter
+                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* KPI Stats Row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-            {getStatsConfig(summary).map((stat, idx) => {
-              const Icon = stat.icon;
-              return (
-                <div
-                  key={idx}
-                  className="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1"
-                >
-                  <div className="flex justify-between items-start">
-                    <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                      <Icon size={16} />
-                    </div>
-                    <div
-                      className={`flex items-center gap-1 text-xs font-semibold ${stat.trend === "up" ? "text-emerald-500" : "text-red-500"}`}
-                    >
-                      {stat.trend === "up" ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-                      {stat.change}
-                    </div>
-                  </div>
-                  <div className="flex flex-col mt-2">
-                    <p className="text-xl font-bold text-base-content">{stat.value}</p>
-                    <h3 className="text-[11px] font-medium text-base-content/60 mt-0.5">{stat.title}</h3>
-                  </div>
-                </div>
-              );
-            })}
           </div>
 
           {/* Charts Row */}
@@ -1045,8 +1076,56 @@ function Page({ params, searchParams }) {
               </div>
             </div>
           </div>
-            </div>
-          )}
+        </div>
+      </div>
+
+        {/* Backdrop overlay when slider is open */}
+        {selectedThreadId && (
+          <div
+            className="absolute inset-0 bg-black/20 backdrop-blur-[1px] z-30 transition-opacity duration-300"
+            onClick={handleCloseAside}
+          />
+        )}
+
+        {/* Slide-in Thread Detail Panel - right to left */}
+        <div
+          className={`absolute top-0 right-0 h-full bg-base-100 shadow-2xl border-l border-base-300 z-40 flex flex-col transform transition-transform duration-300 ease-in-out ${
+            selectedThreadId ? "translate-x-0 w-[85%]" : "translate-x-full w-[85%]"
+          }`}
+        >
+          <div className="h-14 border-b border-base-300 flex items-center justify-between px-4 bg-base-100 shrink-0">
+            <h3 className="font-semibold text-sm truncate">Thread Details</h3>
+            <button onClick={handleCloseAside} className="btn btn-ghost btn-sm btn-circle shrink-0">
+              <X size={16} className="text-base-content/60 hover:text-base-content" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <ThreadContainer
+              thread={
+                selectedBatchMessageId
+                  ? thread.filter((msg) => msg?.message_id === selectedBatchMessageId)
+                  : thread
+              }
+              searchParamsHook={search}
+              isSingleQuery={false}
+              isFetchingMore={false}
+              setIsFetchingMore={() => {}}
+              searchMessageId={null}
+              setSearchMessageId={() => {}}
+              pathName={pathName}
+              search={search}
+              historyData={historyData}
+              threadHandler={handleThreadItemClick}
+              setLoading={() => {}}
+              threadPage={1}
+              setThreadPage={() => {}}
+              hasMoreThreadData={false}
+              setHasMoreThreadData={() => {}}
+              selectedVersion={"all"}
+              previousPrompt={""}
+              isErrorTrue={false}
+            />
+          </div>
         </div>
 
         {/* Batch Subthread Panel - between main content and sidebar */}
@@ -1074,7 +1153,7 @@ function Page({ params, searchParams }) {
           searchParams={Object.fromEntries(search.entries())}
           setSearchMessageId={setSelectedBatchMessageId}
           setPage={setPage}
-          setHasMore={setHasMore}
+          setHasMore={() => {}}
           filterOption={filterFeedback}
           setFilterOption={setFilterFeedback}
           searchRef={searchRef}

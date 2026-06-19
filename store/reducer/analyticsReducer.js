@@ -18,7 +18,28 @@ export const analyticsSlice = createSlice({
       state.loading = false;
       const { bridge_id, ...rest } = action.payload;
       if (bridge_id) {
-        state.analyticsData[bridge_id] = { ...state.analyticsData[bridge_id], ...rest };
+        const newThreads = rest.threads || [];
+        const isFirstPage = !rest.pagination || (rest.pagination?.page || 1) <= 1;
+        if (isFirstPage) {
+          // Replace threads on first page / filter change
+          state.analyticsData[bridge_id] = {
+            ...state.analyticsData[bridge_id],
+            ...rest,
+            threads: newThreads,
+          };
+        } else {
+          // Merge threads on pagination (infinite scroll)
+          const existingThreads = state.analyticsData[bridge_id]?.threads || [];
+          const threadMap = new Map();
+          [...existingThreads, ...newThreads].forEach((t) => {
+            if (t?.thread_id) threadMap.set(t.thread_id, t);
+          });
+          state.analyticsData[bridge_id] = {
+            ...state.analyticsData[bridge_id],
+            ...rest,
+            threads: Array.from(threadMap.values()),
+          };
+        }
       }
     },
     updateAnalyticsFromRtLayer: (state, action) => {

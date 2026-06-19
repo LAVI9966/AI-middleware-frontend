@@ -520,7 +520,7 @@ const Sidebar = memo(
                     <span className="text-xs">Advance Filter</span>
                   </div>
                   <div className="collapse-content !p-0 w-full min-w-0">
-                    <div className="space-y-2 px-2 pb-2 w-full min-w-0">
+                    <div className="space-y-2 px-2 pb-0 w-full min-w-0">
                       <DateRangePicker
                         params={params}
                         setFilterOption={setFilterOption}
@@ -531,7 +531,7 @@ const Sidebar = memo(
                         isErrorTrue={isErrorTrue}
                       />
 
-                      <div className="p-2 bg-base-200">
+                      <div className="p-2 bg-base-100">
                         <p className="text-center mb-2 text-xs font-medium">Filter Response</p>
                         <div className="flex items-center justify-center mb-2 gap-2">
                           {USER_FEEDBACK_FILTER_OPTIONS?.map((value, index) => (
@@ -575,7 +575,7 @@ const Sidebar = memo(
                         </div>
                       </div>
 
-                      <div className="p-2 bg-base-200 w-full min-w-0">
+                      <div className="p-2 bg-base-100 w-full min-w-0">
                         <p className="text-center mb-2 text-xs font-medium">Search by Fields</p>
                         <p className="text-xs text-base-content/60 mb-2">
                           Fill in values for fields you want to search. Leave empty to skip that field.
