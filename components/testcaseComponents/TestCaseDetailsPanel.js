@@ -789,7 +789,7 @@ const TestCaseDetailsPanel = ({
                         </div>
                       ) : (
                         <>
-                          {hasMultipleModels && (
+                          {modelTabs.length > 0 && (
                             <div
                               data-testid={`testcase-version-model-tabs-${versions.indexOf(version) + 1}`}
                               className="flex items-center gap-1 mb-2 -mt-1 overflow-x-auto"
