@@ -12,7 +12,16 @@ import Protected from "@/components/Protected";
 import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
 import { Activity, BarChart3, TrendingDown, TrendingUp, X, Bot, Filter, ChevronDown } from "lucide-react";
-import Chart from "@/components/LazyApexChart";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 
 import Sidebar from "@/components/historyPageComponents/Sidebar";
 import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
@@ -122,7 +131,11 @@ function Page({ params, searchParams }) {
   const [filterError, setFilterError] = useState(resolvedSearchParams?.error === "true");
   const [filterTool, setFilterTool] = useState(resolvedSearchParams?.tool_id || "");
   const [filterModel, setFilterModel] = useState(resolvedSearchParams?.model || "");
-  const [filterOptions, setFilterOptions] = useState({ tools_data: {}, unique_model: {} });
+  const [filterKnowledgeBase, setFilterKnowledgeBase] = useState(resolvedSearchParams?.knowledgebase_id || "");
+  const [filterAgent, setFilterAgent] = useState(resolvedSearchParams?.agent_id || "");
+  const [filterOptions, setFilterOptions] = useState({ tools_data: {}, unique_model: {}, knowledgebase_data: {}, agent_data: {} });
+  const [showAllKnowledgeBases, setShowAllKnowledgeBases] = useState(false);
+  const [showAllAgents, setShowAllAgents] = useState(false);
 
   const summary = analyticsData?.summary || {};
   const requestsOverTime = analyticsData?.requests_over_time || [];
@@ -193,7 +206,12 @@ function Page({ params, searchParams }) {
     const fetchFilters = async () => {
       try {
         const data = await getAgentAnalyticsFiltersApi(resolvedParams.id);
-        setFilterOptions({ tools_data: data.tools_data || {}, unique_model: data.unique_model || {} });
+        setFilterOptions({
+          tools_data: data.tools_data || {},
+          unique_model: data.unique_model || {},
+          knowledgebase_data: data.knowledgebase_data || {},
+          agent_data: data.agent_data || {},
+        });
       } catch (e) {
         console.error("Failed to fetch filter options:", e);
       }
@@ -214,6 +232,8 @@ function Page({ params, searchParams }) {
     // Strip empty optional filters so only selected ones go to the API
     if (!queryParams.tool_id) delete queryParams.tool_id;
     if (!queryParams.model) delete queryParams.model;
+    if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
+    if (!queryParams.agent_id) delete queryParams.agent_id;
     if (!queryParams.interval) delete queryParams.interval;
     if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
 
@@ -245,11 +265,11 @@ function Page({ params, searchParams }) {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       const timer = setTimeout(() => {
-        dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+        dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
       }, 1000); // 1-second delay on initial load / refresh
       return () => clearTimeout(timer);
     } else {
-      dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+      dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
     }
   }, [
     resolvedParams?.id,
@@ -261,6 +281,8 @@ function Page({ params, searchParams }) {
     resolvedSearchParams?.error,
     resolvedSearchParams?.tool_id,
     resolvedSearchParams?.model,
+    resolvedSearchParams?.knowledgebase_id,
+    resolvedSearchParams?.agent_id,
     selectedVersion,
     dispatch,
   ]);
@@ -277,6 +299,8 @@ function Page({ params, searchParams }) {
     // Strip empty optional filters so only selected ones go to the API
     if (!queryParams.tool_id) delete queryParams.tool_id;
     if (!queryParams.model) delete queryParams.model;
+    if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
+    if (!queryParams.agent_id) delete queryParams.agent_id;
     if (!queryParams.interval) delete queryParams.interval;
     if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
 
@@ -302,7 +326,7 @@ function Page({ params, searchParams }) {
     if (Object.keys(activeFilterBy).length > 0) {
       queryParams.filter_by = activeFilterBy;
     }
-    dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+    dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
   };
 
   const buildAnalyticsQueryParams = (extra = {}) => {
@@ -313,6 +337,8 @@ function Page({ params, searchParams }) {
     delete queryParams.message_id;
     if (!queryParams.tool_id) delete queryParams.tool_id;
     if (!queryParams.model) delete queryParams.model;
+    if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
+    if (!queryParams.agent_id) delete queryParams.agent_id;
     if (!queryParams.interval) delete queryParams.interval;
     if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
 
@@ -346,7 +372,7 @@ function Page({ params, searchParams }) {
     if (!hasMore || loading) return;
     const nextPage = page + 1;
     const queryParams = buildAnalyticsQueryParams({ page: nextPage });
-    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
     setPage(nextPage);
   };
 
@@ -355,7 +381,7 @@ function Page({ params, searchParams }) {
     setPage(1);
     setLoading(true);
     const queryParams = buildAnalyticsQueryParams({ keyword: query, page: 1 });
-    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams));
+    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
     setLoading(false);
   };
 
@@ -486,6 +512,8 @@ function Page({ params, searchParams }) {
     const newError = updates.error !== undefined ? updates.error : filterError;
     const newTool = updates.tool_id !== undefined ? updates.tool_id : filterTool;
     const newModel = updates.model !== undefined ? updates.model : filterModel;
+    const newKnowledgeBase = updates.knowledgebase_id !== undefined ? updates.knowledgebase_id : filterKnowledgeBase;
+    const newAgent = updates.agent_id !== undefined ? updates.agent_id : filterAgent;
 
     if (newStart) currentUrl.searchParams.set("start", newStart);
     else currentUrl.searchParams.delete("start");
@@ -511,6 +539,12 @@ function Page({ params, searchParams }) {
     if (newModel) currentUrl.searchParams.set("model", newModel);
     else currentUrl.searchParams.delete("model");
 
+    if (newKnowledgeBase) currentUrl.searchParams.set("knowledgebase_id", newKnowledgeBase);
+    else currentUrl.searchParams.delete("knowledgebase_id");
+
+    if (newAgent) currentUrl.searchParams.set("agent_id", newAgent);
+    else currentUrl.searchParams.delete("agent_id");
+
     router.push(currentUrl.pathname + currentUrl.search);
   };
 
@@ -523,6 +557,8 @@ function Page({ params, searchParams }) {
     setFilterError(false);
     setFilterTool("");
     setFilterModel("");
+    setFilterKnowledgeBase("");
+    setFilterAgent("");
     setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
     setFilterVariableKey("");
     setFilterVariableValue("");
@@ -538,6 +574,8 @@ function Page({ params, searchParams }) {
     currentUrl.searchParams.delete("error");
     currentUrl.searchParams.delete("tool_id");
     currentUrl.searchParams.delete("model");
+    currentUrl.searchParams.delete("knowledgebase_id");
+    currentUrl.searchParams.delete("agent_id");
     router.push(currentUrl.pathname + currentUrl.search);
 
     if (document.activeElement) {
@@ -798,8 +836,8 @@ function Page({ params, searchParams }) {
                   : "max-h-0 opacity-0"
               }`}
             >
-              {/* Tool & Model badges */}
-              <div className="grid grid-cols-2 gap-4 px-4 ">
+              {/* Tool, Model, Knowledge Base & Agent badges */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-4 ">
                   {/* Tool Column */}
                   <div>
                     <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Tool</span>
@@ -901,6 +939,104 @@ function Page({ params, searchParams }) {
                       )}
                     </div>
                   </div>
+                  {/* Knowledge Base Column */}
+                  <div>
+                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Knowledge Base</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          const val = "";
+                          setFilterKnowledgeBase(val);
+                          applyFilters({ knowledgebase_id: val });
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          filterKnowledgeBase === ""
+                            ? "bg-blue-500 text-white"
+                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {(showAllKnowledgeBases
+                        ? Object.entries(filterOptions.knowledgebase_data)
+                        : Object.entries(filterOptions.knowledgebase_data).slice(0, 4)
+                      ).map(([name, id]) => (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            const val = filterKnowledgeBase === id ? "" : id;
+                            setFilterKnowledgeBase(val);
+                            applyFilters({ knowledgebase_id: val });
+                          }}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            filterKnowledgeBase === id
+                              ? "bg-blue-500 text-white"
+                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                          }`}
+                          title={name}
+                        >
+                          {name.length > 20 ? name.slice(0, 20) + "..." : name}
+                        </button>
+                      ))}
+                      {Object.entries(filterOptions.knowledgebase_data).length > 4 && (
+                        <button
+                          onClick={() => setShowAllKnowledgeBases(!showAllKnowledgeBases)}
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                        >
+                          {showAllKnowledgeBases ? "Less" : `+${Object.entries(filterOptions.knowledgebase_data).length - 4} More`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* Agent Column */}
+                  <div>
+                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Agent</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          const val = "";
+                          setFilterAgent(val);
+                          applyFilters({ agent_id: val });
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          filterAgent === ""
+                            ? "bg-blue-500 text-white"
+                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {(showAllAgents
+                        ? Object.entries(filterOptions.agent_data)
+                        : Object.entries(filterOptions.agent_data).slice(0, 4)
+                      ).map(([name, id]) => (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            const val = filterAgent === id ? "" : id;
+                            setFilterAgent(val);
+                            applyFilters({ agent_id: val });
+                          }}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            filterAgent === id
+                              ? "bg-blue-500 text-white"
+                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                          }`}
+                          title={name}
+                        >
+                          {name.length > 20 ? name.slice(0, 20) + "..." : name}
+                        </button>
+                      ))}
+                      {Object.entries(filterOptions.agent_data).length > 4 && (
+                        <button
+                          onClick={() => setShowAllAgents(!showAllAgents)}
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                        >
+                          {showAllAgents ? "Less" : `+${Object.entries(filterOptions.agent_data).length - 4} More`}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Search by Fields */}
@@ -993,35 +1129,71 @@ function Page({ params, searchParams }) {
                 </div>
               </div>
               <div className="flex-1 min-h-[240px]">
-                <Chart
-                  type={executionChartType}
-                  height="100%"
-                  options={{
-                    chart: { type: executionChartType, toolbar: { show: false }, animations: { enabled: true }, zoom: { enabled: false }, pan: { enabled: false } },
-                    colors: ["#10b981", "#ef4444"],
-                    stroke: { curve: "smooth", width: 2 },
-                    fill: executionChartType === "area" ? {
-                      type: "gradient",
-                      gradient: { shadeIntensity: 1, opacityFrom: 0.2, opacityTo: 0.02, stops: [0, 100] },
-                    } : { type: "solid", opacity: 1 },
-                    plotOptions: { bar: { columnWidth: "55%", borderRadius: 4 } },
-                    dataLabels: { enabled: false },
-                    grid: { strokeDashArray: 3, borderColor: "#f3f4f6", xaxis: { lines: { show: false } } },
-                    xaxis: {
-                      categories: executionData.map((d) => d.time),
-                      labels: { style: { colors: "#9ca3af", fontSize: "11px" } },
-                      axisBorder: { show: false },
-                      axisTicks: { show: false },
-                    },
-                    yaxis: { labels: { style: { colors: "#9ca3af", fontSize: "11px" } } },
-                    tooltip: { theme: "light", style: { fontSize: "12px" } },
-                    legend: { show: false },
-                  }}
-                  series={[
-                    { name: "Success", data: executionData.map((d) => d.success) },
-                    { name: "Failed", data: executionData.map((d) => d.failed) },
-                  ]}
-                />
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={executionData}>
+                    <defs>
+                      <linearGradient id="gradSuccess" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="gradFailed" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis
+                      dataKey="time"
+                      tick={{ fill: "#9ca3af", fontSize: "11px" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: "#9ca3af", fontSize: "11px" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: "12px",
+                        borderRadius: "4px",
+                        border: "none",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                    />
+                    {executionChartType === "area" ? (
+                      <>
+                        <Area
+                          type="monotone"
+                          dataKey="success"
+                          stroke="#10b981"
+                          strokeWidth={2}
+                          fill="url(#gradSuccess)"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="failed"
+                          stroke="#ef4444"
+                          strokeWidth={2}
+                          fill="url(#gradFailed)"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Bar
+                          dataKey="success"
+                          fill="#10b981"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="failed"
+                          fill="#ef4444"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </>
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -1043,36 +1215,87 @@ function Page({ params, searchParams }) {
                 </div>
               </div>
               <div className="flex-1 min-h-[240px]">
-                <Chart
-                  type={latencyChartType}
-                  height="100%"
-                  options={{
-                    chart: { type: latencyChartType, toolbar: { show: false }, animations: { enabled: true }, zoom: { enabled: false }, pan: { enabled: false } },
-                    colors: ["#ef4444", "#f59e0b", "#3b82f6"],
-                    stroke: { curve: "smooth", width: 2 },
-                    fill: latencyChartType === "area" ? {
-                      type: "gradient",
-                      gradient: { shadeIntensity: 1, opacityFrom: 0.2, opacityTo: 0.02, stops: [0, 100] },
-                    } : { type: "solid", opacity: 1 },
-                    plotOptions: { bar: { columnWidth: "55%", borderRadius: 4 } },
-                    dataLabels: { enabled: false },
-                    grid: { strokeDashArray: 3, borderColor: "#f3f4f6", xaxis: { lines: { show: false } } },
-                    xaxis: {
-                      categories: latencyData.map((d) => d.time),
-                      labels: { style: { colors: "#9ca3af", fontSize: "11px" } },
-                      axisBorder: { show: false },
-                      axisTicks: { show: false },
-                    },
-                    yaxis: { labels: { style: { colors: "#9ca3af", fontSize: "11px" } } },
-                    tooltip: { theme: "light", style: { fontSize: "12px" } },
-                    legend: { show: false },
-                  }}
-                  series={[
-                    { name: "Worst (s)", data: latencyData.map((d) => d.worst) },
-                    { name: "Slow (s)", data: latencyData.map((d) => d.slow) },
-                    { name: "Typical (s)", data: latencyData.map((d) => d.typical) },
-                  ]}
-                />
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={latencyData}>
+                    <defs>
+                      <linearGradient id="gradWorst" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="gradSlow" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="gradTypical" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                    <XAxis
+                      dataKey="time"
+                      tick={{ fill: "#9ca3af", fontSize: "11px" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tick={{ fill: "#9ca3af", fontSize: "11px" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: "12px",
+                        borderRadius: "4px",
+                        border: "none",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                    />
+                    {latencyChartType === "area" ? (
+                      <>
+                        <Area
+                          type="monotone"
+                          dataKey="worst"
+                          stroke="#ef4444"
+                          strokeWidth={2}
+                          fill="url(#gradWorst)"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="slow"
+                          stroke="#f59e0b"
+                          strokeWidth={2}
+                          fill="url(#gradSlow)"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="typical"
+                          stroke="#3b82f6"
+                          strokeWidth={2}
+                          fill="url(#gradTypical)"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Bar
+                          dataKey="worst"
+                          fill="#ef4444"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="slow"
+                          fill="#f59e0b"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar
+                          dataKey="typical"
+                          fill="#3b82f6"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </>
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>
