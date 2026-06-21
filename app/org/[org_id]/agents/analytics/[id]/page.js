@@ -11,7 +11,7 @@ import { setSelectedVersion } from "@/store/reducer/historyReducer";
 import Protected from "@/components/Protected";
 import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
-import { Activity, BarChart3, TrendingDown, TrendingUp, X, Bot, Filter, ChevronDown } from "lucide-react";
+import { Activity, BarChart3, TrendingDown, TrendingUp, X, Bot, Filter, ChevronDown, Wrench, BookOpen } from "lucide-react";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -30,6 +30,83 @@ import { getStatsConfig, MODAL_TYPE } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
 import ChatAiConfigDeatilViewModal from "@/components/modals/ChatAiConfigDeatilViewModal";
 
+// URL params that must never be forwarded to the analytics API.
+const UI_ONLY_QUERY_PARAMS = new Set([
+  "thread_id",
+  "subThread_id",
+  "sub_thread_id",
+  "batch_id",
+  "message_id",
+  "navigated",
+  "type",
+  "_rsc",
+  "feedback",
+  "version",
+]);
+
+const FEEDBACK_TO_API = { "1": "good", "2": "bad", good: "good", bad: "bad" };
+
+function buildAnalyticsQueryParams(
+  rawParams,
+  { selectedVersion, filterByFields = {}, filterVariableKey = "", filterVariableValue = "", extra = {} } = {}
+) {
+  const entries =
+    typeof rawParams?.entries === "function" ? Object.fromEntries(rawParams.entries()) : { ...rawParams };
+
+  const queryParams = {};
+  for (const [key, value] of Object.entries(entries)) {
+    if (UI_ONLY_QUERY_PARAMS.has(key) || value == null || value === "") continue;
+    queryParams[key] = value;
+  }
+
+  const mappedFeedback = FEEDBACK_TO_API[entries.feedback];
+  if (mappedFeedback) {
+    queryParams.user_feedback = mappedFeedback;
+  }
+
+  if (queryParams.start) {
+    queryParams.start_date = queryParams.start;
+    delete queryParams.start;
+  }
+  if (queryParams.end) {
+    queryParams.end_date = queryParams.end;
+    delete queryParams.end;
+  }
+  if (queryParams.start_date || queryParams.end_date) {
+    delete queryParams.range;
+  } else {
+    queryParams.range = queryParams.range || "30d";
+  }
+
+  if (selectedVersion && selectedVersion !== "all") {
+    queryParams.version_id = selectedVersion;
+  }
+
+  if (!queryParams.tool_id) delete queryParams.tool_id;
+  if (!queryParams.model) delete queryParams.model;
+  if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
+  if (!queryParams.agent_id) delete queryParams.agent_id;
+  if (!queryParams.interval) delete queryParams.interval;
+
+  const activeFilterBy = {};
+  if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
+  if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
+  if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
+  if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
+  if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
+  if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
+  if (filterVariableKey.trim() && filterVariableValue.trim()) {
+    activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
+  } else if (filterVariableValue.trim()) {
+    activeFilterBy.variables = filterVariableValue.trim();
+  }
+  if (Object.keys(activeFilterBy).length > 0) {
+    queryParams.filter_by = activeFilterBy;
+  }
+
+  return { ...queryParams, ...extra };
+}
+
 function Page({ params, searchParams }) {
   const resolvedSearchParams = use(searchParams);
   const resolvedParams = use(params);
@@ -43,33 +120,31 @@ function Page({ params, searchParams }) {
       : "";
   useRtLayerEventHandler(channelId);
 
-  const { thread, analyticsData, selectedVersion } = useCustomSelector((state) => {
+  const { thread, analyticsData, selectedVersion, knowledgeBaseData, analyticsLoading } = useCustomSelector((state) => {
     return {
       thread: state?.historyReducer?.thread || [],
       analyticsData: state?.analyticsReducer?.analyticsData?.[resolvedParams.id] || {},
       selectedVersion: state?.historyReducer?.selectedVersion || "all",
+      knowledgeBaseData: state?.knowledgeBaseReducer?.knowledgeBaseData?.[resolvedParams?.org_id] || [],
+      analyticsLoading: state?.analyticsReducer?.loading || false,
     };
   });
-
-  // Derive sidebar thread list from analytics API response threads
-  const historyData = useMemo(() => {
-    const threads = analyticsData?.threads || [];
-    // Transform analytics thread shape to history thread shape expected by Sidebar
-    return threads.map((t) => ({
-      ...t,
-      thread_id: t.thread_id,
-      updated_at: t.updated_at,
-      // Sidebar expects sub_thread array; analytics gives flat sub_thread_id
-      sub_thread: t.sub_thread_id ? [{ sub_thread_id: t.sub_thread_id }] : [],
-    }));
-  }, [analyticsData?.threads]);
 
   // Derive pagination from analytics response
   const hasMore = analyticsData?.pagination?.has_more ?? false;
 
-  const [searchQuery, setSearchQuery] = useState("");
+  // Map knowledge base IDs to their display names
+  const knowledgeBaseNameMap = useMemo(() => {
+    const map = {};
+    knowledgeBaseData.forEach((kb) => {
+      const id = kb._id || kb.id;
+      if (id) map[id] = kb.title || kb.name || id;
+    });
+    return map;
+  }, [knowledgeBaseData]);
+
+  const [searchQuery, setSearchQuery] = useState(() => search.get("keyword") || "");
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [selectedSubThreadId, setSelectedSubThreadId] = useState(null);
   const [selectedBatchMessageId, setSelectedBatchMessageId] = useState(null);
@@ -81,6 +156,18 @@ function Page({ params, searchParams }) {
   const router = useRouter();
   const searchRef = useRef(null);
   const isFirstRender = useRef(true);
+  const [appliedAdvancedFilters, setAppliedAdvancedFilters] = useState({
+    filterByFields: {
+      thread_id: "",
+      sub_thread_id: "",
+      message_id: "",
+      batch_id: "",
+      user: "",
+      llm_message: "",
+    },
+    filterVariableKey: "",
+    filterVariableValue: "",
+  });
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const customDropdownRef = useRef(null);
 
@@ -96,7 +183,7 @@ function Page({ params, searchParams }) {
   const [filterVariableKey, setFilterVariableKey] = useState("");
   const [filterVariableValue, setFilterVariableValue] = useState("");
   const [isAdvanceFilterOpen, setIsAdvanceFilterOpen] = useState(false);
-  const [showAllTools, setShowAllTools] = useState(false);
+  const [showAllToolGroup, setShowAllToolGroup] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
 
   useEffect(() => {
@@ -129,13 +216,44 @@ function Page({ params, searchParams }) {
   const [filterInterval, setFilterInterval] = useState(resolvedSearchParams?.interval || "");
   const [filterFeedback, setFilterFeedback] = useState(resolvedSearchParams?.feedback || "all");
   const [filterError, setFilterError] = useState(resolvedSearchParams?.error === "true");
-  const [filterTool, setFilterTool] = useState(resolvedSearchParams?.tool_id || "");
-  const [filterModel, setFilterModel] = useState(resolvedSearchParams?.model || "");
-  const [filterKnowledgeBase, setFilterKnowledgeBase] = useState(resolvedSearchParams?.knowledgebase_id || "");
-  const [filterAgent, setFilterAgent] = useState(resolvedSearchParams?.agent_id || "");
+  const [filterReviewFailed, setFilterReviewFailed] = useState(resolvedSearchParams?.review_failed === "true");
+  const parseArrayParam = (v) => (v ? String(v).split(",").map((s) => s.trim()).filter(Boolean) : []);
+  const [filterTool, setFilterTool] = useState(parseArrayParam(resolvedSearchParams?.tool_id));
+  const [filterModel, setFilterModel] = useState(parseArrayParam(resolvedSearchParams?.model));
+  const [filterKnowledgeBase, setFilterKnowledgeBase] = useState(parseArrayParam(resolvedSearchParams?.knowledgebase_id));
+  const [filterAgent, setFilterAgent] = useState(parseArrayParam(resolvedSearchParams?.agent_id));
   const [filterOptions, setFilterOptions] = useState({ tools_data: {}, unique_model: {}, knowledgebase_data: {}, agent_data: {} });
-  const [showAllKnowledgeBases, setShowAllKnowledgeBases] = useState(false);
-  const [showAllAgents, setShowAllAgents] = useState(false);
+
+  const hasAnyFilter = Boolean(
+    filterStart ||
+    filterEnd ||
+    filterInterval ||
+    filterFeedback !== "all" ||
+    filterError ||
+    filterReviewFailed ||
+    filterTool.length ||
+    filterModel.length ||
+    filterKnowledgeBase.length ||
+    filterAgent.length ||
+    Object.values(filterByFields).some((v) => v && String(v).trim() !== "") ||
+    filterVariableKey.trim() ||
+    filterVariableValue.trim() ||
+    searchQuery.trim()
+  );
+
+  // Derive sidebar thread list from analytics API response threads
+  const historyData = useMemo(() => {
+    const threads = analyticsData?.threads || [];
+    // Transform analytics thread shape to history thread shape expected by Sidebar
+    const mapped = threads.map((t) => ({
+      ...t,
+      thread_id: t.thread_id,
+      updated_at: t.updated_at,
+      // Sidebar expects sub_thread array; analytics gives flat sub_thread_id
+      sub_thread: t.sub_thread_id ? [{ sub_thread_id: t.sub_thread_id }] : [],
+    }));
+    return mapped;
+  }, [analyticsData?.threads]);
 
   const summary = analyticsData?.summary || {};
   const requestsOverTime = analyticsData?.requests_over_time || [];
@@ -183,6 +301,21 @@ function Page({ params, searchParams }) {
   }));
 
   useEffect(() => {
+    const urlVersion = search.get("version") || "all";
+    if (urlVersion !== selectedVersion) {
+      dispatch(setSelectedVersion(urlVersion));
+    }
+  }, [resolvedParams?.id, dispatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const keyword = search.get("keyword") || "";
+    setSearchQuery(keyword);
+    if (searchRef.current) {
+      searchRef.current.value = keyword;
+    }
+  }, [search]);
+
+  useEffect(() => {
     return () => {
       dispatch(setSelectedVersion("all"));
     };
@@ -219,47 +352,23 @@ function Page({ params, searchParams }) {
     fetchFilters();
   }, [resolvedParams?.id]);
 
+  const getAnalyticsQueryParams = useCallback(
+    (extra = {}) =>
+      buildAnalyticsQueryParams(search, {
+        selectedVersion,
+        filterByFields: appliedAdvancedFilters.filterByFields,
+        filterVariableKey: appliedAdvancedFilters.filterVariableKey,
+        filterVariableValue: appliedAdvancedFilters.filterVariableValue,
+        extra,
+      }),
+    [search, selectedVersion, appliedAdvancedFilters]
+  );
+
   // Fetch agent analytics (with a 1-second delay on refresh/initial mount, and immediately on subsequent updates)
   useEffect(() => {
     if (!resolvedParams?.id) return;
 
-    const queryParams = { ...resolvedSearchParams };
-    // Strip UI-only params that are for the thread slider, not analytics filters
-    delete queryParams.thread_id;
-    delete queryParams.sub_thread_id;
-    delete queryParams.batch_id;
-    delete queryParams.message_id;
-    // Strip empty optional filters so only selected ones go to the API
-    if (!queryParams.tool_id) delete queryParams.tool_id;
-    if (!queryParams.model) delete queryParams.model;
-    if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
-    if (!queryParams.agent_id) delete queryParams.agent_id;
-    if (!queryParams.interval) delete queryParams.interval;
-    if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
-
-    if (queryParams.start) queryParams.start_date = queryParams.start;
-    if (queryParams.end) queryParams.end_date = queryParams.end;
-    if (!queryParams.start && !queryParams.end) {
-      queryParams.range = queryParams.range || "30d";
-    }
-    queryParams.version = selectedVersion;
-
-    // Build filter_by from search-by-fields state
-    const activeFilterBy = {};
-    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
-    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
-    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
-    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
-    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
-    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
-    if (filterVariableKey.trim() && filterVariableValue.trim()) {
-      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
-    } else if (filterVariableValue.trim()) {
-      activeFilterBy.variables = filterVariableValue.trim();
-    }
-    if (Object.keys(activeFilterBy).length > 0) {
-      queryParams.filter_by = activeFilterBy;
-    }
+    const queryParams = getAnalyticsQueryParams();
 
     setPage(1);
     if (isFirstRender.current) {
@@ -268,122 +377,36 @@ function Page({ params, searchParams }) {
         dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
       }, 1000); // 1-second delay on initial load / refresh
       return () => clearTimeout(timer);
-    } else {
-      dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
-    }
-  }, [
-    resolvedParams?.id,
-    resolvedSearchParams?.start,
-    resolvedSearchParams?.end,
-    resolvedSearchParams?.range,
-    resolvedSearchParams?.interval,
-    resolvedSearchParams?.feedback,
-    resolvedSearchParams?.error,
-    resolvedSearchParams?.tool_id,
-    resolvedSearchParams?.model,
-    resolvedSearchParams?.knowledgebase_id,
-    resolvedSearchParams?.agent_id,
-    selectedVersion,
-    dispatch,
-  ]);
-
-  // Helper to dispatch analytics with current advanced filter fields
-  const dispatchAnalyticsWithAdvancedFilters = () => {
-    if (!resolvedParams?.id) return;
-    const queryParams = { ...resolvedSearchParams };
-    // Strip UI-only params that are for the thread slider, not analytics filters
-    delete queryParams.thread_id;
-    delete queryParams.sub_thread_id;
-    delete queryParams.batch_id;
-    delete queryParams.message_id;
-    // Strip empty optional filters so only selected ones go to the API
-    if (!queryParams.tool_id) delete queryParams.tool_id;
-    if (!queryParams.model) delete queryParams.model;
-    if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
-    if (!queryParams.agent_id) delete queryParams.agent_id;
-    if (!queryParams.interval) delete queryParams.interval;
-    if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
-
-    if (queryParams.start) queryParams.start_date = queryParams.start;
-    if (queryParams.end) queryParams.end_date = queryParams.end;
-    if (!queryParams.start && !queryParams.end) {
-      queryParams.range = queryParams.range || "30d";
-    }
-    queryParams.version = selectedVersion;
-
-    const activeFilterBy = {};
-    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
-    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
-    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
-    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
-    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
-    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
-    if (filterVariableKey.trim() && filterVariableValue.trim()) {
-      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
-    } else if (filterVariableValue.trim()) {
-      activeFilterBy.variables = filterVariableValue.trim();
-    }
-    if (Object.keys(activeFilterBy).length > 0) {
-      queryParams.filter_by = activeFilterBy;
     }
     dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
+  }, [resolvedParams?.id, resolvedParams?.org_id, search.toString(), selectedVersion, appliedAdvancedFilters, dispatch, getAnalyticsQueryParams]);
+
+  const dispatchAnalyticsWithAdvancedFilters = (nextAdvancedFilters) => {
+    if (!resolvedParams?.id) return;
+    setAppliedAdvancedFilters(nextAdvancedFilters);
   };
 
-  const buildAnalyticsQueryParams = (extra = {}) => {
-    const queryParams = { ...resolvedSearchParams };
-    delete queryParams.thread_id;
-    delete queryParams.sub_thread_id;
-    delete queryParams.batch_id;
-    delete queryParams.message_id;
-    if (!queryParams.tool_id) delete queryParams.tool_id;
-    if (!queryParams.model) delete queryParams.model;
-    if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
-    if (!queryParams.agent_id) delete queryParams.agent_id;
-    if (!queryParams.interval) delete queryParams.interval;
-    if (!queryParams.feedback || queryParams.feedback === "all") delete queryParams.feedback;
-
-    if (queryParams.start) queryParams.start_date = queryParams.start;
-    if (queryParams.end) queryParams.end_date = queryParams.end;
-    if (!queryParams.start && !queryParams.end) {
-      queryParams.range = queryParams.range || "30d";
-    }
-    queryParams.version = selectedVersion;
-
-    const activeFilterBy = {};
-    if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
-    if (filterByFields.sub_thread_id?.trim()) activeFilterBy.sub_thread_id = filterByFields.sub_thread_id.trim();
-    if (filterByFields.message_id?.trim()) activeFilterBy.message_id = filterByFields.message_id.trim();
-    if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
-    if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
-    if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
-    if (filterVariableKey.trim() && filterVariableValue.trim()) {
-      activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
-    } else if (filterVariableValue.trim()) {
-      activeFilterBy.variables = filterVariableValue.trim();
-    }
-    if (Object.keys(activeFilterBy).length > 0) {
-      queryParams.filter_by = activeFilterBy;
-    }
-
-    return { ...queryParams, ...extra };
-  };
+  const buildAnalyticsQueryParamsForFetch = (extra = {}) => getAnalyticsQueryParams(extra);
 
   const fetchMoreData = async () => {
-    if (!hasMore || loading) return;
+    if (!hasMore || analyticsLoading) return;
     const nextPage = page + 1;
-    const queryParams = buildAnalyticsQueryParams({ page: nextPage });
+    const queryParams = buildAnalyticsQueryParamsForFetch({ page: nextPage });
     await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
     setPage(nextPage);
   };
 
-  const handleSearch = async (query) => {
-    setSearchQuery(query);
-    setPage(1);
-    setLoading(true);
-    const queryParams = buildAnalyticsQueryParams({ keyword: query, page: 1 });
-    await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
-    setLoading(false);
-  };
+  const handleSearch = useCallback(
+    (query) => {
+      const trimmed = (query || "").trim();
+      setSearchQuery(trimmed);
+      const url = new URL(window.location.href);
+      if (trimmed) url.searchParams.set("keyword", trimmed);
+      else url.searchParams.delete("keyword");
+      router.replace(url.pathname + url.search);
+    },
+    [router]
+  );
 
   const threadHandler = useCallback(
     async (thread_id, item, value) => {
@@ -395,6 +418,9 @@ function Page({ params, searchParams }) {
       const error = search.get("error") || "";
       const tool_id = search.get("tool_id") || "";
       const model = search.get("model") || "";
+      const review_failed = search.get("review_failed") || "";
+      const agent_id = search.get("agent_id") || "";
+      const knowledgebase_id = search.get("knowledgebase_id") || "";
 
       const encodedThreadId = encodeURIComponent(thread_id.replace(/&/g, "%26"));
       const firstSubThreadId = item?.sub_thread?.[0]?.sub_thread_id || thread_id;
@@ -409,6 +435,9 @@ function Page({ params, searchParams }) {
       if (error) paramsObj.set("error", error);
       if (tool_id) paramsObj.set("tool_id", tool_id);
       if (model) paramsObj.set("model", model);
+      if (review_failed) paramsObj.set("review_failed", review_failed);
+      if (agent_id) paramsObj.set("agent_id", agent_id);
+      if (knowledgebase_id) paramsObj.set("knowledgebase_id", knowledgebase_id);
       paramsObj.set("thread_id", encodedThreadId);
       paramsObj.set("subThread_id", encodedSubThreadId);
 
@@ -443,6 +472,9 @@ function Page({ params, searchParams }) {
       const error = search.get("error") || "";
       const tool_id = search.get("tool_id") || "";
       const model = search.get("model") || "";
+      const review_failed = search.get("review_failed") || "";
+      const agent_id = search.get("agent_id") || "";
+      const knowledgebase_id = search.get("knowledgebase_id") || "";
       const threadId = search.get("thread_id") || "";
 
       const paramsObj = new URLSearchParams();
@@ -454,6 +486,9 @@ function Page({ params, searchParams }) {
       if (error) paramsObj.set("error", error);
       if (tool_id) paramsObj.set("tool_id", tool_id);
       if (model) paramsObj.set("model", model);
+      if (review_failed) paramsObj.set("review_failed", review_failed);
+      if (agent_id) paramsObj.set("agent_id", agent_id);
+      if (knowledgebase_id) paramsObj.set("knowledgebase_id", knowledgebase_id);
       if (threadId) paramsObj.set("thread_id", threadId);
       paramsObj.set("subThread_id", encodeURIComponent(subThreadId.replace(/&/g, "%26")));
 
@@ -476,6 +511,9 @@ function Page({ params, searchParams }) {
     const error = search.get("error") || "";
     const tool_id = search.get("tool_id") || "";
     const model = search.get("model") || "";
+    const review_failed = search.get("review_failed") || "";
+    const agent_id = search.get("agent_id") || "";
+    const knowledgebase_id = search.get("knowledgebase_id") || "";
 
     const paramsObj = new URLSearchParams();
     if (start) paramsObj.set("start", start);
@@ -486,6 +524,9 @@ function Page({ params, searchParams }) {
     if (error) paramsObj.set("error", error);
     if (tool_id) paramsObj.set("tool_id", tool_id);
     if (model) paramsObj.set("model", model);
+    if (review_failed) paramsObj.set("review_failed", review_failed);
+    if (agent_id) paramsObj.set("agent_id", agent_id);
+    if (knowledgebase_id) paramsObj.set("knowledgebase_id", knowledgebase_id);
 
     router.push(`${pathName}?${paramsObj.toString()}`, undefined, { shallow: true });
   }, [pathName, router, search]);
@@ -510,6 +551,7 @@ function Page({ params, searchParams }) {
     const newInterval = updates.interval !== undefined ? updates.interval : filterInterval;
     const newFeedback = updates.feedback !== undefined ? updates.feedback : filterFeedback;
     const newError = updates.error !== undefined ? updates.error : filterError;
+    const newReviewFailed = updates.review_failed !== undefined ? updates.review_failed : filterReviewFailed;
     const newTool = updates.tool_id !== undefined ? updates.tool_id : filterTool;
     const newModel = updates.model !== undefined ? updates.model : filterModel;
     const newKnowledgeBase = updates.knowledgebase_id !== undefined ? updates.knowledgebase_id : filterKnowledgeBase;
@@ -533,17 +575,26 @@ function Page({ params, searchParams }) {
     if (newError) currentUrl.searchParams.set("error", "true");
     else currentUrl.searchParams.delete("error");
 
-    if (newTool) currentUrl.searchParams.set("tool_id", newTool);
+    if (newReviewFailed) currentUrl.searchParams.set("review_failed", "true");
+    else currentUrl.searchParams.delete("review_failed");
+
+    if (newTool && newTool.length) currentUrl.searchParams.set("tool_id", newTool.join(","));
     else currentUrl.searchParams.delete("tool_id");
 
-    if (newModel) currentUrl.searchParams.set("model", newModel);
+    if (newModel && newModel.length) currentUrl.searchParams.set("model", newModel.join(","));
     else currentUrl.searchParams.delete("model");
 
-    if (newKnowledgeBase) currentUrl.searchParams.set("knowledgebase_id", newKnowledgeBase);
+    if (newKnowledgeBase && newKnowledgeBase.length) currentUrl.searchParams.set("knowledgebase_id", newKnowledgeBase.join(","));
     else currentUrl.searchParams.delete("knowledgebase_id");
 
-    if (newAgent) currentUrl.searchParams.set("agent_id", newAgent);
+    if (newAgent && newAgent.length) currentUrl.searchParams.set("agent_id", newAgent.join(","));
     else currentUrl.searchParams.delete("agent_id");
+
+    // Remove thread selection params so sidebar doesn't auto-expand and no thread_id leaks to API
+    currentUrl.searchParams.delete("thread_id");
+    currentUrl.searchParams.delete("subThread_id");
+    currentUrl.searchParams.delete("message_id");
+    currentUrl.searchParams.delete("batch_id");
 
     router.push(currentUrl.pathname + currentUrl.search);
   };
@@ -555,15 +606,23 @@ function Page({ params, searchParams }) {
     setFilterInterval("");
     setFilterFeedback("all");
     setFilterError(false);
-    setFilterTool("");
-    setFilterModel("");
-    setFilterKnowledgeBase("");
-    setFilterAgent("");
+    setFilterReviewFailed(false);
+    setFilterTool([]);
+    setFilterModel([]);
+    setFilterKnowledgeBase([]);
+    setFilterAgent([]);
     setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
     setFilterVariableKey("");
     setFilterVariableValue("");
     dispatch(setSelectedVersion("all"));
     setIsCustomOpen(false);
+
+    const emptyAdvancedFilters = {
+      filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
+      filterVariableKey: "",
+      filterVariableValue: "",
+    };
+    setAppliedAdvancedFilters(emptyAdvancedFilters);
 
     const currentUrl = new URL(window.location);
     currentUrl.searchParams.delete("start");
@@ -576,6 +635,15 @@ function Page({ params, searchParams }) {
     currentUrl.searchParams.delete("model");
     currentUrl.searchParams.delete("knowledgebase_id");
     currentUrl.searchParams.delete("agent_id");
+    currentUrl.searchParams.delete("review_failed");
+    currentUrl.searchParams.delete("keyword");
+
+    // Remove thread selection params so sidebar doesn't auto-expand
+    currentUrl.searchParams.delete("thread_id");
+    currentUrl.searchParams.delete("subThread_id");
+    currentUrl.searchParams.delete("message_id");
+    currentUrl.searchParams.delete("batch_id");
+
     router.push(currentUrl.pathname + currentUrl.search);
 
     if (document.activeElement) {
@@ -628,7 +696,7 @@ function Page({ params, searchParams }) {
           {/* Filters Container */}
           <div className="bg-base-100 border border-base-300 rounded-lg  mb-8 shadow-sm">
             {/* Row 1: Time Range, Interval, Feedback, Error, Advance Toggle */}
-            <div className="flex items-center gap-4 px-4 py-2.5 flex-wrap">
+            <div className="flex items-center gap-4 px-4 py-1.5 flex-wrap">
               {/* Time Range */}
               <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase shrink-0">
                 Time Range
@@ -673,7 +741,7 @@ function Page({ params, searchParams }) {
                     Custom
                   </button>
                   {isCustomOpen && (
-                    <div className="absolute left-0 z-50 menu p-4 shadow-xl border border-base-300 bg-base-100 rounded-box w-80 mt-2">
+                    <div className="absolute left-0 z-50 menu p-4 shadow-xl border border-base-300 bg-base-100 rounded-box w-80 ">
                       <h3 className="font-semibold text-sm mb-4 text-base-content">Custom Date Range</h3>
 
                       <div className="space-y-4">
@@ -794,23 +862,41 @@ function Page({ params, searchParams }) {
                 ))}
               </div>
 
-              <div className="w-px h-4 bg-base-300 shrink-0"></div>
-
-              {/* Error Toggle */}
-              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+              {/* Reviewer Failures Toggle */}
+              <label className={`flex items-center gap-2 cursor-pointer shrink-0 px-3 py-1.5 rounded-full transition-colors ${
+                filterReviewFailed
+                  ? "bg-[#FD9900] text-white border border-[#FD9900]"
+                  : "border border-base-200"
+              }`}>
                 <input
                   type="checkbox"
-                  className="toggle toggle-sm"
+                  className={`toggle toggle-sm scale-75 origin-center ${filterReviewFailed ? "toggle-warning" : ""}`}
+                  checked={filterReviewFailed}
+                  onChange={(e) => {
+                    setFilterReviewFailed(e.target.checked);
+                    applyFilters({ review_failed: e.target.checked });
+                  }}
+                />
+                <span className={`text-xs font-medium ${filterReviewFailed ? "text-white" : "text-base-content/70"}`}>Reviewer Failures</span>
+              </label>
+
+              {/* Error Toggle */}
+              <label className={`flex items-center gap-2 cursor-pointer shrink-0 px-3 py-1.5 rounded-full transition-colors ${
+                filterError
+                  ? "bg-[#FA2C36] text-white border border-[#FA2C36]"
+                  : "border border-base-200"
+              }`}>
+                <input
+                  type="checkbox"
+                  className={`toggle toggle-sm scale-75 origin-center ${filterError ? "toggle-error" : ""}`}
                   checked={filterError}
                   onChange={(e) => {
                     setFilterError(e.target.checked);
                     applyFilters({ error: e.target.checked });
                   }}
                 />
-                <span className="text-xs font-medium text-base-content/70">Error History</span>
+                <span className={`text-xs font-medium ${filterError ? "text-white" : "text-base-content/70"}`}>Error History</span>
               </label>
-
-              <div className="w-px h-4 bg-base-300 shrink-0"></div>
 
               {/* Advance Filter Toggle */}
               <button
@@ -819,228 +905,195 @@ function Page({ params, searchParams }) {
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border ${
                   isAdvanceFilterOpen
                     ? "bg-primary/10 text-primary border-primary/30 dark:bg-primary/20 dark:border-primary/40"
-                    : "bg-base-100 text-base-content/70 border-base-300 hover:bg-primary/5 hover:text-primary hover:border-primary/40 dark:bg-base-100 dark:hover:bg-primary/10 dark:hover:text-primary"
+                    : "bg-base-100 text-base-content/70 border-base-200 hover:bg-primary/5 hover:text-primary hover:border-primary/40 dark:bg-base-100 dark:hover:bg-primary/10 dark:hover:text-primary"
                 }`}
               >
                 <Filter className="w-4 h-4" />
                 Search by Fields
                 <ChevronDown className={`w-4 h-4 transition-transform ${isAdvanceFilterOpen ? "rotate-180" : ""}`} />
               </button>
+
+              {hasAnyFilter && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 border bg-red-50 text-red-600 border-red-200 hover:bg-red-100 hover:border-red-300 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/30"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear All
+                </button>
+              )}
             </div>
 
             {/* Row 2: Advance Filters (expandable inside same container) */}
             <div
-              className={`overflow-hidden px-4 transition-all duration-300 ${
+              className={`overflow-hidden px-4 pt-2 transition-all duration-300 ${
                 isAdvanceFilterOpen
-                  ? "max-h-[600px] opacity-100 mt-3 pt-3 pb-3 rounded-lg border-base-300 bg-base-200/50 space-y-4"
+                  ? "max-h-[600px] opacity-100  pt-3 pb-3 border-t border-base-200 dark:border-t-base-200 bg-[#F8FAFC] dark:bg-base-200/50 space-y-4"
                   : "max-h-0 opacity-0"
               }`}
             >
-              {/* Tool, Model, Knowledge Base & Agent badges */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-4 ">
-                  {/* Tool Column */}
-                  <div>
-                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Tool</span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          const val = "";
-                          setFilterTool(val);
-                          applyFilters({ tool_id: val });
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          filterTool === ""
-                            ? "bg-blue-500 text-white"
-                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                        }`}
-                      >
-                        All
-                      </button>
-                      {(showAllTools
-                        ? Object.entries(filterOptions.tools_data)
-                        : Object.entries(filterOptions.tools_data).slice(0, 4)
-                      ).map(([name, id]) => (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            const val = filterTool === id ? "" : id;
-                            setFilterTool(val);
-                            applyFilters({ tool_id: val });
-                          }}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            filterTool === id
-                              ? "bg-blue-500 text-white"
-                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                          }`}
-                          title={name}
-                        >
-                          {name.length > 20 ? name.slice(0, 20) + "..." : name}
-                        </button>
-                      ))}
-                      {Object.entries(filterOptions.tools_data).length > 4 && (
-                        <button
-                          onClick={() => setShowAllTools(!showAllTools)}
-                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
-                        >
-                          {showAllTools ? "Less" : `+${Object.entries(filterOptions.tools_data).length - 4} More`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {/* Model Column */}
-                  <div>
-                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Model</span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          const val = "";
-                          setFilterModel(val);
-                          applyFilters({ model: val });
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          filterModel === ""
-                            ? "bg-blue-500 text-white"
-                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                        }`}
-                      >
-                        All
-                      </button>
-                      {(showAllModels
-                        ? Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
-                            models.map((m) => ({ service, model: m }))
-                          )
-                        : Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
-                            models.map((m) => ({ service, model: m }))
-                          ).slice(0, 4)
-                      ).map(({ service, model: m }) => (
-                        <button
-                          key={`${service}-${m}`}
-                          onClick={() => {
-                            const val = filterModel === m ? "" : m;
-                            setFilterModel(val);
-                            applyFilters({ model: val });
-                          }}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            filterModel === m
-                              ? "bg-blue-500 text-white"
-                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                          }`}
-                        >
-                          {m}
-                        </button>
-                      ))}
-                      {Object.entries(filterOptions.unique_model).flatMap(([service, models]) => models.map((m) => m)).length > 4 && (
-                        <button
-                          onClick={() => setShowAllModels(!showAllModels)}
-                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
-                        >
-                          {showAllModels ? "Less" : `+${Object.entries(filterOptions.unique_model).flatMap(([service, models]) => models.map((m) => m)).length - 4} More`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {/* Knowledge Base Column */}
-                  <div>
-                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Knowledge Base</span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          const val = "";
-                          setFilterKnowledgeBase(val);
-                          applyFilters({ knowledgebase_id: val });
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          filterKnowledgeBase === ""
-                            ? "bg-blue-500 text-white"
-                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                        }`}
-                      >
-                        All
-                      </button>
-                      {(showAllKnowledgeBases
-                        ? Object.entries(filterOptions.knowledgebase_data)
-                        : Object.entries(filterOptions.knowledgebase_data).slice(0, 4)
-                      ).map(([name, id]) => (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            const val = filterKnowledgeBase === id ? "" : id;
-                            setFilterKnowledgeBase(val);
-                            applyFilters({ knowledgebase_id: val });
-                          }}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            filterKnowledgeBase === id
-                              ? "bg-blue-500 text-white"
-                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                          }`}
-                          title={name}
-                        >
-                          {name.length > 20 ? name.slice(0, 20) + "..." : name}
-                        </button>
-                      ))}
-                      {Object.entries(filterOptions.knowledgebase_data).length > 4 && (
-                        <button
-                          onClick={() => setShowAllKnowledgeBases(!showAllKnowledgeBases)}
-                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
-                        >
-                          {showAllKnowledgeBases ? "Less" : `+${Object.entries(filterOptions.knowledgebase_data).length - 4} More`}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {/* Agent Column */}
-                  <div>
-                    <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Agent</span>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          const val = "";
-                          setFilterAgent(val);
-                          applyFilters({ agent_id: val });
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          filterAgent === ""
-                            ? "bg-blue-500 text-white"
-                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                        }`}
-                      >
-                        All
-                      </button>
-                      {(showAllAgents
-                        ? Object.entries(filterOptions.agent_data)
-                        : Object.entries(filterOptions.agent_data).slice(0, 4)
-                      ).map(([name, id]) => (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            const val = filterAgent === id ? "" : id;
-                            setFilterAgent(val);
-                            applyFilters({ agent_id: val });
-                          }}
-                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                            filterAgent === id
-                              ? "bg-blue-500 text-white"
-                              : "bg-base-200 text-base-content/70 hover:bg-base-300"
-                          }`}
-                          title={name}
-                        >
-                          {name.length > 20 ? name.slice(0, 20) + "..." : name}
-                        </button>
-                      ))}
-                      {Object.entries(filterOptions.agent_data).length > 4 && (
-                        <button
-                          onClick={() => setShowAllAgents(!showAllAgents)}
-                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
-                        >
-                          {showAllAgents ? "Less" : `+${Object.entries(filterOptions.agent_data).length - 4} More`}
-                        </button>
-                      )}
-                    </div>
+              {/* Tool, Knowledge Base, Agent & Model badges */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 ">
+                {/* Col 1: Tool + Knowledge Base + Agent */}
+                <div>
+                  <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Tool</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* Single All button for Tool + KB + Agent */}
+                    <button
+                      onClick={() => {
+                        setFilterTool([]);
+                        setFilterKnowledgeBase([]);
+                        setFilterAgent([]);
+                        applyFilters({ tool_id: [], knowledgebase_id: [], agent_id: [] });
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        !filterTool.length && !filterKnowledgeBase.length && !filterAgent.length
+                          ? "bg-blue-500 text-white"
+                          : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                      }`}
+                    >
+                      All
+                    </button>
+
+                    {/* Combined Tool + KB + Agent badges */}
+                    {(() => {
+                      const allItems = [
+                        ...Object.entries(filterOptions.tools_data).map(([name, id]) => ({ type: "tool", name, id })),
+                        ...Object.entries(filterOptions.knowledgebase_data).map(([name, id]) => ({
+                          type: "kb",
+                          name: knowledgeBaseNameMap[id] || name,
+                          id,
+                        })),
+                        ...Object.entries(filterOptions.agent_data).map(([name, id]) => ({ type: "agent", name, id })),
+                      ];
+                      const isSelected = (item) => {
+                        if (item.type === "tool") return filterTool.includes(item.id);
+                        if (item.type === "kb") return filterKnowledgeBase.includes(item.id);
+                        return filterAgent.includes(item.id);
+                      };
+                      const toggle = (item) => {
+                        if (item.type === "tool") {
+                          const next = filterTool.includes(item.id)
+                            ? filterTool.filter((t) => t !== item.id)
+                            : [...filterTool, item.id];
+                          setFilterTool(next);
+                          applyFilters({ tool_id: next });
+                        } else if (item.type === "kb") {
+                          const next = filterKnowledgeBase.includes(item.id)
+                            ? filterKnowledgeBase.filter((k) => k !== item.id)
+                            : [...filterKnowledgeBase, item.id];
+                          setFilterKnowledgeBase(next);
+                          applyFilters({ knowledgebase_id: next });
+                        } else {
+                          const next = filterAgent.includes(item.id)
+                            ? filterAgent.filter((a) => a !== item.id)
+                            : [...filterAgent, item.id];
+                          setFilterAgent(next);
+                          applyFilters({ agent_id: next });
+                        }
+                      };
+                      const visibleItems = showAllToolGroup ? allItems : allItems.slice(0, 8);
+                      return (
+                        <>
+                          {visibleItems.map((item) => {
+                            const selected = isSelected(item);
+                            const iconColor = selected
+                              ? "text-white"
+                              : item.type === "tool"
+                                ? "text-amber-500"
+                                : item.type === "kb"
+                                  ? "text-emerald-500"
+                                  : "text-violet-500";
+                            return (
+                              <button
+                                key={`${item.type}-${item.id}`}
+                                onClick={() => toggle(item)}
+                                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex items-center gap-1 ${
+                                  selected
+                                    ? "bg-blue-500 text-white"
+                                    : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                                }`}
+                                title={item.name}
+                              >
+                                {item.type === "tool" && <Wrench className={`w-3 h-3 ${iconColor}`} />}
+                                {item.type === "kb" && <BookOpen className={`w-3 h-3 ${iconColor}`} />}
+                                {item.type === "agent" && <Bot className={`w-3 h-3 ${iconColor}`} />}
+                                {item.name.length > 18 ? item.name.slice(0, 18) + "..." : item.name}
+                              </button>
+                            );
+                          })}
+                          {allItems.length > 8 && (
+                            <button
+                              onClick={() => setShowAllToolGroup(!showAllToolGroup)}
+                              className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                            >
+                              {showAllToolGroup ? "Less" : `+${allItems.length - 8} More`}
+                            </button>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
+                {/* Col 2: Model */}
+                <div>
+                  <span className="text-[11px] font-bold tracking-widest text-base-content/40 uppercase block mb-1.5">Model</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => {
+                        setFilterModel([]);
+                        applyFilters({ model: [] });
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                        !filterModel.length
+                          ? "bg-blue-500 text-white"
+                          : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {(showAllModels
+                      ? Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
+                          models.map((m) => ({ service, model: m }))
+                        )
+                      : Object.entries(filterOptions.unique_model).flatMap(([service, models]) =>
+                          models.map((m) => ({ service, model: m }))
+                        ).slice(0, 4)
+                    ).map(({ service, model: m }) => (
+                      <button
+                        key={`${service}-${m}`}
+                        onClick={() => {
+                          const next = filterModel.includes(m)
+                            ? filterModel.filter((x) => x !== m)
+                            : [...filterModel, m];
+                          setFilterModel(next);
+                          applyFilters({ model: next });
+                        }}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                          filterModel.includes(m)
+                            ? "bg-blue-500 text-white"
+                            : "bg-base-200 text-base-content/70 hover:bg-base-300"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                    {Object.entries(filterOptions.unique_model).flatMap(([service, models]) => models.map((m) => m)).length > 4 && (
+                      <button
+                        onClick={() => setShowAllModels(!showAllModels)}
+                        className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                      >
+                        {showAllModels ? "Less" : `+${Object.entries(filterOptions.unique_model).flatMap(([service, models]) => models.map((m) => m)).length - 4} More`}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
                 {/* Search by Fields */}
-                <div className="px-4">
+                <div className="">
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
                       { key: "thread_id", label: "Thread ID" },
@@ -1064,33 +1117,50 @@ function Page({ params, searchParams }) {
                       </div>
                     ))}
                     <div className="col-span-2 md:col-span-3">
-                      <label className="block text-xs font-medium text-base-content/70 mb-0.5">Variables</label>
                       <div className="flex gap-2">
-                        <input
-                          type="text"
-                          className="input input-sm rounded-lg input-bordered flex-1 text-xs"
-                          placeholder="key"
-                          value={filterVariableKey}
-                          onChange={(e) => setFilterVariableKey(e.target.value)}
-                        />
-                        <input
-                          type="text"
-                          className="input input-sm rounded-lg input-bordered flex-1 text-xs"
-                          placeholder="value"
-                          value={filterVariableValue}
-                          onChange={(e) => setFilterVariableValue(e.target.value)}
-                        />
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-base-content/70 mb-0.5">Variable Key</label>
+                          <input
+                            type="text"
+                            className="input input-sm rounded-lg input-bordered w-full text-xs"
+                            placeholder="key"
+                            value={filterVariableKey}
+                            onChange={(e) => setFilterVariableKey(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium text-base-content/70 mb-0.5">Variable Value</label>
+                          <input
+                            type="text"
+                            className="input input-sm rounded-lg input-bordered w-full text-xs"
+                            placeholder="value"
+                            value={filterVariableValue}
+                            onChange={(e) => setFilterVariableValue(e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-3">
                     <button
-                      className="px-5 py-1 rounded-lg text-sm font-medium border-2 border-base-300 text-base-content/60 hover:border-base-400 hover:text-base-content transition-colors"
+                      className="px-5 py-1 rounded-lg text-sm font-medium border border-base-200 text-base-content/70 hover:bg-primary/5 hover:text-primary hover:border-primary/40 dark:hover:bg-primary/10 dark:hover:text-primary transition-colors"
                       onClick={() => {
-                        setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
+                        const emptyFields = {
+                          thread_id: "",
+                          sub_thread_id: "",
+                          message_id: "",
+                          batch_id: "",
+                          user: "",
+                          llm_message: "",
+                        };
+                        setFilterByFields(emptyFields);
                         setFilterVariableKey("");
                         setFilterVariableValue("");
-                        dispatchAnalyticsWithAdvancedFilters();
+                        dispatchAnalyticsWithAdvancedFilters({
+                          filterByFields: emptyFields,
+                          filterVariableKey: "",
+                          filterVariableValue: "",
+                        });
                       }}
                     >
                       Reset Fields
@@ -1099,7 +1169,11 @@ function Page({ params, searchParams }) {
                       className="px-5 py-1   rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-lg"
                       onClick={() => {
                         if (document.activeElement) document.activeElement.blur();
-                        dispatchAnalyticsWithAdvancedFilters();
+                        dispatchAnalyticsWithAdvancedFilters({
+                          filterByFields,
+                          filterVariableKey,
+                          filterVariableValue,
+                        });
                       }}
                     >
                       Apply Filter
@@ -1364,15 +1438,22 @@ function Page({ params, searchParams }) {
       </div>
 
       {/* Right Sidebar */}
-      <div className="pr-4 h-full shrink-0 z-50 flex relative">
+      <div className="h-full shrink-0 z-50 flex relative">
         <Sidebar
           historyData={historyData}
           threadHandler={threadHandler}
           fetchMoreData={fetchMoreData}
           hasMore={hasMore}
-          loading={loading}
+          loading={analyticsLoading}
           params={resolvedParams}
-          searchParams={Object.fromEntries(search.entries())}
+          searchParams={(() => {
+            const p = Object.fromEntries(search.entries());
+            delete p.thread_id;
+            delete p.subThread_id;
+            delete p.message_id;
+            delete p.batch_id;
+            return p;
+          })()}
           setSearchMessageId={setSelectedBatchMessageId}
           setPage={setPage}
           setHasMore={() => {}}
@@ -1386,6 +1467,7 @@ function Page({ params, searchParams }) {
           activeFilterByRef={undefined}
           isAnalytics={true}
           handleSearch={handleSearch}
+          selectedThreadId={selectedThreadId}
         />
       </div>
 

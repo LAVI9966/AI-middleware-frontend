@@ -14,10 +14,13 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { useDispatch } from "react-redux";
 import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
 import { truncate } from "./AssistFile";
 import ToolsDataModal from "./ToolsDataModal";
 import { useCustomSelector } from "@/customHooks/customSelector";
+import { getHistoryAction } from "@/store/action/historyAction";
+import { getAgentAnalyticsAction } from "@/store/action/analyticsAction";
 import {
   getIconOfService,
   getToolName,
@@ -224,6 +227,7 @@ const ThreadItem = ({
   handleAddTestCase,
   setModalInput,
 }) => {
+  const dispatch = useDispatch();
   const { actualTheme } = useThemeManager();
   const isDark = actualTheme === "dark";
 
@@ -267,11 +271,18 @@ const ThreadItem = ({
         message_ids: [item.message_id],
       });
       toast.success("Rerun triggered successfully");
+      // Refresh sidebars on both history and analytics pages after a short delay
+      // so the backend has time to create the rerun thread
+      setTimeout(() => {
+        dispatch(getHistoryAction(item.bridge_id, 1, "all", false, "all"));
+        dispatch(getAgentAnalyticsAction(item.bridge_id, { analytics: true }, params?.org_id));
+      }, 2000);
     } catch {
     } finally {
       setIsRerunning(false);
     }
   };
+  const shouldShowRerun = thread?.length === 1 || index === thread?.length - 1;
 
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, setVariablesFilter] = useState("");
@@ -1171,6 +1182,18 @@ const ThreadItem = ({
     const showEdit = !item?.llm_urls?.length && !item?.fromRTLayer;
     return (
       <div className="mt-2 flex flex-wrap items-center justify-start gap-1.5">
+        {shouldShowRerun && (
+          <ThreadActionPill
+            testId="thread-item-rerun-button"
+            id="thread-item-rerun-button"
+            icon={RotateCcw}
+            onClick={handleRerun}
+            disabled={isRerunning || !publishedVersionId}
+            title={!publishedVersionId ? "No published version available" : "Rerun this message"}
+          >
+            {isRerunning ? "Running..." : "Rerun"}
+          </ThreadActionPill>
+        )}
         <ThreadActionPill
           id="thread-item-add-test-case-button"
           testId="thread-item-add-test-case-button"

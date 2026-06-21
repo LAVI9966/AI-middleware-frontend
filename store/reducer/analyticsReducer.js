@@ -18,7 +18,7 @@ export const analyticsSlice = createSlice({
       state.loading = false;
       const { bridge_id, ...rest } = action.payload;
       if (bridge_id) {
-        const newThreads = rest.threads || [];
+        const newThreads = rest.threads || rest.data || [];
         const isFirstPage = !rest.pagination || (rest.pagination?.page || 1) <= 1;
         if (isFirstPage) {
           // Replace threads on first page / filter change
@@ -70,6 +70,18 @@ export const analyticsSlice = createSlice({
         state.analyticsData = {};
       }
     },
+    addAnalyticsThread: (state, action) => {
+      const { bridge_id, thread } = action.payload;
+      if (!bridge_id || !thread?.thread_id) return;
+      if (!state.analyticsData[bridge_id]) {
+        state.analyticsData[bridge_id] = { threads: [] };
+      }
+      const existing = state.analyticsData[bridge_id].threads || [];
+      const idx = existing.findIndex((t) => t.thread_id === thread.thread_id);
+      if (idx === -1) {
+        state.analyticsData[bridge_id].threads = [thread, ...existing];
+      }
+    },
   },
 });
 
@@ -79,6 +91,7 @@ export const {
   fetchAnalyticsFailure,
   clearAnalyticsData,
   updateAnalyticsFromRtLayer,
+  addAnalyticsThread,
 } = analyticsSlice.actions;
 
 export default analyticsSlice.reducer;

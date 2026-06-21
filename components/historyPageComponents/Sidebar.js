@@ -79,6 +79,7 @@ const Sidebar = memo(
     activeFilterByRef,
     isAnalytics = false,
     handleSearch,
+    selectedThreadId,
   }) => {
     const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType } = useCustomSelector(
       (state) => ({
@@ -149,6 +150,13 @@ const Sidebar = memo(
       dispatch(clearThreadData());
       dispatch(clearRecursiveHistory());
       dispatch(setSelectedVersion(version));
+
+      if (isAnalytics) {
+        const url = new URL(window.location.href);
+        if (!version || version === "all") url.searchParams.delete("version");
+        else url.searchParams.set("version", version);
+        router.replace(url.pathname + url.search);
+      }
     };
 
     useEffect(() => {
@@ -163,6 +171,9 @@ const Sidebar = memo(
             version_id: selectedVersion,
           })
         );
+      } else {
+        setExpandedThreads([]);
+        dispatch(clearSubThreadData());
       }
     }, [searchParams?.thread_id, isErrorTrue, params.id, selectedVersion, dispatch]);
 
@@ -451,14 +462,14 @@ const Sidebar = memo(
 
     return (
       <div
-        className={`h-full flex flex-col text-xs bg-base-200 transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`h-full flex flex-col text-xs ${isAnalytics ? "bg-white dark:bg-base-200" : "bg-base-200"} transition-all duration-300 ease-in-out overflow-hidden ${
           isCollapsed
-            ? `w-[48px] min-w-[48px] max-w-[48px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 ${isAnalytics ? "mr-4" : "ml-4"}`
-            : `w-[280px] min-w-[280px] max-w-[280px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 relative ${isAnalytics ? "mr-4" : "ml-4"}`
+            ? `w-[48px] min-w-[48px] max-w-[48px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 ${isAnalytics ? "" : "ml-4"}`
+            : `w-[280px] min-w-[280px] max-w-[280px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 relative ${isAnalytics ? "" : "ml-4"}`
         }`}
       >
         {isCollapsed ? (
-          <div className="h-full flex flex-col justify-between items-center pt-3 pb-2 w-full bg-base-200">
+          <div className={`h-full flex flex-col justify-between items-center pt-3 pb-2 w-full ${isAnalytics ? "bg-white dark:bg-base-200" : "bg-base-200"}`}>
             {/* Top Toggle Button with Divider */}
             <div className="flex flex-col items-center w-full">
               <button
@@ -575,7 +586,7 @@ const Sidebar = memo(
                         </div>
                       </div>
 
-                      <div className="p-2 bg-base-100 w-full min-w-0">
+                      <div className={`p-2 w-full min-w-0 ${isAnalytics ? "bg-[#F8FAFC] dark:bg-base-100" : "bg-base-100"}`}>
                         <p className="text-center mb-2 text-xs font-medium">Search by Fields</p>
                         <p className="text-xs text-base-content/60 mb-2">
                           Fill in values for fields you want to search. Leave empty to skip that field.
@@ -668,7 +679,7 @@ const Sidebar = memo(
                 <select
                   data-testid="history-sidebar-version-select"
                   id="history-sidebar-version-select"
-                  className="select select-bordered select-sm w-full text-xs"
+                  className="select select-bordered select-sm rounded-lg w-full text-xs"
                   value={selectedVersion}
                   onChange={handleVersionChange}
                 >
@@ -705,7 +716,7 @@ const Sidebar = memo(
                   ref={searchRef}
                   placeholder="Search..."
                   onChange={(e) => handleChange(e)}
-                  className="input input-bordered input-sm w-full pr-6 text-xs"
+                  className="input input-bordered input-sm rounded-lg w-full pr-6 text-xs"
                 />
                 {searchQuery && (
                   <X
@@ -741,104 +752,153 @@ const Sidebar = memo(
                       const items = groupHistoryByDate(historyData)[dateGroup];
                       return (
                         <div key={dateGroup} className="mb-1">
-                          <div className="flex items-center gap-2 px-3 pt-1 pb-1 sticky top-0 bg-base-200 z-10">
+                          <div className={`flex items-center gap-2 px-3 pt-1 pb-1 sticky top-0 z-10 ${isAnalytics ? "bg-white dark:bg-base-200" : "bg-base-200"}`}>
                             <span className="text-[9px] font-bold uppercase tracking-widest text-base-content/50">
                               {dateGroup}
                             </span>
-                            <div className="flex-1 h-px bg-base-300" />
+                            <div className={`flex-1 h-px ${isAnalytics ? "bg-gray-200 dark:bg-base-300" : "bg-base-300"}`} />
                           </div>
-                          <ul className="menu min-h-full text-base-content flex flex-col space-y-2 px-2 pb-1">
+                          <ul className={`min-h-full text-base-content flex flex-col space-y-2 px-2 pb-1 ${!isAnalytics ? "menu" : ""}`}>
                             {items.map((item) => (
                               <div className="flex-col" key={item?.thread_id}>
                                 <div className="flex flex-col">
-                                  <li
-                                    data-testid={`history-sidebar-thread-${item?.thread_id}`}
-                                    id={`history-sidebar-thread-${item?.thread_id}`}
-                                    className={`${
-                                      decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                        ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary shadow-md"
-                                        : "hover:bg-base-300/50 transition-colors duration-200"
-                                    } flex-grow cursor-pointer group`}
-                                    onClick={() => {
-                                      const isCurrentlySelected =
-                                        decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
-
-                                      if (isCurrentlySelected && !searchQuery) {
-                                        // If thread is already selected and no search query, toggle dropdown
-                                        handleToggleThread(item?.thread_id);
-                                      } else {
-                                        // Otherwise, select the thread
-                                        dispatch(clearThreadData());
-                                        dispatch(clearRecursiveHistory());
-                                        threadHandler(item?.thread_id, item);
-                                      }
-                                    }}
-                                  >
-                                    <a className="w-full h-full flex flex-col relative px-2 py-1.5">
-                                      {bridgeType?.toLowerCase() === "chatbot" ||
-                                      bridgeType === "chatbot" ||
-                                      isAnalytics ? (
-                                        <div
-                                          className={`flex items-start gap-1 mb-1 w-full justify-between group ${
-                                            decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
-                                          }`}
-                                        >
+                                  {isAnalytics ? (
+                                    <div
+                                      data-testid={`history-sidebar-thread-${item?.thread_id}`}
+                                      id={`history-sidebar-thread-${item?.thread_id}`}
+                                      className={`flex-grow cursor-pointer group rounded-lg overflow-hidden transition-colors duration-200 ${
+                                        selectedThreadId === item?.thread_id
+                                          ? "bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40 dark:hover:text-base-100 dark:hover:bg-primary shadow-md"
+                                          : "hover:bg-base-300/50"
+                                      }`}
+                                      onClick={() => {
+                                        const isCurrentlySelected = selectedThreadId === item?.thread_id;
+                                        if (isCurrentlySelected && !searchQuery) {
+                                          handleToggleThread(item?.thread_id);
+                                        } else {
+                                          dispatch(clearThreadData());
+                                          dispatch(clearRecursiveHistory());
+                                          threadHandler(item?.thread_id, item);
+                                        }
+                                      }}
+                                    >
+                                      <div className="w-full h-full flex items-center justify-between relative px-2 py-1.5 gap-2">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
                                           <p
                                             className={`text-xs truncate ${
-                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-100"
+                                              selectedThreadId === item?.thread_id
+                                                ? "text-blue-900 dark:text-base-100"
                                                 : "text-base-content"
                                             }`}
                                           >
                                             {truncate(item?.thread_id, 22)}
                                           </p>
-                                          <span
-                                            className={`text-xs whitespace-nowrap group-hover:hidden ${
-                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-100"
-                                                : "text-base-content"
-                                            }`}
-                                          >
-                                            {formatRelativeTime(item?.updated_at || item?.created_at)}
-                                          </span>
-                                          <span
-                                            className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
-                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-100"
-                                                : "text-base-content"
-                                            }`}
-                                          >
-                                            {formatDate(item?.updated_at || item?.created_at)}
-                                          </span>
                                         </div>
-                                      ) : (
-                                        <div
-                                          className={`flex items-start gap-1 mb-1 w-full group ${
-                                            decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
+                                        <span
+                                          className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                            selectedThreadId === item?.thread_id
+                                              ? "text-blue-900/70 dark:text-base-100/70"
+                                              : "text-base-content/60"
                                           }`}
                                         >
-                                          <span
-                                            className={`text-xs whitespace-nowrap group-hover:hidden ${
-                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-100"
-                                                : "text-base-content"
+                                          {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                        </span>
+                                        <span
+                                          className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
+                                            selectedThreadId === item?.thread_id
+                                              ? "text-blue-900/70 dark:text-base-100/70"
+                                              : "text-base-content/60"
+                                          }`}
+                                        >
+                                          {formatDate(item?.updated_at || item?.created_at)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <li
+                                      data-testid={`history-sidebar-thread-${item?.thread_id}`}
+                                      id={`history-sidebar-thread-${item?.thread_id}`}
+                                      className={`${
+                                        decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                          ? "text-base-100 bg-primary hover:text-base-100 hover:bg-primary shadow-md"
+                                          : "hover:bg-base-300/50 transition-colors duration-200"
+                                      } flex-grow cursor-pointer group`}
+                                      onClick={() => {
+                                        const isCurrentlySelected = decodeURIComponent(searchParams?.thread_id) === item?.thread_id;
+                                        if (isCurrentlySelected && !searchQuery) {
+                                          handleToggleThread(item?.thread_id);
+                                        } else {
+                                          dispatch(clearThreadData());
+                                          dispatch(clearRecursiveHistory());
+                                          threadHandler(item?.thread_id, item);
+                                        }
+                                      }}
+                                    >
+                                      <a className="w-full h-full flex flex-col relative px-2 py-1.5">
+                                        {bridgeType?.toLowerCase() === "chatbot" ||
+                                        bridgeType === "chatbot" ? (
+                                          <div
+                                            className={`flex items-start gap-1 mb-1 w-full justify-between group ${
+                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
                                             }`}
                                           >
-                                            {formatRelativeTime(item?.updated_at || item?.created_at)}
-                                          </span>
-                                          <span
-                                            className={`text-xs whitespace-nowrap group-hover:inline ${
-                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id
-                                                ? "text-base-100"
-                                                : "text-base-content"
+                                            <p
+                                              className={`text-xs truncate ${
+                                                decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                                  ? "text-base-100"
+                                                  : "text-base-content"
+                                              }`}
+                                            >
+                                              {truncate(item?.thread_id, 22)}
+                                            </p>
+                                            <span
+                                              className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                                decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                                  ? "text-base-100"
+                                                  : "text-base-content"
+                                              }`}
+                                            >
+                                              {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                            </span>
+                                            <span
+                                              className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
+                                                decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                                  ? "text-base-100"
+                                                  : "text-base-content"
+                                              }`}
+                                            >
+                                              {formatDate(item?.updated_at || item?.created_at)}
+                                            </span>
+                                          </div>
+                                        ) : (
+                                          <div
+                                            className={`flex items-start gap-1 mb-1 w-full group ${
+                                              decodeURIComponent(searchParams?.thread_id) === item?.thread_id ? "" : ""
                                             }`}
                                           >
-                                            {formatDate(item?.updated_at || item?.created_at)}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </a>
-                                  </li>
+                                            <span
+                                              className={`text-xs whitespace-nowrap group-hover:hidden ${
+                                                decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                                  ? "text-base-100"
+                                                  : "text-base-content"
+                                              }`}
+                                            >
+                                              {formatRelativeTime(item?.updated_at || item?.created_at)}
+                                            </span>
+                                            <span
+                                              className={`text-xs whitespace-nowrap group-hover:inline ${
+                                                decodeURIComponent(searchParams?.thread_id) === item?.thread_id
+                                                  ? "text-base-100"
+                                                  : "text-base-content"
+                                              }`}
+                                            >
+                                              {formatDate(item?.updated_at || item?.created_at)}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </a>
+                                    </li>
+                                  )}
                                   {decodeURIComponent(searchParams?.thread_id) === item?.thread_id && (
                                     <div className="space-y-3">
                                       <div key={item.id} className="shadow-sm bg-base-100 overflow-hidden">
