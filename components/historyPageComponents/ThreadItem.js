@@ -224,6 +224,7 @@ const ThreadItem = ({
   threadRefs,
   searchMessageId,
   setSearchMessageId,
+  keepSearchMessageIdAfterHighlight = false,
   handleAddTestCase,
   setModalInput,
 }) => {
@@ -617,9 +618,11 @@ const ThreadItem = ({
       setTimeout(() => {
         messageElement.classList.remove("bg-base-300", "rounded-md");
       }, 2000);
-      setSearchMessageId(null);
+      if (!keepSearchMessageIdAfterHighlight) {
+        setSearchMessageId(null);
+      }
     }
-  }, [messageId, searchMessageId, threadRefs, setSearchMessageId]);
+  }, [messageId, searchMessageId, threadRefs, setSearchMessageId, keepSearchMessageIdAfterHighlight]);
 
   useEffect(() => {
     return () => {

@@ -148,6 +148,9 @@ function Page({ params, searchParams }) {
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [selectedSubThreadId, setSelectedSubThreadId] = useState(null);
   const [selectedBatchMessageId, setSelectedBatchMessageId] = useState(null);
+  const [searchMessageId, setSearchMessageId] = useState(null);
+  const [sidebarExpandedThreadId, setSidebarExpandedThreadId] = useState(null);
+  const [sidebarExpandedSubThreadId, setSidebarExpandedSubThreadId] = useState(null);
   const [isSliderOpen, setIsSliderOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [executionChartType, setExecutionChartType] = useState("area");
@@ -244,15 +247,18 @@ function Page({ params, searchParams }) {
   // Derive sidebar thread list from analytics API response threads
   const historyData = useMemo(() => {
     const threads = analyticsData?.threads || [];
-    // Transform analytics thread shape to history thread shape expected by Sidebar
-    const mapped = threads.map((t) => ({
+    // Preserve keyword-search payload (message + sub_thread.messages) from the API.
+    return threads.map((t) => ({
       ...t,
       thread_id: t.thread_id,
       updated_at: t.updated_at,
-      // Sidebar expects sub_thread array; analytics gives flat sub_thread_id
-      sub_thread: t.sub_thread_id ? [{ sub_thread_id: t.sub_thread_id }] : [],
+      message: Array.isArray(t.message) ? t.message : [],
+      sub_thread: Array.isArray(t.sub_thread)
+        ? t.sub_thread
+        : t.sub_thread_id
+          ? [{ sub_thread_id: t.sub_thread_id }]
+          : [],
     }));
-    return mapped;
   }, [analyticsData?.threads]);
 
   const summary = analyticsData?.summary || {};
@@ -321,16 +327,26 @@ function Page({ params, searchParams }) {
     };
   }, [dispatch]);
 
-  // Clear stale thread slider params from URL on mount so no thread looks selected
+  // Never restore thread/slider state from URL on load or refresh — manual click only.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.has("thread_id") || p.has("subThread_id") || p.has("message_id") || p.has("batch_id")) {
-      p.delete("thread_id");
-      p.delete("subThread_id");
-      p.delete("message_id");
-      p.delete("batch_id");
+    const uiKeys = ["thread_id", "subThread_id", "message_id", "batch_id"];
+    let dirty = false;
+    uiKeys.forEach((key) => {
+      if (p.has(key)) {
+        p.delete(key);
+        dirty = true;
+      }
+    });
+    if (dirty) {
       router.replace(`${pathName}?${p.toString()}`, undefined, { shallow: true });
     }
+    setSelectedThreadId(null);
+    setSelectedSubThreadId(null);
+    setSelectedBatchMessageId(null);
+    setSidebarExpandedThreadId(null);
+    setSidebarExpandedSubThreadId(null);
+    setIsSliderOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -364,6 +380,14 @@ function Page({ params, searchParams }) {
     [search, selectedVersion, appliedAdvancedFilters]
   );
 
+  const analyticsUrlKey = useMemo(() => {
+    const params = new URLSearchParams(search.toString());
+    ["thread_id", "subThread_id", "sub_thread_id", "batch_id", "message_id"].forEach((key) => {
+      params.delete(key);
+    });
+    return params.toString();
+  }, [search]);
+
   // Fetch agent analytics (with a 1-second delay on refresh/initial mount, and immediately on subsequent updates)
   useEffect(() => {
     if (!resolvedParams?.id) return;
@@ -379,7 +403,7 @@ function Page({ params, searchParams }) {
       return () => clearTimeout(timer);
     }
     dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
-  }, [resolvedParams?.id, resolvedParams?.org_id, search.toString(), selectedVersion, appliedAdvancedFilters, dispatch, getAnalyticsQueryParams]);
+  }, [resolvedParams?.id, resolvedParams?.org_id, analyticsUrlKey, selectedVersion, appliedAdvancedFilters, dispatch, getAnalyticsQueryParams]);
 
   const dispatchAnalyticsWithAdvancedFilters = (nextAdvancedFilters) => {
     if (!resolvedParams?.id) return;
@@ -401,49 +425,45 @@ function Page({ params, searchParams }) {
       const trimmed = (query || "").trim();
       setSearchQuery(trimmed);
       const url = new URL(window.location.href);
-      if (trimmed) url.searchParams.set("keyword", trimmed);
-      else url.searchParams.delete("keyword");
+      if (trimmed) {
+        url.searchParams.set("keyword", trimmed);
+      } else {
+        url.searchParams.delete("keyword");
+      }
+      url.searchParams.delete("thread_id");
+      url.searchParams.delete("subThread_id");
+      url.searchParams.delete("message_id");
+      url.searchParams.delete("batch_id");
+      setSelectedThreadId(null);
+      setSelectedSubThreadId(null);
+      setSelectedBatchMessageId(null);
+      setSearchMessageId(null);
+      setSidebarExpandedThreadId(null);
+      setSidebarExpandedSubThreadId(null);
+      setIsSliderOpen(false);
       router.replace(url.pathname + url.search);
     },
     [router]
   );
 
+  const handleAnalyticsSidebarSelect = useCallback((threadId, subThreadId) => {
+    setSidebarExpandedThreadId(threadId);
+    setSidebarExpandedSubThreadId(subThreadId);
+  }, []);
+
   const threadHandler = useCallback(
-    async (thread_id, item, value) => {
-      const start = search.get("start") || "";
-      const end = search.get("end") || "";
-      const range = search.get("range") || "";
-      const interval = search.get("interval") || "";
-      const feedback = search.get("feedback") || "";
-      const error = search.get("error") || "";
-      const tool_id = search.get("tool_id") || "";
-      const model = search.get("model") || "";
-      const review_failed = search.get("review_failed") || "";
-      const agent_id = search.get("agent_id") || "";
-      const knowledgebase_id = search.get("knowledgebase_id") || "";
-
-      const encodedThreadId = encodeURIComponent(thread_id.replace(/&/g, "%26"));
-      const firstSubThreadId = item?.sub_thread?.[0]?.sub_thread_id || thread_id;
-      const encodedSubThreadId = encodeURIComponent(firstSubThreadId.replace(/&/g, "%26"));
-
-      const paramsObj = new URLSearchParams();
-      if (start) paramsObj.set("start", start);
-      if (end) paramsObj.set("end", end);
-      if (range) paramsObj.set("range", range);
-      if (interval) paramsObj.set("interval", interval);
-      if (feedback) paramsObj.set("feedback", feedback);
-      if (error) paramsObj.set("error", error);
-      if (tool_id) paramsObj.set("tool_id", tool_id);
-      if (model) paramsObj.set("model", model);
-      if (review_failed) paramsObj.set("review_failed", review_failed);
-      if (agent_id) paramsObj.set("agent_id", agent_id);
-      if (knowledgebase_id) paramsObj.set("knowledgebase_id", knowledgebase_id);
-      paramsObj.set("thread_id", encodedThreadId);
-      paramsObj.set("subThread_id", encodedSubThreadId);
+    async (thread_id, item, options = {}) => {
+      const opts = options && typeof options === "object" ? options : {};
+      const firstSubThreadId =
+        opts.subThreadId || item?.sub_thread?.[0]?.sub_thread_id || item?.sub_thread_id || thread_id;
 
       setSelectedThreadId(thread_id);
       setSelectedSubThreadId(firstSubThreadId);
+      setSidebarExpandedThreadId(thread_id);
+      setSidebarExpandedSubThreadId(firstSubThreadId);
       setIsSliderOpen(true);
+      setSelectedBatchMessageId(null);
+
       dispatch(
         getThread({
           threadId: thread_id,
@@ -456,83 +476,79 @@ function Page({ params, searchParams }) {
         })
       );
 
-      router.push(`${pathName}?${paramsObj.toString()}`, undefined, { shallow: true });
+      const url = new URL(window.location.href);
+      url.searchParams.set("thread_id", encodeURIComponent(String(thread_id).replace(/&/g, "%26")));
+      url.searchParams.set("subThread_id", encodeURIComponent(String(firstSubThreadId).replace(/&/g, "%26")));
+      url.searchParams.delete("message_id");
+      url.searchParams.delete("batch_id");
+      router.push(url.pathname + url.search, undefined, { shallow: true });
     },
-    [pathName, router, search, resolvedParams.id, dispatch]
+    [router, resolvedParams.id, dispatch]
+  );
+
+  const handleAnalyticsMessageNavigate = useCallback(
+    (messageId) => {
+      const url = new URL(window.location.href);
+      if (messageId) url.searchParams.set("message_id", messageId);
+      else url.searchParams.delete("message_id");
+      router.push(url.pathname + url.search, undefined, { shallow: true });
+    },
+    [router]
   );
 
   const handleSelectSubThread = useCallback(
-    async (subThreadId) => {
+    async (subThreadId, threadIdOverride) => {
       setSelectedBatchMessageId(null);
-      const start = search.get("start") || "";
-      const end = search.get("end") || "";
-      const range = search.get("range") || "";
-      const interval = search.get("interval") || "";
-      const feedback = search.get("feedback") || "";
-      const error = search.get("error") || "";
-      const tool_id = search.get("tool_id") || "";
-      const model = search.get("model") || "";
-      const review_failed = search.get("review_failed") || "";
-      const agent_id = search.get("agent_id") || "";
-      const knowledgebase_id = search.get("knowledgebase_id") || "";
-      const threadId = search.get("thread_id") || "";
+      setSearchMessageId(null);
+      const threadId = threadIdOverride || selectedThreadId || sidebarExpandedThreadId;
+      if (!threadId) return;
 
-      const paramsObj = new URLSearchParams();
-      if (start) paramsObj.set("start", start);
-      if (end) paramsObj.set("end", end);
-      if (range) paramsObj.set("range", range);
-      if (interval) paramsObj.set("interval", interval);
-      if (feedback) paramsObj.set("feedback", feedback);
-      if (error) paramsObj.set("error", error);
-      if (tool_id) paramsObj.set("tool_id", tool_id);
-      if (model) paramsObj.set("model", model);
-      if (review_failed) paramsObj.set("review_failed", review_failed);
-      if (agent_id) paramsObj.set("agent_id", agent_id);
-      if (knowledgebase_id) paramsObj.set("knowledgebase_id", knowledgebase_id);
-      if (threadId) paramsObj.set("thread_id", threadId);
-      paramsObj.set("subThread_id", encodeURIComponent(subThreadId.replace(/&/g, "%26")));
+      setSelectedThreadId(threadId);
+      setSelectedSubThreadId(subThreadId);
+      setSidebarExpandedThreadId(threadId);
+      setSidebarExpandedSubThreadId(subThreadId);
+      setIsSliderOpen(true);
 
-      router.push(`${pathName}?${paramsObj.toString()}`, undefined, { shallow: true });
+      dispatch(
+        getThread({
+          threadId,
+          bridgeId: resolvedParams.id,
+          nextPage: 1,
+          user_feedback: "all",
+          subThreadId,
+          versionId: "",
+          error: false,
+        })
+      );
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("thread_id", encodeURIComponent(String(threadId).replace(/&/g, "%26")));
+      url.searchParams.set("subThread_id", encodeURIComponent(String(subThreadId).replace(/&/g, "%26")));
+      url.searchParams.delete("message_id");
+      url.searchParams.delete("batch_id");
+      router.push(url.pathname + url.search, undefined, { shallow: true });
     },
-    [pathName, router, search]
+    [selectedThreadId, sidebarExpandedThreadId, resolvedParams.id, dispatch, router]
   );
 
   const handleCloseAside = useCallback(() => {
     setSelectedThreadId(null);
     setSelectedSubThreadId(null);
     setSelectedBatchMessageId(null);
+    setSearchMessageId(null);
     setIsSliderOpen(false);
 
-    const start = search.get("start") || "";
-    const end = search.get("end") || "";
-    const range = search.get("range") || "";
-    const interval = search.get("interval") || "";
-    const feedback = search.get("feedback") || "";
-    const error = search.get("error") || "";
-    const tool_id = search.get("tool_id") || "";
-    const model = search.get("model") || "";
-    const review_failed = search.get("review_failed") || "";
-    const agent_id = search.get("agent_id") || "";
-    const knowledgebase_id = search.get("knowledgebase_id") || "";
-
-    const paramsObj = new URLSearchParams();
-    if (start) paramsObj.set("start", start);
-    if (end) paramsObj.set("end", end);
-    if (range) paramsObj.set("range", range);
-    if (interval) paramsObj.set("interval", interval);
-    if (feedback) paramsObj.set("feedback", feedback);
-    if (error) paramsObj.set("error", error);
-    if (tool_id) paramsObj.set("tool_id", tool_id);
-    if (model) paramsObj.set("model", model);
-    if (review_failed) paramsObj.set("review_failed", review_failed);
-    if (agent_id) paramsObj.set("agent_id", agent_id);
-    if (knowledgebase_id) paramsObj.set("knowledgebase_id", knowledgebase_id);
-
-    router.push(`${pathName}?${paramsObj.toString()}`, undefined, { shallow: true });
-  }, [pathName, router, search]);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("thread_id");
+    url.searchParams.delete("subThread_id");
+    url.searchParams.delete("message_id");
+    url.searchParams.delete("batch_id");
+    router.push(url.pathname + url.search, undefined, { shallow: true });
+  }, [router]);
 
   const handleSelectBatch = useCallback((messageId) => {
-    setSelectedBatchMessageId(messageId);
+    setSearchMessageId(null);
+    setSelectedBatchMessageId((prev) => (prev === messageId ? null : messageId));
   }, []);
 
   const handleThreadItemClick = useCallback((thread_id, item, value) => {
@@ -1396,18 +1412,20 @@ function Page({ params, searchParams }) {
               <X size={16} className="text-base-content/60 hover:text-base-content" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             <ThreadContainer
               thread={
-                selectedBatchMessageId
+                selectedBatchMessageId && !searchMessageId
                   ? thread.filter((msg) => msg?.message_id === selectedBatchMessageId)
                   : thread
               }
               searchParamsHook={search}
               isFetchingMore={false}
               setIsFetchingMore={() => {}}
-              searchMessageId={null}
-              setSearchMessageId={() => {}}
+              searchMessageId={searchMessageId}
+              setSearchMessageId={setSearchMessageId}
+              keepSearchMessageId={true}
+              fillParent={true}
               pathName={pathName}
               search={search}
               historyData={historyData}
@@ -1454,7 +1472,9 @@ function Page({ params, searchParams }) {
             delete p.batch_id;
             return p;
           })()}
-          setSearchMessageId={setSelectedBatchMessageId}
+          setSearchMessageId={setSearchMessageId}
+          searchMessageId={searchMessageId}
+          onAnalyticsMessageNavigate={handleAnalyticsMessageNavigate}
           setPage={setPage}
           setHasMore={() => {}}
           filterOption={filterFeedback}
@@ -1468,6 +1488,10 @@ function Page({ params, searchParams }) {
           isAnalytics={true}
           handleSearch={handleSearch}
           selectedThreadId={selectedThreadId}
+          sidebarExpandedThreadId={sidebarExpandedThreadId}
+          sidebarExpandedSubThreadId={sidebarExpandedSubThreadId}
+          onAnalyticsSidebarSelect={handleAnalyticsSidebarSelect}
+          onAnalyticsSelectSubThread={handleSelectSubThread}
         />
       </div>
 

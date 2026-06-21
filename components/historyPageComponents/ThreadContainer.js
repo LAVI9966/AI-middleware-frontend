@@ -7,7 +7,7 @@ import { useDispatch } from "react-redux";
 import { CircleDownIcon } from "@/components/Icons";
 import ThreadItem from "./ThreadItem";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { scrollToBottom, scrollToTop } from "./AssistFile";
+import { scrollToBottom, scrollToTop, scrollElementIntoContainer } from "./AssistFile";
 import { getThread, updateContentHistory } from "@/store/action/historyAction";
 import { clearThreadData } from "@/store/reducer/historyReducer";
 import { useCustomSelector } from "@/customHooks/customSelector";
@@ -44,6 +44,8 @@ const ThreadContainer = ({
   selectedVersion,
   previousPrompt,
   isErrorTrue,
+  fillParent = false,
+  keepSearchMessageId = false,
 }) => {
   const routeParams = useParams();
   const orgId = routeParams?.org_id;
@@ -443,22 +445,33 @@ const ThreadContainer = ({
     return () => window.removeEventListener("message", handleEvent);
   }, []);
 
-  // Scroll to searched message
   const scrollToSearchedMessage = useCallback(
     async (messageId) => {
       if (!messageId || !historyRef.current) return;
 
-      const MAX_ATTEMPTS = threadMessageState?.totalPages || 1;
-      const DELAY_MS = 100;
+      const MAX_ATTEMPTS = Math.max(threadMessageState?.totalPages || 1, fillParent ? 30 : 15);
+      const DELAY_MS = fillParent ? 150 : 100;
+
+      // Wait for slide-panel animation + thread fetch only when content is not ready yet
+      if (fillParent && (!thread?.length || loadingData)) {
+        await new Promise((r) => setTimeout(r, 320));
+      }
 
       const findMessageAndScroll = async (attempt = 1) => {
-        const messageElement = threadRefs.current?.[messageId];
-        if (messageElement) {
-          messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+        const container = historyRef.current;
+        const messageElement =
+          threadRefs.current?.[messageId] || document.getElementById(`message-${messageId}`);
+
+        if (messageElement && container) {
+          if (threadRefs.current) threadRefs.current[messageId] = messageElement;
+          scrollElementIntoContainer(container, messageElement, "smooth");
           return;
         }
+
         if (attempt < MAX_ATTEMPTS) {
-          scrollToTop(historyRef, messageId);
+          if (flexDirection === "column-reverse") {
+            scrollToTop(historyRef, messageId);
+          }
           await new Promise((r) => setTimeout(r, DELAY_MS));
           await findMessageAndScroll(attempt + 1);
         }
@@ -466,18 +479,18 @@ const ThreadContainer = ({
 
       findMessageAndScroll();
     },
-    [threadMessageState?.totalPages]
+    [threadMessageState?.totalPages, fillParent, flexDirection, thread?.length, loadingData]
   );
 
   useEffect(() => {
     if (searchMessageId) scrollToSearchedMessage(searchMessageId);
-  }, [searchMessageId, scrollToSearchedMessage]);
+  }, [searchMessageId, scrollToSearchedMessage, thread?.length, loadingData]);
 
   return (
     <div
       data-testid="thread-container"
       id="thread-container"
-      className="flex-1 flex flex-col overflow-hidden h-[calc(100vh-2.5rem)] bg-history-page"
+      className={`flex-1 flex flex-col overflow-hidden bg-history-page ${fillParent ? "h-full min-h-0" : "h-[calc(100vh-2.5rem)]"}`}
     >
       <div className="w-full flex-1 flex flex-col min-h-0 relative bg-history-page">
         <div
@@ -525,6 +538,7 @@ const ThreadContainer = ({
                       threadRefs={threadRefs}
                       searchMessageId={searchMessageId}
                       setSearchMessageId={setSearchMessageId}
+                      keepSearchMessageIdAfterHighlight={keepSearchMessageId}
                       handleAddTestCase={handleAddTestCase}
                       setModalInput={setModalInput}
                       modalInput={modalInput}

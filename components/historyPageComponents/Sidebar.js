@@ -80,6 +80,12 @@ const Sidebar = memo(
     isAnalytics = false,
     handleSearch,
     selectedThreadId,
+    sidebarExpandedThreadId = null,
+    sidebarExpandedSubThreadId = null,
+    onAnalyticsSidebarSelect,
+    onAnalyticsSelectSubThread,
+    onAnalyticsMessageNavigate,
+    searchMessageId = null,
   }) => {
     const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType } = useCustomSelector(
       (state) => ({
@@ -102,12 +108,38 @@ const Sidebar = memo(
     const [filterByFields, setFilterByFields] = useState({ ...HISTORY_FILTER_BY_FIELDS, variables: {} });
     const [variableKey, setVariableKey] = useState("");
     const [variableValue, setVariableValue] = useState("");
-    const searchQuery = (searchRef?.current && searchRef.current.value) || searchParams?.message_id || "";
+    const searchQuery =
+      (searchRef?.current && searchRef.current.value) ||
+      searchParams?.keyword ||
+      searchParams?.message_id ||
+      "";
     const dispatch = useDispatch();
     const pathName = usePathname();
     const router = useRouter();
 
+    const isSidebarThreadActive = (threadId) => {
+      if (isAnalytics) {
+        if (searchQuery) return sidebarExpandedThreadId === threadId;
+        return selectedThreadId === threadId;
+      }
+      const fromParams = searchParams?.thread_id;
+      return fromParams ? decodeURIComponent(fromParams) === threadId : false;
+    };
+
+    const isSidebarSubThreadActive = (subThreadId) => {
+      if (isAnalytics) return sidebarExpandedSubThreadId === subThreadId;
+      const fromParams = searchParams?.subThread_id;
+      return fromParams ? decodeURIComponent(fromParams) === subThreadId : false;
+    };
+
+    const isSidebarMessageActive = (messageId) => {
+      if (isAnalytics) return searchMessageId === messageId;
+      const fromParams = searchParams?.message_id;
+      return fromParams ? fromParams === messageId : false;
+    };
+
     useEffect(() => {
+      if (isAnalytics) return;
       if (
         subThreadsParentId === searchParams?.thread_id &&
         expandedThreads?.includes(searchParams?.thread_id) &&
@@ -400,14 +432,35 @@ const Sidebar = memo(
       string?.length > maxLength ? string?.substring(0, maxLength - 3) + "..." : string;
 
     const handleSetMessageId = (messageId) => {
-      messageId ? setSearchMessageId(messageId) : toast.error("Message ID null or not found");
+      if (!messageId) {
+        toast.error("Message ID null or not found");
+        return;
+      }
+      if (isAnalytics) {
+        const threadId = sidebarExpandedThreadId || selectedThreadId;
+        const subThreadId = sidebarExpandedSubThreadId;
+        if (!selectedThreadId && threadId && typeof threadHandler === "function") {
+          const item = historyData.find((h) => h.thread_id === threadId);
+          if (item) threadHandler(threadId, item, { subThreadId });
+        }
+        setSearchMessageId(messageId);
+        onAnalyticsMessageNavigate?.(messageId);
+        return;
+      }
+      setSearchMessageId(messageId);
     };
 
     const handleSelectSubThread = async (subThreadId, threadId) => {
+      if (isAnalytics && typeof onAnalyticsSelectSubThread === "function") {
+        onAnalyticsSelectSubThread(subThreadId, threadId);
+        return;
+      }
+
       dispatch(clearThreadData());
       dispatch(clearRecursiveHistory());
       setThreadPage(1);
       setExpandedThreads([threadId]);
+
       const start = searchParams?.start;
       const end = searchParams?.end;
       router.push(
@@ -767,15 +820,27 @@ const Sidebar = memo(
                                       data-testid={`history-sidebar-thread-${item?.thread_id}`}
                                       id={`history-sidebar-thread-${item?.thread_id}`}
                                       className={`flex-grow cursor-pointer group rounded-lg overflow-hidden transition-colors duration-200 ${
-                                        selectedThreadId === item?.thread_id
+                                        isSidebarThreadActive(item?.thread_id)
                                           ? "bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40 dark:hover:text-base-100 dark:hover:bg-primary shadow-md"
                                           : "hover:bg-base-300/50"
                                       }`}
                                       onClick={() => {
-                                        const isCurrentlySelected = selectedThreadId === item?.thread_id;
-                                        if (isCurrentlySelected && !searchQuery) {
+                                        const isCurrentlySelected = isSidebarThreadActive(item?.thread_id);
+                                        if (searchQuery) {
+                                          if (isCurrentlySelected) {
+                                            onAnalyticsSidebarSelect?.(null, null);
+                                          } else {
+                                            setSearchMessageId(null);
+                                            dispatch(clearThreadData());
+                                            dispatch(clearRecursiveHistory());
+                                            threadHandler(item?.thread_id, item);
+                                          }
+                                          return;
+                                        }
+                                        if (isCurrentlySelected) {
                                           handleToggleThread(item?.thread_id);
                                         } else {
+                                          setSearchMessageId(null);
                                           dispatch(clearThreadData());
                                           dispatch(clearRecursiveHistory());
                                           threadHandler(item?.thread_id, item);
@@ -786,7 +851,7 @@ const Sidebar = memo(
                                         <div className="flex items-center gap-2 min-w-0 flex-1">
                                           <p
                                             className={`text-xs truncate ${
-                                              selectedThreadId === item?.thread_id
+                                              isSidebarThreadActive(item?.thread_id)
                                                 ? "text-blue-900 dark:text-base-100"
                                                 : "text-base-content"
                                             }`}
@@ -796,7 +861,7 @@ const Sidebar = memo(
                                         </div>
                                         <span
                                           className={`text-xs whitespace-nowrap group-hover:hidden ${
-                                            selectedThreadId === item?.thread_id
+                                            isSidebarThreadActive(item?.thread_id)
                                               ? "text-blue-900/70 dark:text-base-100/70"
                                               : "text-base-content/60"
                                           }`}
@@ -805,7 +870,7 @@ const Sidebar = memo(
                                         </span>
                                         <span
                                           className={`text-xs whitespace-nowrap font-medium hidden group-hover:inline ${
-                                            selectedThreadId === item?.thread_id
+                                            isSidebarThreadActive(item?.thread_id)
                                               ? "text-blue-900/70 dark:text-base-100/70"
                                               : "text-base-content/60"
                                           }`}
@@ -899,21 +964,81 @@ const Sidebar = memo(
                                       </a>
                                     </li>
                                   )}
-                                  {decodeURIComponent(searchParams?.thread_id) === item?.thread_id && (
+                                  {isSidebarThreadActive(item?.thread_id) && (
                                     <div className="space-y-3">
-                                      <div key={item.id} className="shadow-sm bg-base-100 overflow-hidden">
+                                      <div
+                                        key={item.id}
+                                        className={
+                                          isAnalytics
+                                            ? "overflow-hidden rounded-b-lg border-x border-b border-blue-100 bg-[#F8FAFC] dark:bg-base-100 dark:border-base-300"
+                                            : "shadow-sm bg-base-100 overflow-hidden"
+                                        }
+                                      >
                                         {item?.sub_thread && item.sub_thread?.length > 0 && (
-                                          <div className="bg-base-100">
+                                          <div className={isAnalytics ? "bg-transparent" : "bg-base-100"}>
                                             <div className="p-2">
                                               <div className="space-y-1.5">
                                                 {item?.sub_thread?.map((subThread, index) => (
                                                   <div key={index}>
+                                                    {isAnalytics ? (
+                                                      <div
+                                                        data-testid={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
+                                                        id={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
+                                                        className={`ml-2 ${
+                                                          isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                            ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40 shadow-sm"
+                                                            : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs text-base-content hover:bg-white hover:border-blue-100 border border-transparent dark:hover:bg-base-300"
+                                                        } flex-grow group`}
+                                                        onClick={() =>
+                                                          handleSelectSubThread(subThread?.sub_thread_id, item?.thread_id)
+                                                        }
+                                                      >
+                                                        <div className="w-full h-full flex items-center justify-between relative gap-2">
+                                                          <span className="truncate flex-1 text-xs flex items-center min-w-0">
+                                                            <MessageCircleIcon
+                                                              className={`w-3 h-3 mr-1.5 flex-shrink-0 ${
+                                                                isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                  ? "text-blue-700 dark:text-base-100"
+                                                                  : "text-blue-500 dark:text-base-content"
+                                                              }`}
+                                                            />
+                                                            {truncate(
+                                                              subThread?.display_name || subThread?.sub_thread_id,
+                                                              20
+                                                            )}
+                                                          </span>
+                                                          {(subThread?.updated_at || subThread?.created_at) && (
+                                                            <>
+                                                              <span
+                                                                className={`text-[10px] whitespace-nowrap group-hover:hidden ${
+                                                                  isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                    ? "text-blue-700/70 dark:text-base-100/70"
+                                                                    : "text-base-content/50"
+                                                                }`}
+                                                              >
+                                                                {formatRelativeTime(subThread?.updated_at)}
+                                                              </span>
+                                                              <span
+                                                                className={`text-[10px] whitespace-nowrap hidden group-hover:inline ${
+                                                                  isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                    ? "text-blue-700/70 dark:text-base-100/70"
+                                                                    : "text-base-content/50"
+                                                                }`}
+                                                              >
+                                                                {formatDate(
+                                                                  subThread?.created_at || subThread?.created_at
+                                                                )}
+                                                              </span>
+                                                            </>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                    ) : (
                                                     <li
                                                       data-testid={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
                                                       id={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
                                                       className={`ml-4 ${
-                                                        decodeURIComponent(searchParams?.subThread_id) ===
-                                                        subThread?.sub_thread_id
+                                                        isSidebarSubThreadActive(subThread?.sub_thread_id)
                                                           ? "cursor-pointer hover:bg-base-primary hover:text-base-100 transition-all duration-200 text-xs bg-primary text-base-100"
                                                           : "cursor-pointer hover:bg-base-300 hover:text-base-content transition-all duration-200 text-xs"
                                                       } flex-grow group`}
@@ -925,7 +1050,7 @@ const Sidebar = memo(
                                                         <span className="truncate flex-1 mr-1.5 text-xs flex items-center">
                                                           <MessageCircleIcon
                                                             className={`w-3 h-3 mr-1.5 flex-shrink-0 ${
-                                                              searchParams?.subThread_id === subThread?.sub_thread_id
+                                                              isSidebarSubThreadActive(subThread?.sub_thread_id)
                                                                 ? "text-base-100"
                                                                 : "text-base-content"
                                                             }`}
@@ -949,19 +1074,36 @@ const Sidebar = memo(
                                                         )}
                                                       </a>
                                                     </li>
+                                                    )}
                                                     {subThread?.messages?.length > 0 && (
-                                                      <div className="mt-2 ml-4 space-y-2">
+                                                      <div className={`mt-1.5 space-y-1 ${isAnalytics ? "ml-3 pl-2 border-l border-blue-100 dark:border-base-300" : "mt-2 ml-4 space-y-2"}`}>
                                                         {subThread?.messages?.map((msg, msgIndex) => (
                                                           <div
                                                             data-testid={`history-sidebar-message-${msg?.message_id}`}
                                                             id={`history-sidebar-message-${msg?.message_id}`}
                                                             key={msgIndex}
                                                             onClick={() => handleSetMessageId(msg?.message_id)}
-                                                            className={`cursor-pointer transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
+                                                            className={
+                                                              isAnalytics
+                                                                ? `${
+                                                                    isSidebarMessageActive(msg?.message_id)
+                                                                      ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40"
+                                                                      : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-white text-blue-900/80 border border-blue-100 hover:bg-[#EBF4FE]/60 hover:border-blue-200 dark:bg-base-200 dark:text-base-content dark:border-base-300"
+                                                                  }`
+                                                                : "cursor-pointer transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300"
+                                                            }
                                                           >
                                                             <div className="flex items-start gap-1.5">
-                                                              <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />
-                                                              <span>{truncate(msg?.message, 35)}</span>
+                                                              <UserIcon
+                                                                className={`w-2.5 h-2.5 mt-0.5 flex-shrink-0 ${
+                                                                  isAnalytics
+                                                                    ? isSidebarMessageActive(msg?.message_id)
+                                                                      ? "text-blue-700 dark:text-base-100"
+                                                                      : "text-blue-400 dark:text-base-content"
+                                                                    : "text-base-content"
+                                                                }`}
+                                                              />
+                                                              <span className="leading-snug">{truncate(msg?.message, 35)}</span>
                                                             </div>
                                                           </div>
                                                         ))}
@@ -974,19 +1116,35 @@ const Sidebar = memo(
                                           </div>
                                         )}
                                         {item?.message && item?.message?.length > 0 && (
-                                          <div className="p-2">
-                                            <div className="space-y-1.5 ml-2">
+                                          <div className="p-2 pt-0">
+                                            <div className={`space-y-1 ${isAnalytics ? "ml-1" : "space-y-1.5 ml-2"}`}>
                                               {item?.message?.map((msg, index) => (
                                                 <div
                                                   data-testid={`history-sidebar-thread-message-${msg?.message_id}`}
                                                   id={`history-sidebar-thread-message-${msg?.message_id}`}
                                                   key={index}
                                                   onClick={() => handleSetMessageId(msg?.message_id)}
-                                                  className={`cursor-pointer p-2 transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300`}
+                                                  className={
+                                                    isAnalytics
+                                                      ? `${
+                                                          isSidebarMessageActive(msg?.message_id)
+                                                            ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40"
+                                                            : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-white text-blue-900/80 border border-blue-100 hover:bg-[#EBF4FE]/60 hover:border-blue-200 dark:bg-base-200 dark:text-base-content dark:border-base-300"
+                                                        }`
+                                                      : "cursor-pointer p-2 transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300"
+                                                  }
                                                 >
                                                   <div className="flex items-start gap-1.5">
-                                                    <UserIcon className="w-2.5 h-2.5 mt-0.5 text-base-content" />
-                                                    <span>{truncate(msg?.message, 32)}</span>
+                                                    <UserIcon
+                                                      className={`w-2.5 h-2.5 mt-0.5 flex-shrink-0 ${
+                                                        isAnalytics
+                                                          ? isSidebarMessageActive(msg?.message_id)
+                                                            ? "text-blue-700 dark:text-base-100"
+                                                            : "text-blue-400 dark:text-base-content"
+                                                          : "text-base-content"
+                                                      }`}
+                                                    />
+                                                    <span className="leading-snug">{truncate(msg?.message, 32)}</span>
                                                   </div>
                                                 </div>
                                               ))}
