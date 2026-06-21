@@ -1107,7 +1107,6 @@ function Page({ params, searchParams }) {
                   : thread
               }
               searchParamsHook={search}
-              isSingleQuery={false}
               isFetchingMore={false}
               setIsFetchingMore={() => {}}
               searchMessageId={null}
