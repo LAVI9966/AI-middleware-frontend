@@ -722,7 +722,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
                 <div
                   id="config-scroll-container"
                   ref={leftPanelScrollRef}
-                  className={`flex-1 overflow-y-auto overflow-x-hidden ${uiState.isPromptHelperOpen ? "px-2" : " pl-8  px-4"}`}
+                  className={`flex-1 overflow-y-auto overflow-x-hidden ${uiState.isPromptHelperOpen ? "px-2 ml-4" : " pl-8  px-4"}`}
                 >
                   <ConfigurationPage
                     id="configuration-page"
