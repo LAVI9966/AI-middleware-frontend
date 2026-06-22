@@ -1384,82 +1384,82 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                   </div>
                                 )}
                               </div>
-
                               {/* Action Buttons Toolbar for Assistant Messages */}
                               {editingMessage !== message.id &&
                                 message.sender === "assistant" &&
                                 !message.isLoading && (
-                                  <div className="flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 justify-end w-full">
-                                    {message?.type !== "richui_json" &&
-                                      message?.type !== "template" &&
-                                      !(message?.llm_urls?.length > 0) && (
-                                        <button
-                                          data-testid={`playground-ai-response-pencil-button-${message.id}`}
-                                          id={`chat-edit-message-button-${message.id}`}
-                                          onClick={() => handleEditMessage(message.id, message.content)}
-                                          className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
-                                          title="Edit message"
-                                        >
-                                          <Edit2 className="h-3.5 w-3.5" />
-                                        </button>
-                                      )}
-                                    {!(message?.llm_urls?.length > 0) && (
+                                  <div className="flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 justify-between w-full">
+                                    {/* Toggle Button for Test Case Results */}
+                                    {message?.testCaseResult && (
                                       <button
-                                        data-testid={`playground-ai-response-copy-button-${message.id}`}
-                                        id={`chat-copy-message-button-${message.id}`}
-                                        onClick={() => handleCopyMessage(message, index)}
-                                        className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
-                                        title="Copy response"
+                                        data-testid={`chat-toggle-result-button-${message.id}`}
+                                        id={`chat-toggle-result-button-${message.id}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowTestCaseResults((prev) => ({
+                                            ...prev,
+                                            [message.id]: !prev[message.id],
+                                          }));
+                                        }}
+                                        className="flex items-center gap-2 text-xs text-base-content/70 hover:text-base-content transition-colors px-2 py-1 rounded-full bg-base-100 border border-base-content/20 shadow-sm hover:bg-base-200/50"
                                       >
-                                        {copiedMessageId === (message.id || index) ? (
-                                          <Check className="h-3.5 w-3.5 text-success" />
+                                        {showTestCaseResults[message.id] ? (
+                                          <>
+                                            <ToggleRight className="h-3 w-3" />
+                                            <span>Model Answer</span>
+                                          </>
                                         ) : (
-                                          <Copy className="h-3.5 w-3.5" />
+                                          <>
+                                            <ToggleLeft className="h-3 w-3" />
+                                            <span>Test Details</span>
+                                            <span
+                                              className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                                message.testCaseResult.score >= 0.8
+                                                  ? "bg-success/20 text-success"
+                                                  : message.testCaseResult.score >= 0.6
+                                                    ? "bg-warning/20 text-warning"
+                                                    : "bg-error/20 text-error"
+                                              }`}
+                                            >
+                                              {(message.testCaseResult.score * 100).toFixed(1)}%
+                                            </span>
+                                          </>
                                         )}
                                       </button>
                                     )}
+                                    <div className="flex items-center gap-1.5">
+                                      {message?.type !== "richui_json" &&
+                                        message?.type !== "template" &&
+                                        !(message?.llm_urls?.length > 0) && (
+                                          <button
+                                            data-testid={`playground-ai-response-pencil-button-${message.id}`}
+                                            id={`chat-edit-message-button-${message.id}`}
+                                            onClick={() => handleEditMessage(message.id, message.content)}
+                                            className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
+                                            title="Edit message"
+                                          >
+                                            <Edit2 className="h-3.5 w-3.5" />
+                                          </button>
+                                        )}
+                                      {!(message?.llm_urls?.length > 0) && (
+                                        <button
+                                          data-testid={`playground-ai-response-copy-button-${message.id}`}
+                                          id={`chat-copy-message-button-${message.id}`}
+                                          onClick={() => handleCopyMessage(message, index)}
+                                          className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
+                                          title="Copy response"
+                                        >
+                                          {copiedMessageId === (message.id || index) ? (
+                                            <Check className="h-3.5 w-3.5 text-success" />
+                                          ) : (
+                                            <Copy className="h-3.5 w-3.5" />
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                             </div>
-                          )}
-
-                          {/* Absolute Toggle Button for Test Case Results */}
-                          {message?.testCaseResult && (
-                            <button
-                              data-testid={`chat-toggle-result-button-${message.id}`}
-                              id={`chat-toggle-result-button-${message.id}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowTestCaseResults((prev) => ({
-                                  ...prev,
-                                  [message.id]: !prev[message.id],
-                                }));
-                              }}
-                              className="absolute -bottom-8 left-4 flex items-center gap-2 text-xs text-base-content/70 hover:text-base-content transition-colors px-2 py-1 rounded-full bg-base-100 border border-base-content/20 shadow-sm hover:bg-base-200/50"
-                            >
-                              {showTestCaseResults[message.id] ? (
-                                <>
-                                  <ToggleRight className="h-3 w-3" />
-                                  <span>Model Answer</span>
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleLeft className="h-3 w-3" />
-                                  <span>Test Details</span>
-                                  <span
-                                    className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                                      message.testCaseResult.score >= 0.8
-                                        ? "bg-success/20 text-success"
-                                        : message.testCaseResult.score >= 0.6
-                                          ? "bg-warning/20 text-warning"
-                                          : "bg-error/20 text-error"
-                                    }`}
-                                  >
-                                    {(message.testCaseResult.score * 100).toFixed(1)}%
-                                  </span>
-                                </>
-                              )}
-                            </button>
                           )}
                         </div>
                       )}
