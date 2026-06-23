@@ -25,6 +25,7 @@ import { useThemeManager } from "@/customHooks/useThemeManager";
 import ConfirmationModal from "@/components/UI/ConfirmationModal";
 import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 import { linter, lintGutter } from "@codemirror/lint";
+import { resolveConfigurationParamValue } from "@/utils/configurationParamUtils";
 
 const AdvancedParameters = ({
   params,
@@ -562,7 +563,8 @@ const AdvancedParameters = ({
     // Use name and description from modelInfoData instead of static file
     const displayName = name || modelInfoData?.[key]?.name || key;
     const displayDescription = description || modelInfoData?.[key]?.description || "";
-    const isDefaultValue = configuration?.[key] === "default" || configuration?.[key] === undefined;
+    const paramValue = resolveConfigurationParamValue(configuration?.[key], modelInfoData?.[key]);
+    const isDefaultValue = paramValue.isDefault;
     // Check if this parameter has a default value defined in model info
     const hasDefaultValue = modelInfoData?.[key]?.default !== undefined;
     const inputSizeClass = "input-sm h-8";
@@ -574,21 +576,24 @@ const AdvancedParameters = ({
 
     let error = false;
     if (field === "slider" && !isDefaultValue) {
+      const sliderNumericValue = paramValue.numericValue ?? paramValue.displayValue;
       error =
-        !(min <= configuration?.[key] && configuration?.[key] <= max) && configuration?.["key"]?.type === "string";
+        typeof sliderNumericValue === "number" &&
+        !(min <= sliderNumericValue && sliderNumericValue <= max) &&
+        configuration?.["key"]?.type === "string";
     }
 
-    const sliderDisplayValue =
-      field === "slider" && !isDefaultValue
-        ? configuration?.[key] === "min" || configuration?.[key] === "max" || configuration?.[key] === "default"
-          ? modelInfoData?.[key]?.[configuration?.[key]]
-          : configuration?.[key]
-        : null;
+    const sliderDisplayValue = field === "slider" && !isDefaultValue ? paramValue.displayValue : null;
+
+    const sliderRenderableValue =
+      sliderDisplayValue !== null && typeof sliderDisplayValue === "object"
+        ? JSON.stringify(sliderDisplayValue)
+        : sliderDisplayValue;
 
     const sliderValueNode =
       !isDefaultValue && sliderDisplayValue !== null ? (
         <span className={`text-xs ${error ? "text-error" : "text-base-content/70"}`} id={sliderValueId}>
-          {sliderDisplayValue}
+          {sliderRenderableValue}
         </span>
       ) : null;
 
@@ -1448,7 +1453,7 @@ const AdvancedParameters = ({
                   max={max || 100}
                   step={step || 1}
                   key={`${key}-${configuration?.[key]}-${service}-${model}`}
-                  defaultValue={isDefaultValue ? "default" : (sliderDisplayValue ?? "")}
+                  defaultValue={isDefaultValue ? "default" : (paramValue.numericValue ?? sliderRenderableValue ?? "")}
                   onChange={(e) => {
                     // Only update the display value and local state, don't trigger API call
                     const numValue = String(e.target.value)?.includes(".")
