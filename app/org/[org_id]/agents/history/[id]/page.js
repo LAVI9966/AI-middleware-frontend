@@ -29,20 +29,14 @@ function Page({ params, searchParams }) {
   const sidebarRef = useRef(null);
   const searchRef = useRef();
   const activeFilterByRef = useRef(undefined);
-  const { historyData, thread, selectedVersion, previousPrompt, isSingleQuery } = useCustomSelector((state) => {
-    const threadData = state?.historyReducer?.thread || [];
-    const bridgeInfo = state?.bridgeReducer?.allBridgesMap?.[resolvedParams?.id];
-    const isStateless = bridgeInfo?.settings?.stateless_conversation === true;
-    const isEmbedUser = state?.appInfoReducer?.embedUserDetails?.isEmbedUser;
-
+  const { historyData, thread, selectedVersion, previousPrompt } = useCustomSelector((state) => {
     return {
       historyData: state?.historyReducer?.history || [],
-      thread: threadData,
+      thread: state?.historyReducer?.thread || [],
       selectedVersion: state?.historyReducer?.selectedVersion || "all",
       previousPrompt:
         state?.bridgeReducer?.bridgeVersionMapping?.[resolvedParams?.id]?.[resolvedSearchParams?.version]?.configuration
           ?.prompt || "",
-      isSingleQuery: !isEmbedUser && isStateless && threadData.filter((msg) => msg?.user).length <= 1,
     };
   });
   const [isSliderOpen, setIsSliderOpen] = useState(false);
@@ -243,7 +237,7 @@ function Page({ params, searchParams }) {
     <div className="bg-history-page relative scrollbar-hide text-base-content h-[calc(100vh-40px)]">
       <div className="flex flex-row overflow-hidden bg-history-page min-h-full h-full relative">
         <React.Suspense>
-          <div className="pl-4 h-full shrink-0 z-50 flex relative">
+          <div className="h-full shrink-0 z-50 flex relative">
             <Sidebar
               historyData={historyData}
               threadHandler={threadHandler}
@@ -275,7 +269,7 @@ function Page({ params, searchParams }) {
 
         <div className="flex-grow flex-1 overflow-hidden bg-history-page min-h-full h-full">
           {isLoadingState ? (
-            <ChatLoadingSkeleton isSingleQuery={isSingleQuery} />
+            <ChatLoadingSkeleton />
           ) : (
             <React.Suspense>
               <ThreadContainer
