@@ -800,11 +800,6 @@ const ThreadItem = ({
       });
       setTimeout(() => {
         if (typeof window.openChatbot === "function") window.openChatbot();
-        setTimeout(() => {
-          if (item?.user && typeof window.Chatbot?.askAi === "function") {
-            window.Chatbot.askAi({ message: item.user });
-          }
-        }, 300);
       }, 1000);
     } else {
       console.warn("Chatbot embed script not loaded. SendDataToChatbot is unavailable.");
@@ -1176,20 +1171,22 @@ const ThreadItem = ({
     );
   };
 
-  const renderResponseActionButtons = (stateful = false) => {
+  const renderResponseActionButtons = (stateful = false, debugAgentOnly = false) => {
     const showEdit = !item?.llm_urls?.length && !item?.fromRTLayer;
     if (stateful) {
       return (
         <div className="mt-2 flex flex-wrap items-center justify-start gap-1.5">
-          <ThreadActionPill
-            id="thread-item-add-test-case-button"
-            testId="thread-item-add-test-case-button"
-            icon={AddIcon}
-            trailing={ChevronRight}
-            onClick={() => handleAddTestCase(item, index)}
-          >
-            Test Case
-          </ThreadActionPill>
+          {!debugAgentOnly && (
+            <ThreadActionPill
+              id="thread-item-add-test-case-button"
+              testId="thread-item-add-test-case-button"
+              icon={AddIcon}
+              trailing={ChevronRight}
+              onClick={() => handleAddTestCase(item, index)}
+            >
+              Test Case
+            </ThreadActionPill>
+          )}
           <ThreadActionPill
             id="thread-item-debug-agent-button"
             testId="thread-item-debug-agent-button"
@@ -1199,7 +1196,7 @@ const ThreadItem = ({
           >
             Debug Agent
           </ThreadActionPill>
-          {showEdit && (
+          {!debugAgentOnly && showEdit && (
             <ThreadActionPill
               id="thread-item-edit-message-button"
               testId="thread-item-edit-message-button"
@@ -1215,15 +1212,17 @@ const ThreadItem = ({
 
     return (
       <div className="mt-2 flex items-center gap-1.5">
-        <button
-          id="thread-item-add-test-case-button"
-          data-testid="thread-item-add-test-case-button"
-          className={statelessBtnClass}
-          onClick={() => handleAddTestCase(item, index)}
-        >
-          <AddIcon className="h-3 w-3" />
-          <span>Test Case</span>
-        </button>
+        {!debugAgentOnly && (
+          <button
+            id="thread-item-add-test-case-button"
+            data-testid="thread-item-add-test-case-button"
+            className={statelessBtnClass}
+            onClick={() => handleAddTestCase(item, index)}
+          >
+            <AddIcon className="h-3 w-3" />
+            <span>Test Case</span>
+          </button>
+        )}
         <button
           id="thread-item-debug-agent-button"
           data-testid="thread-item-debug-agent-button"
@@ -1233,7 +1232,7 @@ const ThreadItem = ({
           <BotMessageIcon className="h-3 w-3" />
           <span>Debug Agent</span>
         </button>
-        {showEdit && (
+        {!debugAgentOnly && showEdit && (
           <button
             id="thread-item-edit-message-button"
             data-testid="thread-item-edit-message-button"
@@ -2694,7 +2693,7 @@ const ThreadItem = ({
         {item?.error &&
           (isSingleQuery ? (
             /* Single-query (stateless) — match the AI Response card style */
-            <div className="flex flex-col items-center py-2 w-full">
+            <div className="flex flex-col items-center py-2 w-full group">
               {firstAttemptErrorNotice}
               {/* Error card — mirrors the AI Response card */}
               <div className="w-full relative">
@@ -2717,10 +2716,13 @@ const ThreadItem = ({
                   <p className="text-sm whitespace-pre-wrap">{extractErrorMessage(item?.error)}</p>
                 </div>
               </div>
+              <div className="w-full mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {renderResponseActionButtons(false, true)}
+              </div>
             </div>
           ) : (
             /* Multi-query (stateful) — match stateless error card style */
-            <div className="w-full relative py-2">
+            <div className="w-full relative py-2 group">
               {firstAttemptErrorNotice}
               <span className="absolute -top-2 right-2 z-10 text-xs px-2 py-0.5 rounded-full border border-error/30 text-error/70 bg-base-100 whitespace-nowrap flex items-center gap-1">
                 <CircleAlertIcon className="w-3 h-3" />
@@ -2739,6 +2741,9 @@ const ThreadItem = ({
                   <span className="truncate text-sm font-semibold text-error">{rootAgentName}</span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{extractErrorMessage(item?.error)}</p>
+              </div>
+              <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                {renderResponseActionButtons(!isStatelessConversation, true)}
               </div>
             </div>
           ))}
