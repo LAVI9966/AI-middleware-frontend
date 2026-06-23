@@ -25,7 +25,7 @@ import { useThemeManager } from "@/customHooks/useThemeManager";
 import ConfirmationModal from "@/components/UI/ConfirmationModal";
 import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
 import { linter, lintGutter } from "@codemirror/lint";
-import { resolveConfigurationParamValue } from "@/utils/configurationParamUtils";
+import { resolveConfigParam } from "@/utils/configHistoryUtils";
 
 const AdvancedParameters = ({
   params,
@@ -563,7 +563,7 @@ const AdvancedParameters = ({
     // Use name and description from modelInfoData instead of static file
     const displayName = name || modelInfoData?.[key]?.name || key;
     const displayDescription = description || modelInfoData?.[key]?.description || "";
-    const paramValue = resolveConfigurationParamValue(configuration?.[key], modelInfoData?.[key]);
+    const paramValue = resolveConfigParam(configuration?.[key], modelInfoData?.[key]);
     const isDefaultValue = paramValue.isDefault;
     // Check if this parameter has a default value defined in model info
     const hasDefaultValue = modelInfoData?.[key]?.default !== undefined;
@@ -576,14 +576,14 @@ const AdvancedParameters = ({
 
     let error = false;
     if (field === "slider" && !isDefaultValue) {
-      const sliderNumericValue = paramValue.numericValue ?? paramValue.displayValue;
+      const sliderNumericValue = paramValue.numeric ?? paramValue.display;
       error =
         typeof sliderNumericValue === "number" &&
         !(min <= sliderNumericValue && sliderNumericValue <= max) &&
         configuration?.["key"]?.type === "string";
     }
 
-    const sliderDisplayValue = field === "slider" && !isDefaultValue ? paramValue.displayValue : null;
+    const sliderDisplayValue = field === "slider" && !isDefaultValue ? paramValue.display : null;
 
     const sliderRenderableValue =
       sliderDisplayValue !== null && typeof sliderDisplayValue === "object"
@@ -1453,7 +1453,7 @@ const AdvancedParameters = ({
                   max={max || 100}
                   step={step || 1}
                   key={`${key}-${configuration?.[key]}-${service}-${model}`}
-                  defaultValue={isDefaultValue ? "default" : (paramValue.numericValue ?? sliderRenderableValue ?? "")}
+                  defaultValue={isDefaultValue ? "default" : (paramValue.numeric ?? sliderRenderableValue ?? "")}
                   onChange={(e) => {
                     // Only update the display value and local state, don't trigger API call
                     const numValue = String(e.target.value)?.includes(".")

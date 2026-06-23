@@ -1,154 +1,238 @@
 import { isEqual } from "lodash";
 import { DIFFERNCE_DATA_DISPLAY_NAME } from "@/jsonFiles/bridgeParameter";
-import {
-  formatConfigurationParamForDisplay,
-  isModeValueObject,
-  buildRevertPayloadFromHistoryItem,
-} from "@/utils/configurationParamUtils";
 
-const SYSTEM_HISTORY_TYPES = new Set(["Version created", "Agent created"]);
+const SYSTEM_TYPES = new Set(["Version created", "Agent created"]);
+const CONFIG_KEYS = new Set([
+  "prompt",
+  "model",
+  "type",
+  "fall_back",
+  "response_type",
+  "json_schema",
+  "temperature",
+  "max_tokens",
+  "top_p",
+  "is_rich_text",
+  "is_enable",
+  "fine_tune_model",
+]);
 
-const PROMPT_SECTION_LABELS = {
-  role: "Role",
-  goal: "Goal",
-  instruction: "Instruction",
-};
+const PROMPT_LABELS = { role: "Role", goal: "Goal", instruction: "Instruction" };
 
-export function getHistoryTypeLabel(type, featureLabelMap = {}, item = null) {
-  if (!type) return "Change";
-  if (type === "Version published") return "Version published";
+// --- value helpers (config can be string, object, or { mode, value }) ---
 
-  if (item && (type === "prompt" || type === "response_type")) {
-    const previousValue = item.previous_value || {};
-    const currentValue = item.current_value || {};
-    const fieldKey = Object.keys({ ...previousValue, ...currentValue })[0];
-    const before = previousValue[fieldKey];
-    const after = currentValue[fieldKey];
-
-    if (fieldKey === "prompt" && (typeof before === "object" || typeof after === "object")) {
-      const sectionKeys = Object.keys({ ...(before || {}), ...(after || {}) });
-      const changedSection = sectionKeys.find((sectionKey) => !isEqual(before?.[sectionKey], after?.[sectionKey]));
-      if (changedSection && PROMPT_SECTION_LABELS[changedSection]) {
-        return PROMPT_SECTION_LABELS[changedSection];
-      }
-    }
-
-    if (fieldKey === "response_type") {
-      return "Response type";
-    }
-  }
-
-  return featureLabelMap[type] || DIFFERNCE_DATA_DISPLAY_NAME(type) || type;
+export function isModeValue(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) && "mode" in value;
 }
 
-export function formatHistoryTime(timestamp) {
-  if (!timestamp) return "";
-  return new Date(timestamp).toLocaleString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+/** Read stored value: new format = direct value; old format = { key: value } wrapper */
+export function readHistoryValue(stored, type) {
+  if (stored === null || stored === undefined) return stored;
+  if (typeof stored !== "object" || Array.isArray(stored)) return stored;
+
+  // Old wrapped format
+  if (type && type in stored && Object.keys(stored).length === 1) return stored[type];
+  if (type === "agents" && stored.connected_agents !== undefined) return stored.connected_agents;
+  if (type === "pre_tools" && stored.pre_tools !== undefined) return stored.pre_tools;
+
+  return stored;
 }
 
-export function formatHistoryDateHeader(timestamp) {
-  if (!timestamp) return "";
-  return new Date(timestamp)
-    .toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })
-    .toUpperCase();
-}
-
-function formatPrimitive(value, modelKey = null) {
-  if (isModeValueObject(value)) {
-    return formatConfigurationParamForDisplay(value);
-  }
+export function formatValue(value) {
   if (value === null || value === undefined) return "—";
+
+  if (isModeValue(value)) {
+    if (value.mode === "default") return "—";
+    if (value.mode === "min") return "min";
+    if (value.mode === "max") return "max";
+    const inner = value.value;
+    return typeof inner === "object" ? JSON.stringify(inner, null, 2) : String(inner);
+  }
+
   if (typeof value === "string") return `"${value}"`;
   if (typeof value === "boolean" || typeof value === "number") return String(value);
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "[]";
-    return JSON.stringify(value, null, 2);
-  }
-  if (typeof value === "object") {
-    return JSON.stringify(value, null, 2);
-  }
+  if (typeof value === "object") return JSON.stringify(value, null, 2);
   return String(value);
 }
 
-function flattenValueLines(key, value, lines = []) {
-  if (value === null || value === undefined) {
-    lines.push({ key, text: "—" });
-    return lines;
+/** For AdvancedParamenter sliders */
+export function resolveConfigParam(value, meta = null) {
+  if (value === undefined || value === null) {
+    return { isDefault: true, display: null, numeric: null };
   }
 
-  if (key === "prompt" && typeof value === "object" && !Array.isArray(value)) {
-    Object.entries(value).forEach(([sectionKey, sectionValue]) => {
-      const label = PROMPT_SECTION_LABELS[sectionKey] || sectionKey;
-      lines.push({
-        key: label,
-        text: formatPrimitive(sectionValue),
-      });
-    });
-    return lines;
+  if (isModeValue(value)) {
+    if (value.mode === "default") return { isDefault: true, display: null, numeric: null };
+    if (value.mode === "min") return { isDefault: false, display: meta?.min ?? "min", numeric: meta?.min ?? null };
+    if (value.mode === "max") return { isDefault: false, display: meta?.max ?? "max", numeric: meta?.max ?? null };
+    return {
+      isDefault: false,
+      display: value.value,
+      numeric: typeof value.value === "number" ? value.value : null,
+    };
   }
 
-  if (typeof value === "object" && !Array.isArray(value)) {
-    Object.entries(value).forEach(([nestedKey, nestedValue]) => {
-      lines.push({
-        key: nestedKey,
-        text: formatPrimitive(nestedValue),
-      });
-    });
-    return lines;
+  if (value === "default" || value === undefined) return { isDefault: true, display: null, numeric: null };
+  if (value === "min" || value === "max") {
+    const display = meta?.[value] ?? value;
+    return { isDefault: false, display, numeric: typeof display === "number" ? display : null };
   }
 
-  lines.push({ key, text: formatPrimitive(value) });
-  return lines;
+  return {
+    isDefault: false,
+    display: value,
+    numeric: typeof value === "number" ? value : null,
+  };
 }
 
-export function extractHistoryDiff(previousValue = {}, currentValue = {}) {
-  const keys = [...new Set([...Object.keys(previousValue || {}), ...Object.keys(currentValue || {})])];
-  const beforeLines = [];
-  const afterLines = [];
+function toLines(type, value) {
+  const v = readHistoryValue(value, type);
+  const lines = [];
 
-  keys.forEach((key) => {
-    const before = previousValue?.[key];
-    const after = currentValue?.[key];
-    if (isEqual(before, after)) return;
+  if (v === null || v === undefined) return [{ key: type, text: "—" }];
 
-    flattenValueLines(key, before, beforeLines);
-    flattenValueLines(key, after, afterLines);
+  // Grouped model row: { service, model, type }
+  if (type === "model" && typeof v === "object" && !Array.isArray(v) && !isModeValue(v) && ("service" in v || "model" in v)) {
+    if (v.service !== undefined) lines.push({ key: "service", text: formatValue(v.service) });
+    if (v.model !== undefined) lines.push({ key: "model", text: formatValue(v.model) });
+    if (v.type !== undefined) lines.push({ key: "type", text: formatValue(v.type) });
+    return lines.length ? lines : [{ key: type, text: formatValue(v) }];
+  }
+
+  if (type === "prompt" && typeof v === "object" && !Array.isArray(v)) {
+    Object.entries(v).forEach(([k, part]) => {
+      lines.push({ key: PROMPT_LABELS[k] || k, text: formatValue(part) });
+    });
+    return lines.length ? lines : [{ key: type, text: formatValue(v) }];
+  }
+
+  if (typeof v === "object" && !Array.isArray(v) && !isModeValue(v)) {
+    Object.entries(v).forEach(([k, part]) => lines.push({ key: k, text: formatValue(part) }));
+    return lines.length ? lines : [{ key: type, text: formatValue(v) }];
+  }
+
+  return [{ key: type, text: formatValue(v) }];
+}
+
+export function getHistoryDiff(item) {
+  const type = item?.type;
+  const before = readHistoryValue(item?.previous_value, type);
+  const after = readHistoryValue(item?.current_value, type);
+
+  if (isEqual(before, after)) {
+    return { beforeLines: [], afterLines: [] };
+  }
+
+  return {
+    beforeLines: toLines(type, before),
+    afterLines: toLines(type, after),
+  };
+}
+
+function normalizeRevertValue(value, currentConfigValue) {
+  if (!isModeValue(currentConfigValue)) {
+    if (isModeValue(value)) {
+      if (value.mode === "default") return "default";
+      if (value.mode === "min") return "min";
+      if (value.mode === "max") return "max";
+      if (value.mode === "custom") return value.value;
+    }
+    return value;
+  }
+
+  if (isModeValue(value)) return value;
+  if (value === "default" || value === null || value === undefined) return { mode: "default", value: null };
+  if (value === "min") return { mode: "min", value: null };
+  if (value === "max") return { mode: "max", value: null };
+  return { mode: "custom", value };
+}
+
+export function buildRevertPayload(item, currentVersion = null) {
+  const type = item?.type;
+  const raw = readHistoryValue(item?.previous_value, type);
+  if (raw === undefined) return null;
+
+  const config = currentVersion?.configuration || {};
+
+  // Grouped model + service + type in one history row
+  if (type === "model" && raw && typeof raw === "object" && !Array.isArray(raw) && !isModeValue(raw)) {
+    const payload = {};
+    if (raw.service !== undefined) payload.service = raw.service;
+    const configuration = {};
+    if (raw.model !== undefined) configuration.model = normalizeRevertValue(raw.model, config.model);
+    if (raw.type !== undefined) configuration.type = raw.type;
+    if (Object.keys(configuration).length > 0) payload.configuration = configuration;
+    return Object.keys(payload).length > 0 ? payload : null;
+  }
+
+  const value = CONFIG_KEYS.has(type) || type in config ? normalizeRevertValue(raw, config[type]) : raw;
+
+  if (type === "agents") {
+    return { agents: { connected_agents: value, agent_status: "1" } };
+  }
+  if (CONFIG_KEYS.has(type) || type in config) {
+    return { configuration: { [type]: value } };
+  }
+  if (type === "functionData") {
+    return { function_ids: value };
+  }
+  return { [type]: value };
+}
+
+// --- labels & grouping ---
+
+export function getTypeLabel(type, labels = {}, item = null) {
+  if (!type) return "Change";
+  if (type === "Version published") return "Version published";
+
+  if (item && type === "prompt") {
+    const before = readHistoryValue(item.previous_value, type);
+    const after = readHistoryValue(item.current_value, type);
+    const keys = Object.keys({ ...(before || {}), ...(after || {}) });
+    const changed = keys.find((k) => !isEqual(before?.[k], after?.[k]));
+    if (changed && PROMPT_LABELS[changed]) return PROMPT_LABELS[changed];
+  }
+
+  if (type === "response_type") return "Response type";
+  if (type === "model" && item) {
+    const before = readHistoryValue(item.previous_value, type);
+    const after = readHistoryValue(item.current_value, type);
+    if (before?.service !== after?.service) return "Model & Service";
+  }
+  return labels[type] || DIFFERNCE_DATA_DISPLAY_NAME(type) || type;
+}
+
+export function formatTime(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+export function formatDateHeader(ts) {
+  if (!ts) return "";
+  return new Date(ts).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase();
+}
+
+export function splitDraftAndHistory(items = []) {
+  const visible = items.filter((i) => i?.type && !SYSTEM_TYPES.has(i.type));
+  const lastPublish = visible.find((i) => i.type === "Version published");
+  const publishTime = lastPublish?.time ? new Date(lastPublish.time).getTime() : null;
+
+  const draftItems = visible.filter((i) => {
+    if (i.type === "Version published") return false;
+    if (publishTime === null) return true;
+    return new Date(i.time).getTime() > publishTime;
   });
 
-  return { beforeLines, afterLines };
+  const draftIds = new Set(draftItems.map((i) => i.id));
+  return { draftItems, historyItems: visible.filter((i) => !draftIds.has(i.id)) };
 }
 
-export function splitDraftAndHistory(historyItems = []) {
-  const visibleItems = historyItems.filter((item) => item?.type && !SYSTEM_HISTORY_TYPES.has(item.type));
-  const lastPublishEntry = visibleItems.find((item) => item.type === "Version published");
-  const lastPublishTime = lastPublishEntry?.time ? new Date(lastPublishEntry.time).getTime() : null;
-
-  const draftItems = visibleItems.filter((item) => {
-    if (item.type === "Version published") return false;
-    if (lastPublishTime === null) return true;
-    return new Date(item.time).getTime() > lastPublishTime;
-  });
-
-  const draftIdSet = new Set(draftItems.map((item) => item.id));
-  const historyItemsFiltered = visibleItems.filter((item) => !draftIdSet.has(item.id));
-
-  return { draftItems, historyItems: historyItemsFiltered };
-}
-
-export function groupHistoryByDate(historyItems = []) {
+export function groupByDate(items = []) {
   const groups = [];
   const seen = new Map();
 
-  historyItems.forEach((item) => {
-    const label = formatHistoryDateHeader(item?.time);
+  items.forEach((item) => {
+    const label = formatDateHeader(item?.time);
     if (!seen.has(label)) {
       seen.set(label, groups.length);
       groups.push({ label, items: [] });
@@ -159,16 +243,16 @@ export function groupHistoryByDate(historyItems = []) {
   return groups;
 }
 
-export function buildRevertPayload(item, currentVersion = null) {
-  return buildRevertPayloadFromHistoryItem(item, currentVersion);
-}
-
-export function getPublishSnapshotEntries(item, featureLabelMap = {}) {
+export function getPublishSnapshot(item, labels = {}) {
   const snapshot = item?.current_value?.snapshot || {};
   return Object.entries(snapshot).map(([key, entry]) => ({
     key,
-    label: getHistoryTypeLabel(key, featureLabelMap),
-    entry,
-    diff: extractHistoryDiff(entry?.previous_value || {}, entry?.current_value || {}),
+    label: getTypeLabel(key, labels),
+    userName: entry?.user_name,
+    diff: getHistoryDiff({
+      type: key,
+      previous_value: entry?.previous_value,
+      current_value: entry?.current_value,
+    }),
   }));
 }

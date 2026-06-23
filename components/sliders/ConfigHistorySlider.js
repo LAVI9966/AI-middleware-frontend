@@ -4,390 +4,275 @@ import { CloseIcon, FileTextIcon } from "@/components/Icons";
 import { toggleSidebar } from "@/utils/utility";
 import { getBridgeConfigHistory } from "@/config/index";
 import { CONFIG_HISTORY_FILTER_KEYS, CONFIG_HISTORY_FEATURE_OPTIONS, CONFIG_HISTORY_HIDDEN_TYPES } from "@/utils/enums";
-import { splitDraftAndHistory, groupHistoryByDate } from "@/utils/configHistoryUtils";
-import { buildRevertPayloadFromHistoryItem } from "@/utils/configurationParamUtils";
-import { ConfigHistoryCard, ConfigHistoryDraftRow, HistoryDiffPanel } from "./ConfigHistoryItem";
+import { splitDraftAndHistory, groupByDate, buildRevertPayload } from "@/utils/configHistoryUtils";
+import { HistoryRow } from "./ConfigHistoryItem";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { toast } from "react-toastify";
 import InfiniteScroll from "react-infinite-scroll-component";
 
+const PAGE_SIZE = 25;
+const SLIDER_ID = "default-config-history-slider";
+
 function ConfigHistorySlider({ versionId }) {
   const dispatch = useDispatch();
-  const [historyData, setHistoryData] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
-  const [expandedIds, setExpandedIds] = useState(new Set());
+  const [expanded, setExpanded] = useState(new Set());
   const [revertingId, setRevertingId] = useState(null);
+  const [users, setUsers] = useState([]);
   const [filters, setFilters] = useState({
     [CONFIG_HISTORY_FILTER_KEYS.USER_IDS]: [],
     [CONFIG_HISTORY_FILTER_KEYS.TYPES]: [],
   });
-  const [availableUsers, setAvailableUsers] = useState([]);
-  const pageSize = 25;
+
+  const labels = useMemo(
+    () => Object.fromEntries(CONFIG_HISTORY_FEATURE_OPTIONS.map((o) => [o.value, o.label])),
+    []
+  );
 
   const bridgeId = useCustomSelector((state) => {
-    const mapping = state?.bridgeReducer?.bridgeVersionMapping || {};
-    for (const [parentId, versions] of Object.entries(mapping)) {
-      if (versions && versionId && versions[versionId]) {
-        return parentId;
-      }
+    for (const [id, versions] of Object.entries(state?.bridgeReducer?.bridgeVersionMapping || {})) {
+      if (versionId && versions?.[versionId]) return id;
     }
     return null;
   });
 
-  const currentVersion = useCustomSelector((state) => {
-    if (!bridgeId || !versionId) return null;
-    return state?.bridgeReducer?.bridgeVersionMapping?.[bridgeId]?.[versionId] || null;
-  });
-
-  const resetFilters = useCallback(() => {
-    setFilters({
-      [CONFIG_HISTORY_FILTER_KEYS.USER_IDS]: [],
-      [CONFIG_HISTORY_FILTER_KEYS.TYPES]: [],
-    });
-    setExpandedIds(new Set());
-  }, []);
-
-  const featureLabelMap = useMemo(
-    () =>
-      CONFIG_HISTORY_FEATURE_OPTIONS.reduce((acc, option) => {
-        acc[option.value] = option.label;
-        return acc;
-      }, {}),
-    []
+  const currentVersion = useCustomSelector((state) =>
+    bridgeId && versionId ? state?.bridgeReducer?.bridgeVersionMapping?.[bridgeId]?.[versionId] : null
   );
 
   const fetchHistory = useCallback(
-    async (targetPage = page, currentFilters = filters) => {
-      const sliderElement = document.getElementById("default-config-history-slider");
-      const isSliderOpen = sliderElement && !sliderElement.classList.contains("translate-x-full");
-
-      if (!versionId || !isSliderOpen) return;
+    async (p = 1, f = filters) => {
+      const el = document.getElementById(SLIDER_ID);
+      if (!versionId || !el || el.classList.contains("translate-x-full")) return;
 
       setLoading(true);
       try {
-        const response = await getBridgeConfigHistory(versionId, targetPage, pageSize, currentFilters);
-        const usersFromResponse = response?.userData?.users;
+        const res = await getBridgeConfigHistory(versionId, p, PAGE_SIZE, f);
+        if (res?.userData?.users?.length) setUsers(res.userData.users);
 
-        if (Array.isArray(usersFromResponse) && usersFromResponse.length > 0) {
-          setAvailableUsers(usersFromResponse);
-        }
-
-        if (!response?.success) {
-          if (targetPage === 1) {
-            setHistoryData([]);
-          }
+        if (!res?.success) {
+          if (p === 1) setHistory([]);
           setHasMore(false);
           return;
         }
 
-        const newData = response?.userData?.updates ?? [];
-        setHistoryData((prev) => (targetPage === 1 ? newData : [...prev, ...newData]));
-        setHasMore(newData.length === pageSize);
-      } catch (error) {
-        console.error("Error fetching agent history:", error);
+        const rows = res?.userData?.updates ?? [];
+        setHistory((prev) => (p === 1 ? rows : [...prev, ...rows]));
+        setHasMore(rows.length === PAGE_SIZE);
+      } catch (e) {
+        console.error("History fetch failed:", e);
       } finally {
         setLoading(false);
       }
     },
-    [versionId, pageSize]
+    [versionId]
   );
 
-  useEffect(() => {
-    const sliderElement = document.getElementById("default-config-history-slider");
-    if (!sliderElement) return;
-
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "attributes" && mutation.attributeName === "class") {
-          const isOpen = !sliderElement.classList.contains("translate-x-full");
-          if (isOpen && versionId) {
-            setPage(1);
-            setHistoryData([]);
-            setExpandedIds(new Set());
-            fetchHistory(1);
-          } else if (!isOpen) {
-            resetFilters();
-          }
-        }
-      });
-    });
-
-    observer.observe(sliderElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, [versionId, fetchHistory, resetFilters]);
+  const reset = useCallback(() => {
+    setFilters({ [CONFIG_HISTORY_FILTER_KEYS.USER_IDS]: [], [CONFIG_HISTORY_FILTER_KEYS.TYPES]: [] });
+    setExpanded(new Set());
+  }, []);
 
   useEffect(() => {
-    if (page > 1) {
-      fetchHistory(page, filters);
-    }
+    const el = document.getElementById(SLIDER_ID);
+    if (!el) return;
+
+    const obs = new MutationObserver(() => {
+      const open = !el.classList.contains("translate-x-full");
+      if (open && versionId) {
+        setPage(1);
+        setHistory([]);
+        setExpanded(new Set());
+        fetchHistory(1);
+      } else if (!open) reset();
+    });
+
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, [versionId, fetchHistory, reset]);
+
+  useEffect(() => {
+    if (page > 1) fetchHistory(page, filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
   useEffect(() => {
     setPage(1);
-    setHistoryData([]);
-    setExpandedIds(new Set());
+    setHistory([]);
+    setExpanded(new Set());
     fetchHistory(1, filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
-  const visibleHistory = useMemo(
-    () => historyData.filter((item) => !(CONFIG_HISTORY_HIDDEN_TYPES || []).includes(item?.type)),
-    [historyData]
+  const visible = useMemo(
+    () => history.filter((i) => !(CONFIG_HISTORY_HIDDEN_TYPES || []).includes(i?.type)),
+    [history]
   );
+  const { draftItems, historyItems } = useMemo(() => splitDraftAndHistory(visible), [visible]);
+  const grouped = useMemo(() => groupByDate(historyItems), [historyItems]);
 
-  const { draftItems, historyItems } = useMemo(() => splitDraftAndHistory(visibleHistory), [visibleHistory]);
-  const groupedHistory = useMemo(() => groupHistoryByDate(historyItems), [historyItems]);
-
-  const toggleExpanded = useCallback((id) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
+  const toggle = (id) =>
+    setExpanded((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
     });
-  }, []);
 
-  const handleRevert = useCallback(
-    async (item) => {
-      if (!versionId || !item?.id) return;
+  const handleRevert = async (item) => {
+    const payload = buildRevertPayload(item, currentVersion);
+    if (!payload) return toast.error("Nothing to revert");
 
-      const payload = buildRevertPayloadFromHistoryItem(item, currentVersion);
-      if (!payload) {
-        toast.error("Nothing to revert for this change");
-        return;
+    setRevertingId(item.id);
+    try {
+      const result = await dispatch(updateBridgeVersionAction({ versionId, bridgeId, dataToSend: payload }));
+      if (result?.success) {
+        toast.success("Change reverted");
+        setPage(1);
+        setHistory([]);
+        fetchHistory(1, filters);
+      } else {
+        toast.error(result?.error || "Revert failed");
       }
-
-      setRevertingId(item.id);
-      try {
-        const result = await dispatch(
-          updateBridgeVersionAction({
-            versionId,
-            bridgeId,
-            dataToSend: payload,
-          })
-        );
-
-        if (result?.success) {
-          toast.success("Change reverted");
-          setPage(1);
-          setHistoryData([]);
-          fetchHistory(1, filters);
-        } else {
-          toast.error(result?.error || "Failed to revert change");
-        }
-      } catch (error) {
-        console.error("Revert history change failed:", error);
-        toast.error("Failed to revert change");
-      } finally {
-        setRevertingId(null);
-      }
-    },
-    [dispatch, versionId, bridgeId, currentVersion, fetchHistory, filters]
-  );
-
-  const handleCloseConfigHistorySlider = useCallback(() => {
-    toggleSidebar("default-config-history-slider", "right");
-    resetFilters();
-  }, [resetFilters]);
-
-  const loadMore = () => {
-    setPage((prev) => prev + 1);
+    } catch {
+      toast.error("Revert failed");
+    } finally {
+      setRevertingId(null);
+    }
   };
 
-  const handleDropdownFilterChange = (filterType, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterType]: value ? [value] : [],
-    }));
-  };
-
-  const renderDraftSection = () => {
-    if (draftItems.length === 0) return null;
-
-    return (
-      <div className="rounded-xl border border-warning/35 bg-warning/5 p-3 mb-4">
-        <div className="flex items-center justify-between gap-2 mb-2.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2 h-2 rounded-full bg-warning shrink-0" />
-            <span className="text-sm font-semibold text-base-content">Draft</span>
-          </div>
-          <span className="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warning/20 text-warning border border-warning/30">
-            {draftItems.length} unpublished
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          {draftItems.map((item, index) => {
-            const itemId = item?.id ?? `draft-${index}`;
-            const isExpanded = expandedIds.has(itemId);
-
-            return (
-              <div key={itemId}>
-                <ConfigHistoryDraftRow
-                  item={item}
-                  featureLabelMap={featureLabelMap}
-                  isExpanded={isExpanded}
-                  onToggle={() => toggleExpanded(itemId)}
-                />
-                {isExpanded && (
-                  <div className="mt-2 rounded-lg border border-base-300 bg-base-100 p-3">
-                    <HistoryDiffPanel
-                      item={item}
-                      showRevert
-                      onRevert={handleRevert}
-                      isReverting={revertingId === item.id}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  const setFilter = (key, val) => setFilters((f) => ({ ...f, [key]: val ? [val] : [] }));
 
   return (
     <aside
-      id="default-config-history-slider"
+      id={SLIDER_ID}
       data-testid="config-history-sidebar"
-      className="sidebar-container fixed z-very-high flex flex-col top-0 right-0 p-4 w-full md:w-[28rem] lg:w-[30rem] opacity-100 h-screen bg-base-200 transition-all duration-300 border-l border-base-300 overflow-hidden translate-x-full"
-      aria-label="Config History Slider"
+      className="sidebar-container fixed z-very-high flex flex-col top-0 right-0 p-4 w-full md:w-[28rem] h-screen bg-base-200 border-l border-base-300 translate-x-full"
     >
-      <div className="flex flex-col w-full gap-4 h-full min-h-0">
+      <div className="flex flex-col gap-4 h-full min-h-0">
         <div className="flex justify-between items-center border-b border-base-300 pb-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <FileTextIcon className="w-4 h-4 text-primary" />
             </div>
-            <p className="text-base font-semibold text-base-content leading-tight">Updates History</p>
+            <p className="text-base font-semibold">Updates History</p>
           </div>
-          <button
-            id="config-history-slider-close-icon"
-            onClick={handleCloseConfigHistorySlider}
-            className="p-1.5 rounded-lg text-base-content/40 hover:text-base-content hover:bg-base-300 transition-all"
-          >
+          <button onClick={() => { toggleSidebar(SLIDER_ID, "right"); reset(); }} className="p-1.5 rounded-lg hover:bg-base-300">
             <CloseIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="bg-base-100 rounded-lg p-4 border border-base-300 shrink-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div className="bg-base-100 rounded-lg p-4 border border-base-300 shrink-0 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium mb-1">Filter by User</label>
+              <label className="text-xs font-medium mb-1 block">Filter by User</label>
               <select
                 className="select select-sm select-bordered w-full"
                 value={filters[CONFIG_HISTORY_FILTER_KEYS.USER_IDS][0] || ""}
-                onChange={(e) => handleDropdownFilterChange(CONFIG_HISTORY_FILTER_KEYS.USER_IDS, e.target.value)}
+                onChange={(e) => setFilter(CONFIG_HISTORY_FILTER_KEYS.USER_IDS, e.target.value)}
               >
                 <option value="">All Users</option>
-                {availableUsers?.map((user) => (
-                  <option key={user?.id} value={user?.id}>
-                    {user?.name}
-                  </option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
             </div>
-
             <div>
-              <label className="block text-xs font-medium mb-1">Filter by Feature</label>
+              <label className="text-xs font-medium mb-1 block">Filter by Feature</label>
               <select
                 className="select select-sm select-bordered w-full"
                 value={filters[CONFIG_HISTORY_FILTER_KEYS.TYPES][0] || ""}
-                onChange={(e) => handleDropdownFilterChange(CONFIG_HISTORY_FILTER_KEYS.TYPES, e.target.value)}
+                onChange={(e) => setFilter(CONFIG_HISTORY_FILTER_KEYS.TYPES, e.target.value)}
               >
                 <option value="">All Features</option>
-                {CONFIG_HISTORY_FEATURE_OPTIONS.map((feature) => (
-                  <option key={feature.value} value={feature.value}>
-                    {feature.label}
-                  </option>
+                {CONFIG_HISTORY_FEATURE_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
                 ))}
               </select>
             </div>
           </div>
-
-          <button
-            onClick={resetFilters}
-            className="w-full px-3 py-1.5 text-xs bg-base-300 text-base-content rounded hover:bg-base-200 transition-colors"
-          >
-            Clear
-          </button>
+          <button onClick={reset} className="w-full py-1.5 text-xs bg-base-300 rounded hover:bg-base-200">Clear</button>
         </div>
 
-        <p className="text-[11px] text-base-content/45 px-1 -mt-1 shrink-0">
-          Tap any change to see what was edited or to revert it.
-        </p>
+        <p className="text-[11px] text-base-content/45 shrink-0">Tap any change to see what was edited or to revert it.</p>
 
-        <div id="config-history-scroll-container" className="flex-1 overflow-y-auto min-h-0">
+        <div id="config-history-scroll" className="flex-1 overflow-y-auto min-h-0">
           {loading && page === 1 ? (
-            <div className="flex justify-center items-center h-40">
-              <div className="loading loading-spinner loading-md"></div>
+            <div className="flex justify-center h-40 items-center">
+              <span className="loading loading-spinner loading-md" />
             </div>
           ) : (
             <InfiniteScroll
-              dataLength={historyData.length}
-              next={loadMore}
+              dataLength={history.length}
+              next={() => setPage((p) => p + 1)}
               hasMore={hasMore}
-              loader={
-                <div className="flex justify-center py-4">
-                  <div className="loading loading-spinner loading-md"></div>
-                </div>
-              }
-              endMessage={
-                historyData.length > 0 && (
-                  <p className="text-center text-xs text-base-content/30 py-5">— All caught up —</p>
-                )
-              }
-              scrollableTarget="config-history-scroll-container"
+              loader={<div className="flex justify-center py-4"><span className="loading loading-spinner loading-md" /></div>}
+              endMessage={history.length > 0 && <p className="text-center text-xs text-base-content/30 py-5">— All caught up —</p>}
+              scrollableTarget="config-history-scroll"
             >
-              <div className="space-y-4 text-base-content pb-2">
-                {renderDraftSection()}
+              <div className="space-y-4 pb-2">
+                {draftItems.length > 0 && (
+                  <div className="rounded-xl border border-warning/35 bg-warning/5 p-3 space-y-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm font-semibold flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-warning" /> Draft
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-warning/20 text-warning border border-warning/30">
+                        {draftItems.length} unpublished
+                      </span>
+                    </div>
+                    {draftItems.map((item, i) => {
+                      const id = item.id ?? `d-${i}`;
+                      return (
+                        <HistoryRow
+                          key={id}
+                          item={item}
+                          labels={labels}
+                          expanded={expanded.has(id)}
+                          onToggle={() => toggle(id)}
+                          showRevert
+                          onRevert={handleRevert}
+                          isReverting={revertingId === item.id}
+                          isDraft
+                        />
+                      );
+                    })}
+                  </div>
+                )}
 
-                {groupedHistory.length > 0
-                  ? groupedHistory.map(({ label, items }) => (
-                      <div key={label}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-[11px] font-semibold text-base-content/50 tracking-wider whitespace-nowrap">
-                            {label}
-                          </span>
-                          <div className="flex-1 h-px bg-base-300" />
-                        </div>
+                {grouped.map(({ label, items }) => (
+                  <div key={label}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-[11px] font-semibold text-base-content/50 tracking-wider">{label}</span>
+                      <div className="flex-1 h-px bg-base-300" />
+                    </div>
+                    <div className="space-y-2">
+                      {items.map((item, i) => {
+                        const id = item.id ?? `${label}-${i}`;
+                        return (
+                          <HistoryRow
+                            key={id}
+                            item={item}
+                            labels={labels}
+                            expanded={expanded.has(id)}
+                            onToggle={() => toggle(id)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
 
-                        <div className="space-y-2.5">
-                          {items.map((item, index) => {
-                            const itemId = item?.id ?? `${label}-${index}`;
-                            return (
-                              <ConfigHistoryCard
-                                key={itemId}
-                                item={item}
-                                featureLabelMap={featureLabelMap}
-                                isExpanded={expandedIds.has(itemId)}
-                                onToggle={() => toggleExpanded(itemId)}
-                                showRevert={false}
-                              />
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))
-                  : !draftItems.length && (
-                      <div className="text-center py-12 text-base-content/30">
-                        <FileTextIcon className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                        <p className="text-sm">No history found</p>
-                      </div>
-                    )}
+                {!draftItems.length && !grouped.length && (
+                  <div className="text-center py-12 text-base-content/30">
+                    <FileTextIcon className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">No history found</p>
+                  </div>
+                )}
               </div>
             </InfiniteScroll>
           )}
