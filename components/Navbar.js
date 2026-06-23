@@ -340,6 +340,9 @@ const Navbar = ({ isEmbedUser, params }) => {
           router.push(
             base + (publishedVersion ? `?version=${publishedVersion}${typeQueryPart}` : `?type=${typeValue}`)
           );
+        } else if (tabId === "analytics") {
+          // Analytics page: default to all versions
+          router.push(base + `?type=${typeValue}`);
         } else {
           // Normal navigation with current version
           router.push(base + (versionId ? `?version=${versionId}${typeQueryPart}` : `?type=${typeValue}`));
