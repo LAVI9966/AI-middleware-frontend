@@ -1147,10 +1147,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           )}
 
                           {/* Show either assistant message or test case result */}
+                            <div
+                              className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : "w-fit max-w-[75%]"}`}
+                            >
                           {message?.testCaseResult && showTestCaseResults[message.id] ? (
-                            <div ref={testCaseResultRef}>
+                            <div ref={testCaseResultRef} className="chat-bubble gap-0 relative min-w-full">
                               {/* Test Case Result Display */}
-                              <div className="chat-bubble gap-0 relative min-w-full">
                                 <div className="bg-neutral/90 border border-neutral-content/20 rounded-lg p-4 text-neutral-content">
                                   {/* Header */}
                                   <div className="flex items-center gap-2 mb-4">
@@ -1210,16 +1212,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     </span>
                                     <div className="text-sm bg-neutral-content/10 rounded-md p-3 border border-neutral-content/20">
                                       {message.testCaseResult.actual_result || "No actual result"}
-                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
                           ) : (
                             /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
-                            <div
-                              className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : "w-fit max-w-[75%]"}`}
-                            >
                               <div
                                 data-testid={`playground-ai-response-message-${message.id}`}
                                 className={`gap-0 justify-start relative min-w-0 ${
@@ -1387,11 +1385,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                   </div>
                                 )}
                               </div>
-                              {/* Action Buttons Toolbar for Assistant Messages */}
-                              {editingMessage !== message.id &&
-                                message.sender === "assistant" &&
-                                !message.isLoading && (
-                                  <div className="flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 justify-between w-full">
+                            )}
+                            {/* Action Buttons Toolbar for Assistant Messages */}
+                            {editingMessage !== message.id && message.sender === "assistant" && !message.isLoading && (
+                              <div
+                                className={`flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 w-full ${message?.testCaseResult ? "justify-between" : "justify-end"}`}
+                              >
                                     {/* Toggle Button for Test Case Results */}
                                     {message?.testCaseResult && (
                                       <button
@@ -1462,8 +1461,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     </div>
                                   </div>
                                 )}
-                            </div>
-                          )}
+                              </div>
                         </div>
                       )}
                   </div>
