@@ -199,9 +199,11 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
     directTestResults,
     starterQuestions,
     bridgeType,
+    modelType,
   } = useCustomSelector((state) => {
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
     const bridgeData = state?.bridgeReducer?.allBridgesMap?.[params?.id];
+    const isPublished = searchParams?.isPublished === "true";
     return {
       messages: state?.chatReducer?.messagesByChannel?.[channelIdentifier] || [],
       finishReasonDescription: state?.flowDataReducer?.flowData?.finishReasonsData || [],
@@ -214,6 +216,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       directTestResults: state?.testCasesReducer?.directTestResults?.[params?.id] || {},
       starterQuestions: bridgeData?.starterQuestion || [],
       bridgeType: bridgeData?.bridgeType || "",
+      modelType: isPublished ? bridgeData?.configuration?.type : versionData?.configuration?.type,
     };
   });
 
@@ -1090,9 +1093,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                         message?.llm_urls?.length > 0 ||
                         message?.image_urls?.length > 0) && (
                         <div
-                          className={`flex gap-2 show-on-hover ${message.sender === "user" ? "justify-end" : "justify-start"} w-full max-w-[720px] min-w-0 items-center relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
+                          className={`flex gap-2 show-on-hover ${message.sender === "user" ? "justify-end" : "justify-start"} w-full max-w-[720px] min-w-0 ${message?.content?.length > 100 ? "items-end" : "items-center"} relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
                         >
-                          {message?.sender === "user" && message?.content && (
+                          {message?.sender === "user" && message?.content && modelType !== "image" && (
                             <div className="dropdown dropdown-end see-on-hover">
                               <button
                                 tabIndex={0}
