@@ -1096,7 +1096,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           className={`flex gap-2 show-on-hover ${message.sender === "user" ? "justify-end" : "justify-start"} w-full max-w-[720px] min-w-0 ${message?.content?.length > 100 ? "items-end" : "items-center"} relative ${editingMessage === message.id && message.sender === "assistant" ? "w-[500px]" : ""}`}
                         >
                           {message?.sender === "user" && message?.content && modelType !== "image" && (
-                            <div className="dropdown dropdown-end see-on-hover">
+                            <div className="dropdown dropdown-end see-on-hover flex-shrink-0">
                               <button
                                 tabIndex={0}
                                 role="button"

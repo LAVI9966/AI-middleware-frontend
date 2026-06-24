@@ -40,7 +40,7 @@ const FEEDBACK_TO_API = { 1: "good", 2: "bad", good: "good", bad: "bad" };
 
 function buildAnalyticsQueryParams(
   rawParams,
-  { selectedVersion, filterByFields = {}, filterVariableKey = "", filterVariableValue = "", extra = {} } = {}
+  { selectedVersion, filterByFields = {}, filterVariableRows = [{ key: "", value: "" }], extra = {} } = {}
 ) {
   const entries = typeof rawParams?.entries === "function" ? Object.fromEntries(rawParams.entries()) : { ...rawParams };
 
@@ -77,7 +77,7 @@ function buildAnalyticsQueryParams(
   if (!queryParams.model) delete queryParams.model;
   if (!queryParams.knowledgebase_id) delete queryParams.knowledgebase_id;
   if (!queryParams.agent_id) delete queryParams.agent_id;
-  if (!queryParams.interval) delete queryParams.interval;
+  if (!queryParams.interval) queryParams.interval = "1h";
 
   const activeFilterBy = {};
   if (filterByFields.thread_id?.trim()) activeFilterBy.thread_id = filterByFields.thread_id.trim();
@@ -86,10 +86,14 @@ function buildAnalyticsQueryParams(
   if (filterByFields.batch_id?.trim()) activeFilterBy.batch_id = filterByFields.batch_id.trim();
   if (filterByFields.user?.trim()) activeFilterBy.user = filterByFields.user.trim();
   if (filterByFields.llm_message?.trim()) activeFilterBy.llm_message = filterByFields.llm_message.trim();
-  if (filterVariableKey.trim() && filterVariableValue.trim()) {
-    activeFilterBy.variables = { [filterVariableKey.trim()]: filterVariableValue.trim() };
-  } else if (filterVariableValue.trim()) {
-    activeFilterBy.variables = filterVariableValue.trim();
+  const presentVars = {};
+  for (const row of filterVariableRows) {
+    const k = row.key.trim();
+    if (!k) continue;
+    presentVars[k] = row.value.trim();
+  }
+  if (Object.keys(presentVars).length > 0) {
+    activeFilterBy.variables = presentVars;
   }
   if (Object.keys(activeFilterBy).length > 0) {
     queryParams.filter_by = activeFilterBy;
@@ -160,8 +164,7 @@ function Page({ params, searchParams }) {
       user: "",
       llm_message: "",
     },
-    filterVariableKey: "",
-    filterVariableValue: "",
+    filterVariableRows: [{ key: "", value: "" }],
   });
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const customDropdownRef = useRef(null);
@@ -175,8 +178,7 @@ function Page({ params, searchParams }) {
     user: "",
     llm_message: "",
   });
-  const [filterVariableKey, setFilterVariableKey] = useState("");
-  const [filterVariableValue, setFilterVariableValue] = useState("");
+  const [filterVariableRows, setFilterVariableRows] = useState([{ key: "", value: "" }]);
   const [isAdvanceFilterOpen, setIsAdvanceFilterOpen] = useState(false);
   const [showAllToolGroup, setShowAllToolGroup] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
@@ -208,7 +210,7 @@ function Page({ params, searchParams }) {
   const [filterStart, setFilterStart] = useState(resolvedSearchParams?.start || "");
   const [filterEnd, setFilterEnd] = useState(resolvedSearchParams?.end || "");
   const [filterRange, setFilterRange] = useState(getNormalizedRange(resolvedSearchParams?.range));
-  const [filterInterval, setFilterInterval] = useState(resolvedSearchParams?.interval || "");
+  const [filterInterval, setFilterInterval] = useState(resolvedSearchParams?.interval || "1h");
   const [filterFeedback, setFilterFeedback] = useState(resolvedSearchParams?.feedback || "all");
   const [filterError, setFilterError] = useState(resolvedSearchParams?.error === "true");
   const [filterReviewFailed, setFilterReviewFailed] = useState(resolvedSearchParams?.review_failed === "true");
@@ -235,7 +237,7 @@ function Page({ params, searchParams }) {
   const hasAnyFilter = Boolean(
     filterStart ||
     filterEnd ||
-    filterInterval ||
+    (filterInterval && filterInterval !== "1h") ||
     filterFeedback !== "all" ||
     filterError ||
     filterReviewFailed ||
@@ -244,9 +246,13 @@ function Page({ params, searchParams }) {
     filterKnowledgeBase.length ||
     filterAgent.length ||
     Object.values(filterByFields).some((v) => v && String(v).trim() !== "") ||
-    filterVariableKey.trim() ||
-    filterVariableValue.trim() ||
+    filterVariableRows.some((row) => row.key.trim() || row.value.trim()) ||
     searchQuery.trim()
+  );
+
+  const hasAdvancedFilterValues = Boolean(
+    Object.values(filterByFields).some((v) => v && String(v).trim() !== "") ||
+    filterVariableRows.some((row) => row.key.trim() || row.value.trim())
   );
 
   // Derive sidebar thread list from analytics API response threads
@@ -309,9 +315,11 @@ function Page({ params, searchParams }) {
     };
   }, [dispatch]);
 
-  // Never restore thread/slider state from URL on load or refresh — manual click only.
+  // Never restore thread/slider state or filters from URL on load or refresh.
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
+
+    // Clear thread/slider UI keys
     const uiKeys = ["thread_id", "subThread_id", "message_id", "batch_id"];
     let dirty = false;
     uiKeys.forEach((key) => {
@@ -320,15 +328,68 @@ function Page({ params, searchParams }) {
         dirty = true;
       }
     });
+
+    // Clear all filter keys
+    const filterKeys = [
+      "start",
+      "end",
+      "range",
+      "interval",
+      "feedback",
+      "version",
+      "tool_id",
+      "model",
+      "knowledgebase_id",
+      "agent_id",
+      "error",
+      "review_failed",
+      "keyword",
+      "page",
+    ];
+    filterKeys.forEach((key) => {
+      if (p.has(key)) {
+        p.delete(key);
+        dirty = true;
+      }
+    });
+
     if (dirty) {
       router.replace(`${pathName}?${p.toString()}`, undefined, { shallow: true });
     }
+
+    // Reset thread/slider state
     setSelectedThreadId(null);
     setSelectedSubThreadId(null);
     setSelectedBatchMessageId(null);
     setSidebarExpandedThreadId(null);
     setSidebarExpandedSubThreadId(null);
     setIsSliderOpen(false);
+
+    // Reset all filter states
+    setFilterStart("");
+    setFilterEnd("");
+    setFilterRange("30d");
+    setFilterInterval("1h");
+    setFilterFeedback("all");
+    setFilterError(false);
+    setFilterReviewFailed(false);
+    setFilterTool([]);
+    setFilterModel([]);
+    setFilterKnowledgeBase([]);
+    setFilterAgent([]);
+    setSearchQuery("");
+    if (searchRef.current) searchRef.current.value = "";
+    setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
+    setFilterVariableRows([{ key: "", value: "" }]);
+    setAppliedAdvancedFilters({
+      filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
+      filterVariableRows: [{ key: "", value: "" }],
+    });
+    dispatch(setSelectedVersion("all"));
+
+    // Skip the 1-second initial delay so the clean fetch runs immediately on re-render
+    isFirstRender.current = false;
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -355,8 +416,7 @@ function Page({ params, searchParams }) {
       buildAnalyticsQueryParams(search, {
         selectedVersion,
         filterByFields: appliedAdvancedFilters.filterByFields,
-        filterVariableKey: appliedAdvancedFilters.filterVariableKey,
-        filterVariableValue: appliedAdvancedFilters.filterVariableValue,
+        filterVariableRows: appliedAdvancedFilters.filterVariableRows,
         extra,
       }),
     [search, selectedVersion, appliedAdvancedFilters]
@@ -368,6 +428,15 @@ function Page({ params, searchParams }) {
       params.delete(key);
     });
     return params.toString();
+  }, [search]);
+
+  const memoizedSearchParams = useMemo(() => {
+    const p = Object.fromEntries(search.entries());
+    delete p.thread_id;
+    delete p.subThread_id;
+    delete p.message_id;
+    delete p.batch_id;
+    return p;
   }, [search]);
 
   // Fetch agent analytics (with a 1-second delay on refresh/initial mount, and immediately on subsequent updates)
@@ -394,13 +463,19 @@ function Page({ params, searchParams }) {
 
   const buildAnalyticsQueryParamsForFetch = (extra = {}) => getAnalyticsQueryParams(extra);
 
-  const fetchMoreData = async () => {
-    if (!hasMore || analyticsLoading) return;
+  const noop = useCallback(() => {}, []);
+  const analyticsLoadingRef = useRef(analyticsLoading);
+  useEffect(() => {
+    analyticsLoadingRef.current = analyticsLoading;
+  }, [analyticsLoading]);
+
+  const fetchMoreData = useCallback(async () => {
+    if (!hasMore || analyticsLoadingRef.current) return;
     const nextPage = page + 1;
     const queryParams = buildAnalyticsQueryParamsForFetch({ page: nextPage });
     await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
     setPage(nextPage);
-  };
+  }, [hasMore, page, buildAnalyticsQueryParamsForFetch, resolvedParams.id, resolvedParams.org_id, dispatch]);
 
   const handleSearch = useCallback(
     (query) => {
@@ -583,7 +658,7 @@ function Page({ params, searchParams }) {
     setFilterStart("");
     setFilterEnd("");
     setFilterRange("30d");
-    setFilterInterval("");
+    setFilterInterval("1h");
     setFilterFeedback("all");
     setFilterError(false);
     setFilterReviewFailed(false);
@@ -592,15 +667,13 @@ function Page({ params, searchParams }) {
     setFilterKnowledgeBase([]);
     setFilterAgent([]);
     setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
-    setFilterVariableKey("");
-    setFilterVariableValue("");
+    setFilterVariableRows([{ key: "", value: "" }]);
     dispatch(setSelectedVersion("all"));
     setIsCustomOpen(false);
 
     const emptyAdvancedFilters = {
       filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
-      filterVariableKey: "",
-      filterVariableValue: "",
+      filterVariableRows: [{ key: "", value: "" }],
     };
     setAppliedAdvancedFilters(emptyAdvancedFilters);
 
@@ -610,7 +683,7 @@ function Page({ params, searchParams }) {
           start: null,
           end: null,
           range: null,
-          interval: null,
+          interval: "1h",
           feedback: null,
           error: null,
           tool_id: null,
@@ -761,6 +834,7 @@ function Page({ params, searchParams }) {
                           <div className="flex gap-2 pt-2">
                             <button
                               className="btn btn-sm btn-primary flex-1"
+                              disabled={!filterStart && !filterEnd}
                               onClick={() => {
                                 applyFilters();
                                 setIsCustomOpen(false);
@@ -771,6 +845,7 @@ function Page({ params, searchParams }) {
                             </button>
                             <button
                               className="btn btn-sm btn-outline flex-1"
+                              disabled={!hasAnyFilter}
                               onClick={() => {
                                 clearFilters();
                                 setIsCustomOpen(false);
@@ -1020,7 +1095,7 @@ function Page({ params, searchParams }) {
                             {allItems.length > 8 && (
                               <button
                                 onClick={() => setShowAllToolGroup(!showAllToolGroup)}
-                                className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                                className="px-3 py-1 rounded-full text-xs font-medium transition-colors border border-dashed border-base-content/30 text-base-content/60 hover:border-base-content/50 hover:text-base-content"
                               >
                                 {showAllToolGroup ? "Less" : `+${allItems.length - 8} More`}
                               </button>
@@ -1080,7 +1155,7 @@ function Page({ params, searchParams }) {
                         .length > 4 && (
                         <button
                           onClick={() => setShowAllModels(!showAllModels)}
-                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors bg-base-200 text-base-content/70 hover:bg-base-300"
+                          className="px-3 py-1 rounded-full text-xs font-medium transition-colors border border-dashed border-base-content/30 text-base-content/60 hover:border-base-content/50 hover:text-base-content"
                         >
                           {showAllModels
                             ? "Less"
@@ -1114,35 +1189,60 @@ function Page({ params, searchParams }) {
                       </div>
                     ))}
                     <div className="col-span-2 md:col-span-3">
-                      <div className="flex gap-2">
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-base-content/70 mb-0.5">Variable Key</label>
-                          <input
-                            type="text"
-                            className="input input-sm rounded-lg input-bordered w-full text-xs"
-                            placeholder="key"
-                            value={filterVariableKey}
-                            onChange={(e) => setFilterVariableKey(e.target.value)}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs font-medium text-base-content/70 mb-0.5">
-                            Variable Value
-                          </label>
-                          <input
-                            type="text"
-                            className="input input-sm rounded-lg input-bordered w-full text-xs"
-                            placeholder="value"
-                            value={filterVariableValue}
-                            onChange={(e) => setFilterVariableValue(e.target.value)}
-                          />
-                        </div>
+                      <label className="block text-xs font-medium text-base-content/70 mb-0.5">Present Variables</label>
+                      <div className="space-y-2">
+                        {filterVariableRows.map((row, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              className="input input-sm rounded-lg input-bordered flex-1 text-xs"
+                              placeholder="key"
+                              value={row.key}
+                              onChange={(e) => {
+                                const next = [...filterVariableRows];
+                                next[idx].key = e.target.value;
+                                setFilterVariableRows(next);
+                              }}
+                            />
+                            <input
+                              type="text"
+                              className="input input-sm rounded-lg input-bordered flex-1 text-xs"
+                              placeholder="value"
+                              value={row.value}
+                              onChange={(e) => {
+                                const next = [...filterVariableRows];
+                                next[idx].value = e.target.value;
+                                setFilterVariableRows(next);
+                              }}
+                            />
+                            {filterVariableRows.length > 1 && (
+                              <button
+                                type="button"
+                                className="px-2 py-1 rounded-md text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                onClick={() => {
+                                  const next = filterVariableRows.filter((_, i) => i !== idx);
+                                  setFilterVariableRows(next.length ? next : [{ key: "", value: "" }]);
+                                }}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="px-3 py-1 rounded-md text-xs font-medium border border-dashed border-base-content/30 text-base-content/60 hover:border-base-content/50 hover:text-base-content transition-colors"
+                          onClick={() => setFilterVariableRows((prev) => [...prev, { key: "", value: "" }])}
+                        >
+                          + Add Key/Value
+                        </button>
                       </div>
                     </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-3">
                     <button
-                      className="px-5 py-1 rounded-lg text-sm font-medium border border-base-200 text-base-content/70 hover:bg-primary/5 hover:text-primary hover:border-primary/40 dark:hover:bg-primary/10 dark:hover:text-primary transition-colors"
+                      className="px-5 py-1 rounded-lg text-sm font-medium border border-base-200 text-base-content/70 hover:bg-primary/5 hover:text-primary hover:border-primary/40 dark:hover:bg-primary/10 dark:hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={!hasAdvancedFilterValues}
                       onClick={() => {
                         const emptyFields = {
                           thread_id: "",
@@ -1153,25 +1253,23 @@ function Page({ params, searchParams }) {
                           llm_message: "",
                         };
                         setFilterByFields(emptyFields);
-                        setFilterVariableKey("");
-                        setFilterVariableValue("");
+                        setFilterVariableRows([{ key: "", value: "" }]);
                         dispatchAnalyticsWithAdvancedFilters({
                           filterByFields: emptyFields,
-                          filterVariableKey: "",
-                          filterVariableValue: "",
+                          filterVariableRows: [{ key: "", value: "" }],
                         });
                       }}
                     >
                       Reset Fields
                     </button>
                     <button
-                      className="px-5 py-1   rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-lg"
+                      className="px-5 py-1 rounded-lg text-sm font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                      disabled={!hasAdvancedFilterValues}
                       onClick={() => {
                         if (document.activeElement) document.activeElement.blur();
                         dispatchAnalyticsWithAdvancedFilters({
                           filterByFields,
-                          filterVariableKey,
-                          filterVariableValue,
+                          filterVariableRows,
                         });
                       }}
                     >
@@ -1202,59 +1300,70 @@ function Page({ params, searchParams }) {
                   </div>
                 </div>
                 <div className="flex-1 min-h-[240px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={executionData}>
-                      <defs>
-                        <linearGradient id="gradSuccess" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
-                        </linearGradient>
-                        <linearGradient id="gradFailed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                      <XAxis
-                        dataKey="time"
-                        tick={{ fill: "#9ca3af", fontSize: "11px" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis tick={{ fill: "#9ca3af", fontSize: "11px" }} axisLine={false} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{
-                          fontSize: "12px",
-                          borderRadius: "4px",
-                          border: "none",
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                        }}
-                      />
-                      {executionChartType === "area" ? (
-                        <>
-                          <Area
-                            type="monotone"
-                            dataKey="success"
-                            stroke="#10b981"
-                            strokeWidth={2}
-                            fill="url(#gradSuccess)"
-                          />
-                          <Area
-                            type="monotone"
-                            dataKey="failed"
-                            stroke="#ef4444"
-                            strokeWidth={2}
-                            fill="url(#gradFailed)"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <Bar dataKey="success" fill="#10b981" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                        </>
-                      )}
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                  {analyticsLoading && executionData.length === 0 ? (
+                    <div className="flex justify-center items-center h-full">
+                      <span className="loading loading-spinner loading-md"></span>
+                    </div>
+                  ) : executionData.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <BarChart3 className="w-10 h-10 text-base-content/30 mb-2" />
+                      <p className="text-sm text-base-content/50">No content</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={executionData}>
+                        <defs>
+                          <linearGradient id="gradSuccess" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                          </linearGradient>
+                          <linearGradient id="gradFailed" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                        <XAxis
+                          dataKey="time"
+                          tick={{ fill: "#9ca3af", fontSize: "11px" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: "11px" }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            fontSize: "12px",
+                            borderRadius: "4px",
+                            border: "none",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                          }}
+                        />
+                        {executionChartType === "area" ? (
+                          <>
+                            <Area
+                              type="monotone"
+                              dataKey="success"
+                              stroke="#10b981"
+                              strokeWidth={2}
+                              fill="url(#gradSuccess)"
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="failed"
+                              stroke="#ef4444"
+                              strokeWidth={2}
+                              fill="url(#gradFailed)"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <Bar dataKey="success" fill="#10b981" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          </>
+                        )}
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
@@ -1276,65 +1385,82 @@ function Page({ params, searchParams }) {
                   </div>
                 </div>
                 <div className="flex-1 min-h-[240px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={latencyData}>
-                      <defs>
-                        <linearGradient id="gradWorst" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
-                        </linearGradient>
-                        <linearGradient id="gradSlow" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
-                        </linearGradient>
-                        <linearGradient id="gradTypical" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                      <XAxis
-                        dataKey="time"
-                        tick={{ fill: "#9ca3af", fontSize: "11px" }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-                      <YAxis tick={{ fill: "#9ca3af", fontSize: "11px" }} axisLine={false} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{
-                          fontSize: "12px",
-                          borderRadius: "4px",
-                          border: "none",
-                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                        }}
-                      />
-                      {latencyChartType === "area" ? (
-                        <>
-                          <Area
-                            type="monotone"
-                            dataKey="worst"
-                            stroke="#ef4444"
-                            strokeWidth={2}
-                            fill="url(#gradWorst)"
-                          />
-                          <Area type="monotone" dataKey="slow" stroke="#f59e0b" strokeWidth={2} fill="url(#gradSlow)" />
-                          <Area
-                            type="monotone"
-                            dataKey="typical"
-                            stroke="#3b82f6"
-                            strokeWidth={2}
-                            fill="url(#gradTypical)"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <Bar dataKey="worst" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="slow" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="typical" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                        </>
-                      )}
-                    </ComposedChart>
-                  </ResponsiveContainer>
+                  {analyticsLoading && latencyData.length === 0 ? (
+                    <div className="flex justify-center items-center h-full">
+                      <span className="loading loading-spinner loading-md"></span>
+                    </div>
+                  ) : latencyData.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center">
+                      <BarChart3 className="w-10 h-10 text-base-content/30 mb-2" />
+                      <p className="text-sm text-base-content/50">No content</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={latencyData}>
+                        <defs>
+                          <linearGradient id="gradWorst" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#ef4444" stopOpacity={0.02} />
+                          </linearGradient>
+                          <linearGradient id="gradSlow" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.02} />
+                          </linearGradient>
+                          <linearGradient id="gradTypical" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                        <XAxis
+                          dataKey="time"
+                          tick={{ fill: "#9ca3af", fontSize: "11px" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis tick={{ fill: "#9ca3af", fontSize: "11px" }} axisLine={false} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            fontSize: "12px",
+                            borderRadius: "4px",
+                            border: "none",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                          }}
+                        />
+                        {latencyChartType === "area" ? (
+                          <>
+                            <Area
+                              type="monotone"
+                              dataKey="worst"
+                              stroke="#ef4444"
+                              strokeWidth={2}
+                              fill="url(#gradWorst)"
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="slow"
+                              stroke="#f59e0b"
+                              strokeWidth={2}
+                              fill="url(#gradSlow)"
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="typical"
+                              stroke="#3b82f6"
+                              strokeWidth={2}
+                              fill="url(#gradTypical)"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <Bar dataKey="worst" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="slow" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="typical" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                          </>
+                        )}
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
             </div>
@@ -1390,19 +1516,17 @@ function Page({ params, searchParams }) {
             />
           </div>
         </div>
-
-        {/* Batch Subthread Panel - between main content and sidebar */}
-        {selectedThreadId && (
-          <BatchSubthreadPanel
-            thread={thread}
-            subThreadIdFromURL={selectedSubThreadId}
-            parentThreadId={selectedThreadId}
-            selectedBatchMessageId={selectedBatchMessageId}
-            onSelectBatch={handleSelectBatch}
-            onSelectSubThread={handleSelectSubThread}
-          />
-        )}
       </div>
+
+      {/* Batch Subthread Panel - between main content and sidebar */}
+      <BatchSubthreadPanel
+        thread={thread}
+        subThreadIdFromURL={selectedSubThreadId}
+        parentThreadId={selectedThreadId}
+        selectedBatchMessageId={selectedBatchMessageId}
+        onSelectBatch={handleSelectBatch}
+        onSelectSubThread={handleSelectSubThread}
+      />
 
       {/* Right Sidebar */}
       <div className="h-full shrink-0 z-50 flex relative">
@@ -1413,23 +1537,16 @@ function Page({ params, searchParams }) {
           hasMore={hasMore}
           loading={analyticsLoading}
           params={resolvedParams}
-          searchParams={(() => {
-            const p = Object.fromEntries(search.entries());
-            delete p.thread_id;
-            delete p.subThread_id;
-            delete p.message_id;
-            delete p.batch_id;
-            return p;
-          })()}
+          searchParams={memoizedSearchParams}
           setSearchMessageId={setSearchMessageId}
           searchMessageId={searchMessageId}
           onAnalyticsMessageNavigate={handleAnalyticsMessageNavigate}
           setPage={setPage}
-          setHasMore={() => {}}
+          setHasMore={noop}
           filterOption={filterFeedback}
           setFilterOption={setFilterFeedback}
           searchRef={searchRef}
-          setThreadPage={() => {}}
+          setThreadPage={noop}
           selectedVersion={selectedVersion}
           setIsErrorTrue={setFilterError}
           isErrorTrue={filterError}

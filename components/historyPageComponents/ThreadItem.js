@@ -277,12 +277,12 @@ const ThreadItem = ({
       setIsRerunning(false);
     }
   };
-  const shouldShowRerun = thread?.length === 1 || index === thread?.length - 1;
 
   const [isVariablesOpen, setIsVariablesOpen] = useState(false);
   const [variablesFilter, _setVariablesFilter] = useState("");
   const [isMoreDetailsExpanded, setIsMoreDetailsExpanded] = useState(false);
   const [copiedAllVariables, setCopiedAllVariables] = useState(false);
+  const [copiedSystemPrompt, setCopiedSystemPrompt] = useState(false);
 
   // Keep toolbar visible whenever any accordion panel is open
   const isAnyPanelOpen = isVariablesOpen || isMoreDetailsExpanded || isSystemPromptExpanded;
@@ -294,6 +294,16 @@ const ThreadItem = ({
     toast.success("Variables copied to clipboard");
     setTimeout(() => {
       setCopiedAllVariables(false);
+    }, 2000);
+  };
+
+  const handleCopySystemPrompt = () => {
+    const prompt = item?.prompt || (item?.user && thread?.[index + 1]?.prompt) || "";
+    navigator.clipboard.writeText(prompt);
+    setCopiedSystemPrompt(true);
+    toast.success("System prompt copied to clipboard");
+    setTimeout(() => {
+      setCopiedSystemPrompt(false);
     }, 2000);
   };
 
@@ -1086,7 +1096,7 @@ const ThreadItem = ({
             const batchId = item?.batch_data?.batch_id;
             if (!batchId) return null;
             return (
-              <div key="batch_id" className="flex items-start gap-4 border-t border-base-content/10 px-4 py-2.5">
+              <div key="batch_id" className="flex items-start gap-4 px-4 py-2.5">
                 <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Batch ID</span>
                 <span className="text-xs break-all text-base-content whitespace-pre-wrap font-mono">{batchId}</span>
               </div>
@@ -1161,6 +1171,26 @@ const ThreadItem = ({
     const prompt = item?.prompt || (item?.user && thread?.[index + 1]?.prompt);
     return (
       <ThreadSystemPromptPanel className={panelClassName}>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">System Prompt</span>
+          <button
+            onClick={handleCopySystemPrompt}
+            className="btn btn-xs btn-ghost gap-1.5 text-xs text-base-content/70 hover:text-base-content flex items-center"
+            title="Copy system prompt"
+          >
+            {copiedSystemPrompt ? (
+              <>
+                <CheckCircleIcon size={12} className="text-success" />
+                <span className="text-success font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <CopyIcon size={12} />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
         {prompt ? renderHighlightedSystemPrompt(prompt) : null}
       </ThreadSystemPromptPanel>
     );
@@ -1168,29 +1198,30 @@ const ThreadItem = ({
 
   const renderResponseActionButtons = () => {
     const showEdit = !item?.llm_urls?.length && !item?.fromRTLayer;
+    const isError = Boolean(item?.error);
     return (
       <div className="mt-2 flex flex-wrap items-center justify-start gap-1.5">
-        {shouldShowRerun && (
+        <ThreadActionPill
+          testId="thread-item-rerun-button"
+          id="thread-item-rerun-button"
+          icon={RotateCcw}
+          onClick={handleRerun}
+          disabled={isRerunning || !publishedVersionId}
+          title={!publishedVersionId ? "No published version available" : "Rerun this message"}
+        >
+          {isRerunning ? "Running..." : "Rerun"}
+        </ThreadActionPill>
+        {!isError && (
           <ThreadActionPill
-            testId="thread-item-rerun-button"
-            id="thread-item-rerun-button"
-            icon={RotateCcw}
-            onClick={handleRerun}
-            disabled={isRerunning || !publishedVersionId}
-            title={!publishedVersionId ? "No published version available" : "Rerun this message"}
+            id="thread-item-add-test-case-button"
+            testId="thread-item-add-test-case-button"
+            icon={AddIcon}
+            trailing={ChevronRight}
+            onClick={() => handleAddTestCase(item, index)}
           >
-            {isRerunning ? "Running..." : "Rerun"}
+            Test Case
           </ThreadActionPill>
         )}
-        <ThreadActionPill
-          id="thread-item-add-test-case-button"
-          testId="thread-item-add-test-case-button"
-          icon={AddIcon}
-          trailing={ChevronRight}
-          onClick={() => handleAddTestCase(item, index)}
-        >
-          Test Case
-        </ThreadActionPill>
         <ThreadActionPill
           id="thread-item-debug-agent-button"
           testId="thread-item-debug-agent-button"
@@ -1200,7 +1231,7 @@ const ThreadItem = ({
         >
           Debug Agent
         </ThreadActionPill>
-        {showEdit && (
+        {!isError && showEdit && (
           <ThreadActionPill
             id="thread-item-edit-message-button"
             testId="thread-item-edit-message-button"
@@ -1372,7 +1403,7 @@ const ThreadItem = ({
           <div>
             {/* User message — same dark bubble + U avatar for multi-query; buttons differ by mode */}
             <div className={`group relative ${hasAgentsOrTools ? "mb-2" : "mb-10"}`}>
-              <div className="flex items-start justify-end gap-3">
+              <div className={`flex justify-end gap-3 ${item?.user?.length > 100 ? "items-end" : "items-start"}`}>
                 <div
                   className={`max-w-[75%] rounded-2xl rounded-br-none px-4 py-3 text-sm leading-relaxed break-words border ${
                     isDark
@@ -1626,6 +1657,7 @@ const ThreadItem = ({
               </div>
               <p className="text-sm whitespace-pre-wrap">{extractErrorMessage(item?.error)}</p>
             </div>
+            <div className="flex flex-wrap items-center mt-2 gap-2 z-20">{renderResponseActionButtons()}</div>
           </div>
         )}
       </div>
