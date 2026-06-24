@@ -7,7 +7,19 @@ export const getAgentAnalyticsAction =
     dispatch(fetchAnalyticsStart());
     try {
       const response = await getAgentAnalyticsApi(bridge_id, queryParams, org_id);
-      dispatch(fetchAnalyticsSuccess({ ...response, bridge_id }));
+      const pageSize = parseInt(queryParams.page_size, 10) || 20;
+      const pageNum = parseInt(queryParams.page, 10) || 1;
+      dispatch(
+        fetchAnalyticsSuccess({
+          ...response,
+          bridge_id,
+          pagination: {
+            page: pageNum,
+            page_size: pageSize,
+            has_more: (response?.data?.length || 0) >= pageSize,
+          },
+        })
+      );
       return response;
     } catch (error) {
       console.error("Error in getAgentAnalyticsAction:", error);
