@@ -17,6 +17,7 @@ import CreateFineTuneModal from "../modals/CreateFineTuneModal.js";
 import DateRangePicker from "./DateRangePicker.js";
 import { usePathname, useRouter } from "next/navigation.js";
 import { FileTextIcon, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { AnalyticsThreadListSkeleton } from "@/components/skeletons/AnalyticsSkeleton";
 
 const getRelativeDateGroup = (dateString) => {
   if (!dateString) return "TODAY";
@@ -87,8 +88,8 @@ const Sidebar = memo(
     onAnalyticsMessageNavigate,
     searchMessageId = null,
   }) => {
-    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType } = useCustomSelector(
-      (state) => ({
+    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType, analyticsThreads } =
+      useCustomSelector((state) => ({
         subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
         subThreadsParentId: state?.historyReducer?.subThreadsParentId,
         userFeedbackCount: state?.historyReducer?.userFeedbackCount,
@@ -98,8 +99,8 @@ const Sidebar = memo(
         bridgeType:
           state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType ||
           state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridge_type,
-      })
-    );
+        analyticsThreads: state?.analyticsReducer?.analyticsData?.[params?.id]?.threads,
+      }));
 
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
@@ -810,10 +811,15 @@ const Sidebar = memo(
 
             {/* Fixed: Render search loader at the top level, not inside InfiniteScroll */}
             <div className="flex-1 overflow-y-auto" id="sidebar">
-              {historyData.length === 0 && (loading || searchLoading) ? (
-                <div className="flex justify-center items-center bg-base-200 h-full">
-                  <span className="loading loading-spinner loading-md"></span>
-                </div>
+              {historyData.length === 0 &&
+              (loading || searchLoading || (isAnalytics && analyticsThreads === undefined)) ? (
+                isAnalytics ? (
+                  <AnalyticsThreadListSkeleton />
+                ) : (
+                  <div className="flex justify-center items-center bg-base-200 h-full">
+                    <span className="loading loading-spinner loading-md"></span>
+                  </div>
+                )
               ) : historyData.length === 0 ? (
                 <NoDataFound />
               ) : (
