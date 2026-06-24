@@ -207,6 +207,25 @@ const Sidebar = memo(
     }, [searchParams?.thread_id, isErrorTrue, params.id, selectedVersion, dispatch]);
 
     useEffect(() => {
+      if (!isAnalytics) return;
+      if (sidebarExpandedThreadId) {
+        setExpandedThreads([sidebarExpandedThreadId]);
+        dispatch(clearSubThreadData());
+        dispatch(
+          getSubThreadsAction({
+            thread_id: sidebarExpandedThreadId,
+            error: isErrorTrue,
+            bridge_id: params.id,
+            version_id: selectedVersion,
+          })
+        );
+      } else {
+        setExpandedThreads([]);
+        dispatch(clearSubThreadData());
+      }
+    }, [sidebarExpandedThreadId, isErrorTrue, params.id, selectedVersion, dispatch, isAnalytics]);
+
+    useEffect(() => {
       const p = new URLSearchParams(window.location.search);
       const liveVersion = p.get("version");
       const liveThreadId = p.get("thread_id");
@@ -791,7 +810,7 @@ const Sidebar = memo(
 
             {/* Fixed: Render search loader at the top level, not inside InfiniteScroll */}
             <div className="flex-1 overflow-y-auto" id="sidebar">
-              {loading || searchLoading ? (
+              {historyData.length === 0 && (loading || searchLoading) ? (
                 <div className="flex justify-center items-center bg-base-200 h-full">
                   <span className="loading loading-spinner loading-md"></span>
                 </div>
@@ -802,7 +821,13 @@ const Sidebar = memo(
                   dataLength={historyData.length}
                   next={fetchMoreData}
                   hasMore={hasMore}
-                  loader={<h4></h4>}
+                  loader={
+                    loading || searchLoading ? (
+                      <div className="flex justify-center items-center py-4">
+                        <span className="loading loading-spinner loading-sm"></span>
+                      </div>
+                    ) : null
+                  }
                   scrollableTarget="sidebar"
                 >
                   <div className="slider-container min-w-[45%] w-full overflow-x-auto pb-20">
@@ -985,157 +1010,159 @@ const Sidebar = memo(
                                             : "shadow-sm bg-base-100 overflow-hidden"
                                         }
                                       >
-                                        {item?.sub_thread && item.sub_thread?.length > 0 && (
-                                          <div className={isAnalytics ? "bg-transparent" : "bg-base-100"}>
-                                            <div className="p-2">
-                                              <div className="space-y-1.5">
-                                                {item?.sub_thread?.map((subThread, index) => (
-                                                  <div key={index}>
-                                                    {isAnalytics ? (
-                                                      <div
-                                                        data-testid={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
-                                                        id={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
-                                                        className={`ml-2 ${
-                                                          isSidebarSubThreadActive(subThread?.sub_thread_id)
-                                                            ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40 shadow-sm"
-                                                            : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs text-base-content hover:bg-white hover:border-blue-100 border border-transparent dark:hover:bg-base-300"
-                                                        } flex-grow group`}
-                                                        onClick={() =>
-                                                          handleSelectSubThread(
-                                                            subThread?.sub_thread_id,
-                                                            item?.thread_id
-                                                          )
-                                                        }
-                                                      >
-                                                        <div className="w-full h-full flex items-center justify-between relative gap-2">
-                                                          <span className="truncate flex-1 text-xs flex items-center min-w-0">
-                                                            <MessageCircleIcon
-                                                              className={`w-3 h-3 mr-1.5 flex-shrink-0 ${
-                                                                isSidebarSubThreadActive(subThread?.sub_thread_id)
-                                                                  ? "text-blue-700 dark:text-base-100"
-                                                                  : "text-blue-500 dark:text-base-content"
-                                                              }`}
-                                                            />
-                                                            {truncate(
-                                                              subThread?.display_name || subThread?.sub_thread_id,
-                                                              20
+                                        {item?.sub_thread &&
+                                          item.sub_thread?.length > 0 &&
+                                          !(isAnalytics && selectedThreadId) && (
+                                            <div className={isAnalytics ? "bg-transparent" : "bg-base-100"}>
+                                              <div className="p-2">
+                                                <div className="space-y-1.5">
+                                                  {item?.sub_thread?.map((subThread, index) => (
+                                                    <div key={index}>
+                                                      {isAnalytics ? (
+                                                        <div
+                                                          data-testid={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
+                                                          id={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
+                                                          className={`ml-2 ${
+                                                            isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                              ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40 shadow-sm"
+                                                              : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs text-base-content hover:bg-white hover:border-blue-100 border border-transparent dark:hover:bg-base-300"
+                                                          } flex-grow group`}
+                                                          onClick={() =>
+                                                            handleSelectSubThread(
+                                                              subThread?.sub_thread_id,
+                                                              item?.thread_id
+                                                            )
+                                                          }
+                                                        >
+                                                          <div className="w-full h-full flex items-center justify-between relative gap-2">
+                                                            <span className="truncate flex-1 text-xs flex items-center min-w-0">
+                                                              <MessageCircleIcon
+                                                                className={`w-3 h-3 mr-1.5 flex-shrink-0 ${
+                                                                  isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                    ? "text-blue-700 dark:text-base-100"
+                                                                    : "text-blue-500 dark:text-base-content"
+                                                                }`}
+                                                              />
+                                                              {truncate(
+                                                                subThread?.display_name || subThread?.sub_thread_id,
+                                                                20
+                                                              )}
+                                                            </span>
+                                                            {(subThread?.updated_at || subThread?.created_at) && (
+                                                              <>
+                                                                <span
+                                                                  className={`text-[10px] whitespace-nowrap group-hover:hidden ${
+                                                                    isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                      ? "text-blue-700/70 dark:text-base-100/70"
+                                                                      : "text-base-content/50"
+                                                                  }`}
+                                                                >
+                                                                  {formatRelativeTime(subThread?.updated_at)}
+                                                                </span>
+                                                                <span
+                                                                  className={`text-[10px] whitespace-nowrap hidden group-hover:inline ${
+                                                                    isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                      ? "text-blue-700/70 dark:text-base-100/70"
+                                                                      : "text-base-content/50"
+                                                                  }`}
+                                                                >
+                                                                  {formatDate(
+                                                                    subThread?.created_at || subThread?.created_at
+                                                                  )}
+                                                                </span>
+                                                              </>
                                                             )}
-                                                          </span>
-                                                          {(subThread?.updated_at || subThread?.created_at) && (
-                                                            <>
-                                                              <span
-                                                                className={`text-[10px] whitespace-nowrap group-hover:hidden ${
-                                                                  isSidebarSubThreadActive(subThread?.sub_thread_id)
-                                                                    ? "text-blue-700/70 dark:text-base-100/70"
-                                                                    : "text-base-content/50"
-                                                                }`}
-                                                              >
-                                                                {formatRelativeTime(subThread?.updated_at)}
-                                                              </span>
-                                                              <span
-                                                                className={`text-[10px] whitespace-nowrap hidden group-hover:inline ${
-                                                                  isSidebarSubThreadActive(subThread?.sub_thread_id)
-                                                                    ? "text-blue-700/70 dark:text-base-100/70"
-                                                                    : "text-base-content/50"
-                                                                }`}
-                                                              >
-                                                                {formatDate(
-                                                                  subThread?.created_at || subThread?.created_at
-                                                                )}
-                                                              </span>
-                                                            </>
-                                                          )}
+                                                          </div>
                                                         </div>
-                                                      </div>
-                                                    ) : (
-                                                      <li
-                                                        data-testid={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
-                                                        id={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
-                                                        className={`ml-4 ${
-                                                          isSidebarSubThreadActive(subThread?.sub_thread_id)
-                                                            ? "cursor-pointer hover:bg-base-primary hover:text-base-100 transition-all duration-200 text-xs bg-primary text-base-100"
-                                                            : "cursor-pointer hover:bg-base-300 hover:text-base-content transition-all duration-200 text-xs"
-                                                        } flex-grow group`}
-                                                        onClick={() =>
-                                                          handleSelectSubThread(
-                                                            subThread?.sub_thread_id,
-                                                            item?.thread_id
-                                                          )
-                                                        }
-                                                      >
-                                                        <a className="w-full h-full flex items-center justify-between relative">
-                                                          <span className="truncate flex-1 mr-1.5 text-xs flex items-center">
-                                                            <MessageCircleIcon
-                                                              className={`w-3 h-3 mr-1.5 flex-shrink-0 ${
-                                                                isSidebarSubThreadActive(subThread?.sub_thread_id)
-                                                                  ? "text-base-100"
-                                                                  : "text-base-content"
-                                                              }`}
-                                                            />
-                                                            {truncate(
-                                                              subThread?.display_name || subThread?.sub_thread_id,
-                                                              20
-                                                            )}
-                                                          </span>
-                                                          {(subThread?.updated_at || subThread?.created_at) && (
-                                                            <>
-                                                              <span className="group-hover:hidden">
-                                                                {formatRelativeTime(subThread?.updated_at)}
-                                                              </span>
-                                                              <span className="hidden group-hover:inline">
-                                                                {formatDate(
-                                                                  subThread?.created_at || subThread?.created_at
-                                                                )}
-                                                              </span>
-                                                            </>
-                                                          )}
-                                                        </a>
-                                                      </li>
-                                                    )}
-                                                    {subThread?.messages?.length > 0 && (
-                                                      <div
-                                                        className={`mt-1.5 space-y-1 ${isAnalytics ? "ml-3 pl-2 border-l border-blue-100 dark:border-base-300" : "mt-2 ml-4 space-y-2"}`}
-                                                      >
-                                                        {subThread?.messages?.map((msg, msgIndex) => (
-                                                          <div
-                                                            data-testid={`history-sidebar-message-${msg?.message_id}`}
-                                                            id={`history-sidebar-message-${msg?.message_id}`}
-                                                            key={msgIndex}
-                                                            onClick={() => handleSetMessageId(msg?.message_id)}
-                                                            className={
-                                                              isAnalytics
-                                                                ? `${
-                                                                    isSidebarMessageActive(msg?.message_id)
-                                                                      ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40"
-                                                                      : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-white text-blue-900/80 border border-blue-100 hover:bg-[#EBF4FE]/60 hover:border-blue-200 dark:bg-base-200 dark:text-base-content dark:border-base-300"
-                                                                  }`
-                                                                : "cursor-pointer transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300"
-                                                            }
-                                                          >
-                                                            <div className="flex items-start gap-1.5">
-                                                              <UserIcon
-                                                                className={`w-2.5 h-2.5 mt-0.5 flex-shrink-0 ${
-                                                                  isAnalytics
-                                                                    ? isSidebarMessageActive(msg?.message_id)
-                                                                      ? "text-blue-700 dark:text-base-100"
-                                                                      : "text-blue-400 dark:text-base-content"
+                                                      ) : (
+                                                        <li
+                                                          data-testid={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
+                                                          id={`history-sidebar-search-subthread-${subThread?.sub_thread_id}`}
+                                                          className={`ml-4 ${
+                                                            isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                              ? "cursor-pointer hover:bg-base-primary hover:text-base-100 transition-all duration-200 text-xs bg-primary text-base-100"
+                                                              : "cursor-pointer hover:bg-base-300 hover:text-base-content transition-all duration-200 text-xs"
+                                                          } flex-grow group`}
+                                                          onClick={() =>
+                                                            handleSelectSubThread(
+                                                              subThread?.sub_thread_id,
+                                                              item?.thread_id
+                                                            )
+                                                          }
+                                                        >
+                                                          <a className="w-full h-full flex items-center justify-between relative">
+                                                            <span className="truncate flex-1 mr-1.5 text-xs flex items-center">
+                                                              <MessageCircleIcon
+                                                                className={`w-3 h-3 mr-1.5 flex-shrink-0 ${
+                                                                  isSidebarSubThreadActive(subThread?.sub_thread_id)
+                                                                    ? "text-base-100"
                                                                     : "text-base-content"
                                                                 }`}
                                                               />
-                                                              <span className="leading-snug">
-                                                                {truncate(msg?.message, 35)}
-                                                              </span>
+                                                              {truncate(
+                                                                subThread?.display_name || subThread?.sub_thread_id,
+                                                                20
+                                                              )}
+                                                            </span>
+                                                            {(subThread?.updated_at || subThread?.created_at) && (
+                                                              <>
+                                                                <span className="group-hover:hidden">
+                                                                  {formatRelativeTime(subThread?.updated_at)}
+                                                                </span>
+                                                                <span className="hidden group-hover:inline">
+                                                                  {formatDate(
+                                                                    subThread?.created_at || subThread?.created_at
+                                                                  )}
+                                                                </span>
+                                                              </>
+                                                            )}
+                                                          </a>
+                                                        </li>
+                                                      )}
+                                                      {subThread?.messages?.length > 0 && (
+                                                        <div
+                                                          className={`mt-1.5 space-y-1 ${isAnalytics ? "ml-3 pl-2 border-l border-blue-100 dark:border-base-300" : "mt-2 ml-4 space-y-2"}`}
+                                                        >
+                                                          {subThread?.messages?.map((msg, msgIndex) => (
+                                                            <div
+                                                              data-testid={`history-sidebar-message-${msg?.message_id}`}
+                                                              id={`history-sidebar-message-${msg?.message_id}`}
+                                                              key={msgIndex}
+                                                              onClick={() => handleSetMessageId(msg?.message_id)}
+                                                              className={
+                                                                isAnalytics
+                                                                  ? `${
+                                                                      isSidebarMessageActive(msg?.message_id)
+                                                                        ? "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-[#EBF4FE] text-blue-900 border border-blue-200 dark:bg-primary dark:text-base-100 dark:border-primary/40"
+                                                                        : "cursor-pointer rounded-md px-2 py-1.5 transition-all duration-200 text-xs bg-white text-blue-900/80 border border-blue-100 hover:bg-[#EBF4FE]/60 hover:border-blue-200 dark:bg-base-200 dark:text-base-content dark:border-base-300"
+                                                                    }`
+                                                                  : "cursor-pointer transition-all duration-200 text-xs bg-base-100 hover:bg-base-200 text-base-content border-l-2 border-transparent hover:border-base-300"
+                                                              }
+                                                            >
+                                                              <div className="flex items-start gap-1.5">
+                                                                <UserIcon
+                                                                  className={`w-2.5 h-2.5 mt-0.5 flex-shrink-0 ${
+                                                                    isAnalytics
+                                                                      ? isSidebarMessageActive(msg?.message_id)
+                                                                        ? "text-blue-700 dark:text-base-100"
+                                                                        : "text-blue-400 dark:text-base-content"
+                                                                      : "text-base-content"
+                                                                  }`}
+                                                                />
+                                                                <span className="leading-snug">
+                                                                  {truncate(msg?.message, 35)}
+                                                                </span>
+                                                              </div>
                                                             </div>
-                                                          </div>
-                                                        ))}
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                ))}
+                                                          ))}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        )}
+                                          )}
                                         {item?.message && item?.message?.length > 0 && (
                                           <div className="p-2 pt-0">
                                             <div className={`space-y-1 ${isAnalytics ? "ml-1" : "space-y-1.5 ml-2"}`}>
