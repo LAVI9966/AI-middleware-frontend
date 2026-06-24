@@ -10,7 +10,6 @@ import { getAgentAnalyticsAction } from "@/store/action/analyticsAction";
 import { getAgentAnalyticsFiltersApi } from "@/config";
 import { setSelectedVersion } from "@/store/reducer/historyReducer";
 import Protected from "@/components/Protected";
-import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
 import { BarChart3, X, Bot, Filter, ChevronDown, Wrench, BookOpen } from "lucide-react";
 import { ResponsiveContainer, ComposedChart, Bar, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
@@ -108,12 +107,6 @@ function Page({ params, searchParams }) {
   const search = useSearchParams();
   const pathName = usePathname();
   const dispatch = useDispatch();
-
-  const channelId =
-    resolvedParams?.org_id && resolvedParams?.id
-      ? `${resolvedParams.org_id}_${resolvedParams.id}`.replace(/ /g, "_")
-      : "";
-  useRtLayerEventHandler(channelId);
 
   const { thread, analyticsData, selectedVersion, knowledgeBaseData, analyticsLoading } = useCustomSelector((state) => {
     return {
@@ -254,6 +247,21 @@ function Page({ params, searchParams }) {
     Object.values(filterByFields).some((v) => v && String(v).trim() !== "") ||
     filterVariableRows.some((row) => row.key.trim() || row.value.trim())
   );
+
+  // Auto-clear applied advanced filters when user manually empties all input fields
+  useEffect(() => {
+    if (!hasAdvancedFilterValues) {
+      const hasAppliedFilters =
+        Object.values(appliedAdvancedFilters.filterByFields).some((v) => v && String(v).trim() !== "") ||
+        appliedAdvancedFilters.filterVariableRows.some((row) => row.key.trim() || row.value.trim());
+      if (hasAppliedFilters) {
+        setAppliedAdvancedFilters({
+          filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
+          filterVariableRows: [{ key: "", value: "" }],
+        });
+      }
+    }
+  }, [hasAdvancedFilterValues, appliedAdvancedFilters]);
 
   // Derive sidebar thread list from analytics API response threads
   const historyData = useMemo(() => {
@@ -442,17 +450,8 @@ function Page({ params, searchParams }) {
   // Fetch agent analytics (with a 1-second delay on refresh/initial mount, and immediately on subsequent updates)
   useEffect(() => {
     if (!resolvedParams?.id) return;
-
     const queryParams = getAnalyticsQueryParams();
-
     setPage(1);
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      const timer = setTimeout(() => {
-        dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
-      }, 1000); // 1-second delay on initial load / refresh
-      return () => clearTimeout(timer);
-    }
     dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
   }, [resolvedParams?.id, resolvedParams?.org_id, analyticsUrlKey, selectedVersion, appliedAdvancedFilters, dispatch]);
 

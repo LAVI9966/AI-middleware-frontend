@@ -7,6 +7,7 @@ import Protected from "../Protected";
 import { Lock } from "lucide-react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
+import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
 const ConfigurationPage = ({
   params,
@@ -31,6 +32,9 @@ const ConfigurationPage = ({
   const view = searchParams?.view || "config";
   const [currentView, setCurrentView] = useState(viewOverride || view);
   const [promptResetKey, setPromptResetKey] = useState(0);
+
+  const channelId = params?.org_id && params?.id ? `${params.org_id}_${params.id}`.replace(/ /g, "_") : "";
+  useRtLayerEventHandler(channelId);
 
   const discardPromptDraft = useCallback(() => {
     setPromptState((prev) => ({

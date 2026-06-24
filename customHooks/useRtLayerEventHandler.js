@@ -29,6 +29,13 @@ import { getModelAction } from "@/store/action/modelAction";
 import { getServiceAction } from "@/store/action/serviceAction";
 import { useDispatch, useSelector } from "react-redux";
 
+// ---------------------------------------------------------------------------
+// Module-level registry: channelId → { client, refCount }
+// Shared across all hook instances so the same WebSocket client is reused
+// whenever multiple components subscribe to the same channel.
+// ---------------------------------------------------------------------------
+const channelClientRegistry = new Map(); // Map<channelId, { client, refCount }>
+
 function useRtLayerEventHandler(channelIdentifier = "") {
   const [client, setClient] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -415,59 +422,80 @@ function useRtLayerEventHandler(channelIdentifier = "") {
     [dispatch, channelIdentifier, pathName, showAgentUpdatedToast]
   );
 
-  // WebSocket client initialization with retry logic
-  const initializeWebSocketClient = useCallback(async () => {
-    try {
-      // Clear any existing reconnect timeout
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-        reconnectTimeoutRef.current = null;
-      }
+  // WebSocket client initialization with registry-based deduplication.
+  // If a client already exists for the current channelId, it is reused and
+  // the reference count is incremented instead of opening a new connection.
+  const initializeWebSocketClient = useCallback(
+    async (targetChannelId) => {
+      try {
+        // Clear any existing reconnect timeout
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
 
-      const newClient = WebSocketClient("lyvSfW7uPPolwax0BHMC", "DprvynUwAdFwkE91V5Jj");
-
-      // Add connection event handlers
-      if (newClient && typeof newClient.on === "function") {
-        newClient.on("connect", () => {
+        // Reuse existing client for this channel if one is already registered
+        if (targetChannelId && channelClientRegistry.has(targetChannelId)) {
+          const entry = channelClientRegistry.get(targetChannelId);
+          entry.refCount += 1;
+          setClient(entry.client);
           setIsConnected(true);
           setConnectionError(null);
-        });
+          return entry.client;
+        }
 
-        newClient.on("disconnect", () => {
-          setIsConnected(false);
-        });
+        const newClient = WebSocketClient("lyvSfW7uPPolwax0BHMC", "DprvynUwAdFwkE91V5Jj");
 
-        newClient.on("error", (error) => {
-          setConnectionError(error.message || "Connection error");
-          setIsConnected(false);
-        });
+        // Add connection event handlers
+        if (newClient && typeof newClient.on === "function") {
+          newClient.on("connect", () => {
+            setIsConnected(true);
+            setConnectionError(null);
+          });
+
+          newClient.on("disconnect", () => {
+            setIsConnected(false);
+          });
+
+          newClient.on("error", (error) => {
+            setConnectionError(error.message || "Connection error");
+            setIsConnected(false);
+          });
+        }
+
+        // Register the new client in the module-level registry
+        if (targetChannelId) {
+          channelClientRegistry.set(targetChannelId, { client: newClient, refCount: 1 });
+        }
+
+        setClient(newClient);
+        setIsConnected(true);
+        setConnectionError(null);
+
+        return newClient;
+      } catch (error) {
+        console.error("Failed to initialize WebSocket client:", error);
+        setConnectionError(error.message);
+        setIsConnected(false);
+
+        // Auto-retry connection after 5 seconds
+        reconnectTimeoutRef.current = setTimeout(() => {
+          initializeWebSocketClient(targetChannelId);
+        }, 5000);
+
+        return null;
       }
+    },
+    [] // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
-      setClient(newClient);
-      setIsConnected(true);
-      setConnectionError(null);
-
-      return newClient;
-    } catch (error) {
-      console.error("Failed to initialize WebSocket client:", error);
-      setConnectionError(error.message);
-      setIsConnected(false);
-
-      // Auto-retry connection after 5 seconds
-      reconnectTimeoutRef.current = setTimeout(() => {
-        initializeWebSocketClient();
-      }, 5000);
-
-      return null;
-    }
-  }, []);
-
-  // Initialize WebSocket client
+  // Initialize WebSocket client – pass channelId so the registry check can
+  // happen before a new connection is opened.
   useEffect(() => {
     let mounted = true;
 
     if (!client && mounted) {
-      initializeWebSocketClient();
+      initializeWebSocketClient(channelId);
     }
 
     // Cleanup function
@@ -477,7 +505,7 @@ function useRtLayerEventHandler(channelIdentifier = "") {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [client, initializeWebSocketClient]);
+  }, [client, channelId, initializeWebSocketClient]);
 
   const processHistoryDataRef = useRef(processHistoryData);
   useEffect(() => {
@@ -595,15 +623,30 @@ function useRtLayerEventHandler(channelIdentifier = "") {
         listenerRef.current.remove();
       }
 
-      // Close client connection
-      if (client && typeof client.close === "function") {
+      // Decrement the ref-count in the registry. Only close the underlying
+      // WebSocket client when no other hook instances are still using it.
+      if (channelId && channelClientRegistry.has(channelId)) {
+        const entry = channelClientRegistry.get(channelId);
+        entry.refCount -= 1;
+        if (entry.refCount <= 0) {
+          channelClientRegistry.delete(channelId);
+          if (client && typeof client.close === "function") {
+            client.close();
+          }
+        }
+      } else if (client && typeof client.close === "function") {
+        // Fallback: close if not tracked in registry (e.g. channelId was null)
         client.close();
       }
     };
-  }, [client]);
+  }, [client, channelId]);
 
-  // Manual reconnect function
+  // Manual reconnect function – removes the channel from the registry so a
+  // fresh connection is created on the next initialization.
   const reconnect = useCallback(() => {
+    if (channelId && channelClientRegistry.has(channelId)) {
+      channelClientRegistry.delete(channelId);
+    }
     if (client && typeof client.close === "function") {
       client.close();
     }
@@ -613,9 +656,9 @@ function useRtLayerEventHandler(channelIdentifier = "") {
 
     // Initialize new client
     setTimeout(() => {
-      initializeWebSocketClient();
+      initializeWebSocketClient(channelId);
     }, 100);
-  }, [client, initializeWebSocketClient]);
+  }, [client, channelId, initializeWebSocketClient]);
 
   // Return connection status and methods for external use
   return {
