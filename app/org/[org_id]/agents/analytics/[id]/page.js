@@ -20,6 +20,7 @@ import ThreadContainer from "@/components/historyPageComponents/ThreadContainer"
 import { getStatsConfig, MODAL_TYPE } from "@/utils/enums";
 import { openModal } from "@/utils/utility";
 import ChatAiConfigDeatilViewModal from "@/components/modals/ChatAiConfigDeatilViewModal";
+import { AnalyticsStatsSkeleton, AnalyticsChartSkeleton } from "@/components/skeletons/AnalyticsSkeleton";
 
 // URL params that must never be forwarded to the analytics API.
 const UI_ONLY_QUERY_PARAMS = new Set([
@@ -722,32 +723,36 @@ function Page({ params, searchParams }) {
             </div>
 
             {/* KPI Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-              {getStatsConfig(summary).map((stat, idx) => {
-                const Icon = stat.icon;
-                return (
-                  <div
-                    key={idx}
-                    className="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
-                        <Icon size={16} />
+            {Object.keys(summary).length === 0 ? (
+              <AnalyticsStatsSkeleton />
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
+                {getStatsConfig(summary).map((stat, idx) => {
+                  const Icon = stat.icon;
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-base-100 p-5 rounded-2xl border border-base-300 shadow-sm flex flex-col gap-1"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color}`}>
+                          <Icon size={16} />
+                        </div>
+                        <div
+                          className={`flex items-center gap-1 text-xs font-semibold ${stat.trend === "up" ? "text-emerald-500" : "text-red-500"}`}
+                        >
+                          {stat.change}
+                        </div>
                       </div>
-                      <div
-                        className={`flex items-center gap-1 text-xs font-semibold ${stat.trend === "up" ? "text-emerald-500" : "text-red-500"}`}
-                      >
-                        {stat.change}
+                      <div className="flex flex-col mt-2">
+                        <p className="text-xl font-bold text-base-content">{stat.value}</p>
+                        <h3 className="text-[11px] font-medium text-base-content/60 mt-0.5">{stat.title}</h3>
                       </div>
                     </div>
-                    <div className="flex flex-col mt-2">
-                      <p className="text-xl font-bold text-base-content">{stat.value}</p>
-                      <h3 className="text-[11px] font-medium text-base-content/60 mt-0.5">{stat.title}</h3>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Filters Container */}
             <div className="bg-base-100 border border-base-300 rounded-lg  mb-8 shadow-sm">
@@ -1299,10 +1304,8 @@ function Page({ params, searchParams }) {
                   </div>
                 </div>
                 <div className="flex-1 min-h-[240px]">
-                  {analyticsLoading && executionData.length === 0 ? (
-                    <div className="flex justify-center items-center h-full">
-                      <span className="loading loading-spinner loading-md"></span>
-                    </div>
+                  {analyticsData?.requests_over_time === undefined ? (
+                    <AnalyticsChartSkeleton title="Execution Volume" />
                   ) : executionData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <BarChart3 className="w-10 h-10 text-base-content/30 mb-2" />
@@ -1384,10 +1387,8 @@ function Page({ params, searchParams }) {
                   </div>
                 </div>
                 <div className="flex-1 min-h-[240px]">
-                  {analyticsLoading && latencyData.length === 0 ? (
-                    <div className="flex justify-center items-center h-full">
-                      <span className="loading loading-spinner loading-md"></span>
-                    </div>
+                  {analyticsData?.response_time === undefined ? (
+                    <AnalyticsChartSkeleton title="Average Latency" />
                   ) : latencyData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <BarChart3 className="w-10 h-10 text-base-content/30 mb-2" />
