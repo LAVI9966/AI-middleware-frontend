@@ -1147,12 +1147,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           )}
 
                           {/* Show either assistant message or test case result */}
-                            <div
-                              className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : "w-fit max-w-[75%]"}`}
-                            >
-                          {message?.testCaseResult && showTestCaseResults[message.id] ? (
-                            <div ref={testCaseResultRef} className="chat-bubble gap-0 relative min-w-full">
-                              {/* Test Case Result Display */}
+                          <div
+                            className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : "w-fit max-w-[75%]"}`}
+                          >
+                            {message?.testCaseResult && showTestCaseResults[message.id] ? (
+                              <div ref={testCaseResultRef} className="chat-bubble gap-0 relative min-w-full">
+                                {/* Test Case Result Display */}
                                 <div className="bg-neutral/90 border border-neutral-content/20 rounded-lg p-4 text-neutral-content">
                                   {/* Header */}
                                   <div className="flex items-center gap-2 mb-4">
@@ -1212,12 +1212,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     </span>
                                     <div className="text-sm bg-neutral-content/10 rounded-md p-3 border border-neutral-content/20">
                                       {message.testCaseResult.actual_result || "No actual result"}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ) : (
-                            /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
+                            ) : (
+                              /* Regular Assistant/User/Expected/Error Message - Show model answer if testcase was run */
                               <div
                                 data-testid={`playground-ai-response-message-${message.id}`}
                                 className={`gap-0 justify-start relative min-w-0 ${
@@ -1391,77 +1391,77 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                               <div
                                 className={`flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 w-full ${message?.testCaseResult ? "justify-between" : "justify-end"}`}
                               >
-                                    {/* Toggle Button for Test Case Results */}
-                                    {message?.testCaseResult && (
+                                {/* Toggle Button for Test Case Results */}
+                                {message?.testCaseResult && (
+                                  <button
+                                    data-testid={`chat-toggle-result-button-${message.id}`}
+                                    id={`chat-toggle-result-button-${message.id}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowTestCaseResults((prev) => ({
+                                        ...prev,
+                                        [message.id]: !prev[message.id],
+                                      }));
+                                    }}
+                                    className="flex items-center gap-2 text-xs text-base-content/70 hover:text-base-content transition-colors px-2 py-1 rounded-full bg-base-100 border border-base-content/20 shadow-sm hover:bg-base-200/50"
+                                  >
+                                    {showTestCaseResults[message.id] ? (
+                                      <>
+                                        <ToggleRight className="h-3 w-3" />
+                                        <span>Model Answer</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ToggleLeft className="h-3 w-3" />
+                                        <span>Test Details</span>
+                                        <span
+                                          className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                            message.testCaseResult.score >= 0.8
+                                              ? "bg-success/20 text-success"
+                                              : message.testCaseResult.score >= 0.6
+                                                ? "bg-warning/20 text-warning"
+                                                : "bg-error/20 text-error"
+                                          }`}
+                                        >
+                                          {(message.testCaseResult.score * 100).toFixed(1)}%
+                                        </span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                                <div className="flex items-center gap-1.5">
+                                  {message?.type !== "richui_json" &&
+                                    message?.type !== "template" &&
+                                    !(message?.llm_urls?.length > 0) && (
                                       <button
-                                        data-testid={`chat-toggle-result-button-${message.id}`}
-                                        id={`chat-toggle-result-button-${message.id}`}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setShowTestCaseResults((prev) => ({
-                                            ...prev,
-                                            [message.id]: !prev[message.id],
-                                          }));
-                                        }}
-                                        className="flex items-center gap-2 text-xs text-base-content/70 hover:text-base-content transition-colors px-2 py-1 rounded-full bg-base-100 border border-base-content/20 shadow-sm hover:bg-base-200/50"
+                                        data-testid={`playground-ai-response-pencil-button-${message.id}`}
+                                        id={`chat-edit-message-button-${message.id}`}
+                                        onClick={() => handleEditMessage(message.id, message.content)}
+                                        className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
+                                        title="Edit message"
                                       >
-                                        {showTestCaseResults[message.id] ? (
-                                          <>
-                                            <ToggleRight className="h-3 w-3" />
-                                            <span>Model Answer</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ToggleLeft className="h-3 w-3" />
-                                            <span>Test Details</span>
-                                            <span
-                                              className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                                                message.testCaseResult.score >= 0.8
-                                                  ? "bg-success/20 text-success"
-                                                  : message.testCaseResult.score >= 0.6
-                                                    ? "bg-warning/20 text-warning"
-                                                    : "bg-error/20 text-error"
-                                              }`}
-                                            >
-                                              {(message.testCaseResult.score * 100).toFixed(1)}%
-                                            </span>
-                                          </>
-                                        )}
+                                        <Edit2 className="h-3.5 w-3.5" />
                                       </button>
                                     )}
-                                    <div className="flex items-center gap-1.5">
-                                      {message?.type !== "richui_json" &&
-                                        message?.type !== "template" &&
-                                        !(message?.llm_urls?.length > 0) && (
-                                          <button
-                                            data-testid={`playground-ai-response-pencil-button-${message.id}`}
-                                            id={`chat-edit-message-button-${message.id}`}
-                                            onClick={() => handleEditMessage(message.id, message.content)}
-                                            className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
-                                            title="Edit message"
-                                          >
-                                            <Edit2 className="h-3.5 w-3.5" />
-                                          </button>
-                                        )}
-                                      {!(message?.llm_urls?.length > 0) && (
-                                        <button
-                                          data-testid={`playground-ai-response-copy-button-${message.id}`}
-                                          id={`chat-copy-message-button-${message.id}`}
-                                          onClick={() => handleCopyMessage(message, index)}
-                                          className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
-                                          title="Copy response"
-                                        >
-                                          {copiedMessageId === (message.id || index) ? (
-                                            <Check className="h-3.5 w-3.5 text-success" />
-                                          ) : (
-                                            <Copy className="h-3.5 w-3.5" />
-                                          )}
-                                        </button>
+                                  {!(message?.llm_urls?.length > 0) && (
+                                    <button
+                                      data-testid={`playground-ai-response-copy-button-${message.id}`}
+                                      id={`chat-copy-message-button-${message.id}`}
+                                      onClick={() => handleCopyMessage(message, index)}
+                                      className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
+                                      title="Copy response"
+                                    >
+                                      {copiedMessageId === (message.id || index) ? (
+                                        <Check className="h-3.5 w-3.5 text-success" />
+                                      ) : (
+                                        <Copy className="h-3.5 w-3.5" />
                                       )}
-                                    </div>
-                                  </div>
-                                )}
+                                    </button>
+                                  )}
+                                </div>
                               </div>
+                            )}
+                          </div>
                         </div>
                       )}
                   </div>
