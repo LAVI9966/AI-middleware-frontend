@@ -15,6 +15,7 @@ import {
   ChevronDown,
   RefreshCcw,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useDispatch } from "react-redux";
@@ -89,7 +90,6 @@ const Navbar = ({ isEmbedUser, params }) => {
     bridgeSummary,
     publicAgentConfig,
     bridgeVersionsArray,
-    statelessConversation,
     showTestcases,
   } = useCustomSelector((state) => {
     const orgRole = state?.userDetailsReducer?.organizations?.[orgId]?.role_name;
@@ -114,7 +114,9 @@ const Navbar = ({ isEmbedUser, params }) => {
           ? "history"
           : pathname.includes("testcase")
             ? "testcase"
-            : "configure",
+            : pathname.includes("analytics")
+              ? "analytics"
+              : "configure",
       showHomeButton: state.appInfoReducer?.embedUserDetails?.showHomeButton ?? true,
       showHistory: state.appInfoReducer?.embedUserDetails?.showHistory,
       bridgeName: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.name || "",
@@ -128,7 +130,6 @@ const Navbar = ({ isEmbedUser, params }) => {
       bridgeSummary: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.bridge_summary || "",
       publicAgentConfig: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.settings?.publicAgentConfig,
       bridgeVersionsArray: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.versions || [],
-      statelessConversation: state?.bridgeReducer?.allBridgesMap?.[bridgeId]?.settings?.stateless_conversation ?? false,
       showTestcases: state?.appInfoReducer?.embedUserDetails?.showTestcases !== false,
     };
   });
@@ -159,6 +160,13 @@ const Navbar = ({ isEmbedUser, params }) => {
         icon: MessageCircleMore,
         shortLabel: "History",
         shortcut: "G H",
+      });
+      baseTabs.push({
+        id: "analytics",
+        label: "Analytics",
+        icon: BarChart3,
+        shortLabel: "Analytics",
+        shortcut: "G A",
       });
     }
     return baseTabs;
@@ -195,7 +203,7 @@ const Navbar = ({ isEmbedUser, params }) => {
   const shouldShowNavbar = useCallback(() => {
     const depth = pathParts.length;
     if (depth === 3) return false;
-    return ["configure", "history", "testcase"].some((seg) => pathname.includes(seg));
+    return ["configure", "history", "testcase", "analytics"].some((seg) => pathname.includes(seg));
   }, [pathParts.length, pathname]);
 
   // Scroll detection
@@ -332,6 +340,9 @@ const Navbar = ({ isEmbedUser, params }) => {
           router.push(
             base + (publishedVersion ? `?version=${publishedVersion}${typeQueryPart}` : `?type=${typeValue}`)
           );
+        } else if (tabId === "analytics") {
+          // Analytics page: default to all versions
+          router.push(base + `?type=${typeValue}`);
         } else {
           // Normal navigation with current version
           router.push(base + (versionId ? `?version=${versionId}${typeQueryPart}` : `?type=${typeValue}`));
@@ -432,6 +443,11 @@ const Navbar = ({ isEmbedUser, params }) => {
           handleTabChange("history");
           gPressed = false;
           if (timeoutId) clearTimeout(timeoutId);
+        } else if (e.key === "a" || e.key === "A") {
+          e.preventDefault();
+          handleTabChange("analytics");
+          gPressed = false;
+          if (timeoutId) clearTimeout(timeoutId);
         }
       }
     };
@@ -459,26 +475,6 @@ const Navbar = ({ isEmbedUser, params }) => {
     });
   }, [executeDelete, dispatch, bridgeId, orgId, router]);
 
-  const handleStatelessToggle = useCallback(
-    async (nextValue) => {
-      try {
-        const res = await dispatch(
-          updateBridgeAction({
-            bridgeId,
-            dataToSend: { settings: { stateless_conversation: nextValue } },
-          })
-        );
-        toast.success(`Stateless conversation ${nextValue ? "enabled" : "disabled"}`);
-        return res;
-      } catch (err) {
-        console.error("Navbar.handleStatelessToggle failed", err);
-        toast.error("Failed to update stateless conversation");
-        throw err;
-      }
-    },
-    [dispatch, bridgeId]
-  );
-
   const EllipsisMenu = () => (
     <AgentActionMenu
       menuRef={ellipsisMenuRef}
@@ -491,8 +487,6 @@ const Navbar = ({ isEmbedUser, params }) => {
       isAdminOrOwner={isAdminOrOwner}
       orgId={orgId}
       bridgeId={bridgeId}
-      statelessConversation={statelessConversation}
-      onStatelessToggle={handleStatelessToggle}
       onSetSelectedAgent={setSelectedAgentForAccess}
       handlePortalOpen={handlePortalOpen}
       handlePortalCloseImmediate={handlePortalCloseImmediate}
@@ -656,7 +650,7 @@ const Navbar = ({ isEmbedUser, params }) => {
             {/* Navigation Tabs - Fixed Position with Sliding Animation */}
             <div className="flex items-center gap-1 flex-shrink-0">
               {TABS.length > 1 ? (
-                <div className="relative flex items-center gap-1" style={{ width: `${TAB_WIDTH * TABS.length}px` }}>
+                <div className="relative flex items-center" style={{ width: `${TAB_WIDTH * TABS.length}px` }}>
                   {/* Sliding background indicator */}
                   <span
                     className="absolute top-0 left-0 h-full rounded-lg bg-primary shadow-sm transition-transform duration-300 ease-in-out"

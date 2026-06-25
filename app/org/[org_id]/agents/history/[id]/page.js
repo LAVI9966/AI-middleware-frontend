@@ -3,6 +3,7 @@
 import React, { use, useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useQueryParams } from "@/customHooks/useQueryParams";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { getHistoryAction } from "@/store/action/historyAction";
 import { clearThreadData, clearHistoryData, setSelectedVersion } from "@/store/reducer/historyReducer";
@@ -25,24 +26,19 @@ function Page({ params, searchParams }) {
   const search = useSearchParams();
   const router = useRouter();
   const pathName = usePathname();
+  const { buildUrl } = useQueryParams();
   const dispatch = useDispatch();
   const sidebarRef = useRef(null);
   const searchRef = useRef();
   const activeFilterByRef = useRef(undefined);
-  const { historyData, thread, selectedVersion, previousPrompt, isSingleQuery } = useCustomSelector((state) => {
-    const threadData = state?.historyReducer?.thread || [];
-    const bridgeInfo = state?.bridgeReducer?.allBridgesMap?.[resolvedParams?.id];
-    const isStateless = bridgeInfo?.settings?.stateless_conversation === true;
-    const isEmbedUser = state?.appInfoReducer?.embedUserDetails?.isEmbedUser;
-
+  const { historyData, thread, selectedVersion, previousPrompt } = useCustomSelector((state) => {
     return {
       historyData: state?.historyReducer?.history || [],
-      thread: threadData,
+      thread: state?.historyReducer?.thread || [],
       selectedVersion: state?.historyReducer?.selectedVersion || "all",
       previousPrompt:
         state?.bridgeReducer?.bridgeVersionMapping?.[resolvedParams?.id]?.[resolvedSearchParams?.version]?.configuration
           ?.prompt || "",
-      isSingleQuery: !isEmbedUser && isStateless && threadData.filter((msg) => msg?.user).length <= 1,
     };
   });
   const [isSliderOpen, setIsSliderOpen] = useState(false);
@@ -89,17 +85,10 @@ function Page({ params, searchParams }) {
 
   useEffect(() => {
     return () => {
-      const cleanUrl = new URL(window.location.href);
-      const version = search.get("version");
-      const type = search.get("type");
-
-      // Preserve both version and type parameters
-      let params = [];
-      if (version) params.push(`version=${version}`);
-      if (type) params.push(`type=${type}`);
-
-      cleanUrl.search = params.length ? `?${params.join("&")}` : "";
-      window.history.replaceState({}, "", cleanUrl);
+      const current = new URLSearchParams(search.toString());
+      ["thread_id", "subThread_id", "start", "end", "message_id", "error"].forEach((k) => current.delete(k));
+      const query = current.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
       dispatch(clearThreadData());
       dispatch(clearHistoryData());
       dispatch(setSelectedVersion("all"));
@@ -125,22 +114,35 @@ function Page({ params, searchParams }) {
       const result = await dispatch(
         getHistoryAction(resolvedParams.id, 1, filterOption, isErrorTrue, selectedVersion, keyword, startDate, endDate)
       );
-      const version = search.get("version") || selectedVersion;
-      const type = search.get("type") || resolvedSearchParams?.type || "";
-      const messageId = resolvedSearchParams?.message_id;
       const firstThreadId = result?.[0]?.thread_id;
       if (firstThreadId) {
+        const encodedThreadId = encodeURIComponent(firstThreadId.replace(/&/g, "%26"));
         if (isErrorTrue) {
           router.push(
-            `${pathName}?version=${version}&thread_id=${firstThreadId}&subThread_id=${firstThreadId}&error=true${messageId ? `&message_id=${messageId}` : ""}&type=${type}`,
-            undefined,
-            { shallow: true }
+            buildUrl(
+              {
+                thread_id: encodedThreadId,
+                subThread_id: encodedThreadId,
+                error: "true",
+                // clear date range params not relevant when filtering by error
+                start: null,
+                end: null,
+              },
+              pathName
+            )
           );
         } else {
           router.push(
-            `${pathName}?version=${version}&thread_id=${firstThreadId}&start=${startDate || ""}&end=${endDate || ""}${messageId ? `&message_id=${messageId}` : ""}&type=${type}`,
-            undefined,
-            { shallow: true }
+            buildUrl(
+              {
+                thread_id: encodedThreadId,
+                subThread_id: null,
+                start: startDate || null,
+                end: endDate || null,
+                error: null,
+              },
+              pathName
+            )
           );
         }
       }
@@ -180,17 +182,10 @@ function Page({ params, searchParams }) {
         }
       } else {
         // Handle other cases (navigation)
-        const start = search.get("start");
-        const end = search.get("end");
-        const messageId = search.get("message_id");
         const encodedThreadId = encodeURIComponent(thread_id.replace(/&/g, "%26"));
         const firstSubThreadId = item?.sub_thread?.[0]?.sub_thread_id || thread_id;
         const encodedSubThreadId = encodeURIComponent(firstSubThreadId.replace(/&/g, "%26"));
-        router.push(
-          `${pathName}?version=${search.get("version") || selectedVersion}&thread_id=${encodedThreadId}&subThread_id=${encodedSubThreadId}&start=${start || ""}&end=${end || ""}${messageId ? `&message_id=${messageId}` : ""}&type=${search.get("type") || resolvedSearchParams.type || ""}`,
-          undefined,
-          { shallow: true }
-        );
+        router.push(buildUrl({ thread_id: encodedThreadId, subThread_id: encodedSubThreadId }, pathName));
       }
     },
     [pathName, resolvedParams.id, resolvedSearchParams.version, resolvedSearchParams?.start, resolvedSearchParams?.end]
@@ -240,76 +235,71 @@ function Page({ params, searchParams }) {
   const isLoadingState = loading || !historyData;
 
   return (
-    <div className="bg-history-page relative scrollbar-hide text-base-content max-h-[calc(100vh-9rem)]">
-      <div className="drawer drawer-open overflow-hidden bg-history-page">
-        <input
-          autoComplete="off"
-          id="my-drawer-2"
-          type="checkbox"
-          className="drawer-toggle"
-          data-testid="history-drawer-toggle"
-        />
-        <div className="drawer-content flex flex-row overflow-hidden bg-history-page min-h-full">
-          {batchPanel}
-          <div className="flex-1 overflow-hidden bg-history-page min-h-full">
-            {isLoadingState ? (
-              <ChatLoadingSkeleton isSingleQuery={isSingleQuery} />
-            ) : (
-              <React.Suspense>
-                <ThreadContainer
-                  key={`thread-container-${resolvedParams.id}-${resolvedParams.version}`}
-                  thread={displayThread}
-                  filterOption={filterOption}
-                  setFilterOption={setFilterOption}
-                  isFetchingMore={isFetchingMore}
-                  setIsFetchingMore={setIsFetchingMore}
-                  setLoading={setLoading}
-                  searchMessageId={searchMessageId}
-                  setSearchMessageId={setSearchMessageId}
-                  params={resolvedParams}
-                  pathName={pathName}
-                  search={resolvedSearchParams}
-                  historyData={historyData}
-                  threadHandler={threadHandler}
-                  threadPage={threadPage}
-                  setThreadPage={setThreadPage}
-                  hasMoreThreadData={hasMoreThreadData}
-                  setHasMoreThreadData={setHasMoreThreadData}
-                  selectedVersion={selectedVersion}
-                  setIsErrorTrue={setIsErrorTrue}
-                  isErrorTrue={isErrorTrue}
-                  previousPrompt={previousPrompt}
-                />
-              </React.Suspense>
-            )}
-          </div>
-        </div>
+    <div className="bg-history-page relative scrollbar-hide text-base-content h-[calc(100vh-40px)]">
+      <div className="flex flex-row overflow-hidden bg-history-page min-h-full h-full relative">
         <React.Suspense>
-          <Sidebar
-            historyData={historyData}
-            threadHandler={threadHandler}
-            fetchMoreData={fetchMoreData}
-            hasMore={hasMore}
-            loading={loading}
-            params={resolvedParams}
-            searchParams={Object.fromEntries(search.entries())}
-            setSearchMessageId={setSearchMessageId}
-            setPage={setPage}
-            setHasMore={setHasMore}
-            filterOption={filterOption}
-            setFilterOption={setFilterOption}
-            searchRef={searchRef}
-            setIsFetchingMore={setIsFetchingMore}
-            setThreadPage={setThreadPage}
-            threadPage={threadPage}
-            hasMoreThreadData={hasMoreThreadData}
-            setHasMoreThreadData={setHasMoreThreadData}
-            selectedVersion={selectedVersion}
-            setIsErrorTrue={setIsErrorTrue}
-            isErrorTrue={isErrorTrue}
-            activeFilterByRef={activeFilterByRef}
-          />
+          <div className="h-full shrink-0 z-50 flex relative">
+            <Sidebar
+              historyData={historyData}
+              threadHandler={threadHandler}
+              fetchMoreData={fetchMoreData}
+              hasMore={hasMore}
+              loading={loading}
+              params={resolvedParams}
+              searchParams={Object.fromEntries(search.entries())}
+              setSearchMessageId={setSearchMessageId}
+              setPage={setPage}
+              setHasMore={setHasMore}
+              filterOption={filterOption}
+              setFilterOption={setFilterOption}
+              searchRef={searchRef}
+              setIsFetchingMore={setIsFetchingMore}
+              setThreadPage={setThreadPage}
+              threadPage={threadPage}
+              hasMoreThreadData={hasMoreThreadData}
+              setHasMoreThreadData={setHasMoreThreadData}
+              selectedVersion={selectedVersion}
+              setIsErrorTrue={setIsErrorTrue}
+              isErrorTrue={isErrorTrue}
+              activeFilterByRef={activeFilterByRef}
+            />
+          </div>
         </React.Suspense>
+
+        {batchPanel}
+
+        <div className="flex-grow flex-1 overflow-hidden bg-history-page min-h-full h-full">
+          {isLoadingState ? (
+            <ChatLoadingSkeleton />
+          ) : (
+            <React.Suspense>
+              <ThreadContainer
+                key={`thread-container-${resolvedParams.id}-${resolvedParams.version}`}
+                thread={displayThread}
+                filterOption={filterOption}
+                setFilterOption={setFilterOption}
+                isFetchingMore={isFetchingMore}
+                setIsFetchingMore={setIsFetchingMore}
+                setLoading={setLoading}
+                searchMessageId={searchMessageId}
+                setSearchMessageId={setSearchMessageId}
+                params={resolvedParams}
+                pathName={pathName}
+                search={resolvedSearchParams}
+                historyData={historyData}
+                threadHandler={threadHandler}
+                threadPage={threadPage}
+                setThreadPage={setThreadPage}
+                hasMoreThreadData={hasMoreThreadData}
+                setHasMoreThreadData={setHasMoreThreadData}
+                selectedVersion={selectedVersion}
+                setIsErrorTrue={setIsErrorTrue}
+                isErrorTrue={isErrorTrue}
+                previousPrompt={previousPrompt}
+              />
+            </React.Suspense>
+          )}
+        </div>
       </div>
       <ChatDetails selectedItem={selectedItem} setIsSliderOpen={setIsSliderOpen} isSliderOpen={isSliderOpen} />
       <ChatAiConfigDeatilViewModal

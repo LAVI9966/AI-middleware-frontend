@@ -26,6 +26,8 @@ import chatSliceReducer from "./reducer/chatReducer";
 import appInfoSliceReducer from "./reducer/appInfoReducer";
 import richUiTemplateSliceReducer from "./reducer/richUiTemplateReducer";
 import folderSliceReducer from "./reducer/folderReducer";
+import testCaseConfigSliceReducer from "./reducer/testCaseConfigReducer";
+import analyticsSliceReducer from "./reducer/analyticsReducer";
 const createNoopStorage = () => {
   return {
     getItem(_key) {
@@ -61,6 +63,7 @@ const persistConfig = {
     "variableReducer",
     "orchestralFlowReducer",
     "appInfoReducer",
+    "testCaseConfigReducer",
     // Add/remove more slice keys as needed
   ],
 };
@@ -90,6 +93,8 @@ const rootReducer = combineReducers({
   appInfoReducer: appInfoSliceReducer,
   richUiTemplateReducer: richUiTemplateSliceReducer,
   folderReducer: folderSliceReducer,
+  testCaseConfigReducer: testCaseConfigSliceReducer,
+  analyticsReducer: analyticsSliceReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

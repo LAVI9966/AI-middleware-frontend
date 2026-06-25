@@ -30,7 +30,6 @@
     "next": "15.5.2",
     "posthog-js": "^1.315.1",
     "react": "^19.1.1",
-    "react-apexcharts": "^1.7.0",
     "react-dom": "^19.1.1",
     "react-infinite-scroll-component": "^6.1.0",
     "react-markdown": "^9.0.1",
@@ -38,6 +37,7 @@
     "react-resizable-panels": "^3.0.6",
     "react-syntax-highlighter": "^15.5.0",
     "react-toastify": "^10.0.4",
+    "recharts": "^3.8.1",
     "redux-persist": "^6.0.0",
     "remark-gfm": "^4.0.1",
     "rtlayer-client": "^1.5.5"
