@@ -1148,7 +1148,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
                           {/* Show either assistant message or test case result */}
                           <div
-                            className={`flex flex-col min-w-0 ${message.sender === "assistant" ? "w-full" : "w-fit max-w-[75%]"}`}
+                            className={`flex flex-col ${message.sender === "assistant" ? "w-full min-w-0" : "w-fit max-w-[75%] shrink-0"}`}
                           >
                             {message?.testCaseResult && showTestCaseResults[message.id] ? (
                               <div ref={testCaseResultRef} className="chat-bubble gap-0 relative min-w-full">
@@ -1225,7 +1225,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     ? `mr-8 w-full rounded-xl break-words ${message.content ? "px-4 py-3 border border-base-content/20" : ""}`
                                     : message.sender === "error"
                                       ? "rounded-xl w-full overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
-                                      : "chat-bubble w-full text-sm text-neutral-content"
+                                      : "chat-bubble w-fit max-w-full text-sm text-neutral-content break-words whitespace-pre-wrap"
                                 } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
                               >
                                 {/* Show loader overlay if this is the message being tested and no result yet */}
@@ -1277,7 +1277,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                 ) : (
                                   /* Display Mode */
                                   <div>
-                                    <div className="relative group flex flex-col w-full">
+                                    <div
+                                      className={`relative group flex flex-col ${message.sender === "user" ? "w-fit" : "w-full"}`}
+                                    >
                                       {/* Review phase accordion (shown when agent has a reviewer configured) */}
                                       {message.review_phases?.length > 0 && (
                                         <ReviewPhaseAccordion reviewPhases={message.review_phases} />
