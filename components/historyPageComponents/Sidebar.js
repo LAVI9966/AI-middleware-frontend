@@ -772,6 +772,7 @@ const Sidebar = memo(
 
               <form
                 onSubmit={(e) => {
+                  e.preventDefault();
                   if (isAnalytics) {
                     if (typeof handleSearch === "function") {
                       handleSearch(searchRef?.current?.value || "");

@@ -453,7 +453,9 @@ function Page({ params, searchParams }) {
     if (!resolvedParams?.id) return;
     const queryParams = getAnalyticsQueryParams();
     setPage(1);
-    dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
+    setTimeout(() => {
+      dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
+    }, 1000);
   }, [resolvedParams?.id, resolvedParams?.org_id, analyticsUrlKey, selectedVersion, appliedAdvancedFilters, dispatch]);
 
   const dispatchAnalyticsWithAdvancedFilters = (nextAdvancedFilters) => {
