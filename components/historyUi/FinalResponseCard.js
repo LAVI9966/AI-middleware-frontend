@@ -1,14 +1,18 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
-import { mdComponentsLight, mdRemarkPlugins } from "@/utils/markdownComponents";
+import { mdComponentsLight, mdComponentsDark, mdRemarkPlugins } from "@/utils/markdownComponents";
+import CodeBlock from "@/components/codeBlock/CodeBlock";
+import { useThemeManager } from "@/customHooks/useThemeManager";
+import { parseNestedJson } from "@/utils/utility";
 
 /**
  * Final AI response card — transparent and borderless.
- * Long responses are collapsed behind a gradient shade and can be expanded inline.
+ * - If content is valid JSON: renders a formatted, collapsible JSON code block.
+ * - Otherwise: renders as ReactMarkdown with ExpandCollapse for long content.
  */
 export function FinalResponseCard({
   attachments = null,
@@ -17,6 +21,25 @@ export function FinalResponseCard({
   editButton = null,
   hasToolCalls = false,
 }) {
+  const { actualTheme } = useThemeManager();
+  const isDark = actualTheme === "dark";
+
+  // Try to parse as JSON — only if it looks like an object or array
+  const parsedJson = useMemo(() => {
+    if (!content || isHtml) return null;
+    const trimmed = content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return parseNestedJson(JSON.parse(trimmed));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [content, isHtml]);
+
+  const mdComponents = isDark ? mdComponentsDark : mdComponentsLight;
+
   return (
     <div
       data-testid="final-response-card"
@@ -35,20 +58,40 @@ export function FinalResponseCard({
 
       {attachments}
 
-      {/* Body container — wrapped in ExpandCollapse for long content */}
-      <ExpandCollapse collapsedHeight={300} fadeHeight={90} expandLabel="Show more" collapseLabel="Collapse">
-        <div data-testid="final-response-content">
-          <div className="">
-            {isHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: content }} />
-            ) : (
-              <ReactMarkdown components={mdComponentsLight} remarkPlugins={mdRemarkPlugins}>
-                {content}
-              </ReactMarkdown>
-            )}
-          </div>
+      {/* Body container */}
+      {parsedJson !== null ? (
+        // ── JSON content: formatted code block with ExpandCollapse ──
+        <div data-testid="final-response-content" className="w-full max-w-full overflow-hidden">
+          <ExpandCollapse
+            collapsedHeight={300}
+            fadeHeight={90}
+            expandLabel="Show more"
+            collapseLabel="Collapse"
+            style={{ "--expand-collapse-fade": isDark ? "oklch(var(--b2) / 0.97)" : "oklch(var(--b1) / 0.97)" }}
+          >
+            <CodeBlock className="language-json" showCopy={true} isDark={isDark}>
+              {JSON.stringify(parsedJson, null, 2)}
+            </CodeBlock>
+          </ExpandCollapse>
         </div>
-      </ExpandCollapse>
+      ) : (
+        // ── Markdown / HTML content ──
+        <ExpandCollapse collapsedHeight={300} fadeHeight={90} expandLabel="Show more" collapseLabel="Collapse">
+          <div data-testid="final-response-content">
+            <div>
+              {isHtml ? (
+                <CodeBlock className="language-html" isDark={isDark} showCopy={true}>
+                  {content}
+                </CodeBlock>
+              ) : (
+                <ReactMarkdown components={mdComponents} remarkPlugins={mdRemarkPlugins}>
+                  {content}
+                </ReactMarkdown>
+              )}
+            </div>
+          </div>
+        </ExpandCollapse>
+      )}
 
       {editButton}
     </div>

@@ -1353,3 +1353,29 @@ export const formatTokensTable = (tokensObj) => {
 
   return rows;
 };
+
+export const parseNestedJson = (val) => {
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parseNestedJson(parsed);
+      } catch {
+        return val;
+      }
+    }
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(parseNestedJson);
+  }
+  if (val !== null && typeof val === "object") {
+    const res = {};
+    for (const key of Object.keys(val)) {
+      res[key] = parseNestedJson(val[key]);
+    }
+    return res;
+  }
+  return val;
+};

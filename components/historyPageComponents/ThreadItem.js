@@ -28,6 +28,7 @@ import {
   extractErrorMessage,
   formatCostValue,
   formatTokensTable,
+  parseNestedJson,
 } from "@/utils/utility";
 import { BATCH_PROCESSING_STATUSES, MODAL_TYPE } from "@/utils/enums";
 import { PdfIcon } from "@/icons/pdfIcon";
@@ -57,13 +58,16 @@ import { flattenToolsCallData } from "@/utils/executionTraceTransform";
 
 // Inline variable value with show more/less for long content and JSON formatting using ExpandCollapse
 function InlineVarValue({ raw, isLong }) {
+  const { actualTheme } = useThemeManager();
+  const isDark = actualTheme === "dark";
+
   // Parse JSON if possible
   const parsedJson = useMemo(() => {
     if (!raw) return null;
     const trimmed = raw.trim();
     if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
       try {
-        return JSON.parse(trimmed);
+        return parseNestedJson(JSON.parse(trimmed));
       } catch {
         return null;
       }
@@ -76,7 +80,11 @@ function InlineVarValue({ raw, isLong }) {
     return (
       <div className="flex flex-col gap-1.5 w-full">
         <div className="w-full max-w-full overflow-hidden">
-          <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+          <ExpandCollapse
+            collapsedHeight={160}
+            fadeHeight={60}
+            style={{ "--expand-collapse-fade": isDark ? "oklch(var(--b2) / 0.97)" : "oklch(var(--b1) / 0.97)" }}
+          >
             <CodeBlock className="language-json" showCopy={false}>
               {prettyJson}
             </CodeBlock>
@@ -92,6 +100,93 @@ function InlineVarValue({ raw, isLong }) {
       <ExpandCollapse collapsedHeight={150} fadeHeight={40}>
         {raw}
       </ExpandCollapse>
+    </span>
+  );
+}
+
+// Smart user message content renderer: shows formatted JSON when parseable, HTML preview when raw HTML, otherwise ReactMarkdown with ExpandCollapse
+function UserMessageContent({ content }) {
+  const parsedJson = useMemo(() => {
+    if (!content) return null;
+    const trimmed = content.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        return parseNestedJson(JSON.parse(trimmed));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [content]);
+
+  const isHtml = useMemo(() => {
+    if (!content) return false;
+    const trimmed = content.trim();
+    const startsWithHtml = /^\s*<(!doctype|html|head|body|div|style|script|svg)/i.test(trimmed);
+    const hasHtmlMarkers = /<!doctype\s+html/i.test(trimmed) || /<html/i.test(trimmed) || /<\/html>/i.test(trimmed);
+    return startsWithHtml || hasHtmlMarkers;
+  }, [content]);
+
+  if (parsedJson !== null) {
+    const prettyJson = JSON.stringify(parsedJson, null, 2);
+    return (
+      <div className="w-full max-w-full overflow-hidden">
+        <ExpandCollapse collapsedHeight={200} fadeHeight={60}>
+          <CodeBlock className="language-json" showCopy={true}>
+            {prettyJson}
+          </CodeBlock>
+        </ExpandCollapse>
+      </div>
+    );
+  }
+
+  if (isHtml) {
+    return (
+      <div className="w-full max-w-full overflow-hidden">
+        <ExpandCollapse collapsedHeight={300} fadeHeight={90}>
+          <CodeBlock className="language-html" showCopy={true}>
+            {content}
+          </CodeBlock>
+        </ExpandCollapse>
+      </div>
+    );
+  }
+
+  // Not JSON — render as markdown with expand/collapse for long messages
+  const isLong = (content || "").length > 300;
+  if (isLong) {
+    return (
+      <ExpandCollapse collapsedHeight={120} fadeHeight={40}>
+        <span style={{ whiteSpace: "pre-line" }}>
+          <ReactMarkdown
+            components={{
+              code: ({ node, inline, className, children, ...props }) => (
+                <CodeBlock className={className} {...props}>
+                  {children}
+                </CodeBlock>
+              ),
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </span>
+      </ExpandCollapse>
+    );
+  }
+
+  return (
+    <span style={{ whiteSpace: "pre-line" }}>
+      <ReactMarkdown
+        components={{
+          code: ({ node, inline, className, children, ...props }) => (
+            <CodeBlock className={className} {...props}>
+              {children}
+            </CodeBlock>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
     </span>
   );
 }
@@ -306,6 +401,12 @@ const ThreadItem = ({
       setCopiedSystemPrompt(false);
     }, 2000);
   };
+
+  const handleCopyMessage = useCallback((content) => {
+    if (!content) return;
+    navigator.clipboard.writeText(content);
+    toast.success("Message copied to clipboard");
+  }, []);
 
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
@@ -562,11 +663,13 @@ const ThreadItem = ({
     });
   }, [preFunctionEntry, embedToken]);
 
-  // Helper function to detect if content contains HTML
-  const containsHTML = (str) => {
+  // Helper function to detect if content is a raw HTML document/page
+  const isRawHtml = (str) => {
     if (!str) return false;
-    const htmlPattern = /<\/?[a-z][\s\S]*>/i;
-    return htmlPattern.test(str);
+    const trimmed = str.trim();
+    const startsWithHtml = /^\s*<(!doctype|html|head|body|div|style|script|svg)/i.test(trimmed);
+    const hasHtmlMarkers = /<!doctype\s+html/i.test(trimmed) || /<html/i.test(trimmed) || /<\/html>/i.test(trimmed);
+    return startsWithHtml || hasHtmlMarkers;
   };
 
   // Helper function to check if current message is chatbot_message
@@ -1211,6 +1314,14 @@ const ThreadItem = ({
         >
           {isRerunning ? "Running..." : "Rerun"}
         </ThreadActionPill>
+        <ThreadActionPill
+          id="thread-item-copy-message-button"
+          testId="thread-item-copy-message-button"
+          icon={CopyIcon}
+          onClick={() => handleCopyMessage(getMessageToDisplay() || item?.error || "")}
+        >
+          Copy
+        </ThreadActionPill>
         {!isError && (
           <ThreadActionPill
             id="thread-item-add-test-case-button"
@@ -1263,6 +1374,14 @@ const ThreadItem = ({
 
     const pills = (
       <div className={`flex w-full flex-wrap items-center justify-end gap-1.5 ${className}`}>
+        <ThreadActionPill
+          testId="thread-item-user-copy-button"
+          id="thread-item-user-copy-button"
+          icon={CopyIcon}
+          onClick={() => handleCopyMessage(item.user || "")}
+        >
+          Copy
+        </ThreadActionPill>
         <ThreadActionPill
           testId="thread-item-user-aiconfig-button"
           id="thread-item-user-aiconfig-button"
@@ -1410,20 +1529,14 @@ const ThreadItem = ({
                       ? "bg-[#27272a] text-zinc-100 border-[#3f3f46]"
                       : "bg-[#f4f4f5] text-zinc-900 border-[#e4e4e7]"
                   }`}
-                  style={{ wordBreak: "break-word", overflowWrap: "break-word", whiteSpace: "pre-line" }}
+                  style={{
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
+                    "--expand-collapse-fade": isDark ? "#27272a" : "#f4f4f5",
+                  }}
                 >
                   {renderAttachments(normalizeImageUrls(item?.user_urls, "user"))}
-                  <ReactMarkdown
-                    components={{
-                      code: ({ node, inline, className, children, ...props }) => (
-                        <CodeBlock className={className} {...props}>
-                          {children}
-                        </CodeBlock>
-                      ),
-                    }}
-                  >
-                    {item.user}
-                  </ReactMarkdown>
+                  <UserMessageContent content={item.user} />
                 </div>
                 {/* Avatar */}
                 <div className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold mt-0.5 bg-base-100 text-base-content/50">
@@ -1615,7 +1728,7 @@ const ThreadItem = ({
                   <FinalResponseCard
                     attachments={renderAttachments(normalizeImageUrls(item?.llm_urls, "llm"))}
                     content={getMessageToDisplay()}
-                    isHtml={isChatbotMessage() && containsHTML(getMessageToDisplay())}
+                    isHtml={isChatbotMessage() && isRawHtml(getMessageToDisplay())}
                     hasToolCalls={hasAgentsOrTools}
                   />
 

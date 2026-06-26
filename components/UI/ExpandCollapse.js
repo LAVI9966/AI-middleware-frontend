@@ -30,17 +30,19 @@ export function ExpandCollapse({
   style = {},
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [needsCollapse, setNeedsCollapse] = useState(false);
+  const [needsCollapse, setNeedsCollapse] = useState(true);
   const contentRef = useRef(null);
 
   // Measure actual content height after render
   useLayoutEffect(() => {
     if (!contentRef.current) return;
-    const observer = new ResizeObserver(() => {
+    const measure = () => {
       if (contentRef.current) {
         setNeedsCollapse(contentRef.current.scrollHeight > collapsedHeight);
       }
-    });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
     observer.observe(contentRef.current);
     return () => observer.disconnect();
   }, [collapsedHeight, children]);
@@ -55,7 +57,7 @@ export function ExpandCollapse({
         style={{
           maxHeight: expanded || !showControls ? "none" : `${collapsedHeight}px`,
           overflow: "hidden",
-          transition: "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+          transition: expanded ? "max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)" : "none",
         }}
       >
         {children}
