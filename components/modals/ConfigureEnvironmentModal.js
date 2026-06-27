@@ -1,9 +1,8 @@
-"use client";
 import React, { useState, useEffect, useRef } from "react";
 import Modal from "@/components/UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
-import { X, Plus, AlertCircle } from "lucide-react";
+import { X, Plus, AlertCircle, SlidersHorizontal } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { updateBridgeAction } from "@/store/action/bridgeAction";
 
@@ -117,132 +116,123 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
   const isSaveDisabled = isLoading || !bridgeId || !allRowsFilled || hasDuplicateWhenErrors || !dataChanged;
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.CONFIGURE_ENVIRONMENT_MODAL} onClose={handleClose}>
-      <div className="flex items-center justify-center">
-        <div
-          data-testid="configure-environment-modal-container"
-          id="configure-environment-modal-container"
-          className="min-w-[30rem] max-w-[60rem] bg-base-100 border border-base-300 rounded-lg p-6 mx-4"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex flex-col space-y-2">
-            <h2 className="text-lg font-semibold text-base-content">Configure Environment</h2>
-            <p className="text-sm text-base-content/70">
-              Map environments to specific agent versions for different deployment scenarios.
-            </p>
-            {!bridgeId && (
-              <div className="flex items-start gap-2 mt-2 p-3 bg-warning/10 border border-warning/30 rounded-md">
-                <AlertCircle size={16} className="text-warning flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-warning">Please open this modal from an agent to configure environments.</p>
-              </div>
-            )}
+    <Modal
+      MODAL_ID={MODAL_TYPE.CONFIGURE_ENVIRONMENT_MODAL}
+      onClose={handleClose}
+      title="Configure Environment"
+      description="Map environments to specific agent versions for different deployment scenarios."
+      icon={<SlidersHorizontal size={16} className="text-trace-gold" />}
+      widthClass="w-[min(60rem,92vw)]"
+    >
+      <div className="flex flex-col">
+        {!bridgeId && (
+          <div className="flex items-start gap-2 mb-4 p-3 bg-warning/10 border border-warning/30 rounded-md">
+            <AlertCircle size={16} className="text-warning flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-warning">Please open this modal from an agent to configure environments.</p>
+          </div>
+        )}
+      </div>
+
+      <form id="configure-environment-form" onSubmit={handleSubmit} className="mt-0">
+        <div className="space-y-4" style={{ opacity: !bridgeId ? 0.5 : 1, pointerEvents: !bridgeId ? "none" : "auto" }}>
+          <div className="grid grid-cols-2 gap-4 pb-4 border-b border-base-300">
+            <div>
+              <label className="label-text font-semibold text-sm">When</label>
+            </div>
+            <div>
+              <label className="label-text font-semibold text-sm">Do</label>
+            </div>
           </div>
 
-          <form id="configure-environment-form" onSubmit={handleSubmit} className="mt-6">
-            <div
-              className="space-y-4"
-              style={{ opacity: !bridgeId ? 0.5 : 1, pointerEvents: !bridgeId ? "none" : "auto" }}
-            >
-              <div className="grid grid-cols-2 gap-4 pb-4 border-b border-base-300">
-                <div>
-                  <label className="label-text font-semibold text-sm">When</label>
+          {environments.map((env, index) => {
+            // Versions already selected in OTHER rows
+            const usedVersionIds = environments
+              .filter((_, i) => i !== index)
+              .map((e) => e.do)
+              .filter(Boolean);
+
+            const filteredVersions = availableVersions.filter((v) => !usedVersionIds.includes(v.value));
+
+            return (
+              <div key={index} className="grid grid-cols-2 gap-4 items-start">
+                <div className="form-control w-full">
+                  <input
+                    autoComplete="off"
+                    data-testid={`environment-when-input-${index}`}
+                    type="text"
+                    placeholder="e.g., Production, Testing, Staging"
+                    className={`input input-bordered w-full input-sm${whenErrors[index] ? " input-error" : ""}`}
+                    value={env.when}
+                    onChange={(e) => handleEnvironmentChange(index, "when", e.target.value)}
+                  />
+                  {whenErrors[index] && <span className="text-error text-xs mt-1">{whenErrors[index]}</span>}
                 </div>
-                <div>
-                  <label className="label-text font-semibold text-sm">Do</label>
+
+                <div className="flex gap-2">
+                  <div className="form-control w-full">
+                    <select
+                      data-testid={`environment-do-select-${index}`}
+                      className="select select-bordered w-full select-sm"
+                      value={env.do}
+                      onChange={(e) => handleEnvironmentChange(index, "do", e.target.value)}
+                    >
+                      <option value="">Select version</option>
+                      {filteredVersions.length > 0 ? (
+                        filteredVersions.map((version) => (
+                          <option key={version.value} value={version.value}>
+                            {version.label}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No versions available</option>
+                      )}
+                    </select>
+                  </div>
+                  {environments.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEnvironment(index)}
+                      className="btn btn-ghost btn-sm"
+                      title="Remove environment"
+                    >
+                      <X size={16} className="text-error" />
+                    </button>
+                  )}
                 </div>
               </div>
+            );
+          })}
 
-              {environments.map((env, index) => {
-                // Versions already selected in OTHER rows
-                const usedVersionIds = environments
-                  .filter((_, i) => i !== index)
-                  .map((e) => e.do)
-                  .filter(Boolean);
-
-                const filteredVersions = availableVersions.filter((v) => !usedVersionIds.includes(v.value));
-
-                return (
-                  <div key={index} className="grid grid-cols-2 gap-4 items-start">
-                    <div className="form-control w-full">
-                      <input
-                        autoComplete="off"
-                        data-testid={`environment-when-input-${index}`}
-                        type="text"
-                        placeholder="e.g., Production, Testing, Staging"
-                        className={`input input-bordered w-full input-sm${whenErrors[index] ? " input-error" : ""}`}
-                        value={env.when}
-                        onChange={(e) => handleEnvironmentChange(index, "when", e.target.value)}
-                      />
-                      {whenErrors[index] && <span className="text-error text-xs mt-1">{whenErrors[index]}</span>}
-                    </div>
-
-                    <div className="flex gap-2">
-                      <div className="form-control w-full">
-                        <select
-                          data-testid={`environment-do-select-${index}`}
-                          className="select select-bordered w-full select-sm"
-                          value={env.do}
-                          onChange={(e) => handleEnvironmentChange(index, "do", e.target.value)}
-                        >
-                          <option value="">Select version</option>
-                          {filteredVersions.length > 0 ? (
-                            filteredVersions.map((version) => (
-                              <option key={version.value} value={version.value}>
-                                {version.label}
-                              </option>
-                            ))
-                          ) : (
-                            <option disabled>No versions available</option>
-                          )}
-                        </select>
-                      </div>
-                      {environments.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEnvironment(index)}
-                          className="btn btn-ghost btn-sm"
-                          title="Remove environment"
-                        >
-                          <X size={16} className="text-error" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {error && <p className="text-error text-sm mt-2">{error}</p>}
-            </div>
-
-            <button type="button" onClick={handleAddEnvironment} className="btn btn-ghost btn-sm mt-4 gap-2">
-              <Plus size={14} />
-              Add Environment
-            </button>
-
-            <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-8">
-              <button
-                data-testid="configure-environment-cancel-button"
-                id="configure-environment-cancel-button"
-                type="button"
-                onClick={handleClose}
-                className="btn btn-sm"
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-              <button
-                data-testid="configure-environment-save-button"
-                id="configure-environment-save-button"
-                type="submit"
-                className="btn btn-primary btn-sm"
-                disabled={isSaveDisabled}
-              >
-                {isLoading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
+          {error && <p className="text-error text-sm mt-2">{error}</p>}
         </div>
-      </div>
+
+        <button type="button" onClick={handleAddEnvironment} className="btn btn-ghost btn-sm mt-4 gap-2">
+          <Plus size={14} />
+          Add Environment
+        </button>
+
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-8">
+          <button
+            data-testid="configure-environment-cancel-button"
+            id="configure-environment-cancel-button"
+            type="button"
+            onClick={handleClose}
+            className="btn btn-sm"
+            disabled={isLoading}
+          >
+            Cancel
+          </button>
+          <button
+            data-testid="configure-environment-save-button"
+            id="configure-environment-save-button"
+            type="submit"
+            className="btn btn-primary btn-sm"
+            disabled={isSaveDisabled}
+          >
+            {isLoading ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 };

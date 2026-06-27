@@ -9,6 +9,7 @@ import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import { FolderContext } from "@/components/folders/FolderContext";
+import { Key } from "lucide-react";
 
 const ApiKeyModal = ({
   params,
@@ -195,10 +196,43 @@ const ApiKeyModal = ({
     ]
   );
 
+  const footerContent = (
+    <div id="apikey-modal-actions" className="flex gap-2 justify-end">
+      <button
+        data-testid="apikey-modal-cancel-button"
+        id="apikey-modal-cancel-button"
+        type="reset"
+        form="apikey-modal-form"
+        className="btn btn-sm"
+        onClick={handleClose}
+      >
+        Cancel
+      </button>
+      <button
+        data-testid="apikey-modal-submit-button"
+        id="apikey-modal-submit-button"
+        type="submit"
+        form="apikey-modal-form"
+        className={`btn btn-sm btn-primary ${
+          isLoading || (isEditing && !ischanged.isUpdate) || (!isEditing && !ischanged.isAdd) ? "btn-disabled" : ""
+        }`}
+        disabled={isLoading || (isEditing && !ischanged.isUpdate) || (!isEditing && !ischanged.isAdd)}
+      >
+        {isLoading ? "Saving..." : isEditing ? "Update" : "Add"}
+      </button>
+    </div>
+  );
+
   return (
-    <Modal MODAL_ID={MODAL_TYPE?.API_KEY_MODAL} onClose={handleClose}>
-      <form id="apikey-modal-form" onSubmit={handleSubmit} className="modal-box flex flex-col gap-4">
-        <h3 className="font-bold text-lg">{isEditing ? "Update API Key" : "Add New API Key"}</h3>
+    <Modal
+      MODAL_ID={MODAL_TYPE?.API_KEY_MODAL}
+      onClose={handleClose}
+      title={isEditing ? "Update API Key" : "Add New API Key"}
+      icon={<Key size={16} className="text-trace-gold" />}
+      widthClass="w-[min(480px,92vw)]"
+      footer={footerContent}
+    >
+      <form id="apikey-modal-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         {API_KEY_MODAL_INPUT.filter((field) => field !== "apikey_limit").map((field) => {
           const displayLabel = field.includes("_")
             ? field
@@ -310,28 +344,6 @@ const ApiKeyModal = ({
                 ))
               : null}
           </select>
-        </div>
-        <div id="apikey-modal-actions" className="modal-action">
-          <button
-            data-testid="apikey-modal-cancel-button"
-            id="apikey-modal-cancel-button"
-            type="reset"
-            className="btn btn-sm"
-            onClick={handleClose}
-          >
-            Cancel
-          </button>
-          <button
-            data-testid="apikey-modal-submit-button"
-            id="apikey-modal-submit-button"
-            type="submit"
-            className={`btn btn-sm btn-primary ${
-              isLoading || (isEditing && !ischanged.isUpdate) || (!isEditing && !ischanged.isAdd) ? "btn-disabled" : ""
-            }`}
-            disabled={isLoading || (isEditing && !ischanged.isUpdate) || (!isEditing && !ischanged.isAdd)}
-          >
-            {isLoading ? "Saving..." : isEditing ? "Update" : "Add"}
-          </button>
         </div>
       </form>
     </Modal>

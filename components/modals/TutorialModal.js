@@ -14,6 +14,7 @@ import {
 import { closeModal } from "@/utils/utility";
 import Modal from "../UI/Modal";
 import { useCustomSelector } from "@/customHooks/customSelector";
+import { HelpCircle } from "lucide-react";
 
 const TutorialVideo = ({ videoUrl, title }) => {
   return (
@@ -56,7 +57,6 @@ const TutorialModal = () => {
     const newActiveIndex = index === activeIndex ? null : index;
     setActiveIndex(newActiveIndex);
 
-    // Scroll to video when opened
     if (newActiveIndex !== null) {
       setTimeout(() => {
         const videoElement = videoRefs.current[index];
@@ -67,40 +67,26 @@ const TutorialModal = () => {
             inline: "nearest",
           });
         }
-      }, 150); // Small delay to allow animation to start
+      }, 150);
     }
   };
 
-  // Set ref for video sections
   const setVideoRef = (index, element) => {
     videoRefs.current[index] = element;
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.TUTORIAL_MODAL} onClose={internalClose}>
-      {/* Main Modal */}
-      <div
-        id="tutorial-modal-container"
-        data-testid="tutorial-modal-container"
-        className="modal-box w-full max-w-5xl bg-base-100 rounded-xl shadow-2xl overflow-hidden border border-base-300 p-0"
-      >
-        {/* Header */}
-        <div className=" px-8 py-6 ">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-lg">
-                <BookIcon size={24} />
-              </div>
-              <div>
-                <h2 className="text-2xl font-semibold">GTWY AI Tutorials</h2>
-                <p className="text-base-content  text-sm mt-1">Learn how to use our platform effectively</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
+    <Modal
+      MODAL_ID={MODAL_TYPE.TUTORIAL_MODAL}
+      onClose={internalClose}
+      title="GTWY AI Tutorials"
+      description="Learn how to use our platform effectively"
+      icon={<HelpCircle size={16} className="text-trace-gold" />}
+      widthClass="w-[min(900px,92vw)]"
+    >
+      <div id="tutorial-modal-container" data-testid="tutorial-modal-container" className="flex flex-col">
         {/* Content Area */}
-        <div ref={contentAreaRef} className="p-8 max-h-[75vh] overflow-y-auto scroll-smooth">
+        <div ref={contentAreaRef} className="max-h-[72vh] overflow-y-auto scroll-smooth">
           <div className="space-y-3">
             {tutorialData?.map((tutorial, index) => {
               const IconComponent = iconMap[tutorial.icon];
@@ -198,31 +184,7 @@ const TutorialModal = () => {
             })}
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="border-t border-base-300 bg-base-100 px-8 py-5">
-          <div className="flex justify-between items-center">
-            <button
-              id="tutorial-close-button"
-              data-testid="tutorial-close-button"
-              onClick={internalClose}
-              className="px-6 py-2 bg-base-300 text-base-content rounded-lg hover:bg-base-200 transition-all duration-200 font-medium text-sm hover:scale-105 shadow-sm hover:shadow-md ml-auto"
-            >
-              Close Tutorials
-            </button>
-          </div>
-        </div>
       </div>
-      {/* Backdrop - click to dismiss */}
-      <form
-        method="dialog"
-        id="tutorial-modal-backdrop"
-        data-testid="tutorial-modal-backdrop"
-        className="modal-backdrop"
-        onClick={internalClose}
-      >
-        <button>close</button>
-      </form>
     </Modal>
   );
 };

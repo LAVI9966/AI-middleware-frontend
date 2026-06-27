@@ -409,7 +409,12 @@ export function openModal(modalName) {
 export function closeModal(modalName) {
   const modalElement = document.getElementById(modalName);
   if (modalElement) {
-    modalElement.close();
+    // Ensure the modal is closed by calling close() and removing open attribute
+    if (modalElement.open) {
+      modalElement.close();
+    }
+    // Also remove the open attribute to ensure proper state
+    modalElement.removeAttribute("open");
   } else {
     console.error(`Modal with name ${modalName} not found`);
   }

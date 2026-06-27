@@ -14,7 +14,7 @@ import {
 import { updateBridgeAction } from "@/store/action/bridgeAction";
 import { setTestCaseConfig } from "@/store/reducer/testCaseConfigReducer";
 import { PlayIcon } from "@/components/Icons";
-import { FileText, Check, ChevronDownIcon, Trash2, Search, X } from "lucide-react";
+import { FileText, Check, ChevronDownIcon, Trash2, Search, X, SlidersHorizontal } from "lucide-react";
 import TutorialSuggestionToast from "@/components/TutorialSuggestoinToast";
 import PageHeader from "@/components/Pageheader";
 import TestCaseDetailsPanel from "@/components/testcaseComponents/TestCaseDetailsPanel";
@@ -157,71 +157,60 @@ const MultiScoreCell = ({
  * Body of the shared "Scores by model" modal. Rendered inside the reusable
  * <Modal> dialog at the parent level so every list row reuses the same DOM.
  */
-const ScoreBreakdownModalBody = ({ breakdown, getScoreColor, getScoreMessage, getScoreDisplay, onClose }) => {
+const ScoreBreakdownModalBody = ({ breakdown, getScoreColor, getScoreMessage, getScoreDisplay }) => {
   if (!breakdown) return null;
   const { groups, matchingType } = breakdown;
   return (
-    <div className="modal-box max-w-md p-0 overflow-hidden">
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-base-200">
-        <div>
-          <div className="text-sm font-bold text-base-content">Scores by model</div>
-          <div className="text-[11px] text-base-content/60">{groups.length} results for this version</div>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-base-200 text-base-content/60"
-          aria-label="Close"
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <div className="flex flex-col gap-1 p-2 max-h-[60vh] overflow-y-auto">
-        {groups.map(({ key, isDefault, run }) => {
-          if (!run) return null;
-          const score = run?.score || 0;
-          const runError = run?.error;
-          const runErrorMessage =
-            typeof runError === "string"
-              ? runError
-              : runError?.error || runError?.message || (runError ? "Run failed" : null);
-          const reason = runErrorMessage || run?.reason || getScoreMessage(score, matchingType);
-          return (
-            <div key={key} className="flex items-start gap-2 px-2 py-2 rounded-md hover:bg-base-200/60">
-              <span className="inline-flex items-center mt-0.5 flex-shrink-0">
-                {run?.service ? getIconOfService(run.service, 14, 14) : null}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-semibold text-base-content truncate">
-                  {isDefault ? (
-                    <>
-                      Default
-                      {run?.model ? <span className="text-base-content/50 font-normal"> · {run.model}</span> : null}
-                    </>
-                  ) : (
-                    run?.model || "Unknown model"
-                  )}
-                </div>
-                <div className="text-[12px] text-base-content/60 leading-snug mt-0.5">{reason}</div>
-              </div>
-              <div className="flex-shrink-0 self-center">
-                {runErrorMessage ? (
-                  <span
-                    className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-error/10 text-error"
-                    title={runErrorMessage}
-                  >
-                    Error
-                  </span>
+    <div className="flex flex-col gap-2 max-h-[60vh]">
+      {groups.map(({ key, isDefault, run }) => {
+        if (!run) return null;
+        const score = run?.score || 0;
+        const runError = run?.error;
+        const runErrorMessage =
+          typeof runError === "string"
+            ? runError
+            : runError?.error || runError?.message || (runError ? "Run failed" : null);
+        const reason = runErrorMessage || run?.reason || getScoreMessage(score, matchingType);
+        return (
+          <div
+            key={key}
+            className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-base-200/30 hover:bg-base-200/60 border border-base-content/5 transition-all"
+          >
+            <span className="inline-flex items-center mt-0.5 flex-shrink-0">
+              {run?.service ? getIconOfService(run.service, 16, 16) : null}
+            </span>
+            <div className="flex-1 min-w-0 text-left">
+              <div className="text-xs font-semibold text-base-content truncate">
+                {isDefault ? (
+                  <>
+                    Default
+                    {run?.model ? <span className="text-base-content/50 font-normal"> · {run.model}</span> : null}
+                  </>
                 ) : (
-                  <span className={`text-xs font-semibold ${getScoreColor(score, matchingType)}`}>
-                    {getScoreDisplay(score, matchingType)}
-                  </span>
+                  run?.model || "Unknown model"
                 )}
               </div>
+              <div className="text-[11px] text-base-content/60 leading-relaxed mt-0.5 whitespace-pre-wrap break-words">
+                {reason}
+              </div>
             </div>
-          );
-        })}
-      </div>
+            <div className="flex-shrink-0 self-center pl-2">
+              {runErrorMessage ? (
+                <span
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-error/10 text-error"
+                  title={runErrorMessage}
+                >
+                  Error
+                </span>
+              ) : (
+                <span className={`text-xs font-bold ${getScoreColor(score, matchingType)}`}>
+                  {getScoreDisplay(score, matchingType)}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -1166,13 +1155,24 @@ function TestCases({ params }) {
         buttonTitle="Delete"
       />
 
-      <Modal MODAL_ID={MODAL_TYPE.TESTCASE_SCORES_MODAL} onClose={() => setScoreBreakdown(null)}>
+      <Modal
+        MODAL_ID={MODAL_TYPE.TESTCASE_SCORES_MODAL}
+        title="Scores by model"
+        description={scoreBreakdown ? `${scoreBreakdown.groups.length} results for this version` : ""}
+        icon={<SlidersHorizontal size={16} className="text-primary" />}
+        widthClass="w-[min(480px,92vw)]"
+        onClose={closeScoreBreakdown}
+        footer={
+          <button onClick={closeScoreBreakdown} className="btn btn-sm">
+            Close
+          </button>
+        }
+      >
         <ScoreBreakdownModalBody
           breakdown={scoreBreakdown}
           getScoreColor={getScoreColor}
           getScoreMessage={getScoreMessage}
           getScoreDisplay={getScoreDisplay}
-          onClose={closeScoreBreakdown}
         />
       </Modal>
     </div>

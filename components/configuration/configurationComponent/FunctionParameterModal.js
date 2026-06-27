@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import Modal from "@/components/UI/Modal";
 import InfoTooltip from "@/components/InfoTooltip";
 import { useCustomSelector } from "@/customHooks/customSelector";
-import { PlusCircleIcon, CircleQuestionMark } from "lucide-react";
+import { PlusCircleIcon, CircleQuestionMark, Wrench } from "lucide-react";
 import { PARAMETER_TYPES } from "@/utils/enums";
 import CodeMirror from "@uiw/react-codemirror";
 import { json, jsonParseLinter } from "@codemirror/lang-json";
@@ -129,7 +129,7 @@ const ParameterCard = ({
             disabled={isPublished || !isEditor}
             type="text"
             value={editingName}
-            className="w-1/2 text-xs font-medium bg-transparent p-0 focus:outline-none"
+            className="w-1/2 text-xs font-medium !bg-transparent p-0 focus:outline-none"
             readOnly={false}
             onChange={(e) => {
               setEditingName(e.target.value);
@@ -1316,58 +1316,85 @@ function FunctionParameterModal({
   );
 
   return (
-    <Modal MODAL_ID={Model_Name}>
+    <Modal
+      MODAL_ID={Model_Name}
+      title={`Config ${name}`}
+      icon={<Wrench size={16} className="text-primary" />}
+      widthClass="w-[min(896px,92vw)]"
+      onClose={handleCloseModal}
+      footer={
+        <>
+          <button
+            id="function-param-close-button"
+            data-testid="function-parameter-close-button"
+            className="btn btn-sm"
+            onClick={handleCloseModal}
+          >
+            Close
+          </button>
+          <button
+            id="function-param-save-button"
+            data-testid="function-parameter-save-button"
+            className="btn btn-sm btn-primary"
+            onClick={handleSaveData}
+            disabled={!isModified || isLoading || isPublished}
+          >
+            {isLoading && <span className="loading loading-xs loading-spinner mr-1"></span>}
+            Save
+          </button>
+        </>
+      }
+    >
       <div
         id="function-param-modal-box"
         data-testid="function-parameter-modal"
-        className="modal-box max-w-4xl overflow-hidden text-xs max-h-[90%] my-20 flex flex-col"
+        className="flex flex-col gap-4 text-xs h-full"
       >
-        {/* Modal Header */}
-        <div
-          id="function-param-modal-header"
-          className="flex items-start flex-col mb-3 pb-2 border-b gap-1 border-base-300"
-        >
-          <div className="flex justify-between w-full items-center">
-            <h2 className="text-lg font-semibold">Config {name}</h2>
-            <div className="flex justify-end gap-2 mt-1">
-              <select
-                id="function-param-mode-select"
-                data-testid="function-parameter-mode-select"
-                disabled={isReadOnly}
-                className="select select-xs select-bordered text-xs min-w-20"
-                value={isTextareaVisible ? "advanced" : "simple"}
-                onChange={(e) => {
-                  const isAdvanced = e.target.value === "advanced";
-                  handleToggleChange({ target: { checked: isAdvanced } });
-                }}
-              >
-                <option value="simple">Simple</option>
-                <option value="advanced">Advanced</option>
-              </select>
-              {isTextareaVisible && (
-                <div className="flex items-center text-xs gap-2">
-                  <CopyIcon size={14} onClick={copyToolCallFormat} className="cursor-pointer" />
-                </div>
-              )}
-            </div>
+        {/* Info/Warning alert if applicable */}
+        {(name === "Tool" || name === "Pre Tool" || name === "Post Tool") && (
+          <div className="alert alert-info py-2 px-3 text-[11px] rounded-lg flex items-center gap-2 bg-info/10 text-info border-info/20">
+            <InfoIcon id="function-param-info-icon" size={14} className="shrink-0" />
+            <span id="function-param-info-text">
+              Function used in {(connectedAgents || function_details?.bridge_ids || [])?.length} versions, changes may
+              affect all versions.
+            </span>
           </div>
-          <div className="flex flex-row items-center gap-2">
-            {(name === "Tool" || name === "Pre Tool" || name === "Post Tool") && (
-              <div className="flex flex-row gap-1">
-                <InfoIcon id="function-param-info-icon" size={14} />
-                <div id="function-param-info-text" className="label-text-alt">
-                  Function used in {(connectedAgents || function_details?.bridge_ids || [])?.length} versions, changes
-                  may affect all versions.
-                </div>
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-base-content/50 mt-1">
+        )}
+
+        <div className="flex items-center justify-between gap-3 border-b border-base-content/10 pb-3">
+          <p className="text-xs text-base-content/60 leading-relaxed max-w-[70%]">
             Parameters define the inputs passed to this tool. Toggle <strong>Fill with AI</strong> to let AI generate
             the value, or turn it off and set a <strong>Value Path</strong> using a variable name — the parameter will
-            be replaced with that variable&apos;s value at runtime.
+            be replaced with that variable's value at runtime.
           </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <select
+              id="function-param-mode-select"
+              data-testid="function-parameter-mode-select"
+              disabled={isReadOnly}
+              className="select select-xs select-bordered text-xs min-w-20"
+              value={isTextareaVisible ? "advanced" : "simple"}
+              onChange={(e) => {
+                const isAdvanced = e.target.value === "advanced";
+                handleToggleChange({ target: { checked: isAdvanced } });
+              }}
+            >
+              <option value="simple">Simple</option>
+              <option value="advanced">Advanced</option>
+            </select>
+            {isTextareaVisible && (
+              <button
+                type="button"
+                className="btn btn-xs btn-ghost btn-square"
+                onClick={copyToolCallFormat}
+                title="Copy Tool Call Format"
+              >
+                <CopyIcon size={14} />
+              </button>
+            )}
+          </div>
         </div>
+
         <div className="flex flex-row mb-1">
           <div id="function-param-options-wrapper" className="flex gap-2">
             {(name === "Agent" || (name === "orchestralAgent" && isMasterAgent)) && (
@@ -1470,7 +1497,7 @@ function FunctionParameterModal({
             {isTextareaVisible && (
               <p
                 id="function-param-optimize-button"
-                className="cursor-pointer label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text"
+                className="cursor-pointer label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text text-[11px]"
                 onClick={handleOptimizeRawJson}
               >
                 Optimize Json Format
@@ -1632,30 +1659,6 @@ function FunctionParameterModal({
               )}
             </div>
           )}
-        </div>
-
-        {/* Modal Actions - Always visible at bottom */}
-        <div className="modal-action mt-2">
-          <form method="dialog" className="flex flex-row gap-2">
-            <button
-              id="function-param-close-button"
-              data-testid="function-parameter-close-button"
-              className="btn btn-sm"
-              onClick={handleCloseModal}
-            >
-              Close
-            </button>
-            <button
-              id="function-param-save-button"
-              data-testid="function-parameter-save-button"
-              className="btn btn-sm btn-primary"
-              onClick={handleSaveData}
-              disabled={!isModified || isLoading || isPublished}
-            >
-              {isLoading && <span className="loading loading-spinner"></span>}
-              Save
-            </button>
-          </form>
         </div>
       </div>
     </Modal>

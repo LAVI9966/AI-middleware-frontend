@@ -989,9 +989,9 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                     }`}
                   >
                     <div className="chat-image avatar"></div>
-                    <div className="chat-header flex items-center gap-1.5 mb-1">
+                    <div className="chat-header flex items-start gap-1.5 mb-1">
                       {!(message.sender === "assistant" && message.isLoading && !message.content) && (
-                        <>
+                        <div className="flex items-center gap-1.5 h-5">
                           <span className="text-xs font-semibold capitalize tracking-wide opacity-70">
                             {message.sender === "error"
                               ? "Error"
@@ -1000,12 +1000,12 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                 : message.sender}
                           </span>
                           {message.isEdited && <span className="text-xs text-warning font-medium">(edited)</span>}
-                          <time className="text-[10px] opacity-40">{message.time}</time>
-                        </>
+                          <time className="text-[10px] opacity-40 whitespace-nowrap">{message.time}</time>
+                        </div>
                       )}
                       {message?.sender === "assistant" && message?.fallback && (
-                        <div className="my-1">
-                          <div className="max-w-[30rem] text-primary rounded-lg text-xs overflow-hidden transition-all duration-200 hover:bg-base-200/90">
+                        <div className="inline-flex items-start ml-1.5 select-none">
+                          <div className="text-primary rounded-md text-[10px] border border-primary/20 overflow-hidden transition-all duration-200 hover:bg-base-200/90 flex flex-col">
                             <input
                               autoComplete="off"
                               id={`retry-${message.id}`}
@@ -1015,13 +1015,11 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
 
                             <label
                               htmlFor={`retry-${message.id}`}
-                              className="px-3 py-1.5 min-h-0 h-7 leading-none cursor-pointer flex items-center justify-between w-full gap-2 transition-all duration-200 hover:bg-base-300/20 peer-checked:bg-base-300/30 flex-row-reverse"
+                              className="px-2 py-0.5 min-h-0 h-5 leading-none cursor-pointer flex items-center gap-1 transition-all duration-200 hover:bg-base-300/20 peer-checked:bg-base-300/30 whitespace-nowrap"
                             >
-                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                <span className="text-xs opacity-80">↻</span>
-                                <span className="truncate">Retried with</span>
-                                <span className="font-medium truncate text-primary/90">{message?.modelName}</span>
-                              </div>
+                              <span className="opacity-80">↻</span>
+                              <span>Retried with</span>
+                              <span className="font-semibold text-primary/95">{message?.modelName}</span>
                             </label>
 
                             <div className="max-h-0 peer-checked:max-h-96 transition-all duration-300 ease-in-out overflow-hidden bg-base-300/10">

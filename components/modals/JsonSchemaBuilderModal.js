@@ -7,7 +7,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import Modal from "@/components/UI/Modal";
-import { PlusCircleIcon } from "lucide-react";
+import { PlusCircleIcon, Braces } from "lucide-react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 
 const SchemaPropertyCard = ({
@@ -47,7 +47,7 @@ const SchemaPropertyCard = ({
             disabled={isReadOnly}
             type="text"
             value={editingName}
-            className="w-1/2 text-xs font-medium bg-transparent p-0 focus:outline-none"
+            className="w-1/2 text-xs font-medium !bg-transparent p-0 focus:outline-none"
             onChange={(e) => {
               setEditingName(e.target.value);
             }}
@@ -925,16 +925,40 @@ function JsonSchemaBuilderModal({
     closeModal(modalId);
   };
 
-  return (
-    <Modal MODAL_ID={modalId} onClose={handleCloseModal}>
-      <div
-        id="json-schema-builder-modal-container"
-        className="modal-box max-w-4xl overflow-hidden text-xs max-h-[90%] my-20 flex flex-col"
+  const footerContent = (
+    <div className="flex flex-row gap-2">
+      <button
+        data-testid="json-schema-builder-close-button"
+        id="json-schema-builder-close-button"
+        onClick={handleCloseModal}
+        className="btn btn-sm"
+        type="button"
       >
-        <div className="mb-4 pt-3">
-          <h3 className="font-bold text-lg">{title}</h3>
-        </div>
+        Close
+      </button>
+      <button
+        data-testid="json-schema-builder-save-button"
+        id="json-schema-builder-save-button"
+        onClick={handleSave}
+        className="btn btn-sm btn-primary"
+        type="button"
+        disabled={isReadOnly}
+      >
+        Save
+      </button>
+    </div>
+  );
 
+  return (
+    <Modal
+      MODAL_ID={modalId}
+      onClose={handleCloseModal}
+      title={title}
+      icon={<Braces size={16} className="text-trace-gold" />}
+      widthClass="w-[min(56rem,92vw)]"
+      footer={footerContent}
+    >
+      <div id="json-schema-builder-modal-container" className="text-xs flex flex-col">
         <div className="flex-1 overflow-y-auto">
           <div className="mb-4">
             {widgetButtons.length > 0 && (
@@ -1077,30 +1101,6 @@ function JsonSchemaBuilderModal({
               )}
             </div>
           </div>
-        </div>
-
-        <div className="modal-action mt-2">
-          <form method="dialog" className="flex flex-row gap-2">
-            <button
-              data-testid="json-schema-builder-close-button"
-              id="json-schema-builder-close-button"
-              onClick={handleCloseModal}
-              className="btn btn-sm"
-              type="button"
-            >
-              Close
-            </button>
-            <button
-              data-testid="json-schema-builder-save-button"
-              id="json-schema-builder-save-button"
-              onClick={handleSave}
-              className="btn btn-sm btn-primary"
-              type="button"
-              disabled={isReadOnly}
-            >
-              Save
-            </button>
-          </form>
         </div>
       </div>
     </Modal>

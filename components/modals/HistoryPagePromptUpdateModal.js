@@ -4,7 +4,7 @@ import { closeModal } from "@/utils/utility";
 import React from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
-import { RotateCcw } from "lucide-react";
+import { History, RotateCcw } from "lucide-react";
 import { promptObjectToString, parsePromptObject } from "@/utils/promptUtils";
 
 const HistoryPagePromptUpdateModal = ({
@@ -27,17 +27,14 @@ const HistoryPagePromptUpdateModal = ({
     e.preventDefault();
 
     let newValue;
-    // Handle based on the format of promotToUpdate
     if (typeof promotToUpdate === "string") {
       newValue = promotToUpdate?.trim() || "";
     } else if (typeof promotToUpdate === "object") {
-      // Ensure the object has the correct structure (role, goal, instruction)
       newValue = parsePromptObject(promotToUpdate);
     } else {
       newValue = "";
     }
 
-    // Deep comparison/simple comparison based on type
     const hasChanged =
       typeof newValue === "string"
         ? newValue !== previousPrompt
@@ -52,7 +49,6 @@ const HistoryPagePromptUpdateModal = ({
       );
     }
 
-    // Clear the generated prompt state when saved
     if (onPromptSaved) {
       onPromptSaved();
     }
@@ -61,15 +57,21 @@ const HistoryPagePromptUpdateModal = ({
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.HISTORY_PAGE_PROMPT_UPDATE_MODAL} onClose={handleClose}>
-      <div id="history-prompt-update-modal-container" className="modal-box w-11/12 max-w-7xl bg-base-100">
-        <div className="flex justify-between items-center">
-          <h3 className="font-bold text-lg mb-4">Update Prompt</h3>
-          {handleRegenerate && (
+    <Modal
+      MODAL_ID={MODAL_TYPE.HISTORY_PAGE_PROMPT_UPDATE_MODAL}
+      onClose={handleClose}
+      title="Update Prompt"
+      description="Review and save the updated prompt from history"
+      icon={<History size={16} className="text-trace-gold" />}
+      widthClass="w-[min(1400px,96vw)]"
+    >
+      <div id="history-prompt-update-modal-container" className="flex flex-col gap-4">
+        {handleRegenerate && (
+          <div className="flex justify-end">
             <button
               data-testid="history-prompt-regenerate-button"
               id="history-prompt-regenerate-button"
-              className="btn btn-xs btn-primary ml-2 gap-2"
+              className="btn btn-xs btn-primary gap-2"
               onClick={handleRegenerate}
               disabled={isRegenerating}
             >
@@ -85,8 +87,8 @@ const HistoryPagePromptUpdateModal = ({
                 </>
               )}
             </button>
-          )}
-        </div>
+          </div>
+        )}
         <div className="flex gap-3 w-full">
           <div className="w-full">
             <div className="label">
@@ -115,26 +117,23 @@ const HistoryPagePromptUpdateModal = ({
             />
           </div>
         </div>
-        <div className="modal-action">
-          <form method="dialog">
-            <button
-              data-testid="history-prompt-cancel-button"
-              id="history-prompt-cancel-button"
-              className="btn btn-sm"
-              onClick={handleClose}
-            >
-              Cancel
-            </button>
-
-            <button
-              data-testid="history-prompt-save-button"
-              id="history-prompt-save-button"
-              className="btn btn-sm btn-primary ml-2"
-              onClick={handleSave}
-            >
-              Save
-            </button>
-          </form>
+        <div className="flex justify-end gap-2">
+          <button
+            data-testid="history-prompt-cancel-button"
+            id="history-prompt-cancel-button"
+            className="btn btn-sm"
+            onClick={handleClose}
+          >
+            Cancel
+          </button>
+          <button
+            data-testid="history-prompt-save-button"
+            id="history-prompt-save-button"
+            className="btn btn-sm btn-primary"
+            onClick={handleSave}
+          >
+            Save
+          </button>
         </div>
       </div>
     </Modal>

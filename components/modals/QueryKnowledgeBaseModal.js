@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { X, Send, Loader2 } from "lucide-react";
+import { Send, Loader2, SearchCode } from "lucide-react";
 import { queryKnowledgeBase } from "@/config/knowledgeBaseApi";
 import { toast } from "react-toastify";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
+import Modal from "../UI/Modal";
 
 const QueryKnowledgeBaseModal = ({ resource, orgId }) => {
   const [query, setQuery] = useState("");
@@ -45,15 +46,15 @@ const QueryKnowledgeBaseModal = ({ resource, orgId }) => {
   };
 
   return (
-    <dialog id={MODAL_TYPE.QUERY_KNOWLEDGE_BASE_MODAL} className="modal">
-      <div className="modal-box max-w-4xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-lg">Test Knowledge Base</h3>
-          <button onClick={handleClose} className="btn btn-sm btn-circle btn-ghost" disabled={isLoading}>
-            <X size={18} />
-          </button>
-        </div>
-
+    <Modal
+      MODAL_ID={MODAL_TYPE.QUERY_KNOWLEDGE_BASE_MODAL}
+      onClose={handleClose}
+      title="Test Knowledge Base"
+      description={resource?.name ? `Querying: ${resource.name}` : "Run queries against your knowledge base"}
+      icon={<SearchCode size={16} className="text-trace-gold" />}
+      widthClass="w-[min(700px,92vw)]"
+    >
+      <div className="flex flex-col gap-4">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="form-control">
             <label className="label">
@@ -76,7 +77,7 @@ const QueryKnowledgeBaseModal = ({ resource, orgId }) => {
               id="query-kb-cancel-button"
               type="button"
               onClick={handleClose}
-              className="btn btn-ghost"
+              className="btn btn-ghost btn-sm"
               disabled={isLoading}
             >
               Cancel
@@ -85,7 +86,7 @@ const QueryKnowledgeBaseModal = ({ resource, orgId }) => {
               data-testid="query-kb-submit-button"
               id="query-kb-submit-button"
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary btn-sm"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -104,7 +105,7 @@ const QueryKnowledgeBaseModal = ({ resource, orgId }) => {
         </form>
 
         {results !== null && (
-          <div className="mt-6">
+          <div className="mt-2">
             <div className="divider">Results</div>
             <div className="bg-base-200 rounded-lg p-4 max-h-96 overflow-y-auto">
               {results && (typeof results === "string" ? results.trim() : JSON.stringify(results, null, 2).trim()) ? (
@@ -138,10 +139,7 @@ const QueryKnowledgeBaseModal = ({ resource, orgId }) => {
           </div>
         )}
       </div>
-      <form method="dialog" className="modal-backdrop">
-        <button onClick={handleClose}>close</button>
-      </form>
-    </dialog>
+    </Modal>
   );
 };
 

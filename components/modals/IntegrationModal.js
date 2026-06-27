@@ -5,6 +5,7 @@ import React from "react";
 import { useDispatch } from "react-redux";
 import Modal from "@/components/UI/Modal";
 import { toast } from "react-toastify";
+import { Blocks } from "lucide-react";
 
 const IntegrationModal = ({ params, type = "embed" }) => {
   const integrationNameRef = React.useRef("");
@@ -15,14 +16,12 @@ const IntegrationModal = ({ params, type = "embed" }) => {
       return;
     }
 
-    // Build the payload object
     const payload = {
       name: integrationNameRef?.current?.value,
       orgId: params.org_id,
-      type: type, // Pass type from props ("embed" or "rag_embed")
+      type: type,
     };
 
-    // Only add config if type is not "rag_embed"
     if (type !== "rag_embed") {
       payload.config = {
         showHomeButton: true,
@@ -55,48 +54,58 @@ const IntegrationModal = ({ params, type = "embed" }) => {
     closeModal(MODAL_TYPE.INTEGRATION_MODAL);
     integrationNameRef.current.value = "";
   };
+
+  const handleClose = () => {
+    closeModal(MODAL_TYPE.INTEGRATION_MODAL);
+    integrationNameRef.current.value = "";
+  };
+
   return (
-    <Modal MODAL_ID={MODAL_TYPE.INTEGRATION_MODAL} onClose={() => closeModal(MODAL_TYPE.INTEGRATION_MODAL)}>
-      <div id="integration-modal-container" className="modal-box">
-        <h3 className="font-bold text-lg mb-4">Enter Embed Name{RequiredItem()}</h3>
-        <input
-          autoComplete="off"
-          data-testid="integration-name-input"
-          id="integration-name-input"
-          type="text"
-          placeholder="Enter embed name"
-          className="input input-bordered input-sm w-full mb-2 placeholder-opacity-50"
-          maxLength={50}
-          ref={integrationNameRef}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleCreateNewIntegration();
-            }
-          }}
-        />
-        <div className="modal-action">
-          <form method="dialog">
-            <button
-              data-testid="integration-close-button"
-              id="integration-close-button"
-              className="btn btn-sm"
-              onClick={() => {
-                closeModal(MODAL_TYPE.INTEGRATION_MODAL);
-                integrationNameRef.current.value = "";
-              }}
-            >
-              Close
-            </button>
-            <button
-              data-testid="integration-create-button"
-              id="integration-create-button"
-              className="btn btn-sm btn-primary ml-2"
-              onClick={handleCreateNewIntegration}
-            >
-              Create
-            </button>
-          </form>
+    <Modal
+      MODAL_ID={MODAL_TYPE.INTEGRATION_MODAL}
+      onClose={handleClose}
+      title="Create Integration"
+      description={`Enter a name for your ${type === "rag_embed" ? "RAG embed" : "embed"} integration`}
+      icon={<Blocks size={16} className="text-trace-gold" />}
+      widthClass="w-[min(480px,92vw)]"
+    >
+      <div id="integration-modal-container" className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <label className="label-text text-sm font-medium">Embed Name{RequiredItem()}</label>
+          <input
+            autoComplete="off"
+            data-testid="integration-name-input"
+            id="integration-name-input"
+            type="text"
+            placeholder="Enter embed name"
+            className="input input-bordered input-sm w-full placeholder-opacity-50"
+            maxLength={50}
+            ref={integrationNameRef}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleCreateNewIntegration();
+              }
+            }}
+          />
+        </div>
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            data-testid="integration-close-button"
+            id="integration-close-button"
+            className="btn btn-sm"
+            onClick={handleClose}
+          >
+            Close
+          </button>
+          <button
+            data-testid="integration-create-button"
+            id="integration-create-button"
+            className="btn btn-sm btn-primary"
+            onClick={handleCreateNewIntegration}
+          >
+            Create
+          </button>
         </div>
       </div>
     </Modal>

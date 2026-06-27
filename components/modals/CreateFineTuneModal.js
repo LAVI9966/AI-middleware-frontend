@@ -3,6 +3,8 @@ import { CircleMinusIcon, CirclePlusIcon, GlobeIcon } from "@/components/Icons";
 import React from "react";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
+import { Cpu } from "lucide-react";
+import { closeModal } from "@/utils/utility";
 
 function CreateFineTuneModal({ params, selectedThreadIds }) {
   const [status, setStatus] = React.useState([0]);
@@ -27,22 +29,15 @@ function CreateFineTuneModal({ params, selectedThreadIds }) {
         type: "application/jsonl;charset=utf-8;",
       });
 
-      // Create a link element
       const link = document.createElement("a");
       if (link.download !== undefined) {
-        // Set the href and download attributes for the link
         const url = URL.createObjectURL(blob);
         link.setAttribute("href", url);
         link.setAttribute("download", "data.jsonl");
         link.style.visibility = "hidden";
 
-        // Append the link to the body
         document.body.appendChild(link);
-
-        // Programmatically click the link to trigger the download
         link.click();
-
-        // Clean up and remove the link
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       }
@@ -56,11 +51,17 @@ function CreateFineTuneModal({ params, selectedThreadIds }) {
     setStatus([0]);
     closeModal(MODAL_TYPE.FINE_TUNE_MODAL);
   };
+
   return (
-    <Modal MODAL_ID={MODAL_TYPE.FINE_TUNE_MODAL} onClose={handleClose}>
-      <div id="fine-tune-modal-container" className="modal-box">
-        <h3 className="font-bold text-lg">Choose Response Category</h3>
-        <p className="py-2 text-sm mb-2">Select the category on the basis of user feedback</p>
+    <Modal
+      MODAL_ID={MODAL_TYPE.FINE_TUNE_MODAL}
+      onClose={handleClose}
+      title="Choose Response Category"
+      description="Select the category on the basis of user feedback"
+      icon={<Cpu size={16} className="text-trace-gold" />}
+      widthClass="w-[min(480px,92vw)]"
+    >
+      <div id="fine-tune-modal-container" className="flex flex-col gap-4">
         <div className="form-control">
           <label className="label cursor-pointer">
             <span className="label-text flex items-center gap-2">
@@ -115,25 +116,24 @@ function CreateFineTuneModal({ params, selectedThreadIds }) {
           </label>
         </div>
 
-        <form method="dialog" className="modal-backdrop">
-          <button>close</button>
-        </form>
-        <div className="modal-action">
-          <form method="dialog">
-            {/* if there is a button in form, it will close the modal */}
-            <button data-testid="fine-tune-close-button" id="fine-tune-close-button" className="btn mr-2">
-              Close
-            </button>
-            <button
-              data-testid="fine-tune-download-button"
-              id="fine-tune-download-button"
-              className="btn btn-primary"
-              onClick={handleDownloadFineTuneData}
-              disabled={status?.length === 0}
-            >
-              Download
-            </button>
-          </form>
+        <div className="flex justify-end gap-2 pt-2 border-t border-base-content/10">
+          <button
+            data-testid="fine-tune-close-button"
+            id="fine-tune-close-button"
+            className="btn btn-sm"
+            onClick={handleClose}
+          >
+            Close
+          </button>
+          <button
+            data-testid="fine-tune-download-button"
+            id="fine-tune-download-button"
+            className="btn btn-sm btn-primary"
+            onClick={handleDownloadFineTuneData}
+            disabled={status?.length === 0}
+          >
+            Download
+          </button>
         </div>
       </div>
     </Modal>

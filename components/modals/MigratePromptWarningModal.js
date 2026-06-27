@@ -2,7 +2,7 @@ import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import Modal from "@/components/UI/Modal";
 import React, { useEffect, useState } from "react";
-import { CircleAlert } from "lucide-react";
+import { AlertTriangle, CircleAlert } from "lucide-react";
 
 /**
  * MigratePromptWarningModal
@@ -107,29 +107,26 @@ const MigratePromptWarningModal = ({
   };
 
   return (
-    <Modal MODAL_ID={modalId} onClose={handleClose}>
-      <div
-        id="migrate-prompt-modal-container"
-        className={`modal-box bg-base-100 p-4 sm:p-6 rounded-xl shadow-xl border border-base-200 w-[96vw] max-h-[90vh] overflow-hidden ${
-          isSplitMigration ? "max-w-6xl" : "max-w-lg"
-        }`}
-      >
+    <Modal
+      MODAL_ID={modalId}
+      onClose={handleClose}
+      title="Migrate Prompt Structure"
+      description={
+        isSplitMigration
+          ? "Copy from your current prompt and paste into the new fields"
+          : "Convert your prompt to structured format"
+      }
+      icon={<AlertTriangle size={16} className="text-amber-400" />}
+      widthClass={isSplitMigration ? "w-[min(96vw,1200px)]" : "w-[min(500px,92vw)]"}
+    >
+      <div id="migrate-prompt-modal-container">
         {isSplitMigration ? (
-          <div className="space-y-5 h-full flex flex-col">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
-                <CircleAlert className="w-6 h-6 text-warning" strokeWidth={1.5} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="font-bold text-xl text-base-content">Migrate Prompt Structure</h3>
-                <p className="text-sm text-base-content/70 break-words">
-                  Copy from your current prompt on the left and paste into the new fields on the right.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 overflow-y-auto pr-1">
-              <div className="border border-base-300 rounded-lg p-3 bg-base-50 min-w-0">
+          <div className="space-y-5 flex flex-col">
+            <div
+              className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 overflow-y-auto pr-1"
+              style={{ maxHeight: "65vh" }}
+            >
+              <div className="border border-base-300 rounded-lg p-3 bg-base-200/30 min-w-0">
                 <h4 className="text-sm font-semibold mb-2">
                   {isEmbedMigration && !isEmbedDefaultPromptMode && hasAgentVisibleFields
                     ? "Current Agent Fields"
@@ -171,7 +168,7 @@ const MigratePromptWarningModal = ({
                 )}
               </div>
 
-              <div className="border border-base-300 rounded-lg p-3 bg-base-50 space-y-3 min-w-0">
+              <div className="border border-base-300 rounded-lg p-3 bg-base-200/30 space-y-3 min-w-0">
                 <h4 className="text-sm font-semibold">
                   {isMainMigration || isEmbedDefaultPromptMode ? "New Structured Prompt" : "Fill Embed Fields"}
                 </h4>
@@ -245,43 +242,28 @@ const MigratePromptWarningModal = ({
               </div>
             </div>
 
-            <div className="modal-action">
-              <form method="dialog" className="flex gap-2">
-                <button type="button" className="btn btn-ghost" onClick={handleClose}>
-                  Cancel
+            <div className="flex justify-end gap-2 pt-2 border-t border-base-content/10">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={handleClose}>
+                Cancel
+              </button>
+              {isMainMigration ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleMainSave}
+                  disabled={!role.trim() && !goal.trim() && !instruction.trim()}
+                >
+                  Save Structured Prompt
                 </button>
-                {isMainMigration ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleMainSave}
-                    disabled={!role.trim() && !goal.trim() && !instruction.trim()}
-                  >
-                    Save Structured Prompt
-                  </button>
-                ) : (
-                  <button type="button" className="btn btn-primary" onClick={handleEmbedSave}>
-                    Save Embed Fields
-                  </button>
-                )}
-              </form>
+              ) : (
+                <button type="button" className="btn btn-primary btn-sm" onClick={handleEmbedSave}>
+                  Save Embed Fields
+                </button>
+              )}
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
-                <CircleAlert className="w-6 h-6 text-warning" strokeWidth={1.5} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="font-bold text-lg text-base-content">Migrate Prompt Structure</h3>
-                <p className="text-sm text-base-content/70 break-words">
-                  Are you sure you want to convert your simple prompt to a structured format with Role, Goal, and
-                  Instruction fields?
-                </p>
-              </div>
-            </div>
-
             <div className="alert alert-warning">
               <CircleAlert className="stroke-current shrink-0 h-6 w-6" />
               <span className="text-sm">
@@ -290,15 +272,18 @@ const MigratePromptWarningModal = ({
               </span>
             </div>
 
-            <div className="modal-action">
-              <form method="dialog" className="flex gap-2">
-                <button type="button" className="btn btn-ghost" onClick={handleClose}>
-                  Cancel
-                </button>
-                <button type="button" className="btn btn-primary" onClick={handleConfirm}>
-                  Migrate Prompt
-                </button>
-              </form>
+            <p className="text-sm text-base-content/70">
+              Are you sure you want to convert your simple prompt to a structured format with Role, Goal, and
+              Instruction fields?
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={handleClose}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={handleConfirm}>
+                Migrate Prompt
+              </button>
             </div>
           </div>
         )}

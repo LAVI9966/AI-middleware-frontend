@@ -8,7 +8,8 @@ import LoadingSpinner from "./LoadingSpinner";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import timezoneData from "@/utils/timezoneData";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Globe } from "lucide-react";
+import Modal from "@/components/UI/Modal";
 
 const CreateOrg = ({ handleSwitchOrg }) => {
   const [orgDetails, setOrgDetails] = useState({ name: "", about: "", timezone: "Asia/Kolkata" });
@@ -92,21 +93,48 @@ const CreateOrg = ({ handleSwitchOrg }) => {
   return (
     <div>
       {isLoading && <LoadingSpinner />}
-      <div className=""></div>
-      <dialog id={MODAL_TYPE.CREATE_ORG_MODAL} className="modal" onKeyDown={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-center min-h-screen py-8">
-          <form
-            data-testid="create-org-form"
-            id="create-org-form"
-            className="modal-box relative p-5 bg-base-100 rounded-lg shadow-xl mx-4 max-h-[90vh] overflow-y-auto"
-            onSubmit={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              createOrgHandler(e);
-            }}
-          >
-            <h3 className="font-bold text-lg mb-2">Create Workspace</h3>
-            <label className="label-text mb-1">Workspace Name *</label>
+      <Modal
+        MODAL_ID={MODAL_TYPE.CREATE_ORG_MODAL}
+        title="Create Workspace"
+        description="Set up your new workspace details"
+        icon={<Globe size={16} className="text-primary" />}
+        widthClass="w-[min(480px,92vw)]"
+        onClose={() => closeModal(MODAL_TYPE.CREATE_ORG_MODAL)}
+        footer={
+          <>
+            <button
+              data-testid="create-org-close-button"
+              id="create-org-close-button"
+              type="button"
+              onClick={() => closeModal(MODAL_TYPE.CREATE_ORG_MODAL)}
+              className="btn btn-sm btn-outline"
+            >
+              Close
+            </button>
+            <button
+              data-testid="create-org-submit-button"
+              id="create-org-submit-button"
+              type="submit"
+              form="create-org-form"
+              className="btn btn-sm btn-primary"
+            >
+              Create
+            </button>
+          </>
+        }
+      >
+        <form
+          data-testid="create-org-form"
+          id="create-org-form"
+          className="flex flex-col gap-3 text-xs"
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            createOrgHandler(e);
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-base-content/80">Workspace Name *</label>
             <input
               autoComplete="off"
               data-testid="create-org-name-input"
@@ -116,111 +144,92 @@ const CreateOrg = ({ handleSwitchOrg }) => {
               value={orgDetails.name}
               onChange={handleChange}
               placeholder="Workspace Name"
-              className="input input-bordered w-full mb-4"
+              className="input input-bordered input-sm text-xs w-full"
               minLength={3}
               maxLength={40}
               required
             />
-            <label className="label-text mb-1">Description</label>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-base-content/80">Description</label>
             <textarea
               data-testid="create-org-description-input"
               id="message"
               name="about"
-              rows="4"
+              rows="3"
               value={orgDetails.about}
               onChange={handleChange}
               placeholder="About Your Workspace"
-              className="p-2.5 w-full text-sm textarea textarea-bordered"
+              className="textarea textarea-bordered textarea-sm text-xs w-full"
             />
-            <label className="label-text mb-1">Timezone *</label>
+          </div>
 
-            <div className={`mb-4 ${showTimezoneDropdown ? "mb-80" : ""}`}>
-              <div className="relative">
-                <div
-                  data-testid="create-org-timezone-trigger"
-                  id="create-org-timezone-trigger"
-                  className="relative w-full cursor-pointer border border-base-content/20 rounded-lg p-3 flex items-center justify-between hover:border-base-content/40 transition-colors duration-200 bg-base-100"
-                  onClick={() => setShowTimezoneDropdown(!showTimezoneDropdown)}
-                >
-                  <span className="text-sm">
-                    {orgDetails.timezone
-                      ? `${orgDetails.timezone} (${timezoneData.find((tz) => tz.identifier === orgDetails.timezone)?.offSet})`
-                      : "Select a timezone"}
-                  </span>
-                  <span className={`transition-transform duration-200 ${showTimezoneDropdown ? "rotate-180" : ""}`}>
-                    <ChevronDown size={16} />
-                  </span>
-                </div>
-
-                {showTimezoneDropdown && (
-                  <div
-                    data-testid="create-org-timezone-dropdown"
-                    id="create-org-timezone-dropdown"
-                    className="absolute mt-1 z-30 w-full bg-base-100 border border-base-content/20 rounded-lg shadow-lg max-h-72 overflow-hidden"
-                  >
-                    <div className="sticky top-0 bg-base-100 p-3 border-b border-base-content/10">
-                      <input
-                        autoComplete="off"
-                        data-testid="create-org-timezone-search-input"
-                        id="create-org-timezone-search-input"
-                        type="text"
-                        placeholder="Search timezone"
-                        className="input input-sm w-full border-base-content/20 focus:border-primary"
-                        value={timezoneSearch}
-                        onChange={(e) => setTimezoneSearch(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-y-auto">
-                      {filteredTimezones.length === 0 ? (
-                        <div className="p-4 text-center text-base-content/50 text-sm">No timezones found</div>
-                      ) : (
-                        filteredTimezones.map((timezone) => (
-                          <div
-                            key={timezone.identifier}
-                            className={`p-3 hover:bg-base-200 cursor-pointer text-sm transition-colors duration-150 ${
-                              orgDetails.timezone === timezone.identifier
-                                ? "bg-primary text-primary-content"
-                                : "text-base-content"
-                            }`}
-                            onClick={() => selectTimezone(timezone)}
-                          >
-                            <div className="font-medium">{timezone.identifier}</div>
-                            <div className="text-xs opacity-70">{timezone.offSet}</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-base-content/80">Timezone *</label>
+            <div className={`relative w-full ${showTimezoneDropdown ? "mb-64" : ""}`}>
+              <div
+                data-testid="create-org-timezone-trigger"
+                id="create-org-timezone-trigger"
+                className="relative w-full h-8 cursor-pointer border border-base-content/20 rounded-lg px-3 py-1 flex items-center justify-between hover:border-base-content/40 transition-colors duration-200 bg-base-100 text-xs"
+                onClick={() => setShowTimezoneDropdown(!showTimezoneDropdown)}
+              >
+                <span>
+                  {orgDetails.timezone
+                    ? `${orgDetails.timezone} (${timezoneData.find((tz) => tz.identifier === orgDetails.timezone)?.offSet})`
+                    : "Select a timezone"}
+                </span>
+                <span className={`transition-transform duration-200 ${showTimezoneDropdown ? "rotate-180" : ""}`}>
+                  <ChevronDown size={14} />
+                </span>
               </div>
-            </div>
 
-            <div className="modal-action">
-              <button
-                data-testid="create-org-close-button"
-                id="create-org-close-button"
-                type="button"
-                onClick={() => closeModal(MODAL_TYPE.CREATE_ORG_MODAL)}
-                onKeyDown={(e) => e.stopPropagation()}
-                className="btn btn-sm"
-              >
-                Close
-              </button>
-              <button
-                data-testid="create-org-submit-button"
-                id="create-org-submit-button"
-                type="submit"
-                onKeyDown={(e) => e.stopPropagation()}
-                className="btn btn-sm btn-primary"
-              >
-                Create
-              </button>
+              {showTimezoneDropdown && (
+                <div
+                  data-testid="create-org-timezone-dropdown"
+                  id="create-org-timezone-dropdown"
+                  className="absolute mt-1 z-30 w-full bg-base-100 border border-base-content/20 rounded-lg max-h-56 overflow-hidden flex flex-col"
+                >
+                  <div className="bg-base-100 p-2 border-b border-base-content/10">
+                    <input
+                      autoComplete="off"
+                      data-testid="create-org-timezone-search-input"
+                      id="create-org-timezone-search-input"
+                      type="text"
+                      placeholder="Search timezone..."
+                      className="input input-xs w-full border-base-content/20 focus:border-primary text-xs"
+                      value={timezoneSearch}
+                      onChange={(e) => setTimezoneSearch(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="overflow-y-auto flex-1 max-h-44">
+                    {filteredTimezones.length === 0 ? (
+                      <div className="p-3 text-center text-base-content/50 text-xs">No timezones found</div>
+                    ) : (
+                      filteredTimezones.map((timezone) => (
+                        <div
+                          key={timezone.identifier}
+                          className={`p-2.5 hover:bg-base-200 cursor-pointer text-xs transition-colors duration-150 ${
+                            orgDetails.timezone === timezone.identifier
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-base-content"
+                          }`}
+                          onClick={() => selectTimezone(timezone)}
+                        >
+                          <div className="font-semibold">{timezone.identifier}</div>
+                          <div className="text-[10px] opacity-70 mt-0.5">{timezone.offSet}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-          </form>
-        </div>
-      </dialog>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
