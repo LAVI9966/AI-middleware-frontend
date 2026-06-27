@@ -114,7 +114,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
         ) : (
           <Wrench className="h-3.5 w-3.5 text-success shrink-0" />
         )}
-        <span className="font-mono font-medium truncate flex-1">{toolCall.name}</span>
+        <span className=" font-medium truncate flex-1">{toolCall.name}</span>
         {toolCall.status === "calling" ? (
           <span className="text-base-content/50 italic">calling…</span>
         ) : open ? (
@@ -124,7 +124,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
         )}
       </div>
       {toolCall.status === "done" && open && (
-        <div className="border-t border-base-300 px-3 py-2 bg-base-100 font-mono whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+        <div className="border-t border-base-300 px-3 py-2 bg-base-100  whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
           {typeof parsedResult === "object" ? JSON.stringify(parsedResult, null, 2) : String(parsedResult)}
         </div>
       )}
@@ -1270,7 +1270,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                               <span className="text-primary">{message?.modelName}</span>
                                             </label>
                                             <div className="max-h-0 peer-checked:max-h-96 transition-all duration-300 ease-in-out overflow-hidden bg-base-300/10">
-                                              <pre className="text-xs text-error/90 whitespace-pre-wrap px-3 py-2.5 leading-relaxed font-mono">
+                                              <pre className="text-xs text-error/90 whitespace-pre-wrap px-3 py-2.5 leading-relaxed ">
                                                 {extractErrorMessage(message.firstAttemptError)}
                                               </pre>
                                             </div>
@@ -1386,51 +1386,100 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                 )}
                               </div>
                             )}
-
-                            {/* Action Buttons Toolbar for Assistant Messages */}
+                            {/* Action Buttons Toolbar for Assistant Messages (including Metrics) */}
                             {editingMessage !== message.id && message.sender === "assistant" && !message.isLoading && (
-                              <div
-                                className={`flex items-center gap-1.5 mt-2 see-on-hover transition-opacity duration-150 w-full ${message?.testCaseResult ? "justify-between" : "justify-end"}`}
-                              >
-                                {/* Toggle Button for Test Case Results */}
-                                {message?.testCaseResult && (
-                                  <button
-                                    data-testid={`chat-toggle-result-button-${message.id}`}
-                                    id={`chat-toggle-result-button-${message.id}`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowTestCaseResults((prev) => ({
-                                        ...prev,
-                                        [message.id]: !prev[message.id],
-                                      }));
-                                    }}
-                                    className="flex items-center gap-2 text-xs text-base-content/70 hover:text-base-content transition-colors px-2 py-1 rounded-full bg-base-100 border border-base-content/20 shadow-sm hover:bg-base-200/50"
-                                  >
-                                    {showTestCaseResults[message.id] ? (
-                                      <>
-                                        <ToggleRight className="h-3 w-3" />
-                                        <span>Model Answer</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <ToggleLeft className="h-3 w-3" />
-                                        <span>Test Details</span>
-                                        <span
-                                          className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                                            message.testCaseResult.score >= 0.8
-                                              ? "bg-success/20 text-success"
-                                              : message.testCaseResult.score >= 0.6
-                                                ? "bg-warning/20 text-warning"
-                                                : "bg-error/20 text-error"
-                                          }`}
-                                        >
-                                          {(message.testCaseResult.score * 100).toFixed(1)}%
-                                        </span>
-                                      </>
-                                    )}
-                                  </button>
-                                )}
+                              <div className="flex items-center justify-between gap-1.5 w-full pr-8">
                                 <div className="flex items-center gap-1.5">
+                                  {/* Toggle Button for Test Case Results */}
+                                  {message?.testCaseResult && (
+                                    <button
+                                      data-testid={`chat-toggle-result-button-${message.id}`}
+                                      id={`chat-toggle-result-button-${message.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowTestCaseResults((prev) => ({
+                                          ...prev,
+                                          [message.id]: !prev[message.id],
+                                        }));
+                                      }}
+                                      className="flex items-center gap-2 text-xs text-base-content/70 hover:text-base-content transition-colors px-2 py-1 rounded-full bg-base-100 border border-base-content/20 shadow-sm hover:bg-base-200/50"
+                                    >
+                                      {showTestCaseResults[message.id] ? (
+                                        <>
+                                          <ToggleRight className="h-3 w-3" />
+                                          <span>Model Answer</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ToggleLeft className="h-3 w-3" />
+                                          <span>Test Details</span>
+                                          <span
+                                            className={`ml-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                                              message.testCaseResult.score >= 0.8
+                                                ? "bg-success/20 text-success"
+                                                : message.testCaseResult.score >= 0.6
+                                                  ? "bg-warning/20 text-warning"
+                                                  : "bg-error/20 text-error"
+                                            }`}
+                                          >
+                                            {(message.testCaseResult.score * 100).toFixed(1)}%
+                                          </span>
+                                        </>
+                                      )}
+                                    </button>
+                                  )}
+
+                                  {/* Message Metrics (Tokens, Cost, Latency) */}
+                                  {(message.usage || message.latency) && (
+                                    <div className="see-on-hover transition-opacity duration-200 inline-flex flex-wrap items-center gap-1.5 text-[10px] text-base-content/60 font-medium select-none">
+                                      {message.usage?.cost > 0 && (
+                                        <span
+                                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-base-200 border border-base-content/15 shadow-sm"
+                                          title="Estimated cost"
+                                        >
+                                          <span className="font-semibold text-base-content/70">Cost:</span>
+                                          <span className="text-base-content/90">${message.usage.cost.toFixed(4)}</span>
+                                        </span>
+                                      )}
+                                      {message.latency?.over_all_time > 0 && (
+                                        <span className="group inline-flex items-center w-fit px-1.5 py-0.5 rounded bg-base-200 border border-base-content/15 shadow-sm hover:bg-base-300/60 transition-all duration-200 cursor-pointer">
+                                          <span className="font-semibold text-base-content/70">Time:</span>
+                                          <span className="ml-1  text-base-content/90">
+                                            {message.latency.over_all_time.toFixed(2)}s
+                                          </span>
+                                          {message.latency.model_execution_time > 0 && (
+                                            <span className="inline-flex items-center max-w-0 opacity-0 overflow-hidden group-hover:max-w-xs group-hover:opacity-100 transition-all duration-300 ease-in-out pl-0 group-hover:pl-1.5 ml-0 group-hover:ml-1.5 border-l border-transparent group-hover:border-base-content/20 text-base-content/50  text-[9px] whitespace-nowrap">
+                                              Model: {message.latency.model_execution_time.toFixed(2)}s
+                                              {message.latency.over_all_time - message.latency.model_execution_time >
+                                                0 &&
+                                                ` • Net: ${(message.latency.over_all_time - message.latency.model_execution_time).toFixed(2)}s`}
+                                            </span>
+                                          )}
+                                        </span>
+                                      )}
+                                      {message.usage?.total_tokens > 0 && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-base-200 border border-base-content/15 shadow-sm">
+                                          <span className="font-semibold text-base-content/70">Tokens:</span>
+                                          <span className="text-base-content/90">
+                                            {message.usage.total_tokens.toLocaleString()}
+                                          </span>
+                                          <span className="inline-flex items-center ml-2">
+                                            In: {message.usage.input_tokens || 0} • Out:{" "}
+                                            {message.usage.output_tokens || 0}
+                                            {message.usage.reasoning_tokens > 0
+                                              ? ` • Reasoning: ${message.usage.reasoning_tokens}`
+                                              : ""}
+                                            {message.usage.cached_tokens > 0
+                                              ? ` • Cached: ${message.usage.cached_tokens}`
+                                              : ""}
+                                          </span>
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center gap-1.5 see-on-hover ml-auto">
                                   {message?.type !== "richui_json" &&
                                     message?.type !== "template" &&
                                     !(message?.llm_urls?.length > 0) && (

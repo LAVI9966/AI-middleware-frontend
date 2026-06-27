@@ -116,6 +116,8 @@ export const updateAssistantMessageWithResponse = (channelId, messageId, respons
     modelName: responseData?.model || responseData?.modelName,
     finish_reason: responseData?.finish_reason,
     role: responseData?.role || "assistant",
+    usage: responseData?.usage,
+    latency: responseData?.latency,
   };
 
   dispatch(
@@ -325,14 +327,26 @@ const handleStreamingDoneEvent = (dispatch, channelId, streamingState, rafId, pa
   // Skip streaming update if this was a template response (already rendered)
   if (!streamingState.isTemplateResponse && streamingState.messageId) {
     const llmUrls = extractImageUrlsFromResponse(parsed);
-    dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true, llmUrls));
+    const usage = parsed?.usage || parsed?.response?.usage;
+    const latency = parsed?.latency || parsed?.response?.latency;
+    dispatch(
+      handleRtLayerStreamingUpdate(
+        channelId,
+        streamingState.messageId,
+        streamingState.content,
+        true,
+        llmUrls,
+        usage,
+        latency
+      )
+    );
   }
   dispatch(setChatLoading(channelId, false));
 };
 
 // Handle RT layer streaming update
 export const handleRtLayerStreamingUpdate =
-  (channelId, messageId, content, isComplete = false, llmUrls = []) =>
+  (channelId, messageId, content, isComplete = false, llmUrls = [], usage = null, latency = null) =>
   (dispatch) => {
     dispatch(
       updateRtLayerMessage({
@@ -341,6 +355,8 @@ export const handleRtLayerStreamingUpdate =
         content,
         isComplete,
         llmUrls,
+        usage,
+        latency,
       })
     );
 

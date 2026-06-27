@@ -283,6 +283,7 @@ module.exports = {
         },
         ".see-on-hover": {
           opacity: "0",
+          transition: "opacity 200ms ease",
         },
       });
     },
