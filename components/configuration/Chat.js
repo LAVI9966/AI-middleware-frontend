@@ -1003,33 +1003,6 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                           <time className="text-[10px] opacity-40 whitespace-nowrap">{message.time}</time>
                         </div>
                       )}
-                      {message?.sender === "assistant" && message?.fallback && (
-                        <div className="inline-flex items-start ml-1.5 select-none">
-                          <div className="text-primary rounded-md text-[10px] border border-primary/20 overflow-hidden transition-all duration-200 hover:bg-base-200/90 flex flex-col">
-                            <input
-                              autoComplete="off"
-                              id={`retry-${message.id}`}
-                              type="checkbox"
-                              className="peer hidden"
-                            />
-
-                            <label
-                              htmlFor={`retry-${message.id}`}
-                              className="px-2 py-0.5 min-h-0 h-5 leading-none cursor-pointer flex items-center gap-1 transition-all duration-200 hover:bg-base-300/20 peer-checked:bg-base-300/30 whitespace-nowrap"
-                            >
-                              <span className="opacity-80">↻</span>
-                              <span>Retried with</span>
-                              <span className="font-semibold text-primary/95">{message?.modelName}</span>
-                            </label>
-
-                            <div className="max-h-0 peer-checked:max-h-96 transition-all duration-300 ease-in-out overflow-hidden bg-base-300/10">
-                              <pre className="text-xs text-error/90 whitespace-pre-wrap px-3 py-2 leading-relaxed">
-                                {extractErrorMessage(message.firstAttemptError)}
-                              </pre>
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
                       {message?.sender === "assistant" &&
                         message?.finish_reason &&
@@ -1278,6 +1251,33 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     <div
                                       className={`relative group flex flex-col ${message.sender === "user" ? "w-fit" : "w-full"}`}
                                     >
+                                      {/* Retried / Fallback block inside bubble at the top */}
+                                      {message?.sender === "assistant" && message?.fallback && (
+                                        <div className="select-none mb-3 w-full">
+                                          <div className="text-primary rounded-lg text-[10px] border border-primary/20 overflow-hidden transition-all duration-200 hover:bg-base-200/90 flex flex-col w-full bg-base-300/10">
+                                            <input
+                                              autoComplete="off"
+                                              id={`retry-${message.id}`}
+                                              type="checkbox"
+                                              className="peer hidden"
+                                            />
+                                            <label
+                                              htmlFor={`retry-${message.id}`}
+                                              className="px-3 py-1.5 cursor-pointer flex items-center gap-1 transition-all duration-200 hover:bg-base-300/20 peer-checked:bg-base-300/30 font-semibold"
+                                            >
+                                              <span className="opacity-80">↻</span>
+                                              <span>Retried with</span>
+                                              <span className="text-primary">{message?.modelName}</span>
+                                            </label>
+                                            <div className="max-h-0 peer-checked:max-h-96 transition-all duration-300 ease-in-out overflow-hidden bg-base-300/10">
+                                              <pre className="text-xs text-error/90 whitespace-pre-wrap px-3 py-2.5 leading-relaxed font-mono">
+                                                {extractErrorMessage(message.firstAttemptError)}
+                                              </pre>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
                                       {/* Review phase accordion (shown when agent has a reviewer configured) */}
                                       {message.review_phases?.length > 0 && (
                                         <ReviewPhaseAccordion reviewPhases={message.review_phases} />
@@ -1386,6 +1386,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                 )}
                               </div>
                             )}
+
                             {/* Action Buttons Toolbar for Assistant Messages */}
                             {editingMessage !== message.id && message.sender === "assistant" && !message.isLoading && (
                               <div
