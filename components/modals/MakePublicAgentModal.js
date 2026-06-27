@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Settings, CircleX } from "lucide-react";
+import { CircleX, Globe } from "lucide-react";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { toast } from "react-toastify";
@@ -18,7 +18,6 @@ function MakePublicAgentModal({ bridgeId, agent_name, pageConfig, agentSummary }
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Update form data when pageConfig changes
   useEffect(() => {
     if (pageConfig) {
       setFormData({
@@ -39,11 +38,9 @@ function MakePublicAgentModal({ bridgeId, agent_name, pageConfig, agentSummary }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const processedValue = value;
-
     setFormData((prev) => ({
       ...prev,
-      [name]: processedValue,
+      [name]: value,
     }));
   };
 
@@ -116,168 +113,153 @@ function MakePublicAgentModal({ bridgeId, agent_name, pageConfig, agentSummary }
     closeModal(MODAL_TYPE.MAKE_PUBLIC_AGENT);
   };
 
+  const footerContent = (
+    <div className="flex gap-3 justify-end">
+      <button
+        id="make-public-modal-cancel-button"
+        className="btn btn-sm"
+        onClick={closeMakePublicAgentModal}
+        disabled={isLoading}
+      >
+        Cancel
+      </button>
+      <button
+        id="make-public-modal-save-button"
+        data-testid="make-public-modal-save-button"
+        className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={handleSave}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <>
+            <span className="loading loading-spinner loading-sm"></span>
+            Saving...
+          </>
+        ) : (
+          "Make Public"
+        )}
+      </button>
+    </div>
+  );
+
   return (
-    <>
-      <Modal MODAL_ID={MODAL_TYPE.MAKE_PUBLIC_AGENT}>
-        <div className="modal-box w-full max-w-2xl">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-xl flex items-center gap-2">
-              <Settings className="h-6 w-6 text-primary" />
-              Make Public Agent
-            </h3>
-            <button
-              className="btn btn-sm btn-circle btn-ghost"
-              onClick={closeMakePublicAgentModal}
-              disabled={isLoading}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+    <Modal
+      MODAL_ID={MODAL_TYPE.MAKE_PUBLIC_AGENT}
+      onClose={closeMakePublicAgentModal}
+      title="Make Public Agent"
+      description={`Configure public access settings for ${agent_name || "this agent"}`}
+      icon={<Globe size={16} className="text-trace-gold" />}
+      widthClass="w-[min(600px,92vw)]"
+      footer={footerContent}
+    >
+      <div className="flex flex-col gap-5">
+        {/* Agent Name Display */}
+        <div className="form-control w-full">
+          <label className="label">
+            <span className="label-text font-medium">Agent Name</span>
+          </label>
+          <input
+            type="text"
+            disabled
+            value={agent_name || ""}
+            className="input input-bordered input-sm w-full bg-base-200"
+          />
+        </div>
 
-          <div className="divider my-2"></div>
+        {/* Description Field */}
+        <div className="form-control w-full">
+          <label className="label">
+            <span className="label-text font-medium">Description</span>
+          </label>
+          <textarea
+            id="make-public-description-textarea"
+            data-testid="make-public-description-textarea"
+            name="description"
+            placeholder="Enter a description for your public agent"
+            className="textarea bg-base-100 textarea-bordered textarea-sm w-full h-24"
+            value={formData.description}
+            onChange={handleChange}
+          />
+        </div>
 
-          <div className="space-y-6 py-4">
-            {/* Agent Name Display */}
-            <div className="form-control w-full">
-              <label className="label">
-                <span className="label-text font-medium">Agent Name</span>
-              </label>
-              <input
-                type="text"
-                disabled
-                value={agent_name || ""}
-                className="input input-bordered input-sm w-full bg-base-200"
-              />
-            </div>
+        {/* Visibility Field */}
+        <div className="form-control w-full">
+          <label className="label">
+            <span className="label-text font-medium">Visibility</span>
+          </label>
+          <select
+            id="make-public-visibility-select"
+            data-testid="make-public-visibility-select"
+            className="select select-sm select-bordered w-full"
+            name="availability"
+            value={formData.availability}
+            onChange={handleChange}
+          >
+            <option value="public">Public - Anyone can access</option>
+            <option value="private">Private - Only allowed users can access</option>
+          </select>
+        </div>
 
-            {/* Description Field */}
-            <div className="form-control w-full">
-              <label className="label">
-                <span className="label-text font-medium">Description</span>
-              </label>
-              <textarea
-                id="make-public-description-textarea"
-                data-testid="make-public-description-textarea"
-                name="description"
-                placeholder="Enter a description for your public agent"
-                className="textarea bg-base-100 textarea-bordered textarea-sm w-full h-24"
-                value={formData.description}
-                onChange={handleChange}
-              />
-            </div>
+        {/* Allowed Users Field */}
+        {formData.availability === "private" && (
+          <div className="form-control w-full">
+            <label className="label">
+              <span className="label-text font-medium">Allowed Users</span>
+            </label>
 
-            {/* Visibility Field */}
-            <div className="form-control w-full">
-              <label className="label">
-                <span className="label-text font-medium">Visibility</span>
-              </label>
-              <select
-                id="make-public-visibility-select"
-                data-testid="make-public-visibility-select"
-                className="select select-sm select-bordered w-full"
-                name="availability"
-                value={formData.availability}
-                onChange={handleChange}
-              >
-                <option value="public">Public - Anyone can access</option>
-                <option value="private">Private - Only allowed users can access</option>
-              </select>
-            </div>
-
-            {/* Allowed Users Field */}
-            {formData.availability === "private" && (
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-medium">Allowed Users</span>
-                </label>
-
-                {formData.publicUsers?.length > 0 && (
-                  <div className="mb-4 p-4 bg-base-200/50 rounded-lg">
-                    <p className="text-xs text-base-content/70 mb-3 font-medium">
-                      Allowed Users ({formData.publicUsers.length})
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.publicUsers.map((user, index) => (
-                        <div key={index} className="badge badge-outline gap-2 py-3 px-3">
-                          <span className="text-sm">{user}</span>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs"
-                            onClick={() => handleRemoveUser(index)}
-                          >
-                            <CircleX size={14} />
-                          </button>
-                        </div>
-                      ))}
+            {formData.publicUsers?.length > 0 && (
+              <div className="mb-4 p-4 bg-base-200/50 rounded-lg">
+                <p className="text-xs text-base-content/70 mb-3 font-medium">
+                  Allowed Users ({formData.publicUsers.length})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {formData.publicUsers.map((user, index) => (
+                    <div key={index} className="badge badge-outline gap-2 py-3 px-3">
+                      <span className="text-sm">{user}</span>
+                      <button type="button" className="btn btn-ghost btn-xs" onClick={() => handleRemoveUser(index)}>
+                        <CircleX size={14} />
+                      </button>
                     </div>
-                  </div>
-                )}
-
-                <div className="join w-full">
-                  <input
-                    type="email"
-                    placeholder="Enter email address"
-                    className="input input-bordered join-item flex-1 input-sm"
-                    value={formData.newEmail || ""}
-                    onChange={(e) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        newEmail: e.target.value,
-                      }));
-                    }}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddEmail();
-                      }
-                    }}
-                  />
-                  <button
-                    id="make-public-add-user-button"
-                    type="button"
-                    className="btn btn-sm join-item"
-                    onClick={handleAddEmail}
-                    disabled={!formData.newEmail || !formData.newEmail.includes("@")}
-                  >
-                    Add
-                  </button>
+                  ))}
                 </div>
               </div>
             )}
-          </div>
 
-          <div className="divider my-2"></div>
-
-          {/* Modal Actions */}
-          <div className="flex gap-3 justify-end pt-4">
-            <button
-              id="make-public-modal-cancel-button"
-              className="btn btn-sm"
-              onClick={closeMakePublicAgentModal}
-              disabled={isLoading}
-            >
-              Cancel
-            </button>
-            <button
-              id="make-public-modal-save-button"
-              data-testid="make-public-modal-save-button"
-              className="btn btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              onClick={handleSave}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <span className="loading loading-spinner loading-sm"></span>
-                  Saving...
-                </>
-              ) : (
-                "Make Public"
-              )}
-            </button>
+            <div className="join w-full">
+              <input
+                type="email"
+                placeholder="Enter email address"
+                className="input input-bordered join-item flex-1 input-sm"
+                value={formData.newEmail || ""}
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    newEmail: e.target.value,
+                  }));
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddEmail();
+                  }
+                }}
+              />
+              <button
+                id="make-public-add-user-button"
+                type="button"
+                className="btn btn-sm join-item"
+                onClick={handleAddEmail}
+                disabled={!formData.newEmail || !formData.newEmail.includes("@")}
+              >
+                Add
+              </button>
+            </div>
           </div>
-        </div>
-      </Modal>
-    </>
+        )}
+
+        <div className="divider my-1"></div>
+      </div>
+    </Modal>
   );
 }
 

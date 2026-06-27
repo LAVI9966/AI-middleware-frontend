@@ -25,6 +25,7 @@ import {
   setReviewData,
   appendReviewDelta,
   setReviewError,
+  setFallbackData,
 } from "../reducer/chatReducer";
 import { haveSameItems, buildUserUrls, buildLlmUrls, extractImageUrlsFromResponse } from "@/utils/attachmentUtils";
 
@@ -109,9 +110,10 @@ export const addLoadingAssistantMessage = (channelId, messageId) => (dispatch) =
 export const updateAssistantMessageWithResponse = (channelId, messageId, responseData) => (dispatch) => {
   const content = responseData?.content || "";
   const additionalData = {
-    fallback: responseData?.fallback,
+    fallback: responseData?.fallback || responseData?.fall_back,
     firstAttemptError: responseData?.firstAttemptError,
     model: responseData?.model,
+    modelName: responseData?.model || responseData?.modelName,
     finish_reason: responseData?.finish_reason,
     role: responseData?.role || "assistant",
   };
@@ -468,6 +470,22 @@ export const sendMessageWithApiStreaming =
                   llm_urls: [],
                   tools_data: {},
                   annotations: null,
+                })
+              );
+            } else if (parsed.event === "fallback") {
+              dispatch(
+                setFallbackData({
+                  channelId,
+                  messageId: streamingState.messageId,
+                  fallbackData: {
+                    fallback: true,
+                    firstAttemptError: parsed.error,
+                    modelName: parsed.to_model,
+                    model: parsed.to_model,
+                    fromModel: parsed.from_model,
+                    fromService: parsed.from_service,
+                    toService: parsed.to_service,
+                  },
                 })
               );
             } else if (parsed.event === "review_phase") {

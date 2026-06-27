@@ -87,37 +87,19 @@ function FullscreenEditorModal({
   if (!isOpen) return null;
 
   return (
-    <Modal MODAL_ID={modalId} onClose={handleClose}>
+    <Modal
+      MODAL_ID={modalId}
+      onClose={handleClose}
+      title={title}
+      description={isJson ? "Edit and validate JSON content" : "Edit content in fullscreen mode"}
+      icon={<Maximize2 size={16} className="text-trace-gold" />}
+      widthClass="w-[min(1000px,96vw)]"
+    >
       <div
         data-testid="fullscreen-editor-modal"
-        className="modal-box max-w-screen-lg h-[calc(100dvh-10rem)] min-h-[calc(100dvh-10rem)] !max-h-[calc(100dvh-10rem)] w-[calc(100vw-20rem)] bg-base-100 overflow-hidden flex flex-col p-6"
+        className="flex flex-col"
+        style={{ height: "calc(100dvh - 16rem)", minHeight: "300px" }}
       >
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-lg flex items-center gap-2">
-            <Maximize2 size={18} className="text-primary" />
-            {title}
-          </h3>
-          <div className="flex gap-2">
-            <button
-              data-testid="fullscreen-editor-close-button"
-              onClick={handleClose}
-              className="btn btn-sm"
-              type="button"
-            >
-              Close
-            </button>
-            <button
-              data-testid="fullscreen-editor-save-button"
-              onClick={handleSave}
-              className="btn btn-primary btn-sm"
-              type="button"
-              disabled={isSaveDisabled}
-            >
-              Save & Close
-            </button>
-          </div>
-        </div>
-
         {errorMsg && (
           <div className="alert alert-error text-sm py-2 mb-4 rounded-md flex-shrink-0">
             <span>{errorMsg}</span>
@@ -163,6 +145,26 @@ function FullscreenEditorModal({
               className={`w-full h-full resize-none textarea textarea-bordered p-4 min-h-[200px] outline-none ${mono ? "font-mono text-sm" : ""} ${disabled ? "cursor-not-allowed opacity-70" : ""}`}
             />
           )}
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-base-content/10">
+          <button
+            data-testid="fullscreen-editor-close-button"
+            onClick={handleClose}
+            className="btn btn-sm"
+            type="button"
+          >
+            Close
+          </button>
+          <button
+            data-testid="fullscreen-editor-save-button"
+            onClick={handleSave}
+            className="btn btn-primary btn-sm"
+            type="button"
+            disabled={isSaveDisabled}
+          >
+            Save & Close
+          </button>
         </div>
       </div>
     </Modal>

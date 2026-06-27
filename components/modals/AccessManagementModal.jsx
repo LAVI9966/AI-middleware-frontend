@@ -7,7 +7,7 @@ import { getInvitedUsers, inviteUser } from "@/config";
 import { updateBridgeAction } from "@/store/action/bridgeAction";
 import { useDispatch } from "react-redux";
 import { UserCircleIcon } from "@/components/Icons";
-import { UserPlus2 } from "lucide-react";
+import { UserPlus2, Shield } from "lucide-react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 const AccessManagementModal = ({ agent }) => {
   // agent.users contains the users already added to this agent
@@ -391,20 +391,24 @@ const AccessManagementModal = ({ agent }) => {
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.ACCESS_MANAGEMENT_MODAL} onClose={handleClose}>
-      <div id="access-management-modal-container" className="modal-box max-w-3xl">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex flex-col items-start gap-3">
-            <h2 className="text-lg font-semibold">Manage Access for {agent?.actualName || "Agent"}</h2>
-            <div className="flex flex-row items-center justify-start gap-2">
-              {agent?.service ? <div className="shrink-0">{getIconOfService(agent.service, 24, 24)}</div> : null}
-              {agent?.model ? <span className="text-xs text-base-content/70">Model: {agent.model}</span> : null}
-            </div>
+    <Modal
+      MODAL_ID={MODAL_TYPE.ACCESS_MANAGEMENT_MODAL}
+      onClose={handleClose}
+      title={`Manage Access for ${agent?.actualName || "Agent"}`}
+      description={agent?.model ? `Model: ${agent.model}` : undefined}
+      icon={<Shield size={16} className="text-trace-gold" />}
+      widthClass="w-[min(48rem,92vw)]"
+    >
+      <>
+        {agent?.service ? (
+          <div className="flex items-center gap-2 mb-4 p-2 bg-base-200/50 rounded-lg w-fit">
+            <span className="text-xs text-base-content/70">Provider:</span>
+            {getIconOfService(agent.service, 16, 16)}
           </div>
-        </div>
+        ) : null}
 
+        {/* Email input with contextual Add/Invite actions */}
         <div className="mb-4">
-          {/* Email input with contextual Add/Invite actions */}
           <div id="access-management-search-section" className="bg-base-200 rounded-lg mb-4">
             <div className="flex gap-2">
               <div className="relative flex-1">
@@ -584,7 +588,7 @@ const AccessManagementModal = ({ agent }) => {
             Close
           </button>
         </div>
-      </div>
+      </>
     </Modal>
   );
 };

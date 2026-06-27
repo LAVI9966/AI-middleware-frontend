@@ -4,7 +4,7 @@ import ComparisonCheck from "@/utils/comparisonCheck";
 import { MODAL_TYPE, PROMPT_SECTION_CONFIG } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { preprocessPrompt } from "@/utils/promptUtils";
-import { CloseIcon } from "@/components/Icons";
+import { GitCompare } from "lucide-react";
 
 const Diff_Modal = ({ oldContent, newContent, isEmbedCustomPrompt = false }) => {
   const oldIsObject = oldContent !== null && typeof oldContent === "object" && !Array.isArray(oldContent);
@@ -13,7 +13,6 @@ const Diff_Modal = ({ oldContent, newContent, isEmbedCustomPrompt = false }) => 
   const oldProcessed = isEmbedCustomPrompt ? (oldIsObject ? oldContent : {}) : preprocessPrompt(oldContent);
   const newProcessed = isEmbedCustomPrompt ? (newIsObject ? newContent : {}) : preprocessPrompt(newContent);
 
-  // Detect type mismatch: one side is plain string, other is object
   const typeMismatch = isEmbedCustomPrompt && oldIsObject !== newIsObject;
 
   const allKeys = new Set([...Object.keys(oldProcessed || {}), ...Object.keys(newProcessed || {})]);
@@ -38,20 +37,15 @@ const Diff_Modal = ({ oldContent, newContent, isEmbedCustomPrompt = false }) => 
   });
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.DIFF_PROMPT} onClose={() => closeModal(MODAL_TYPE.DIFF_PROMPT)}>
-      <div id="diff-modal-box" className="modal-box max-w-[80%] h-auto max-h-[85vh] flex flex-col">
-        <div id="diff-modal-header" className="flex justify-between items-center mb-4 flex-shrink-0">
-          <h3 className="text-lg font-bold">Compare Published Prompt and Current Prompt</h3>
-          <button
-            data-testid="diff-modal-close-button"
-            id="diff-modal-close-button"
-            onClick={() => closeModal(MODAL_TYPE.DIFF_PROMPT)}
-            className="btn btn-sm btn-ghost"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
+    <Modal
+      MODAL_ID={MODAL_TYPE.DIFF_PROMPT}
+      onClose={() => closeModal(MODAL_TYPE.DIFF_PROMPT)}
+      title="Compare Prompts"
+      description="Published prompt vs current prompt"
+      icon={<GitCompare size={16} className="text-trace-gold" />}
+      widthClass="w-[min(80vw,1200px)]"
+    >
+      <div id="diff-modal-box" className="flex flex-col max-h-[70vh]">
         <div className="flex-1 overflow-y-auto">
           {typeMismatch ? (
             <div className="grid grid-cols-2 gap-4">

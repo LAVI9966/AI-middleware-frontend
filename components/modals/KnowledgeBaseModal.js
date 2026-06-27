@@ -9,6 +9,7 @@ import { uploadImage } from "@/config/utilityApi";
 import { toast } from "react-toastify";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { FolderContext } from "@/components/folders/FolderContext";
+import { Database } from "lucide-react";
 const KnowledgeBaseModal = ({
   params,
   selectedResource,
@@ -262,161 +263,208 @@ const KnowledgeBaseModal = ({
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   };
+  const footerContent = (
+    <div className="flex justify-end gap-2">
+      <button
+        data-testid="knowledgebase-cancel-button"
+        id="knowledgebase-cancel-button"
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={handleClose}
+        disabled={isCreatingResource}
+      >
+        Cancel
+      </button>
+      <button
+        data-testid="knowledgebase-submit-button"
+        id="knowledgebase-submit-button"
+        type="submit"
+        form="knowledge-base-modal-form"
+        className="btn btn-primary btn-sm"
+        disabled={isCreatingResource}
+      >
+        {isCreatingResource
+          ? selectedResource
+            ? "Updating..."
+            : "Adding..."
+          : selectedResource
+            ? "Update Resource"
+            : "Add Resource"}
+      </button>
+    </div>
+  );
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.KNOWLEDGE_BASE_MODAL} onClose={handleClose}>
-      <div className="modal-box w-11/12 max-w-xl border-2 border-base-300">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-base-300">
-          <h3 className="font-bold text-lg">{selectedResource ? "Edit" : "Create"} Knowledge Base</h3>
-          <button
-            data-testid="knowledgebase-modal-close-button"
-            id="knowledgebase-modal-close-button"
-            onClick={handleClose}
-            className="btn btn-circle btn-ghost btn-sm"
+    <Modal
+      MODAL_ID={MODAL_TYPE.KNOWLEDGE_BASE_MODAL}
+      onClose={handleClose}
+      title={`${selectedResource ? "Edit" : "Create"} Knowledge Base`}
+      icon={<Database size={16} className="text-trace-gold" />}
+      widthClass="w-[min(36rem,92vw)]"
+      footer={footerContent}
+    >
+      <form
+        id="knowledge-base-modal-form"
+        onSubmit={selectedResource ? handleUpdateResource : handleCreateResource}
+        className="space-y-4"
+      >
+        {/* Name Field */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text text-sm font-medium">
+              Name <RequiredItem />
+            </span>
+          </label>
+          <input
+            autoComplete="off"
+            data-testid="knowledgebase-name-input"
+            id="knowledgebase-name-input"
+            type="text"
+            name="title"
+            className="input input-bordered input-sm"
+            placeholder="Knowledge Base name"
+            defaultValue={selectedResource?.title || ""}
+            key={selectedResource?._id || "new"}
+            required
             disabled={isCreatingResource}
-          >
-            ✕
-          </button>
+          />
         </div>
 
-        <form onSubmit={selectedResource ? handleUpdateResource : handleCreateResource} className="space-y-4">
-          {/* Name Field */}
+        {/* Description Field */}
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text text-sm font-medium">
+              Description <RequiredItem />
+            </span>
+          </label>
+          <textarea
+            data-testid="knowledgebase-description-textarea"
+            id="knowledgebase-description-textarea"
+            name="description"
+            className="textarea textarea-bordered textarea-sm"
+            placeholder="Brief description of the knowledge base content"
+            defaultValue={selectedResource?.description || ""}
+            key={`desc-${selectedResource?._id || "new"}`}
+            rows="3"
+            required
+            disabled={isCreatingResource}
+          />
+        </div>
+        {!selectedResource && (
+          <div className="flex gap-4 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                autoComplete="off"
+                id="knowledgebase-input-type-url"
+                type="radio"
+                name="inputType"
+                className="radio radio-primary radio-sm"
+                checked={inputType === "url"}
+                onChange={() => setInputType("url")}
+              />
+              <span className="text-sm font-medium">URL</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                autoComplete="off"
+                id="knowledgebase-input-type-file"
+                type="radio"
+                name="inputType"
+                className="radio radio-primary radio-sm"
+                checked={inputType === "file"}
+                onChange={() => setInputType("file")}
+              />
+              <span className="text-sm font-medium">Upload File</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                autoComplete="off"
+                id="knowledgebase-input-type-content"
+                type="radio"
+                name="inputType"
+                className="radio radio-primary radio-sm"
+                checked={inputType === "content"}
+                onChange={() => setInputType("content")}
+              />
+              <span className="text-sm font-medium">Content</span>
+            </label>
+          </div>
+        )}
+        {/* Content Input Based on Type */}
+        {inputType === "file" && !selectedResource ? (
           <div className="form-control">
             <label className="label">
               <span className="label-text text-sm font-medium">
-                Name <RequiredItem />
+                File <RequiredItem />
               </span>
             </label>
-            <input
-              autoComplete="off"
-              data-testid="knowledgebase-name-input"
-              id="knowledgebase-name-input"
-              type="text"
-              name="title"
-              className="input input-bordered input-sm"
-              placeholder="Knowledge Base name"
-              defaultValue={selectedResource?.title || ""}
-              key={selectedResource?._id || "new"}
-              required
-              disabled={isCreatingResource}
-            />
-          </div>
 
-          {/* Description Field */}
+            {/* Show upload button only if no file is uploaded */}
+            {!uploadedFile && (
+              <>
+                <input
+                  autoComplete="off"
+                  id="knowledgebase-file-upload"
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="file-input file-input-bordered file-input-sm w-full"
+                  disabled={isCreatingResource || isUploading}
+                  accept=".pdf,.txt,.md"
+                />
+                {isUploading && (
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="loading loading-spinner loading-sm"></span>
+                    <span className="text-sm text-gray-600">Uploading file...</span>
+                  </div>
+                )}
+                <span className="label-text-alt text-gray-400 mt-1">Supported formats: .pdf, .txt, .md</span>
+              </>
+            )}
+
+            {/* Display uploaded file only */}
+            {uploadedFile && (
+              <div className="mt-1">
+                <div className="flex items-center justify-between bg-base-200 p-3 rounded text-sm">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="truncate font-medium">{uploadedFile.name}</span>
+                    <span className="text-xs text-gray-500">({formatFileSize(uploadedFile.size)})</span>
+                  </div>
+                  <button
+                    data-testid="knowledgebase-remove-file-button"
+                    id="knowledgebase-remove-file-button"
+                    type="button"
+                    onClick={removeUploadedFile}
+                    className="btn btn-ghost btn-xs text-error hover:bg-error hover:text-white"
+                    disabled={isCreatingResource}
+                    title="Remove file"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : inputType === "content" && !selectedResource ? (
           <div className="form-control">
             <label className="label">
               <span className="label-text text-sm font-medium">
-                Description <RequiredItem />
+                Content <RequiredItem />
               </span>
             </label>
             <textarea
-              data-testid="knowledgebase-description-textarea"
-              id="knowledgebase-description-textarea"
-              name="description"
-              className="textarea textarea-bordered textarea-sm"
-              placeholder="Brief description of the knowledge base content"
-              defaultValue={selectedResource?.description || ""}
-              key={`desc-${selectedResource?._id || "new"}`}
-              rows="3"
+              data-testid="knowledgebase-content-textarea-create"
+              id="knowledgebase-content-textarea-create"
+              name="content"
+              className="textarea textarea-bordered textarea-sm w-full h-32"
+              placeholder="Enter content here..."
+              key={selectedResource?._id || "new-content"}
               required
               disabled={isCreatingResource}
-            />
+            ></textarea>
           </div>
-          {!selectedResource && (
-            <div className="flex gap-4 mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  autoComplete="off"
-                  id="knowledgebase-input-type-url"
-                  type="radio"
-                  name="inputType"
-                  className="radio radio-primary radio-sm"
-                  checked={inputType === "url"}
-                  onChange={() => setInputType("url")}
-                />
-                <span className="text-sm font-medium">URL</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  autoComplete="off"
-                  id="knowledgebase-input-type-file"
-                  type="radio"
-                  name="inputType"
-                  className="radio radio-primary radio-sm"
-                  checked={inputType === "file"}
-                  onChange={() => setInputType("file")}
-                />
-                <span className="text-sm font-medium">Upload File</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  autoComplete="off"
-                  id="knowledgebase-input-type-content"
-                  type="radio"
-                  name="inputType"
-                  className="radio radio-primary radio-sm"
-                  checked={inputType === "content"}
-                  onChange={() => setInputType("content")}
-                />
-                <span className="text-sm font-medium">Content</span>
-              </label>
-            </div>
-          )}
-          {/* Content Input Based on Type */}
-          {inputType === "file" && !selectedResource ? (
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text text-sm font-medium">
-                  File <RequiredItem />
-                </span>
-              </label>
-
-              {/* Show upload button only if no file is uploaded */}
-              {!uploadedFile && (
-                <>
-                  <input
-                    autoComplete="off"
-                    id="knowledgebase-file-upload"
-                    type="file"
-                    onChange={handleFileUpload}
-                    className="file-input file-input-bordered file-input-sm w-full"
-                    disabled={isCreatingResource || isUploading}
-                    accept=".pdf,.txt,.md"
-                  />
-                  {isUploading && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="loading loading-spinner loading-sm"></span>
-                      <span className="text-sm text-gray-600">Uploading file...</span>
-                    </div>
-                  )}
-                  <span className="label-text-alt text-gray-400 mt-1">Supported formats: .pdf, .txt, .md</span>
-                </>
-              )}
-
-              {/* Display uploaded file only */}
-              {uploadedFile && (
-                <div className="mt-1">
-                  <div className="flex items-center justify-between bg-base-200 p-3 rounded text-sm">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="truncate font-medium">{uploadedFile.name}</span>
-                      <span className="text-xs text-gray-500">({formatFileSize(uploadedFile.size)})</span>
-                    </div>
-                    <button
-                      data-testid="knowledgebase-remove-file-button"
-                      id="knowledgebase-remove-file-button"
-                      type="button"
-                      onClick={removeUploadedFile}
-                      className="btn btn-ghost btn-xs text-error hover:bg-error hover:text-white"
-                      disabled={isCreatingResource}
-                      title="Remove file"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : inputType === "content" && !selectedResource ? (
+        ) : selectedResource ? (
+          // Edit mode - only show content field if content key exists, otherwise show disabled URL
+          selectedResource?.content && !selectedResource?.url ? (
             <div className="form-control">
               <label className="label">
                 <span className="label-text text-sm font-medium">
@@ -424,262 +472,212 @@ const KnowledgeBaseModal = ({
                 </span>
               </label>
               <textarea
-                data-testid="knowledgebase-content-textarea-create"
-                id="knowledgebase-content-textarea-create"
+                data-testid="knowledgebase-content-textarea-edit"
+                id="knowledgebase-content-textarea-edit"
                 name="content"
                 className="textarea textarea-bordered textarea-sm w-full h-32"
                 placeholder="Enter content here..."
-                key={selectedResource?._id || "new-content"}
                 required
                 disabled={isCreatingResource}
+                defaultValue={selectedResource.content}
+                key={selectedResource.id}
               ></textarea>
             </div>
-          ) : selectedResource ? (
-            // Edit mode - only show content field if content key exists, otherwise show disabled URL
-            selectedResource?.content && !selectedResource?.url ? (
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text text-sm font-medium">
-                    Content <RequiredItem />
-                  </span>
-                </label>
-                <textarea
-                  data-testid="knowledgebase-content-textarea-edit"
-                  id="knowledgebase-content-textarea-edit"
-                  name="content"
-                  className="textarea textarea-bordered textarea-sm w-full h-32"
-                  placeholder="Enter content here..."
-                  required
-                  disabled={isCreatingResource}
-                  defaultValue={selectedResource.content}
-                  key={selectedResource._id}
-                ></textarea>
-              </div>
-            ) : selectedResource?.url ? (
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text text-sm font-medium">URL</span>
-                </label>
-                <input
-                  autoComplete="off"
-                  id="knowledgebase-url-input-edit"
-                  type="url"
-                  name="url"
-                  className="input input-bordered input-sm bg-gray-100"
-                  placeholder="https://example.com/resource"
-                  disabled={true}
-                  defaultValue={selectedResource.url}
-                  key={selectedResource._id}
-                  readOnly
-                />
-                <span className="label-text-alt text-gray-400 mt-1">URL cannot be edited</span>
-              </div>
-            ) : null
-          ) : (
-            // Create mode - URL input
+          ) : selectedResource?.url ? (
             <div className="form-control">
               <label className="label">
-                <span className="label-text text-sm font-medium">
-                  URL <RequiredItem />
-                </span>
+                <span className="label-text text-sm font-medium">URL</span>
               </label>
               <input
                 autoComplete="off"
-                data-testid="knowledgebase-url-input-create"
-                id="knowledgebase-url-input-create"
+                id="knowledgebase-url-input-edit"
                 type="url"
                 name="url"
-                className="input input-bordered input-sm"
+                className="input input-bordered input-sm bg-gray-100"
                 placeholder="https://example.com/resource"
-                key={selectedResource?._id || "new-url"}
-                required={inputType === "url"}
-                disabled={isCreatingResource}
+                disabled={true}
+                defaultValue={selectedResource.url}
+                key={selectedResource._id}
+                readOnly
               />
+              <span className="label-text-alt text-gray-400 mt-1">URL cannot be edited</span>
             </div>
-          )}
-          {/* Chunking Settings Section */}
-          {!selectedResource && (
-            <div className="space-y-4">
+          ) : null
+        ) : (
+          // Create mode - URL input
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text text-sm font-medium">
+                URL <RequiredItem />
+              </span>
+            </label>
+            <input
+              autoComplete="off"
+              data-testid="knowledgebase-url-input-create"
+              id="knowledgebase-url-input-create"
+              type="url"
+              name="url"
+              className="input input-bordered input-sm"
+              placeholder="https://example.com/resource"
+              key={selectedResource?._id || "new-url"}
+              required={inputType === "url"}
+              disabled={isCreatingResource}
+            />
+          </div>
+        )}
+        {/* Chunking Settings Section */}
+        {!selectedResource && (
+          <div className="space-y-4">
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text text-sm font-medium">Chunking Type</span>
+              </label>
+              <select
+                data-testid="knowledgebase-chunking-type-select"
+                id="knowledgebase-chunking-type-select"
+                name="chunkingType"
+                className="select select-bordered select-sm"
+                value={chunkingType}
+                onChange={(e) => setChunkingType(e.target.value)}
+                disabled={isCreatingResource}
+              >
+                <option value="agentic">Agentic</option>
+                <option value="recursive">Recursive</option>
+                <option value="semantic">Semantic</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            {chunkingType === "custom" ? (
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text text-sm font-medium">Chunking Type</span>
+                  <span className="label-text text-sm font-medium">Chunking URL</span>
                 </label>
-                <select
-                  data-testid="knowledgebase-chunking-type-select"
-                  id="knowledgebase-chunking-type-select"
-                  name="chunkingType"
-                  className="select select-bordered select-sm"
-                  value={chunkingType}
-                  onChange={(e) => setChunkingType(e.target.value)}
+                <input
+                  autoComplete="off"
+                  id="knowledgebase-chunking-url-input"
+                  type="url"
+                  name="chunkingUrl"
+                  className="input input-bordered input-sm"
+                  placeholder="https://example.com/chunking-service"
                   disabled={isCreatingResource}
-                >
-                  <option value="agentic">Agentic</option>
-                  <option value="recursive">Recursive</option>
-                  <option value="semantic">Semantic</option>
-                  <option value="custom">Custom</option>
-                </select>
+                  required
+                />
               </div>
-
-              {chunkingType === "custom" ? (
+            ) : (
+              <>
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text text-sm font-medium">Chunking URL</span>
+                    <span className="label-text text-sm font-medium">Chunk Size</span>
                   </label>
                   <input
                     autoComplete="off"
-                    id="knowledgebase-chunking-url-input"
-                    type="url"
-                    name="chunkingUrl"
+                    id="knowledgebase-chunk-size-input"
+                    type="number"
+                    name="chunkSize"
                     className="input input-bordered input-sm"
-                    placeholder="https://example.com/chunking-service"
-                    disabled={isCreatingResource}
+                    min={1}
+                    max={4000}
                     required
+                    defaultValue={
+                      selectedResource?.settings?.chunkSize ? Math.min(selectedResource.settings.chunkSize, 4000) : 4000
+                    }
+                    onInput={handleChunkSizeInput}
+                    disabled={isCreatingResource}
                   />
                 </div>
-              ) : (
-                <>
+
+                {chunkingType === "semantic" && (
                   <div className="form-control">
                     <label className="label">
-                      <span className="label-text text-sm font-medium">Chunk Size</span>
+                      <span className="label-text text-sm font-medium">Chunk Overlap</span>
                     </label>
                     <input
                       autoComplete="off"
-                      id="knowledgebase-chunk-size-input"
+                      id="knowledgebase-chunk-overlap-input"
                       type="number"
-                      name="chunkSize"
+                      name="chunkingOverlap"
                       className="input input-bordered input-sm"
-                      min={1}
-                      max={4000}
-                      required
+                      min={0}
+                      max={200}
                       defaultValue={
-                        selectedResource?.settings?.chunkSize
-                          ? Math.min(selectedResource.settings.chunkSize, 4000)
-                          : 4000
+                        selectedResource?.settings?.chunkOverlap
+                          ? Math.min(selectedResource.settings.chunkOverlap, 200)
+                          : 200
                       }
-                      onInput={handleChunkSizeInput}
+                      onInput={handleChunkOverlapInput}
                       disabled={isCreatingResource}
                     />
                   </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
-                  {chunkingType === "semantic" && (
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text text-sm font-medium">Chunk Overlap</span>
-                      </label>
+        {/* Query Settings Accordion */}
+        {!selectedResource && (
+          <div className="collapse collapse-arrow border border-base-300 bg-base-100">
+            <input
+              autoComplete="off"
+              id="knowledgebase-advanced-settings-toggle"
+              type="checkbox"
+              checked={showQuerySettings}
+              onChange={(e) => setShowQuerySettings(e.target.checked)}
+              disabled={isCreatingResource}
+            />
+            <div className="collapse-title text-sm font-medium">Advanced Settings</div>
+            <div className="collapse-content">
+              <div className="">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text text-sm font-medium">Query Access Type</span>
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         autoComplete="off"
-                        id="knowledgebase-chunk-overlap-input"
-                        type="number"
-                        name="chunkingOverlap"
-                        className="input input-bordered input-sm"
-                        min={0}
-                        max={200}
-                        defaultValue={
-                          selectedResource?.settings?.chunkOverlap
-                            ? Math.min(selectedResource.settings.chunkOverlap, 200)
-                            : 200
-                        }
-                        onInput={handleChunkOverlapInput}
+                        id="knowledgebase-query-type-fastest"
+                        type="radio"
+                        name="queryAccessType"
+                        value="fastest"
+                        className="radio radio-primary radio-sm"
+                        defaultChecked
                         disabled={isCreatingResource}
                       />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Query Settings Accordion */}
-          {!selectedResource && (
-            <div className="collapse collapse-arrow border border-base-300 bg-base-100">
-              <input
-                autoComplete="off"
-                id="knowledgebase-advanced-settings-toggle"
-                type="checkbox"
-                checked={showQuerySettings}
-                onChange={(e) => setShowQuerySettings(e.target.checked)}
-                disabled={isCreatingResource}
-              />
-              <div className="collapse-title text-sm font-medium">Advanced Settings</div>
-              <div className="collapse-content">
-                <div className="">
-                  <div className="form-control">
-                    <label className="label">
-                      <span className="label-text text-sm font-medium">Query Access Type</span>
+                      <span className="text-sm">Fastest</span>
                     </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          autoComplete="off"
-                          id="knowledgebase-query-type-fastest"
-                          type="radio"
-                          name="queryAccessType"
-                          value="fastest"
-                          className="radio radio-primary radio-sm"
-                          defaultChecked
-                          disabled={isCreatingResource}
-                        />
-                        <span className="text-sm">Fastest</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          autoComplete="off"
-                          id="knowledgebase-query-type-moderate"
-                          type="radio"
-                          name="queryAccessType"
-                          value="moderate"
-                          className="radio radio-primary radio-sm"
-                          disabled={isCreatingResource}
-                        />
-                        <span className="text-sm">Moderate</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          autoComplete="off"
-                          id="knowledgebase-query-type-high-accuracy"
-                          type="radio"
-                          name="queryAccessType"
-                          value="high_accuracy"
-                          className="radio radio-primary radio-sm"
-                          disabled={isCreatingResource}
-                        />
-                        <span className="text-sm">High Accuracy</span>
-                      </label>
-                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        autoComplete="off"
+                        id="knowledgebase-query-type-moderate"
+                        type="radio"
+                        name="queryAccessType"
+                        value="moderate"
+                        className="radio radio-primary radio-sm"
+                        disabled={isCreatingResource}
+                      />
+                      <span className="text-sm">Moderate</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        autoComplete="off"
+                        id="knowledgebase-query-type-high-accuracy"
+                        type="radio"
+                        name="queryAccessType"
+                        value="high_accuracy"
+                        className="radio radio-primary radio-sm"
+                        disabled={isCreatingResource}
+                      />
+                      <span className="text-sm">High Accuracy</span>
+                    </label>
                   </div>
                 </div>
               </div>
             </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <button
-              data-testid="knowledgebase-cancel-button"
-              id="knowledgebase-cancel-button"
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={handleClose}
-              disabled={isCreatingResource}
-            >
-              Cancel
-            </button>
-            <button
-              data-testid="knowledgebase-submit-button"
-              id="knowledgebase-submit-button"
-              type="submit"
-              className="btn btn-primary btn-sm"
-              disabled={isCreatingResource}
-            >
-              {isCreatingResource
-                ? selectedResource
-                  ? "Updating..."
-                  : "Adding..."
-                : selectedResource
-                  ? "Update Resource"
-                  : "Add Resource"}
-            </button>
           </div>
-        </form>
-      </div>
+        )}
+      </form>
     </Modal>
   );
 };

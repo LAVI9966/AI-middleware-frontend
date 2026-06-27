@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Trash2, Edit, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit, Check, X, Globe } from "lucide-react";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal, isValidDomain } from "@/utils/utility";
@@ -202,188 +202,188 @@ const PrebuiltToolsConfigModal = ({ initialDomains = [], onSave }) => {
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.PREBUILT_TOOLS_CONFIG_MODAL} onClose={handleClose}>
-      <div className="fixed max-w-11/12 inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-low-medium overflow-auto h-auto bg-base-100">
-        {/* Header */}
-        <div
-          id="prebuilt-tools-config-modal-container"
-          data-testid="prebuilt-tools-config-modal-container"
-          className="bg-base-100 mb-auto mt-auto rounded-lg shadow-2xl flex flex-col p-6 transition-all duration-300 ease-in-out animate-fadeIn"
-        >
-          <div className="flex items-center justify-between border-b border-base-300">
-            <h3 className="font-bold text-xl mb-4">Configure Web Search</h3>
-          </div>
+    <Modal
+      MODAL_ID={MODAL_TYPE.PREBUILT_TOOLS_CONFIG_MODAL}
+      onClose={handleClose}
+      title="Configure Web Search"
+      description="Add allowed domains to filter web search results"
+      icon={<Globe size={16} className="text-trace-gold" />}
+      widthClass="w-[min(520px,92vw)]"
+    >
+      <div
+        id="prebuilt-tools-config-modal-container"
+        data-testid="prebuilt-tools-config-modal-container"
+        className="flex flex-col gap-4"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <div className="form-control">
+              <label className="label !px-0">
+                <span className="label-text font-medium text-md">Allowed Domains</span>
+              </label>
+              <p className="text-xs text-base-content/60 mb-3">
+                Add domains to filter Web Search. Leave empty to allow all domains.
+              </p>
+            </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="form-control">
-                <label className="label !px-0">
-                  <span className="label-text font-medium text-md">Allowed Domains</span>
-                </label>
-                <p className="text-xs text-base-content/60 mb-3">
-                  Add domains to filter Web Search. Leave empty to allow all domains.
-                </p>
-              </div>
-
-              {/* Add New Domain Input */}
-              <div className="form-control mb-4">
-                <label className="label !px-0">
-                  <span className="label-text text-sm font-medium">Add New Domain</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    autoComplete="off"
-                    id="prebuilt-tools-config-domain-input"
-                    data-testid="prebuilt-tools-config-domain-input"
-                    type="text"
-                    name="domain"
-                    value={newDomain}
-                    onChange={handleInputChange}
-                    onKeyPress={handleKeyPress}
-                    placeholder="Enter domain"
-                    className={`input input-bordered input-sm flex-1 focus:ring-1 ring-primary/40 ${
-                      !isEditing && validationError ? "input-error border-error" : ""
-                    }`}
-                    disabled={isLoading}
-                  />
-                  <button
-                    id="prebuilt-tools-config-add-domain-button"
-                    data-testid="prebuilt-tools-config-add-domain-button"
-                    type="button"
-                    onClick={handleAddDomain}
-                    className="btn btn-primary btn-sm"
-                    disabled={isLoading || !newDomain.trim()}
-                    title="Add domain"
-                  >
-                    <Plus size={16} />
-                    Add
-                  </button>
-                </div>
-                {!isEditing && validationError && (
-                  <div className="label">
-                    <span className="label-text-alt text-error">{validationError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Domain List */}
-              {domains.length > 0 && (
-                <div
-                  id="prebuilt-tools-config-domains-list"
-                  data-testid="prebuilt-tools-config-domains-list"
-                  className="space-y-2 mb-4"
+            {/* Add New Domain Input */}
+            <div className="form-control mb-4">
+              <label className="label !px-0">
+                <span className="label-text text-sm font-medium">Add New Domain</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  autoComplete="off"
+                  id="prebuilt-tools-config-domain-input"
+                  data-testid="prebuilt-tools-config-domain-input"
+                  type="text"
+                  name="domain"
+                  value={newDomain}
+                  onChange={handleInputChange}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Enter domain"
+                  className={`input input-bordered input-sm flex-1 focus:ring-1 ring-primary/40 ${
+                    !isEditing && validationError ? "input-error border-error" : ""
+                  }`}
+                  disabled={isLoading}
+                />
+                <button
+                  id="prebuilt-tools-config-add-domain-button"
+                  data-testid="prebuilt-tools-config-add-domain-button"
+                  type="button"
+                  onClick={handleAddDomain}
+                  className="btn btn-primary btn-sm"
+                  disabled={isLoading || !newDomain.trim()}
+                  title="Add domain"
                 >
-                  <label className="label !px-0">
-                    <span className="label-text text-sm font-medium">Current Domains ({domains.length})</span>
-                  </label>
-                  {domains.map((domain, index) => (
-                    <div
-                      id={`prebuilt-tools-config-domain-item-${index}`}
-                      data-testid={`prebuilt-tools-config-domain-item-${index}`}
-                      key={index}
-                      className="space-y-1"
-                    >
-                      <div className="group flex items-center gap-2 bg-base-200 rounded-lg p-3 border border-base-300 hover:bg-base-300 transition-colors duration-200">
-                        <div className="flex-1">
-                          {isEditing && editingIndex === index ? (
-                            <input
-                              autoComplete="off"
-                              id={`prebuilt-tools-config-edit-input-${index}`}
-                              data-testid={`prebuilt-tools-config-edit-input-${index}`}
-                              type="text"
-                              defaultValue={editingValueRef.current}
-                              onChange={handleEditInputChange}
-                              onKeyPress={handleEditKeyPress}
-                              className={`input input-bordered input-sm w-full focus:ring-1 ring-primary/40 ${
-                                isEditing && validationError ? "input-error border-error" : ""
-                              }`}
-                              placeholder="Enter domain"
-                              autoFocus
-                              disabled={isLoading}
-                            />
-                          ) : (
-                            <span className="text-sm text-base-content font-medium">{domain}</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {isEditing && editingIndex === index ? (
-                            <>
-                              <button
-                                id={`prebuilt-tools-config-save-edit-button-${index}`}
-                                data-testid={`prebuilt-tools-config-save-edit-button-${index}`}
-                                type="button"
-                                onClick={handleSaveEdit}
-                                className="btn btn-ghost btn-xs p-1 hover:bg-green-100 hover:text-success"
-                                title="Save changes"
-                                disabled={isLoading}
-                              >
-                                <Check size={14} />
-                              </button>
-                              <button
-                                id={`prebuilt-tools-config-cancel-edit-button-${index}`}
-                                data-testid={`prebuilt-tools-config-cancel-edit-button-${index}`}
-                                type="button"
-                                onClick={handleCancelEdit}
-                                className="btn btn-ghost btn-xs p-1 hover:bg-gray-100 hover:text-base-content"
-                                title="Cancel editing"
-                                disabled={isLoading}
-                              >
-                                <X size={14} />
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                id={`prebuilt-tools-config-edit-button-${index}`}
-                                data-testid={`prebuilt-tools-config-edit-button-${index}`}
-                                type="button"
-                                onClick={() => handleEditDomain(index)}
-                                className="btn btn-ghost btn-xs p-1 hover:bg-blue-100 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200 tooltip"
-                                data-tip="Edit"
-                                disabled={isLoading || isEditing}
-                              >
-                                <Edit size={14} />
-                              </button>
-                              <button
-                                id={`prebuilt-tools-config-delete-button-${index}`}
-                                data-testid={`prebuilt-tools-config-delete-button-${index}`}
-                                type="button"
-                                onClick={() => handleRemoveDomain(index)}
-                                className="btn btn-ghost btn-xs p-1 hover:bg-red-100 hover:text-error opacity-0 group-hover:opacity-100 transition-opacity duration-200 tooltip"
-                                data-tip="Remove"
-                                disabled={isLoading || isEditing}
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {/* Show validation error directly below this specific domain when editing */}
-                      {isEditing && editingIndex === index && validationError && (
-                        <div className="px-3">
-                          <span className="text-xs text-error">{validationError}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  <Plus size={16} />
+                  Add
+                </button>
+              </div>
+              {!isEditing && validationError && (
+                <div className="label">
+                  <span className="label-text-alt text-error">{validationError}</span>
                 </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                id="prebuilt-tools-config-close-button"
-                data-testid="prebuilt-tools-config-close-button"
-                type="button"
-                className="btn btn-sm hover:text-base-content"
-                onClick={handleClose}
-                disabled={isLoading}
+            {/* Domain List */}
+            {domains.length > 0 && (
+              <div
+                id="prebuilt-tools-config-domains-list"
+                data-testid="prebuilt-tools-config-domains-list"
+                className="space-y-2 mb-4"
               >
-                Close
-              </button>
-            </div>
+                <label className="label !px-0">
+                  <span className="label-text text-sm font-medium">Current Domains ({domains.length})</span>
+                </label>
+                {domains.map((domain, index) => (
+                  <div
+                    id={`prebuilt-tools-config-domain-item-${index}`}
+                    data-testid={`prebuilt-tools-config-domain-item-${index}`}
+                    key={index}
+                    className="space-y-1"
+                  >
+                    <div className="group flex items-center gap-2 bg-base-200 rounded-lg p-3 border border-base-300 hover:bg-base-300 transition-colors duration-200">
+                      <div className="flex-1">
+                        {isEditing && editingIndex === index ? (
+                          <input
+                            autoComplete="off"
+                            id={`prebuilt-tools-config-edit-input-${index}`}
+                            data-testid={`prebuilt-tools-config-edit-input-${index}`}
+                            type="text"
+                            defaultValue={editingValueRef.current}
+                            onChange={handleEditInputChange}
+                            onKeyPress={handleEditKeyPress}
+                            className={`input input-bordered input-sm w-full focus:ring-1 ring-primary/40 ${
+                              isEditing && validationError ? "input-error border-error" : ""
+                            }`}
+                            placeholder="Enter domain"
+                            autoFocus
+                            disabled={isLoading}
+                          />
+                        ) : (
+                          <span className="text-sm text-base-content font-medium">{domain}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {isEditing && editingIndex === index ? (
+                          <>
+                            <button
+                              id={`prebuilt-tools-config-save-edit-button-${index}`}
+                              data-testid={`prebuilt-tools-config-save-edit-button-${index}`}
+                              type="button"
+                              onClick={handleSaveEdit}
+                              className="btn btn-ghost btn-xs p-1 hover:bg-green-100 hover:text-success"
+                              title="Save changes"
+                              disabled={isLoading}
+                            >
+                              <Check size={14} />
+                            </button>
+                            <button
+                              id={`prebuilt-tools-config-cancel-edit-button-${index}`}
+                              data-testid={`prebuilt-tools-config-cancel-edit-button-${index}`}
+                              type="button"
+                              onClick={handleCancelEdit}
+                              className="btn btn-ghost btn-xs p-1 hover:bg-gray-100 hover:text-base-content"
+                              title="Cancel editing"
+                              disabled={isLoading}
+                            >
+                              <X size={14} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              id={`prebuilt-tools-config-edit-button-${index}`}
+                              data-testid={`prebuilt-tools-config-edit-button-${index}`}
+                              type="button"
+                              onClick={() => handleEditDomain(index)}
+                              className="btn btn-ghost btn-xs p-1 hover:bg-blue-100 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-200 tooltip"
+                              data-tip="Edit"
+                              disabled={isLoading || isEditing}
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              id={`prebuilt-tools-config-delete-button-${index}`}
+                              data-testid={`prebuilt-tools-config-delete-button-${index}`}
+                              type="button"
+                              onClick={() => handleRemoveDomain(index)}
+                              className="btn btn-ghost btn-xs p-1 hover:bg-red-100 hover:text-error opacity-0 group-hover:opacity-100 transition-opacity duration-200 tooltip"
+                              data-tip="Remove"
+                              disabled={isLoading || isEditing}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {/* Show validation error directly below this specific domain when editing */}
+                    {isEditing && editingIndex === index && validationError && (
+                      <div className="px-3">
+                        <span className="text-xs text-error">{validationError}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex justify-end gap-3 pt-4">
+            <button
+              id="prebuilt-tools-config-close-button"
+              data-testid="prebuilt-tools-config-close-button"
+              type="button"
+              className="btn btn-sm hover:text-base-content"
+              onClick={handleClose}
+              disabled={isLoading}
+            >
+              Close
+            </button>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
-import { CloseIcon, CopyIcon } from "@/components/Icons";
+import { CopyIcon } from "@/components/Icons";
 import React, { useMemo, useState } from "react";
 import Modal from "../UI/Modal";
 import CodeBlock from "@/components/codeBlock/CodeBlock";
@@ -164,42 +164,11 @@ const ChatAiConfigDeatilViewModal = ({ modalContent, modalTitle }) => {
       <Modal
         MODAL_ID={MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL}
         onClose={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
+        title={modalTitle || "Latency Details"}
+        icon={<SlidersHorizontal size={16} className="text-trace-gold" />}
+        widthClass="w-[min(720px,92vw)]"
       >
-        <div className="fixed inset-0 z-low-medium flex min-h-[100vh] min-w-[100vw] items-center justify-center overflow-auto bg-black/60 py-8">
-          <div
-            id="chat-details-modal-container"
-            data-testid="latency-details-modal"
-            className="relative flex w-[min(720px,92vw)] max-h-[88vh] flex-col overflow-hidden rounded-xl border border-base-content/10 shadow-2xl"
-            style={{ background: "var(--ai-config-container-bg)" }}
-          >
-            {/* Header */}
-            <div
-              className="flex shrink-0 items-center justify-between border-b border-base-content/10 px-5 py-4"
-              style={{ background: "var(--ai-config-header-bg)" }}
-            >
-              <div className="flex items-center gap-2.5">
-                <SlidersHorizontal size={16} className="text-trace-gold" />
-                <h3 className="text-base font-semibold text-base-content">{modalTitle || "Latency Details"}</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  data-testid="chat-details-close-button"
-                  id="chat-details-close-button"
-                  className="rounded-md p-1.5 text-base-content/60 transition-colors hover:bg-base-content/10 hover:text-base-content"
-                  onClick={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
-                >
-                  <CloseIcon size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Sections */}
-            <div className="flex-1 overflow-y-auto p-5 pb-6">
-              <JsonSection label="Latency" data={modalContent} />
-            </div>
-          </div>
-        </div>
+        <JsonSection label="Latency" data={modalContent} />
       </Modal>
     );
   }
@@ -210,121 +179,87 @@ const ChatAiConfigDeatilViewModal = ({ modalContent, modalTitle }) => {
       <Modal
         MODAL_ID={MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL}
         onClose={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
+        title={modalTitle || "AI Configuration"}
+        icon={<SlidersHorizontal size={16} className="text-trace-gold" />}
+        widthClass="w-[min(720px,92vw)]"
       >
-        <div className="fixed inset-0 z-low-medium flex min-h-[100vh] min-w-[100vw] items-center justify-center overflow-auto bg-black/60 py-8">
-          <div
-            id="chat-details-modal-container"
-            data-testid="ai-config-modal"
-            className="relative flex w-[min(720px,92vw)] max-h-[88vh] flex-col overflow-hidden rounded-xl border border-base-content/10 shadow-2xl"
-            style={{ background: "var(--ai-config-container-bg)" }}
-          >
-            {/* Header */}
-            <div
-              className="flex shrink-0 items-center justify-between border-b border-base-content/10 px-5 py-4"
-              style={{ background: "var(--ai-config-header-bg)" }}
-            >
-              <div className="flex items-center gap-2.5">
-                <SlidersHorizontal size={16} className="text-trace-gold" />
-                <h3 className="text-base font-semibold text-base-content">{modalTitle || "AI Configuration"}</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  data-testid="chat-details-close-button"
-                  id="chat-details-close-button"
-                  className="rounded-md p-1.5 text-base-content/60 transition-colors hover:bg-base-content/10 hover:text-base-content"
-                  onClick={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
-                >
-                  <CloseIcon size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Sections */}
-            <div className="flex-1 overflow-y-auto p-5 pb-6">
-              <AiConfigPanel config={modalContent} />
-            </div>
-          </div>
-        </div>
+        <AiConfigPanel config={modalContent} />
       </Modal>
     );
   }
 
+  const footerContent = (
+    <div className="flex gap-2 justify-end w-full">
+      <button
+        type="button"
+        data-testid="chat-details-copy-button"
+        onClick={() => handleCopy(copyData)}
+        className="btn btn-sm btn-ghost text-warning gap-1 flex items-center"
+      >
+        <CopyIcon size={14} />
+        {copied ? "Copied!" : "Copy"}
+      </button>
+      <button
+        data-testid="chat-details-close-button"
+        id="chat-details-close-button"
+        className="btn btn-sm"
+        onClick={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
+      >
+        Close
+      </button>
+    </div>
+  );
+
   // ── Generic fallback view ───────────────────────────────────────────────
   return (
-    <Modal MODAL_ID={MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL} onClose={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}>
-      <div className="fixed inset-0 bg-black/50 flex justify-center items-start z-low-medium min-w-[100vw] min-h-[100vh] overflow-auto py-4">
-        <div
-          id="chat-details-modal-container"
-          className="bg-base-100 rounded-lg shadow-2xl max-w-6xl w-[90vw] h-auto overflow-auto relative flex flex-col"
-        >
-          <div className="flex items-start justify-between p-6 border-b border-base-300">
-            <h3 className="text-2xl font-bold">{modalTitle || "Detailed View"}</h3>
-            <button
-              data-testid="chat-details-close-button"
-              id="chat-details-close-button"
-              className="hover:text-error"
-              onClick={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
-            >
-              <CloseIcon size={24} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-auto p-6">
-            <div
-              data-testid="chat-details-content-container"
-              id="chat-details-content-container"
-              className="bg-base-200 rounded-lg p-6 h-auto overflow-auto relative"
-            >
-              <button
-                type="button"
-                data-testid="chat-details-copy-button"
-                onClick={() => handleCopy(copyData)}
-                className="absolute right-5 top-5 flex items-center gap-2 text-sm text-warning"
-              >
-                <CopyIcon size={14} />
-                {copied ? "Copied!" : "Copy"}
-              </button>
-              {modalContent &&
-                contentEntries.map(([key, value]) => (
-                  <div key={key} className="mb-6 last:mb-0">
-                    <h4 className="text-lg font-semibold mb-2">{key}</h4>
-                    {Array.isArray(value) ? (
-                      <ul className="space-y-2 ml-4">
-                        {value.map((item, index) => (
-                          <li key={index} className="break-words">
-                            <div className="bg-base-100 p-4 rounded-lg shadow-inner break-words whitespace-pre-wrap relative">
-                              {typeof item === "object" && item !== null && key === "messages" ? (
-                                renderFlattenedMessage(item)
-                              ) : (
-                                <span className="text-base-content/80">
-                                  {typeof item === "object" && item !== null
-                                    ? JSON.stringify(item, null, 2)
-                                    : String(item)}
-                                </span>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="bg-base-100 p-4 rounded-lg shadow-inner relative">
-                        {typeof value === "object" && value !== null ? (
-                          <pre className="text-base-content/80 break-words whitespace-pre-wrap">
-                            {JSON.stringify(value, null, 2)}
-                          </pre>
+    <Modal
+      MODAL_ID={MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL}
+      onClose={() => closeModal(MODAL_TYPE.CHAT_DETAILS_VIEW_MODAL)}
+      title={modalTitle || "Detailed View"}
+      icon={<SlidersHorizontal size={16} className="text-trace-gold" />}
+      widthClass="w-[min(1152px,92vw)]"
+      footer={footerContent}
+    >
+      <div
+        data-testid="chat-details-content-container"
+        id="chat-details-content-container"
+        className="bg-base-200 rounded-lg p-6 h-auto overflow-auto relative"
+      >
+        {modalContent &&
+          contentEntries.map(([key, value]) => (
+            <div key={key} className="mb-6 last:mb-0">
+              <h4 className="text-lg font-semibold mb-2">{key}</h4>
+              {Array.isArray(value) ? (
+                <ul className="space-y-2 ml-4">
+                  {value.map((item, index) => (
+                    <li key={index} className="break-words">
+                      <div className="bg-base-100 p-4 rounded-lg shadow-inner break-words whitespace-pre-wrap relative">
+                        {typeof item === "object" && item !== null && key === "messages" ? (
+                          renderFlattenedMessage(item)
                         ) : (
-                          <pre className="text-base-content/80 break-words whitespace-pre-wrap">
-                            {formatValue(String(value))}
-                          </pre>
+                          <span className="text-base-content/80">
+                            {typeof item === "object" && item !== null ? JSON.stringify(item, null, 2) : String(item)}
+                          </span>
                         )}
                       </div>
-                    )}
-                  </div>
-                ))}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="bg-base-100 p-4 rounded-lg shadow-inner relative">
+                  {typeof value === "object" && value !== null ? (
+                    <pre className="text-base-content/80 break-words whitespace-pre-wrap">
+                      {JSON.stringify(value, null, 2)}
+                    </pre>
+                  ) : (
+                    <pre className="text-base-content/80 break-words whitespace-pre-wrap">
+                      {formatValue(String(value))}
+                    </pre>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          ))}
       </div>
     </Modal>
   );

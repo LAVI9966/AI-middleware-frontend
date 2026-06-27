@@ -2,9 +2,10 @@
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import React, { useEffect } from "react";
-import { CloseCircleIcon, CalendarIcon } from "@/components/Icons";
+import { CalendarIcon } from "@/components/Icons";
 import { getCalApi } from "@calcom/embed-react";
 import Modal from "../UI/Modal";
+import { Play } from "lucide-react";
 
 const DemoModal = ({ speakToUs }) => {
   useEffect(() => {
@@ -25,34 +26,19 @@ const DemoModal = ({ speakToUs }) => {
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.DEMO_MODAL} onClose={handleClose}>
-      <div
-        id="demo-modal-container"
-        className={`modal-box flex flex-col gap-6  ${
-          speakToUs
-            ? "bg-base-100 text-base-content border max-w-[95vw] w-[700px] border-base-300"
-            : "bg-gradient-to-br from-slate-900 to-slate-800 max-w-[95vw] w-[1300px] text-base-content border border-base-300/50"
-        } shadow-2xl`}
-      >
-        <div className="flex justify-between items-center pb-4 border-b border-base-300">
-          <h3 className="font-bold text-2xl">{speakToUs ? "Speak to Us" : "Discover GTWY AI"}</h3>
-          <button
-            data-testid="demo-modal-close-button"
-            id="demo-modal-close-button"
-            onClick={handleClose}
-            className="btn btn-ghost p-2 rounded-full hover:bg-gray-100 transition-colors group"
-          >
-            <CloseCircleIcon
-              size={26}
-              className={`${speakToUs ? "text-gray-400" : "text-slate-400 group-hover:text-purple-300"} transition-colors`}
-            />
-          </button>
-        </div>
-
+    <Modal
+      MODAL_ID={MODAL_TYPE.DEMO_MODAL}
+      onClose={handleClose}
+      title={speakToUs ? "Speak to Us" : "Discover GTWY AI"}
+      description={speakToUs ? "Connect with our team for personalized guidance" : "See GTWY AI in action"}
+      icon={<Play size={16} className="text-trace-gold" />}
+      widthClass={speakToUs ? "w-[min(700px,92vw)]" : "w-[min(1300px,96vw)]"}
+    >
+      <div id="demo-modal-container" className="flex flex-col gap-6">
         {speakToUs ? (
-          <div id="demo-modal-speak-to-us-content" className="p-6 bg-base-200 rounded-xl">
+          <div id="demo-modal-speak-to-us-content" className="p-6 bg-base-200/60 rounded-xl">
             <p className="text-base-content mb-4">
-              Discover how GTWY AI can transform your workflow. With our <strong>“Speak to Us”</strong> option, you’ll:
+              Discover how GTWY AI can transform your workflow. With our <strong>"Speak to Us"</strong> option, you'll:
             </p>
             <ul className="list-disc list-inside text-base-content space-y-2">
               <li className="flex items-start">
@@ -80,7 +66,7 @@ const DemoModal = ({ speakToUs }) => {
         ) : (
           <div
             id="demo-modal-video-content"
-            className="relative group rounded-xl overflow-hidden border-2 border-base-300/50 shadow-xl hover:border-base-300/30 transition-all duration-300"
+            className="relative group rounded-xl overflow-hidden border-2 border-base-content/10 shadow-xl hover:border-base-content/20 transition-all duration-300"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 pointer-events-none" />
             <div className="aspect-video w-full overflow-hidden rounded-lg">
@@ -99,7 +85,7 @@ const DemoModal = ({ speakToUs }) => {
           </div>
         )}
 
-        <div className="modal-action mt-4">
+        <div className="flex justify-end mt-2">
           <button
             data-testid="demo-modal-schedule-button"
             id="demo-modal-schedule-button"
@@ -108,7 +94,7 @@ const DemoModal = ({ speakToUs }) => {
             data-cal-origin="https://cal.id"
             data-cal-config='{"layout":"month_view"}'
             onClick={() => handleClose()}
-            className={`btn ${speakToUs ? "btn-primary" : "btn-primary"} px-8 py-3 text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2`}
+            className="btn btn-primary px-8 py-3 text-lg font-semibold transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
           >
             <CalendarIcon className="w-5 h-5" />
             <span>Schedule Personalized Demo</span>

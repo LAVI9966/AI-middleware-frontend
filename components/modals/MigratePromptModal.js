@@ -3,13 +3,13 @@ import Modal from "../UI/Modal";
 import { MODAL_TYPE, PROMPT_SECTIONS } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { isValidJsonPrompt, parsePromptObject } from "@/utils/promptUtils";
+import { ArrowUpRight } from "lucide-react";
 
 const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null }) => {
   const isEmbedMode = Array.isArray(embedFields) && embedFields.length > 0;
 
   const getInitialFields = (prompt) => {
     if (isEmbedMode) {
-      // Initialize all embed fields as empty strings
       return embedFields.reduce((acc, f) => ({ ...acc, [f.name]: "" }), {});
     }
     if (isValidJsonPrompt(prompt)) {
@@ -29,7 +29,6 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
 
   const [fields, setFields] = useState(() => getInitialFields(currentPrompt));
 
-  // Re-populate fields whenever the modal is opened with a new prompt or embedFields change
   useEffect(() => {
     setFields(getInitialFields(currentPrompt));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -48,11 +47,38 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
     closeModal(MODAL_TYPE.MIGRATE_PROMPT_MODAL);
   };
 
-  return (
-    <Modal MODAL_ID={MODAL_TYPE.MIGRATE_PROMPT_MODAL}>
-      <div data-testid="migrate-prompt-modal" className="modal-box w-full max-w-4xl flex flex-col gap-4">
-        <h3 className="text-lg font-semibold">Migrate Prompt to Structured Format</h3>
+  const footerContent = (
+    <div className="flex justify-end gap-2">
+      <button
+        data-testid="migrate-prompt-cancel-button"
+        type="button"
+        className="btn btn-ghost btn-sm"
+        onClick={handleCancel}
+      >
+        Cancel
+      </button>
+      <button
+        data-testid="migrate-prompt-save-button"
+        type="button"
+        className="btn btn-primary btn-sm"
+        onClick={handleConfirm}
+      >
+        Migrate &amp; Save
+      </button>
+    </div>
+  );
 
+  return (
+    <Modal
+      MODAL_ID={MODAL_TYPE.MIGRATE_PROMPT_MODAL}
+      onClose={handleCancel}
+      title="Migrate Prompt to Structured Format"
+      description="Convert your current prompt into structured role/goal/instruction fields"
+      icon={<ArrowUpRight size={16} className="text-trace-gold" />}
+      widthClass="w-[min(900px,96vw)]"
+      footer={footerContent}
+    >
+      <div data-testid="migrate-prompt-modal" className="flex flex-col gap-4">
         {/* Side-by-side layout */}
         <div className="grid grid-cols-2 gap-4 min-h-0">
           {/* Left: Current prompt */}
@@ -75,7 +101,6 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
             </label>
 
             {isEmbedMode ? (
-              /* Render embed fields dynamically */
               embedFields
                 .filter((f) => !f.hidden)
                 .map((field) => (
@@ -102,9 +127,8 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                   </div>
                 ))
             ) : (
-              /* Default role / goal / instruction fields */
               <div className="p-2">
-                <div className="form-control gap-1 ">
+                <div className="form-control gap-1">
                   <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.ROLE}</span>
                   <input
                     autoComplete="off"
@@ -117,7 +141,7 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                   />
                 </div>
 
-                <div className="form-control gap-1">
+                <div className="form-control gap-1 mt-3">
                   <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.GOAL}</span>
                   <input
                     autoComplete="off"
@@ -130,7 +154,7 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
                   />
                 </div>
 
-                <div className="form-control gap-1 flex-1 flex flex-col">
+                <div className="form-control gap-1 flex-1 flex flex-col mt-3">
                   <span className="label-text font-medium capitalize">{PROMPT_SECTIONS.INSTRUCTION}</span>
                   <textarea
                     data-testid="migrate-prompt-instruction-textarea"
@@ -144,25 +168,6 @@ const MigratePromptModal = ({ currentPrompt = "", onConfirm, embedFields = null 
               </div>
             )}
           </div>
-        </div>
-
-        <div className="flex justify-end gap-2 mt-2">
-          <button
-            data-testid="migrate-prompt-cancel-button"
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={handleCancel}
-          >
-            Cancel
-          </button>
-          <button
-            data-testid="migrate-prompt-save-button"
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={handleConfirm}
-          >
-            Migrate &amp; Save
-          </button>
         </div>
       </div>
     </Modal>

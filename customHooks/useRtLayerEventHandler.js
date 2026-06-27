@@ -1,6 +1,7 @@
 // hooks/useRtLayerEventHandler.js
 "use client";
 import { addThreadNMessageUsingRtLayer, addThreadUsingRtLayer } from "@/store/reducer/historyReducer";
+import { setFallbackData } from "@/store/reducer/chatReducer";
 import {
   handleRtLayerMessage,
   handleRtLayerStreamChunk,
@@ -210,6 +211,23 @@ function useRtLayerEventHandler(channelIdentifier = "") {
             } else if (event === "delta") {
               dispatch(handleRtLayerStreamChunk(channelId, parsedData.message_id, parsedData.content || ""));
               return;
+            } else if (event === "fallback") {
+              dispatch(
+                setFallbackData({
+                  channelId,
+                  messageId: parsedData.message_id,
+                  fallbackData: {
+                    fallback: true,
+                    firstAttemptError: parsedData.error,
+                    modelName: parsedData.to_model,
+                    model: parsedData.to_model,
+                    fromModel: parsedData.from_model,
+                    fromService: parsedData.from_service,
+                    toService: parsedData.to_service,
+                  },
+                })
+              );
+              return;
             } else if (event === "error") {
               const errorMessage =
                 parsedData.error || parsedData.fallback_error || "An error occurred during streaming";
@@ -355,7 +373,7 @@ function useRtLayerEventHandler(channelIdentifier = "") {
               role: response.data.role || "assistant",
               model: response.data.model,
               finish_reason: response.data.finish_reason || parsedData.finish_reason,
-              fallback: response.data.fall_back,
+              fallback: response.data.fall_back || response.data.fallback,
               firstAttemptError: response.data.firstAttemptError,
               images: rawImages,
               llm_urls: llmUrls,

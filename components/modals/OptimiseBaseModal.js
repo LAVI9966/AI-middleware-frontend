@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import ComparisonCheck from "@/utils/comparisonCheck";
 import Canvas from "../Canvas";
 import Modal from "../UI/Modal";
+import { Sparkles } from "lucide-react";
 
 function OptimiseBaseModal({
   modalType,
@@ -119,7 +120,6 @@ function OptimiseBaseModal({
 
   const displayContent = isStreaming ? streamedContent : newContent;
 
-  // Fixed: Use consistent logic for textarea content
   const getTextareaContent = () => {
     if (isStreaming) {
       return streamedContent;
@@ -136,15 +136,22 @@ function OptimiseBaseModal({
   const textareaContent = getTextareaContent();
 
   return (
-    <Modal MODAL_ID={modalType} onClose={handleCloseModal}>
+    <Modal
+      MODAL_ID={modalType}
+      onClose={handleCloseModal}
+      title={title}
+      description={`AI-powered ${contentLabel.toLowerCase()} optimization`}
+      icon={<Sparkles size={16} className="text-trace-gold" />}
+      widthClass="w-[min(96vw,1400px)]"
+    >
       <div
         id="optimise-base-modal-container"
         data-testid="optimise-base-modal-container"
-        className="modal-box max-w-screen-xl w-[calc(100%-8rem)] mx-auto bg-base-100 overflow-hidden flex flex-col"
+        className="flex flex-col"
+        style={{ height: "calc(100dvh - 14rem)", minHeight: "400px" }}
       >
-        {/* Fixed Header */}
-        <div className="flex justify-between items-center pb-2 pt-2 bg-base-100 z-low">
-          <h3 className="font-bold text-lg">{title}</h3>
+        {/* Toggle Header */}
+        <div className="flex justify-end items-center pb-3">
           <button
             id="optimise-toggle-diff-button"
             data-testid="optimise-toggle-diff-button"
@@ -156,7 +163,7 @@ function OptimiseBaseModal({
           </button>
         </div>
 
-        <div className={`flex h-full ${diff ? "overflow-auto" : "overflow-hidden"} gap-3 w-full max-h-[700px]`}>
+        <div className={`flex flex-1 ${diff ? "overflow-auto" : "overflow-hidden"} gap-3 w-full`}>
           <div className="w-full h-full">
             {!diff ? (
               <div className="flex-1 h-full flex flex-col">
@@ -259,13 +266,13 @@ function OptimiseBaseModal({
           )}
         </div>
 
-        {/* Fixed Footer */}
-        <div className="border-t border-base-content/20 mb-2 bg-base-100 pt-1 flex justify-end gap-3">
+        {/* Footer */}
+        <div className="border-t border-base-content/10 pt-3 mt-3 flex justify-end gap-3">
           <button
             id="optimise-close-button"
             data-testid="optimise-close-button"
             onClick={handleCloseModal}
-            className="btn btn-sm mt-2"
+            className="btn btn-sm"
             disabled={isStreaming}
             type="button"
           >
@@ -275,7 +282,7 @@ function OptimiseBaseModal({
             id="optimise-apply-button"
             data-testid="optimise-apply-button"
             onClick={handleApply}
-            className="btn btn-sm btn-primary mt-2"
+            className="btn btn-sm btn-primary"
             disabled={loading || isStreaming || !displayContent}
             type="button"
           >

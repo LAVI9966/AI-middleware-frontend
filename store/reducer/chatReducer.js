@@ -410,6 +410,26 @@ export const chatReducer = createSlice({
       delete state.threadIdByChannel[channelId];
       delete state.testCaseConversationByChannel[channelId];
     },
+
+    // Set fallback data for a message
+    setFallbackData: (state, action) => {
+      const { channelId, messageId, fallbackData } = action.payload;
+      if (state.messagesByChannel[channelId]) {
+        let messageIndex = -1;
+        if (messageId) {
+          messageIndex = state.messagesByChannel[channelId].findIndex((msg) => msg.id === messageId);
+        }
+        if (messageIndex === -1) {
+          messageIndex = state.messagesByChannel[channelId].findLastIndex((msg) => msg.sender === "assistant");
+        }
+        if (messageIndex !== -1) {
+          state.messagesByChannel[channelId][messageIndex] = {
+            ...state.messagesByChannel[channelId][messageIndex],
+            ...fallbackData,
+          };
+        }
+      }
+    },
   },
 });
 
@@ -440,6 +460,7 @@ export const {
   setReviewData,
   appendReviewDelta,
   setReviewError,
+  setFallbackData,
 } = chatReducer.actions;
 
 export default chatReducer.reducer;

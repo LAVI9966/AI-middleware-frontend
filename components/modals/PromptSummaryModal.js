@@ -4,6 +4,7 @@ import { closeModal } from "@/utils/utility";
 import React, { useCallback, useEffect, useRef, useState, useMemo, memo } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
+import { BookOpen } from "lucide-react";
 import { promptObjectToString } from "@/utils/promptUtils";
 
 // Optimized Textarea Component
@@ -298,33 +299,41 @@ export const AgentSummaryContent = memo(
 
 AgentSummaryContent.displayName = "AgentSummaryContent";
 
-// Original Modal Component
 const PromptSummaryModal = ({ modalType, params, autoGenerateSummary = false, setAutoGenerateSummary = () => {} }) => {
   const handleClose = () => {
     closeModal(modalType);
     setAutoGenerateSummary(false);
   };
 
+  const footerContent = (
+    <button
+      id="prompt-summary-close-button"
+      data-testid="prompt-summary-close-button"
+      className="btn btn-sm"
+      onClick={handleClose}
+    >
+      Close
+    </button>
+  );
+
   return (
-    <Modal MODAL_ID={modalType} onClose={handleClose}>
-      <div id="prompt-summary-modal-box" data-testid="prompt-summary-modal-box" className="modal-box w-11/12 max-w-5xl">
+    <Modal
+      MODAL_ID={modalType}
+      onClose={handleClose}
+      title="Agent Summary"
+      description="Generate or edit the agent's summary"
+      icon={<BookOpen size={16} className="text-trace-gold" />}
+      widthClass="w-[min(800px,92vw)]"
+      footer={footerContent}
+    >
+      <div id="prompt-summary-modal-box" data-testid="prompt-summary-modal-box" className="flex flex-col gap-4">
         <AgentSummaryContent
           params={params}
           autoGenerateSummary={autoGenerateSummary}
           setAutoGenerateSummary={setAutoGenerateSummary}
-          showTitle={true}
+          showTitle={false}
           onSave={() => closeModal(modalType)}
         />
-        <div className="modal-action">
-          <button
-            id="prompt-summary-close-button"
-            data-testid="prompt-summary-close-button"
-            className="btn btn-sm"
-            onClick={handleClose}
-          >
-            Close
-          </button>
-        </div>
       </div>
     </Modal>
   );

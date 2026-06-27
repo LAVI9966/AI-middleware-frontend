@@ -6,6 +6,7 @@ import Modal from "../UI/Modal";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
 import { submitPostPublishFeedbackAction } from "@/store/action/bridgeAction";
+import { MessageSquareShare } from "lucide-react";
 
 function PostPublishFeedbackModal({ agentName = "", orgId = "" }) {
   const dispatch = useDispatch();
@@ -59,51 +60,51 @@ function PostPublishFeedbackModal({ agentName = "", orgId = "" }) {
     }
   }, [dispatch, feedbackData, handleClose, orgId, userdetails?.email, userdetails?.name]);
 
+  const footerContent = (
+    <div className="flex justify-end gap-2">
+      <button
+        id="post-publish-feedback-skip-button"
+        className="btn btn-sm"
+        onClick={handleClose}
+        disabled={isSubmitting}
+      >
+        Skip
+      </button>
+      <button
+        id="post-publish-feedback-submit-button"
+        className="btn btn-sm btn-primary"
+        onClick={handleSubmit}
+        disabled={isSubmitDisabled}
+      >
+        {isSubmitting ? "Submitting..." : "Submit Feedback"}
+      </button>
+    </div>
+  );
+
   return (
-    <Modal MODAL_ID={MODAL_TYPE.POST_PUBLISH_FEEDBACK_MODAL} onClose={handleClose}>
-      <div id="post-publish-feedback-modal-box" className="modal-box max-w-2xl">
-        <h3 className="font-bold text-lg">How was your publish experience?</h3>
-        <p className="text-sm text-base-content/70 mt-1">
-          Help us improve {agentName ? `for ${agentName}` : "the publishing flow"} by sharing quick feedback.
-        </p>
-
-        <div className="py-4 space-y-5">
-          <div>
-            <label className="label">
-              <span className="label-text">What worked well / what can be better?</span>
-            </label>
-            <textarea
-              id="post-publish-feedback-textarea"
-              className="textarea bg-base-100 textarea-bordered w-full h-32"
-              placeholder="Share your feedback..."
-              value={feedbackData.feedback}
-              onChange={(e) => setFeedbackData((prev) => ({ ...prev, feedback: e.target.value }))}
-            />
-          </div>
-        </div>
-
-        <div className="modal-action">
-          <button
-            id="post-publish-feedback-skip-button"
-            className="btn btn-sm"
-            onClick={handleClose}
-            disabled={isSubmitting}
-          >
-            Skip
-          </button>
-          <button
-            id="post-publish-feedback-submit-button"
-            className="btn btn-sm btn-primary"
-            onClick={handleSubmit}
-            disabled={isSubmitDisabled}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Feedback"}
-          </button>
+    <Modal
+      MODAL_ID={MODAL_TYPE.POST_PUBLISH_FEEDBACK_MODAL}
+      onClose={handleClose}
+      title="How was your publish experience?"
+      description={`Help us improve ${agentName ? `for ${agentName}` : "the publishing flow"}`}
+      icon={<MessageSquareShare size={16} className="text-trace-gold" />}
+      widthClass="w-[min(600px,92vw)]"
+      footer={footerContent}
+    >
+      <div id="post-publish-feedback-modal-box" className="flex flex-col gap-4">
+        <div>
+          <label className="label">
+            <span className="label-text">What worked well / what can be better?</span>
+          </label>
+          <textarea
+            id="post-publish-feedback-textarea"
+            className="textarea bg-base-100 textarea-bordered w-full h-32"
+            placeholder="Share your feedback..."
+            value={feedbackData.feedback}
+            onChange={(e) => setFeedbackData((prev) => ({ ...prev, feedback: e.target.value }))}
+          />
         </div>
       </div>
-      <form method="dialog" className="modal-backdrop">
-        <button onClick={handleClose}>close</button>
-      </form>
     </Modal>
   );
 }

@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, CircleHelp } from "lucide-react";
+import { ChevronDown, Wrench } from "lucide-react";
 import Modal from "@/components/UI/Modal";
-import { MODAL_TYPE, PRE_TOOL_LABELS, PRE_TOOL_TOOLTIPS, PRE_TOOL_CONFIG_SCHEMA } from "@/utils/enums";
+import { MODAL_TYPE, PRE_TOOL_LABELS, PRE_TOOL_CONFIG_SCHEMA } from "@/utils/enums";
 import { closeModal, isValidDomain } from "@/utils/utility";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
 import { getAllKnowBaseDataAction } from "@/store/action/knowledgeBaseAction";
-import InfoTooltip from "@/components/InfoTooltip";
 
 export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId }) {
   const [config, setConfig] = useState({});
@@ -158,20 +157,18 @@ export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId })
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL}>
+    <Modal
+      MODAL_ID={MODAL_TYPE.PREBUILT_PRE_TOOL_CONFIG_MODAL}
+      title={toolEntry ? `${PRE_TOOL_LABELS[toolEntry.type] || toolEntry.type} Settings` : "Tool Settings"}
+      description="Configure this prebuilt tool's options"
+      icon={<Wrench size={16} className="text-trace-gold" />}
+      widthClass={toolEntry?.type === "rag_knowledgebase" ? "w-[min(520px,92vw)]" : "w-[min(480px,92vw)]"}
+    >
       {toolEntry && schema ? (
         <div
           data-testid="pretool-config-modal"
-          className={`modal-box flex flex-col gap-4 overflow-hidden ${toolEntry.type === "rag_knowledgebase" ? "min-h-[400px]" : ""}`}
+          className={`flex flex-col gap-4 ${toolEntry.type === "rag_knowledgebase" ? "min-h-[200px]" : ""}`}
         >
-          <div className="flex items-center gap-1">
-            <h3 className="font-semibold text-base">{PRE_TOOL_LABELS[toolEntry.type] || toolEntry.type} Settings</h3>
-            {PRE_TOOL_TOOLTIPS[toolEntry.type] && (
-              <InfoTooltip tooltipContent={PRE_TOOL_TOOLTIPS[toolEntry.type]}>
-                <CircleHelp size={14} className="text-base-content/40 cursor-help" />
-              </InfoTooltip>
-            )}
-          </div>
           {schema.argsFields.length > 0 && (
             <div className="flex flex-col gap-3">
               {schema.argsFields.map((field) => (
@@ -200,35 +197,28 @@ export default function PrebuiltPreToolConfigModal({ toolEntry, onSave, orgId })
               ))}
             </div>
           )}
-          <div className={` ${toolEntry.type === "rag_knowledgebase" ? "mt-auto" : "mt-4"}`}>
-            <div className="modal-action mt-0 items-center">
-              <form method="dialog">
-                <button data-testid="pretool-config-close-button" className="btn btn-sm">
-                  Close
-                </button>
-              </form>
-              <div className="relative group">
-                {isSaveDisabled && disabledHint && (
-                  <span className="absolute bottom-full right-0 mb-1 text-xs text-base-content/50 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    {disabledHint}
-                  </span>
-                )}
-                <button
-                  data-testid="pretool-config-save-button"
-                  className="btn btn-primary btn-sm"
-                  onClick={handleSave}
-                  disabled={isSaveDisabled}
-                >
-                  Save
-                </button>
-              </div>
+
+          <div
+            className={`flex justify-end gap-2 pt-2 border-t border-base-content/10 ${toolEntry.type === "rag_knowledgebase" ? "mt-auto" : "mt-2"}`}
+          >
+            <div className="relative group">
+              {isSaveDisabled && disabledHint && (
+                <span className="absolute bottom-full right-0 mb-1 text-xs text-base-content/50 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  {disabledHint}
+                </span>
+              )}
+              <button
+                data-testid="pretool-config-save-button"
+                className="btn btn-primary btn-sm"
+                onClick={handleSave}
+                disabled={isSaveDisabled}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
       ) : null}
-      <form method="dialog" className="modal-backdrop">
-        <button>close</button>
-      </form>
     </Modal>
   );
 }

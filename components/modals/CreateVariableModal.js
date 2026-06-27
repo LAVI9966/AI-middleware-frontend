@@ -5,6 +5,7 @@ import { closeModal } from "@/utils/utility";
 import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
+import { Variable } from "lucide-react";
 
 function CreateVariableModal({ keyName, setKeyName, params, searchParams }) {
   const dispatch = useDispatch();
@@ -27,20 +28,17 @@ function CreateVariableModal({ keyName, setKeyName, params, searchParams }) {
   };
 
   const CreateVariable = (e) => {
-    e.preventDefault(); // Prevent default form submission behavior
-    // Create a new key-value pair
+    e.preventDefault();
     if (keyValue && valueValue) {
       let updatedPairs = [
         ...variablesKeyValue,
         { key: keyValue, value: valueValue, defaultValue: "", type: "string", required: true },
       ];
-      // Dispatch the update action to the store
       dispatch(updateVariables({ data: updatedPairs, bridgeId: params.id, versionId: searchParams?.version }));
-      // Clear the inputs after creating
       setKeyName("");
       setKeyValue("");
       setValueValue("");
-      closeModal(MODAL_TYPE.CREATE_VARIABLE); // Close the modal after creation
+      closeModal(MODAL_TYPE.CREATE_VARIABLE);
     }
   };
 
@@ -53,62 +51,63 @@ function CreateVariableModal({ keyName, setKeyName, params, searchParams }) {
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.CREATE_VARIABLE} onClose={handleCloseModal}>
-      <div id="create-variable-modal-container" className="modal-box" key={keyName}>
-        <h3 className="font-bold text-lg">Create New Variable</h3>
-        {/* <form> */}
-        <div className="label">
-          <span className="label-text">Key</span>
+    <Modal
+      MODAL_ID={MODAL_TYPE.CREATE_VARIABLE}
+      onClose={handleCloseModal}
+      title="Create New Variable"
+      description="Define a new key-value variable for this version"
+      icon={<Variable size={16} className="text-trace-gold" />}
+      widthClass="w-[min(480px,92vw)]"
+    >
+      <div id="create-variable-modal-container" className="flex flex-col gap-4" key={keyName}>
+        <div className="flex flex-col gap-1">
+          <label className="label-text text-sm font-medium">Key</label>
+          <input
+            autoComplete="off"
+            data-testid="create-variable-key-input"
+            id="create-variable-key-input"
+            type="text"
+            className="input input-bordered input-md w-full"
+            placeholder="Enter key"
+            defaultValue={keyName}
+            key={keyName}
+            autoFocus
+            onChange={(e) => handleKeyValueChange("key", e.target.value)}
+            onBlur={(e) => handleKeyValueChange("key", e.target.value)}
+          />
         </div>
-        <input
-          autoComplete="off"
-          data-testid="create-variable-key-input"
-          id="create-variable-key-input"
-          type="text"
-          className="input input-bordered input-md w-full mb-2"
-          placeholder="Enter key"
-          defaultValue={keyName}
-          key={keyName}
-          autoFocus
-          onChange={(e) => handleKeyValueChange("key", e.target.value)}
-          onBlur={(e) => handleKeyValueChange("key", e.target.value)}
-        />
-        <div className="label">
-          <span className="label-text">Value</span>
+        <div className="flex flex-col gap-1">
+          <label className="label-text text-sm font-medium">Value</label>
+          <input
+            autoComplete="off"
+            data-testid="create-variable-value-input"
+            id="create-variable-value-input"
+            defaultValue={valueValue}
+            type="text"
+            className="input input-bordered input-md w-full"
+            placeholder="Enter value"
+            onChange={(e) => handleKeyValueChange("value", e.target.value)}
+            onBlur={(e) => handleKeyValueChange("value", e.target.value)}
+          />
         </div>
-        <input
-          autoComplete="off"
-          data-testid="create-variable-value-input"
-          id="create-variable-value-input"
-          defaultValue={valueValue}
-          type="text"
-          className="input input-bordered input-md w-full mb-2"
-          placeholder="Enter value"
-          onChange={(e) => handleKeyValueChange("value", e.target.value)}
-          onBlur={(e) => handleKeyValueChange("value", e.target.value)}
-        />
-        <div className="modal-action">
-          <form method="dialog">
-            {/* if there is a button in form, it will close the modal */}
-            <button
-              data-testid="create-variable-close-button"
-              id="create-variable-close-button"
-              className="btn btn-sm"
-              onClick={handleCloseModal}
-            >
-              Close
-            </button>
-            <button
-              data-testid="create-variable-create-button"
-              id="create-variable-create-button"
-              className="btn btn-sm btn-primary ml-2"
-              onClick={CreateVariable}
-            >
-              Create
-            </button>
-          </form>
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            data-testid="create-variable-close-button"
+            id="create-variable-close-button"
+            className="btn btn-sm"
+            onClick={handleCloseModal}
+          >
+            Close
+          </button>
+          <button
+            data-testid="create-variable-create-button"
+            id="create-variable-create-button"
+            className="btn btn-sm btn-primary"
+            onClick={CreateVariable}
+          >
+            Create
+          </button>
         </div>
-        {/* </form> */}
       </div>
     </Modal>
   );
