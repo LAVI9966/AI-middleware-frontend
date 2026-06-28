@@ -76,7 +76,7 @@ const MetricsChart = memo(({ rawData, currentTheme, factor }) => {
 
   const handleMouseUp = useCallback(() => {
     setRefArea((prev) => {
-      if (!prev.left || !prev.right) {
+      if (!prev.left || !prev.right || prev.left === prev.right) {
         return { left: null, right: null };
       }
       const [start, end] = prev.left < prev.right ? [prev.left, prev.right] : [prev.right, prev.left];

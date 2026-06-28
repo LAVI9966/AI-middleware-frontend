@@ -362,7 +362,7 @@ function Page({ params, searchParams }) {
     setExecutionRefArea((prev) => ({ ...prev, right: e.activeLabel }));
   };
   const handleExecutionMouseUp = () => {
-    if (!executionRefArea.left || !executionRefArea.right) {
+    if (!executionRefArea.left || !executionRefArea.right || executionRefArea.left === executionRefArea.right) {
       setExecutionRefArea({ left: null, right: null });
       return;
     }
@@ -383,7 +383,7 @@ function Page({ params, searchParams }) {
     setLatencyRefArea((prev) => ({ ...prev, right: e.activeLabel }));
   };
   const handleLatencyMouseUp = () => {
-    if (!latencyRefArea.left || !latencyRefArea.right) {
+    if (!latencyRefArea.left || !latencyRefArea.right || latencyRefArea.left === latencyRefArea.right) {
       setLatencyRefArea({ left: null, right: null });
       return;
     }
