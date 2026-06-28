@@ -87,6 +87,7 @@ const Sidebar = memo(
     onAnalyticsSelectSubThread,
     onAnalyticsMessageNavigate,
     searchMessageId = null,
+    isPaginating = false,
   }) => {
     const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType, analyticsThreads } =
       useCustomSelector((state) => ({
@@ -812,8 +813,10 @@ const Sidebar = memo(
 
             {/* Fixed: Render search loader at the top level, not inside InfiniteScroll */}
             <div className="flex-1 overflow-y-auto" id="sidebar">
-              {historyData.length === 0 &&
-              (loading || searchLoading || (isAnalytics && analyticsThreads === undefined)) ? (
+              {isAnalytics && loading && !isPaginating ? (
+                <AnalyticsThreadListSkeleton />
+              ) : historyData.length === 0 &&
+                (loading || searchLoading || (isAnalytics && analyticsThreads === undefined)) ? (
                 isAnalytics ? (
                   <AnalyticsThreadListSkeleton />
                 ) : (

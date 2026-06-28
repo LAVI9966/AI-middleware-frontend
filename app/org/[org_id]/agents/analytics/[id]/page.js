@@ -11,8 +11,18 @@ import { getAgentAnalyticsFiltersApi } from "@/config";
 import { setSelectedVersion } from "@/store/reducer/historyReducer";
 import Protected from "@/components/Protected";
 
-import { BarChart3, X, Bot, Filter, ChevronDown, Wrench, BookOpen } from "lucide-react";
-import { ResponsiveContainer, ComposedChart, Bar, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { BarChart3, X, Bot, Filter, ChevronDown, Wrench, BookOpen, ThumbsUp, ThumbsDown, ZoomOut } from "lucide-react";
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceArea,
+} from "recharts";
 
 import Sidebar from "@/components/historyPageComponents/Sidebar";
 import BatchSubthreadPanel from "@/components/historyPageComponents/BatchSubthreadPanel";
@@ -40,7 +50,13 @@ const FEEDBACK_TO_API = { 1: "good", 2: "bad", good: "good", bad: "bad" };
 
 function buildAnalyticsQueryParams(
   rawParams,
-  { selectedVersion, filterByFields = {}, filterVariableRows = [{ key: "", value: "" }], extra = {} } = {}
+  {
+    selectedVersion,
+    filterByFields = {},
+    filterVariableRows = [{ key: "", value: "" }],
+    filterVariableAbsentRows = [{ key: "" }],
+    extra = {},
+  } = {}
 ) {
   const entries = typeof rawParams?.entries === "function" ? Object.fromEntries(rawParams.entries()) : { ...rawParams };
 
@@ -95,6 +111,17 @@ function buildAnalyticsQueryParams(
   if (Object.keys(presentVars).length > 0) {
     activeFilterBy.variables = presentVars;
   }
+
+  const absentVars = [];
+  for (const row of filterVariableAbsentRows) {
+    const k = row.key.trim();
+    if (!k) continue;
+    absentVars.push(k);
+  }
+  if (absentVars.length > 0) {
+    activeFilterBy.variables_absent = absentVars;
+  }
+
   if (Object.keys(activeFilterBy).length > 0) {
     queryParams.filter_by = activeFilterBy;
   }
@@ -144,6 +171,12 @@ function Page({ params, searchParams }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [executionChartType, setExecutionChartType] = useState("area");
   const [latencyChartType, setLatencyChartType] = useState("area");
+  const [isPaginating, setIsPaginating] = useState(false);
+
+  const [executionZoom, setExecutionZoom] = useState(null);
+  const [latencyZoom, setLatencyZoom] = useState(null);
+  const [executionRefArea, setExecutionRefArea] = useState({ left: null, right: null });
+  const [latencyRefArea, setLatencyRefArea] = useState({ left: null, right: null });
 
   const router = useRouter();
   const { buildUrl } = useQueryParams();
@@ -159,6 +192,7 @@ function Page({ params, searchParams }) {
       llm_message: "",
     },
     filterVariableRows: [{ key: "", value: "" }],
+    filterVariableAbsentRows: [{ key: "" }],
   });
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const customDropdownRef = useRef(null);
@@ -173,6 +207,7 @@ function Page({ params, searchParams }) {
     llm_message: "",
   });
   const [filterVariableRows, setFilterVariableRows] = useState([{ key: "", value: "" }]);
+  const [filterVariableAbsentRows, setFilterVariableAbsentRows] = useState([{ key: "" }]);
   const [isAdvanceFilterOpen, setIsAdvanceFilterOpen] = useState(false);
   const [showAllToolGroup, setShowAllToolGroup] = useState(false);
   const [showAllModels, setShowAllModels] = useState(false);
@@ -241,12 +276,14 @@ function Page({ params, searchParams }) {
     filterAgent.length ||
     Object.values(filterByFields).some((v) => v && String(v).trim() !== "") ||
     filterVariableRows.some((row) => row.key.trim() || row.value.trim()) ||
+    filterVariableAbsentRows.some((row) => row.key.trim()) ||
     searchQuery.trim()
   );
 
   const hasAdvancedFilterValues = Boolean(
     Object.values(filterByFields).some((v) => v && String(v).trim() !== "") ||
-    filterVariableRows.some((row) => row.key.trim() || row.value.trim())
+    filterVariableRows.some((row) => row.key.trim() || row.value.trim()) ||
+    filterVariableAbsentRows.some((row) => row.key.trim())
   );
 
   // Auto-clear applied advanced filters when user manually empties all input fields
@@ -254,11 +291,13 @@ function Page({ params, searchParams }) {
     if (!hasAdvancedFilterValues) {
       const hasAppliedFilters =
         Object.values(appliedAdvancedFilters.filterByFields).some((v) => v && String(v).trim() !== "") ||
-        appliedAdvancedFilters.filterVariableRows.some((row) => row.key.trim() || row.value.trim());
+        appliedAdvancedFilters.filterVariableRows.some((row) => row.key.trim() || row.value.trim()) ||
+        appliedAdvancedFilters.filterVariableAbsentRows.some((row) => row.key.trim());
       if (hasAppliedFilters) {
         setAppliedAdvancedFilters({
           filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
           filterVariableRows: [{ key: "", value: "" }],
+          filterVariableAbsentRows: [{ key: "" }],
         });
       }
     }
@@ -302,6 +341,59 @@ function Page({ params, searchParams }) {
     slow: Number(((item.slow || 0) / 1000).toFixed(2)),
     worst: Number(((item.worst || 0) / 1000).toFixed(2)),
   }));
+
+  const displayExecutionData = useMemo(() => {
+    if (!executionZoom) return executionData;
+    return executionData.filter((d) => d.time >= executionZoom.start && d.time <= executionZoom.end);
+  }, [executionData, executionZoom]);
+
+  const displayLatencyData = useMemo(() => {
+    if (!latencyZoom) return latencyData;
+    return latencyData.filter((d) => d.time >= latencyZoom.start && d.time <= latencyZoom.end);
+  }, [latencyData, latencyZoom]);
+
+  // Drag-to-zoom handlers
+  const handleExecutionMouseDown = (e) => {
+    if (!e || !e.activeLabel) return;
+    setExecutionRefArea({ left: e.activeLabel, right: e.activeLabel });
+  };
+  const handleExecutionMouseMove = (e) => {
+    if (!executionRefArea.left || !e || !e.activeLabel) return;
+    setExecutionRefArea((prev) => ({ ...prev, right: e.activeLabel }));
+  };
+  const handleExecutionMouseUp = () => {
+    if (!executionRefArea.left || !executionRefArea.right) {
+      setExecutionRefArea({ left: null, right: null });
+      return;
+    }
+    const [start, end] =
+      executionRefArea.left < executionRefArea.right
+        ? [executionRefArea.left, executionRefArea.right]
+        : [executionRefArea.right, executionRefArea.left];
+    setExecutionZoom({ start, end });
+    setExecutionRefArea({ left: null, right: null });
+  };
+
+  const handleLatencyMouseDown = (e) => {
+    if (!e || !e.activeLabel) return;
+    setLatencyRefArea({ left: e.activeLabel, right: e.activeLabel });
+  };
+  const handleLatencyMouseMove = (e) => {
+    if (!latencyRefArea.left || !e || !e.activeLabel) return;
+    setLatencyRefArea((prev) => ({ ...prev, right: e.activeLabel }));
+  };
+  const handleLatencyMouseUp = () => {
+    if (!latencyRefArea.left || !latencyRefArea.right) {
+      setLatencyRefArea({ left: null, right: null });
+      return;
+    }
+    const [start, end] =
+      latencyRefArea.left < latencyRefArea.right
+        ? [latencyRefArea.left, latencyRefArea.right]
+        : [latencyRefArea.right, latencyRefArea.left];
+    setLatencyZoom({ start, end });
+    setLatencyRefArea({ left: null, right: null });
+  };
 
   useEffect(() => {
     const urlVersion = search.get("version") || "all";
@@ -390,9 +482,11 @@ function Page({ params, searchParams }) {
     if (searchRef.current) searchRef.current.value = "";
     setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
     setFilterVariableRows([{ key: "", value: "" }]);
+    setFilterVariableAbsentRows([{ key: "" }]);
     setAppliedAdvancedFilters({
       filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
       filterVariableRows: [{ key: "", value: "" }],
+      filterVariableAbsentRows: [{ key: "" }],
     });
     dispatch(setSelectedVersion("all"));
 
@@ -426,6 +520,7 @@ function Page({ params, searchParams }) {
         selectedVersion,
         filterByFields: appliedAdvancedFilters.filterByFields,
         filterVariableRows: appliedAdvancedFilters.filterVariableRows,
+        filterVariableAbsentRows: appliedAdvancedFilters.filterVariableAbsentRows,
         extra,
       }),
     [search, selectedVersion, appliedAdvancedFilters]
@@ -473,10 +568,12 @@ function Page({ params, searchParams }) {
 
   const fetchMoreData = useCallback(async () => {
     if (!hasMore || analyticsLoadingRef.current) return;
+    setIsPaginating(true);
     const nextPage = page + 1;
     const queryParams = buildAnalyticsQueryParamsForFetch({ page: nextPage });
     await dispatch(getAgentAnalyticsAction(resolvedParams.id, queryParams, resolvedParams.org_id));
     setPage(nextPage);
+    setIsPaginating(false);
   }, [hasMore, page, buildAnalyticsQueryParamsForFetch, resolvedParams.id, resolvedParams.org_id, dispatch]);
 
   const handleSearch = useCallback(
@@ -670,12 +767,14 @@ function Page({ params, searchParams }) {
     setFilterAgent([]);
     setFilterByFields({ thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" });
     setFilterVariableRows([{ key: "", value: "" }]);
+    setFilterVariableAbsentRows([{ key: "" }]);
     dispatch(setSelectedVersion("all"));
     setIsCustomOpen(false);
 
     const emptyAdvancedFilters = {
       filterByFields: { thread_id: "", sub_thread_id: "", message_id: "", batch_id: "", user: "", llm_message: "" },
       filterVariableRows: [{ key: "", value: "" }],
+      filterVariableAbsentRows: [{ key: "" }],
     };
     setAppliedAdvancedFilters(emptyAdvancedFilters);
 
@@ -907,8 +1006,8 @@ function Page({ params, searchParams }) {
                 <div className="flex gap-1.5 shrink-0">
                   {[
                     { label: "Any", value: "all" },
-                    { label: "Good", value: "1" },
-                    { label: "Bad", value: "2" },
+                    { label: <ThumbsUp size={14} />, value: "1" },
+                    { label: <ThumbsDown size={14} />, value: "2" },
                   ].map((item) => (
                     <button
                       key={item.value}
@@ -1244,6 +1343,47 @@ function Page({ params, searchParams }) {
                         </button>
                       </div>
                     </div>
+                    <div className="col-span-2 md:col-span-3">
+                      <label className="block text-xs font-medium text-base-content/70 mb-0.5">
+                        Not Present Variables
+                      </label>
+                      <div className="space-y-2">
+                        {filterVariableAbsentRows.map((row, idx) => (
+                          <div key={idx} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              className="input input-sm rounded-lg input-bordered flex-1 text-xs"
+                              placeholder="key"
+                              value={row.key}
+                              onChange={(e) => {
+                                const next = [...filterVariableAbsentRows];
+                                next[idx].key = e.target.value;
+                                setFilterVariableAbsentRows(next);
+                              }}
+                            />
+                            {filterVariableAbsentRows.length > 1 && (
+                              <button
+                                type="button"
+                                className="px-2 py-1 rounded-md text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                onClick={() => {
+                                  const next = filterVariableAbsentRows.filter((_, i) => i !== idx);
+                                  setFilterVariableAbsentRows(next.length ? next : [{ key: "" }]);
+                                }}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="px-3 py-1 rounded-md text-xs font-medium border border-dashed border-base-content/30 text-base-content/60 hover:border-base-content/50 hover:text-base-content transition-colors"
+                          onClick={() => setFilterVariableAbsentRows((prev) => [...prev, { key: "" }])}
+                        >
+                          + Add Key
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex justify-end gap-3 mt-3">
                     <button
@@ -1260,9 +1400,11 @@ function Page({ params, searchParams }) {
                         };
                         setFilterByFields(emptyFields);
                         setFilterVariableRows([{ key: "", value: "" }]);
+                        setFilterVariableAbsentRows([{ key: "" }]);
                         dispatchAnalyticsWithAdvancedFilters({
                           filterByFields: emptyFields,
                           filterVariableRows: [{ key: "", value: "" }],
+                          filterVariableAbsentRows: [{ key: "" }],
                         });
                       }}
                     >
@@ -1276,6 +1418,7 @@ function Page({ params, searchParams }) {
                         dispatchAnalyticsWithAdvancedFilters({
                           filterByFields,
                           filterVariableRows,
+                          filterVariableAbsentRows,
                         });
                       }}
                     >
@@ -1296,6 +1439,15 @@ function Page({ params, searchParams }) {
                     <p className="text-xs text-base-content/60">Success vs Failed runs over time</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {executionZoom && (
+                      <button
+                        onClick={() => setExecutionZoom(null)}
+                        className="btn btn-ghost btn-xs btn-circle"
+                        title="Reset zoom"
+                      >
+                        <ZoomOut size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => setExecutionChartType((prev) => (prev === "area" ? "bar" : "area"))}
                       className="btn btn-ghost btn-xs btn-circle"
@@ -1308,14 +1460,19 @@ function Page({ params, searchParams }) {
                 <div className="flex-1 min-h-[240px]">
                   {analyticsData?.requests_over_time === undefined ? (
                     <AnalyticsChartSkeleton title="Execution Volume" />
-                  ) : executionData.length === 0 ? (
+                  ) : displayExecutionData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <BarChart3 className="w-10 h-10 text-base-content/30 mb-2" />
                       <p className="text-sm text-base-content/50">No content</p>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={executionData}>
+                      <ComposedChart
+                        data={displayExecutionData}
+                        onMouseDown={handleExecutionMouseDown}
+                        onMouseMove={handleExecutionMouseMove}
+                        onMouseUp={handleExecutionMouseUp}
+                      >
                         <defs>
                           <linearGradient id="gradSuccess" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
@@ -1365,6 +1522,49 @@ function Page({ params, searchParams }) {
                             <Bar dataKey="failed" fill="#ef4444" radius={[4, 4, 0, 0]} />
                           </>
                         )}
+                        {executionRefArea.left &&
+                          executionRefArea.right &&
+                          displayExecutionData.length > 0 &&
+                          (() => {
+                            const [selStart, selEnd] =
+                              executionRefArea.left < executionRefArea.right
+                                ? [executionRefArea.left, executionRefArea.right]
+                                : [executionRefArea.right, executionRefArea.left];
+                            const firstX = displayExecutionData[0].time;
+                            const lastX = displayExecutionData[displayExecutionData.length - 1].time;
+                            return (
+                              <>
+                                {selStart !== firstX && (
+                                  <ReferenceArea
+                                    x1={firstX}
+                                    x2={selStart}
+                                    fill="#000"
+                                    fillOpacity={0.25}
+                                    stroke="none"
+                                    ifOverflow="hidden"
+                                  />
+                                )}
+                                {selEnd !== lastX && (
+                                  <ReferenceArea
+                                    x1={selEnd}
+                                    x2={lastX}
+                                    fill="#000"
+                                    fillOpacity={0.25}
+                                    stroke="none"
+                                    ifOverflow="hidden"
+                                  />
+                                )}
+                                <ReferenceArea
+                                  x1={selStart}
+                                  x2={selEnd}
+                                  stroke="#3b82f6"
+                                  strokeOpacity={0.6}
+                                  fill="#3b82f6"
+                                  fillOpacity={0.1}
+                                />
+                              </>
+                            );
+                          })()}
                       </ComposedChart>
                     </ResponsiveContainer>
                   )}
@@ -1379,6 +1579,15 @@ function Page({ params, searchParams }) {
                     <p className="text-xs text-base-content/60">Agent response time (s)</p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {latencyZoom && (
+                      <button
+                        onClick={() => setLatencyZoom(null)}
+                        className="btn btn-ghost btn-xs btn-circle"
+                        title="Reset zoom"
+                      >
+                        <ZoomOut size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => setLatencyChartType((prev) => (prev === "area" ? "bar" : "area"))}
                       className="btn btn-ghost btn-xs btn-circle"
@@ -1391,14 +1600,19 @@ function Page({ params, searchParams }) {
                 <div className="flex-1 min-h-[240px]">
                   {analyticsData?.response_time === undefined ? (
                     <AnalyticsChartSkeleton title="Average Latency" />
-                  ) : latencyData.length === 0 ? (
+                  ) : displayLatencyData.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <BarChart3 className="w-10 h-10 text-base-content/30 mb-2" />
                       <p className="text-sm text-base-content/50">No content</p>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={latencyData}>
+                      <ComposedChart
+                        data={displayLatencyData}
+                        onMouseDown={handleLatencyMouseDown}
+                        onMouseMove={handleLatencyMouseMove}
+                        onMouseUp={handleLatencyMouseUp}
+                      >
                         <defs>
                           <linearGradient id="gradWorst" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2} />
@@ -1460,6 +1674,49 @@ function Page({ params, searchParams }) {
                             <Bar dataKey="typical" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                           </>
                         )}
+                        {latencyRefArea.left &&
+                          latencyRefArea.right &&
+                          displayLatencyData.length > 0 &&
+                          (() => {
+                            const [selStart, selEnd] =
+                              latencyRefArea.left < latencyRefArea.right
+                                ? [latencyRefArea.left, latencyRefArea.right]
+                                : [latencyRefArea.right, latencyRefArea.left];
+                            const firstX = displayLatencyData[0].time;
+                            const lastX = displayLatencyData[displayLatencyData.length - 1].time;
+                            return (
+                              <>
+                                {selStart !== firstX && (
+                                  <ReferenceArea
+                                    x1={firstX}
+                                    x2={selStart}
+                                    fill="#000"
+                                    fillOpacity={0.25}
+                                    stroke="none"
+                                    ifOverflow="hidden"
+                                  />
+                                )}
+                                {selEnd !== lastX && (
+                                  <ReferenceArea
+                                    x1={selEnd}
+                                    x2={lastX}
+                                    fill="#000"
+                                    fillOpacity={0.25}
+                                    stroke="none"
+                                    ifOverflow="hidden"
+                                  />
+                                )}
+                                <ReferenceArea
+                                  x1={selStart}
+                                  x2={selEnd}
+                                  stroke="#3b82f6"
+                                  strokeOpacity={0.6}
+                                  fill="#3b82f6"
+                                  fillOpacity={0.1}
+                                />
+                              </>
+                            );
+                          })()}
                       </ComposedChart>
                     </ResponsiveContainer>
                   )}
@@ -1538,6 +1795,7 @@ function Page({ params, searchParams }) {
           fetchMoreData={fetchMoreData}
           hasMore={hasMore}
           loading={analyticsLoading}
+          isPaginating={isPaginating}
           params={resolvedParams}
           searchParams={memoizedSearchParams}
           setSearchMessageId={setSearchMessageId}
