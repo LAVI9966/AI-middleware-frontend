@@ -258,7 +258,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
     setExpandedKeys(new Set());
   }, [selectedService, SERVICE_CONFIGS]);
 
-  const resetFormToDefault = () => {
+  const resetFormFieldsInPlace = () => {
     const defaultConfig = SERVICE_CONFIGS[config.service];
     if (!defaultConfig) {
       toast.error("Could not find default configuration to reset.");
@@ -269,6 +269,10 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
     setSelectedKeys(Object.keys(initialConfig.configuration.additional_parameters || {}));
     setExpandedKeys(new Set());
     setError({});
+  };
+
+  const resetFormToDefault = () => {
+    resetFormFieldsInPlace();
     closeModal(MODAL_TYPE?.ADD_NEW_MODEL_MODAL);
   };
 
@@ -678,7 +682,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
         data-testid="add-model-reset-button"
         id="add-model-reset-button"
         type="button"
-        onClick={resetFormToDefault}
+        onClick={resetFormFieldsInPlace}
         className="btn btn-sm btn-ghost text-xs"
         title="Reset form to default values"
       >
@@ -715,7 +719,10 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text">Service</span>
+                    <span className="label-text">
+                      Service
+                      <span className="text-lg opacity-0 ml-0.5">*</span>
+                    </span>
                   </label>
                   <select
                     data-testid="add-model-service-select"

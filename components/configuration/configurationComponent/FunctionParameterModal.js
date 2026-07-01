@@ -573,14 +573,30 @@ function FunctionParameterModal({
     };
   });
 
+  const prevFunctionIdRef = useRef(functionId);
+  const prevFunctionDetailsRef = useRef(function_details);
+
   useEffect(() => {
-    // Only reset toolName if user hasn't manually changed it
-    if (!isToolNameManuallyChanged) {
-      setToolName(
-        name === "Agent" || name === "orchestralAgent" || name === "Orchestral Agent" ? tool_name : toolData?.title
-      );
+    const idChanged = prevFunctionIdRef.current !== functionId;
+    const detailsLoaded = !prevFunctionDetailsRef.current && function_details;
+
+    if (idChanged || detailsLoaded) {
+      if (function_details) {
+        const thread_id = function_details?.thread_id ?? false;
+        if (name === "Agent" || name === "orchestralAgent" || name === "Orchestral Agent") {
+          const environment = function_details?.environment;
+          setToolData({ ...function_details, thread_id, environment });
+        } else {
+          const version_id = function_details?.version_id;
+          setToolData({ ...function_details, thread_id, version_id });
+        }
+      } else {
+        setToolData({});
+      }
     }
-  }, [toolData, tool_name, isToolNameManuallyChanged]);
+    prevFunctionIdRef.current = functionId;
+    prevFunctionDetailsRef.current = function_details;
+  }, [functionId, function_details, name]);
 
   const [isModified, setIsModified] = useState(false);
   const [objectFieldValue, setObjectFieldValue] = useState("");
@@ -592,26 +608,13 @@ function FunctionParameterModal({
   const threadIdChecked = Boolean(toolData?.thread_id ?? function_details?.thread_id ?? false);
 
   useEffect(() => {
-    if (!isEqual(toolData, function_details)) {
-      const thread_id = toolData?.thread_id ?? function_details?.thread_id ?? false;
-      if (name === "Agent" || name === "orchestralAgent" || name === "Orchestral Agent") {
-        const environment = function_details?.environment ?? toolData?.environment;
-        setToolData({ ...function_details, thread_id, environment });
-      } else {
-        const version_id = function_details?.version_id ?? toolData?.version_id;
-        setToolData({ ...function_details, thread_id, version_id });
-      }
-    }
-  }, [function_details, name]);
-
-  useEffect(() => {
     // Only reset toolName if user hasn't manually changed it
     if (!isToolNameManuallyChanged) {
       setToolName(
         name === "Agent" || name === "orchestralAgent" || name === "Orchestral Agent" ? tool_name : toolData?.title
       );
     }
-  }, [tool_name, isToolNameManuallyChanged]);
+  }, [toolData?.title, tool_name, isToolNameManuallyChanged, name]);
 
   // Only sync variablesPath when functionName changes (i.e., different function selected)
   // Don't sync when variables_path prop changes to avoid resetting user input
@@ -727,7 +730,8 @@ function FunctionParameterModal({
 
   const handleAddParameter = useCallback(() => {
     setToolData((prevToolData) => {
-      const fields = prevToolData.fields || {};
+      const data = prevToolData || {};
+      const fields = data.fields || {};
       let counter = 0;
       let newKey = `new${counter}`;
       while (fields[newKey]) {
@@ -744,7 +748,7 @@ function FunctionParameterModal({
       };
 
       return {
-        ...prevToolData,
+        ...data,
         fields: newFields,
       };
     });
@@ -754,7 +758,8 @@ function FunctionParameterModal({
   const handleAddChildParameter = useCallback(
     (parentPath) => {
       setToolData((prevToolData) => {
-        const updatedFields = updateField(prevToolData.fields, parentPath.split("."), (field) => {
+        const data = prevToolData || {};
+        const updatedFields = updateField(data.fields || {}, parentPath.split("."), (field) => {
           if (!field.properties) {
             field.properties = {};
           }
@@ -775,7 +780,7 @@ function FunctionParameterModal({
         });
 
         return {
-          ...prevToolData,
+          ...data,
           fields: updatedFields,
         };
       });
@@ -786,8 +791,9 @@ function FunctionParameterModal({
 
   const handleDeleteParameter = useCallback((path) => {
     setToolData((prevToolData) => {
+      const data = prevToolData || {};
       const keyParts = path.split(".");
-      const newFields = JSON.parse(JSON.stringify(prevToolData.fields));
+      const newFields = JSON.parse(JSON.stringify(data.fields || {}));
 
       if (keyParts.length === 1) {
         delete newFields[keyParts[0]];
@@ -806,7 +812,7 @@ function FunctionParameterModal({
       }
 
       return {
-        ...prevToolData,
+        ...data,
         fields: newFields,
       };
     });
@@ -828,19 +834,21 @@ function FunctionParameterModal({
       const keyParts = key.split(".");
       if (keyParts.length === 1) {
         setToolData((prevToolData) => {
-          const updatedRequiredParams = prevToolData.required || [];
+          const data = prevToolData || {};
+          const updatedRequiredParams = data.required || [];
           const newRequiredParams = updatedRequiredParams.includes(keyParts[0])
             ? updatedRequiredParams.filter((item) => item !== keyParts[0])
             : [...updatedRequiredParams, keyParts[0]];
 
           return {
-            ...prevToolData,
+            ...data,
             required: newRequiredParams,
           };
         });
       } else {
         setToolData((prevToolData) => {
-          const updatedFields = updateField(prevToolData.fields, keyParts.slice(0, -1), (field) => {
+          const data = prevToolData || {};
+          const updatedFields = updateField(data.fields || {}, keyParts.slice(0, -1), (field) => {
             if (!field) {
               console.warn(`Field not found for key: ${keyParts.slice(0, -1).join(".")}`);
               return {};
@@ -859,7 +867,7 @@ function FunctionParameterModal({
           });
 
           return {
-            ...prevToolData,
+            ...data,
             fields: updatedFields,
           };
         });
@@ -872,12 +880,13 @@ function FunctionParameterModal({
   const handleDescriptionChange = useCallback(
     (key, newDescription) => {
       setToolData((prevToolData) => {
-        const updatedFields = updateField(prevToolData.fields, key.split("."), (field) => ({
+        const data = prevToolData || {};
+        const updatedFields = updateField(data.fields || {}, key.split("."), (field) => ({
           ...field,
           description: newDescription,
         }));
         return {
-          ...prevToolData,
+          ...data,
           fields: updatedFields,
         };
       });
@@ -894,9 +903,10 @@ function FunctionParameterModal({
       const parentPath = keyParts.slice(0, -1);
 
       setToolData((prevToolData) => {
+        const data = prevToolData || {};
         // Handle top-level parameters (direct children of toolData.fields)
         if (parentPath.length === 0) {
-          const newFields = { ...prevToolData.fields };
+          const newFields = { ...(data.fields || {}) };
           const paramData = newFields[oldName];
 
           // Remove old key and add new key
@@ -904,21 +914,21 @@ function FunctionParameterModal({
           newFields[newName] = paramData;
 
           // Update required if the old name was required
-          let newRequiredParams = prevToolData.required || [];
+          let newRequiredParams = data.required || [];
           if (newRequiredParams.includes(oldName)) {
             newRequiredParams = newRequiredParams.filter((name) => name !== oldName);
             newRequiredParams.push(newName);
           }
 
           return {
-            ...prevToolData,
+            ...data,
             fields: newFields,
             required: newRequiredParams,
           };
         }
 
         // Handle nested parameters
-        const updatedFields = updateField(prevToolData.fields, parentPath, (parentField) => {
+        const updatedFields = updateField(data.fields || {}, parentPath, (parentField) => {
           if (!parentField.properties && !parentField.parameter && parentField.type !== "array") return parentField;
           const isArrayParent = parentField.type === "array";
           const actualContainer = isArrayParent ? parentField.items || {} : parentField;
@@ -945,7 +955,7 @@ function FunctionParameterModal({
         });
 
         return {
-          ...prevToolData,
+          ...data,
           fields: updatedFields,
         };
       });
@@ -1018,10 +1028,13 @@ function FunctionParameterModal({
         });
       }
 
-      setToolData((prevToolData) => ({
-        ...prevToolData,
-        fields: updatedField,
-      }));
+      setToolData((prevToolData) => {
+        const data = prevToolData || {};
+        return {
+          ...data,
+          fields: updatedField,
+        };
+      });
       setIsModified(true);
     },
     [toolData?.fields, updateField]
@@ -1033,12 +1046,13 @@ function FunctionParameterModal({
         // Handle null case (when unchecking the checkbox)
         if (newEnum === null) {
           setToolData((prevToolData) => {
-            const updatedFields = updateField(prevToolData.fields, key.split("."), (field) => {
+            const data = prevToolData || {};
+            const updatedFields = updateField(data.fields || {}, key.split("."), (field) => {
               const { enum: removedEnum, ...fieldWithoutEnum } = field;
               return fieldWithoutEnum;
             });
             return {
-              ...prevToolData,
+              ...data,
               fields: updatedFields,
             };
           });
@@ -1048,12 +1062,13 @@ function FunctionParameterModal({
 
         if (!newEnum || !newEnum.trim()) {
           setToolData((prevToolData) => {
-            const updatedFields = updateField(prevToolData.fields, key.split("."), (field) => ({
+            const data = prevToolData || {};
+            const updatedFields = updateField(data.fields || {}, key.split("."), (field) => ({
               ...field,
               enum: [],
             }));
             return {
-              ...prevToolData,
+              ...data,
               fields: updatedFields,
             };
           });
@@ -1074,12 +1089,13 @@ function FunctionParameterModal({
         }
 
         setToolData((prevToolData) => {
-          const updatedFields = updateField(prevToolData.fields, key.split("."), (field) => ({
+          const data = prevToolData || {};
+          const updatedFields = updateField(data.fields || {}, key.split("."), (field) => ({
             ...field,
             enum: parsedEnum.length === 0 ? [] : parsedEnum,
           }));
           return {
-            ...prevToolData,
+            ...data,
             fields: updatedFields,
           };
         });
@@ -1114,12 +1130,15 @@ function FunctionParameterModal({
           const normalizedFields = normalizeFieldTree(fields || {});
 
           // Update toolData with fields and description
-          setToolData((prevToolData) => ({
-            ...prevToolData,
-            ...(fields && { fields: normalizedFields }),
-            ...(description !== undefined && { description }),
-            ...rest, // Include any other properties from JSON
-          }));
+          setToolData((prevToolData) => {
+            const data = prevToolData || {};
+            return {
+              ...data,
+              ...(fields && { fields: normalizedFields }),
+              ...(description !== undefined && { description }),
+              ...rest, // Include any other properties from JSON
+            };
+          });
 
           // Update toolName if provided in JSON
           if (name && name !== toolName) {
@@ -1156,12 +1175,15 @@ function FunctionParameterModal({
         // New structure with name, description, and fields
         const { name, description, fields, ...rest } = updatedData;
 
-        setToolData((prevToolData) => ({
-          ...prevToolData,
-          ...(fields && { fields }),
-          ...(description !== undefined && { description }),
-          ...rest,
-        }));
+        setToolData((prevToolData) => {
+          const data = prevToolData || {};
+          return {
+            ...data,
+            ...(fields && { fields }),
+            ...(description !== undefined && { description }),
+            ...rest,
+          };
+        });
 
         // Update toolName if provided in JSON
         if (name && name !== toolName) {
@@ -1171,10 +1193,13 @@ function FunctionParameterModal({
         }
       } else {
         // Old structure - treat the entire JSON as fields
-        setToolData((prevToolData) => ({
-          ...prevToolData,
-          fields: normalizeFieldTree(updatedData),
-        }));
+        setToolData((prevToolData) => {
+          const data = prevToolData || {};
+          return {
+            ...data,
+            fields: normalizeFieldTree(updatedData),
+          };
+        });
       }
     } catch (error) {
       toast.error("Invalid JSON format. Please correct the data.");
@@ -1245,11 +1270,14 @@ function FunctionParameterModal({
             })
           );
 
-          setToolData((prev) => ({
-            ...prev,
-            description: flowResponse.metadata.description,
-            title: flowResponse.title,
-          }));
+          setToolData((prev) => {
+            const data = prev || {};
+            return {
+              ...data,
+              description: flowResponse.metadata.description,
+              title: flowResponse.title,
+            };
+          });
           toast.success("Description updated successfully");
           setIsDescriptionEditing(false);
           return true;
