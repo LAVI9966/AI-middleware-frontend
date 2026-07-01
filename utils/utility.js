@@ -714,7 +714,7 @@ export function generateRandomID(length = 10) {
   return result;
 }
 
-export const RequiredItem = () => <span className="text-error text-lg">*</span>;
+export const RequiredItem = () => <span className="text-red-500 text-lg ml-0.5">*</span>;
 
 export const sendDataToParent = (status, data, message) => {
   if (window.parent) {

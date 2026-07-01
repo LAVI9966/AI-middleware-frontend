@@ -3,7 +3,7 @@ import { useCustomSelector } from "@/customHooks/customSelector";
 import { updateOrgTimeZone } from "@/store/action/orgAction";
 import timezoneData from "@/utils/timezoneData";
 import { PencilIcon, GlobeIcon, MailIcon, BuildingIcon } from "@/components/Icons";
-import React, { useMemo, useState, useCallback, use } from "react";
+import React, { useMemo, useState, useCallback, use, useEffect } from "react";
 import { useDispatch } from "react-redux";
 
 export const runtime = "edge";
@@ -18,6 +18,15 @@ export default function SettingsPage({ params }) {
   const [selectedTimezone, setSelectedTimezone] = useState(() =>
     timezoneData.find((tz) => tz.identifier === userDetails?.meta?.identifier)
   );
+
+  useEffect(() => {
+    if (userDetails?.meta?.identifier) {
+      const found = timezoneData.find((tz) => tz.identifier === userDetails.meta.identifier);
+      if (found) {
+        setSelectedTimezone(found);
+      }
+    }
+  }, [userDetails]);
 
   const filteredTimezones = useMemo(() => {
     return timezoneData.filter((timezone) => timezone.identifier.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -93,7 +102,7 @@ export default function SettingsPage({ params }) {
                 <PencilIcon size={14} className="text-primary" />
               </div>
               <p className="mt-1">
-                {selectedTimezone?.identifier} ({selectedTimezone?.offSet})
+                {selectedTimezone ? `${selectedTimezone.identifier} (${selectedTimezone.offSet})` : "Select Timezone"}
               </p>
             </div>
           </div>
@@ -124,12 +133,13 @@ export default function SettingsPage({ params }) {
                 ))}
               </div>
               <div className="flex justify-end gap-2 mt-3">
-                <button className="px-3 py-1.5 text-sm rounded bg-base-100 hover:bg-base-200" onClick={handleCancel}>
+                <button className="btn btn-sm" onClick={handleCancel}>
                   Cancel
                 </button>
                 <button
-                  className="px-3 py-1.5 text-sm rounded bg-primary text-base-content hover:bg-primary-dark"
+                  className="btn btn-primary btn-sm"
                   onClick={handleSave}
+                  disabled={!selectedTimezone || selectedTimezone?.identifier === userDetails?.meta?.identifier}
                 >
                   Save
                 </button>

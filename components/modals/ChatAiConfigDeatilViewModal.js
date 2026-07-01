@@ -53,7 +53,7 @@ const renderFlattenedMessage = (message) => {
 // JsonSection — one collapsible code block
 // ---------------------------------------------------------------------------
 
-function JsonSection({ label, data, count }) {
+function JsonSection({ label, data, count, fullHeight = false }) {
   const jsonString = useMemo(() => JSON.stringify(data, null, 2), [data]);
   const [copied, setCopied] = useState(false);
 
@@ -87,7 +87,10 @@ function JsonSection({ label, data, count }) {
           {copied ? "Copied!" : "Copy"}
         </button>
       </div>
-      <div className="max-h-64 overflow-auto" style={{ background: "var(--ai-config-section-bg)" }}>
+      <div
+        className={`${fullHeight ? "h-auto" : "max-h-64"} overflow-auto`}
+        style={{ background: "var(--ai-config-section-bg)" }}
+      >
         <CodeBlock plain className="language-json">
           {jsonString}
         </CodeBlock>
@@ -168,7 +171,7 @@ const ChatAiConfigDeatilViewModal = ({ modalContent, modalTitle }) => {
         icon={<SlidersHorizontal size={16} className="text-trace-gold" />}
         widthClass="w-[min(720px,92vw)]"
       >
-        <JsonSection label="Latency" data={modalContent} />
+        <JsonSection label="Latency" data={modalContent} fullHeight={true} />
       </Modal>
     );
   }

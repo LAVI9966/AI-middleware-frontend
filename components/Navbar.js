@@ -33,6 +33,7 @@ import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import BridgeVersionDropdown from "./configuration/configurationComponent/BridgeVersionDropdown";
 const VariableCollectionSlider = dynamic(() => import("./sliders/VariableCollectionSlider"), { ssr: false });
 import AccessManagementModal from "./modals/AccessManagementModal";
+import AgentUsageLimitModal from "./modals/AgentUsageLimitModal";
 import AgentActionMenu from "@/components/agents/AgentActionMenu";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
 const MakePublicAgentModal = dynamic(() => import("./modals/MakePublicAgentModal"), { ssr: false });
@@ -1000,6 +1001,7 @@ const Navbar = ({ isEmbedUser, params }) => {
       />
 
       <AccessManagementModal agent={selectedAgentForAccess} />
+      <AgentUsageLimitModal agent={selectedAgentForAccess} isEmbedUser={isEmbedUser} />
 
       <MakePublicAgentModal
         bridgeId={bridgeId}

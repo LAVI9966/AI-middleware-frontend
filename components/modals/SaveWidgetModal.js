@@ -2,7 +2,7 @@
 import React from "react";
 import Modal from "@/components/UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
-import { closeModal } from "@/utils/utility";
+import { closeModal, RequiredItem } from "@/utils/utility";
 import { Save } from "lucide-react";
 
 const SaveWidgetModal = ({ widgetName, widgetDescription, onNameChange, onDescriptionChange, onSave, onCancel }) => {
@@ -44,7 +44,9 @@ const SaveWidgetModal = ({ widgetName, widgetDescription, onNameChange, onDescri
       <div data-testid="save-widget-modal" className="flex flex-col gap-4">
         <div className="form-control">
           <label className="label">
-            <span className="label-text">Widget Name *</span>
+            <span className="label-text">
+              Widget Name <RequiredItem />
+            </span>
           </label>
           <input
             autoComplete="off"

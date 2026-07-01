@@ -1,6 +1,6 @@
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { genrateSummaryAction, updateBridgeAction } from "@/store/action/bridgeAction";
-import { closeModal } from "@/utils/utility";
+import { closeModal, RequiredItem } from "@/utils/utility";
 import React, { useCallback, useEffect, useRef, useState, useMemo, memo } from "react";
 import { useDispatch } from "react-redux";
 import Modal from "../UI/Modal";
@@ -235,7 +235,7 @@ export const AgentSummaryContent = memo(
             {showTitle && (
               <h3 className="font-bold text-lg flex items-center gap-2">
                 Agent Summary
-                {isMandatory && <span className="text-red-500">*</span>}
+                {isMandatory && <RequiredItem />}
               </h3>
             )}
             {showButtons && (

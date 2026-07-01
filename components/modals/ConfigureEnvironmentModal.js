@@ -122,7 +122,7 @@ const ConfigureEnvironmentModal = ({ bridgeId, bridgeData }) => {
       title="Configure Environment"
       description="Map environments to specific agent versions for different deployment scenarios."
       icon={<SlidersHorizontal size={16} className="text-trace-gold" />}
-      widthClass="w-[min(60rem,92vw)]"
+      widthClass="w-[min(560px,92vw)]"
     >
       <div className="flex flex-col">
         {!bridgeId && (

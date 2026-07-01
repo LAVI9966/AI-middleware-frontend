@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import LoadingSpinner from "./LoadingSpinner";
 import { MODAL_TYPE } from "@/utils/enums";
-import { closeModal } from "@/utils/utility";
+import { closeModal, RequiredItem } from "@/utils/utility";
 import timezoneData from "@/utils/timezoneData";
 import { ChevronDown, Globe } from "lucide-react";
 import Modal from "@/components/UI/Modal";
@@ -134,7 +134,9 @@ const CreateOrg = ({ handleSwitchOrg }) => {
           }}
         >
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-base-content/80">Workspace Name *</label>
+            <label className="text-xs font-semibold text-base-content/80">
+              Workspace Name <RequiredItem />
+            </label>
             <input
               autoComplete="off"
               data-testid="create-org-name-input"
@@ -166,7 +168,9 @@ const CreateOrg = ({ handleSwitchOrg }) => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-base-content/80">Timezone *</label>
+            <label className="text-xs font-semibold text-base-content/80">
+              Timezone <RequiredItem />
+            </label>
             <div className={`relative w-full ${showTimezoneDropdown ? "mb-64" : ""}`}>
               <div
                 data-testid="create-org-timezone-trigger"

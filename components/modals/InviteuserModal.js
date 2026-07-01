@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import Modal from "../UI/Modal";
 import { getInvitedUsers, inviteUser } from "@/config/index";
 import { toast } from "react-toastify";
-import { closeModal } from "@/utils/utility";
+import { closeModal, RequiredItem } from "@/utils/utility";
 import { Mail, UserPlus } from "lucide-react";
 
 const InviteUserModal = () => {
@@ -70,7 +70,7 @@ const InviteUserModal = () => {
         <div className="form-control w-full">
           <label className="label">
             <span className="label-text font-medium">
-              Email Address <span className="text-error">*</span>
+              Email Address <RequiredItem />
             </span>
           </label>
           <div className="relative">

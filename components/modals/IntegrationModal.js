@@ -1,6 +1,6 @@
 import { createIntegrationAction } from "@/store/action/integrationAction";
 import { MODAL_TYPE } from "@/utils/enums";
-import { closeModal, RequiredItem } from "@/utils/utility";
+import { closeModal } from "@/utils/utility";
 import React from "react";
 import { useDispatch } from "react-redux";
 import Modal from "@/components/UI/Modal";
@@ -71,7 +71,6 @@ const IntegrationModal = ({ params, type = "embed" }) => {
     >
       <div id="integration-modal-container" className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="label-text text-sm font-medium">Embed Name{RequiredItem()}</label>
           <input
             autoComplete="off"
             data-testid="integration-name-input"

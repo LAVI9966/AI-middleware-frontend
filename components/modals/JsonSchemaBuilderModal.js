@@ -1,6 +1,6 @@
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 import { buildJsonSchemaResponseType } from "@/utils/defaultJsonSchemas";
-import { closeModal, trimPropertyNames } from "@/utils/utility";
+import { closeModal, trimPropertyNames, RequiredItem } from "@/utils/utility";
 import { MODAL_TYPE, ON_CLICK_ACTION_TYPES, PARAMETER_TYPES } from "@/utils/enums";
 import { TrashIcon, ChevronDownIcon, ChevronRightIcon } from "@/components/Icons";
 import React, { useEffect, useState, useCallback, useRef } from "react";
@@ -1041,7 +1041,7 @@ function JsonSchemaBuilderModal({
             {!hideName && (
               <div className=" m-1 mb-4 ">
                 <label className="block text-sm font-semibold mb-2">
-                  Schema Name <span className="text-error">*</span>
+                  Schema Name <RequiredItem />
                 </label>
                 <input
                   autoComplete="off"

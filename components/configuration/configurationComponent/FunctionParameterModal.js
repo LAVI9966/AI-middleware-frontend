@@ -2,7 +2,7 @@ import { optimizeJsonApi, updateFlow } from "@/config/index";
 import { updateFuntionApiAction } from "@/store/action/bridgeAction";
 import { closeModal } from "@/utils/utility";
 import { isEqual } from "lodash";
-import { CopyIcon, InfoIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon } from "@/components/Icons";
+import { CopyIcon, TrashIcon, ChevronDownIcon, ChevronRightIcon } from "@/components/Icons";
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
@@ -1350,17 +1350,6 @@ function FunctionParameterModal({
         data-testid="function-parameter-modal"
         className="flex flex-col gap-4 text-xs h-full"
       >
-        {/* Info/Warning alert if applicable */}
-        {(name === "Tool" || name === "Pre Tool" || name === "Post Tool") && (
-          <div className="alert alert-info py-2 px-3 text-[11px] rounded-lg flex items-center gap-2 bg-info/10 text-info border-info/20">
-            <InfoIcon id="function-param-info-icon" size={14} className="shrink-0" />
-            <span id="function-param-info-text">
-              Function used in {(connectedAgents || function_details?.bridge_ids || [])?.length} versions, changes may
-              affect all versions.
-            </span>
-          </div>
-        )}
-
         <div className="flex items-center justify-between gap-3 border-b border-base-content/10 pb-3">
           <p className="text-xs text-base-content/60 leading-relaxed max-w-[70%]">
             Parameters define the inputs passed to this tool. Toggle <strong>Fill with AI</strong> to let AI generate
@@ -1395,9 +1384,9 @@ function FunctionParameterModal({
           </div>
         </div>
 
-        <div className="flex flex-row mb-1">
-          <div id="function-param-options-wrapper" className="flex gap-2">
-            {(name === "Agent" || (name === "orchestralAgent" && isMasterAgent)) && (
+        {(name === "Agent" || (name === "orchestralAgent" && isMasterAgent)) && (
+          <div className="flex flex-row mb-1">
+            <div id="function-param-options-wrapper" className="flex gap-2">
               <div className="flex items-center justify-between gap-1 mr-12 text-xs">
                 <div className="flex items-center gap-2">
                   <label className="label p-0 flex items-center gap-1">
@@ -1469,32 +1458,32 @@ function FunctionParameterModal({
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div id="function-param-toggle-row" className="flex justify-between items-center mb-1">
-          <div>
-            {toolData?.old_fields && isTextareaVisible && (
-              <div className="flex items-center text-sm gap-3">
-                <p>Check for old data</p>
-                <input
-                  autoComplete="off"
-                  id="function-param-old-data-checkbox"
-                  disabled={isReadOnly}
-                  type="checkbox"
-                  className="toggle toggle-sm"
-                  checked={isOldFieldViewTrue}
-                  onChange={() => {
-                    setIsOldFieldViewTrue((prev) => !prev);
-                  }}
-                  title="Toggle to edit object parameter"
-                />
-              </div>
-            )}
-          </div>
-          <div className="flex justify-between">
-            {isTextareaVisible && (
+        {isTextareaVisible && (
+          <div id="function-param-toggle-row" className="flex justify-between items-center mb-1">
+            <div>
+              {toolData?.old_fields && (
+                <div className="flex items-center text-sm gap-3">
+                  <p>Check for old data</p>
+                  <input
+                    autoComplete="off"
+                    id="function-param-old-data-checkbox"
+                    disabled={isReadOnly}
+                    type="checkbox"
+                    className="toggle toggle-sm"
+                    checked={isOldFieldViewTrue}
+                    onChange={() => {
+                      setIsOldFieldViewTrue((prev) => !prev);
+                    }}
+                    title="Toggle to edit object parameter"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex justify-between">
               <p
                 id="function-param-optimize-button"
                 className="cursor-pointer label-text capitalize font-medium bg-gradient-to-r from-blue-800 to-orange-600 text-transparent bg-clip-text text-[11px]"
@@ -1502,9 +1491,9 @@ function FunctionParameterModal({
               >
                 Optimize Json Format
               </p>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content Area - Scrollable center section */}
         <div className={`flex-1 ${isTextareaVisible ? "overflow-hidden" : " overflow-x-hidden overflow-y-auto"}`}>

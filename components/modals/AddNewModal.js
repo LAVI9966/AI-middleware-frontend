@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
-import { closeModal } from "@/utils/utility";
+import { closeModal, RequiredItem } from "@/utils/utility";
 import { addNewModelAction, getModelAction } from "@/store/action/modelAction";
 import { useDispatch } from "react-redux";
 import { useParams, useSearchParams } from "next/navigation";
@@ -737,7 +737,8 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                 <div className="form-control">
                   <label className="label">
                     <span className="label-text">
-                      Model Name<span className="text-error">*</span>
+                      Model Name
+                      <RequiredItem />
                     </span>
                   </label>
                   <input
@@ -769,7 +770,7 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                 <div className="form-control">
                   <label className="label">
                     <span className="label-text">
-                      Display Name <span className="text-error">*</span>
+                      Display Name <RequiredItem />
                     </span>
                   </label>
                   <input
@@ -857,7 +858,8 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control">
                         <label className="label">
                           <span className="label-text">
-                            Input Cost / Mtok<span className="text-error">*</span>
+                            Input Cost / Mtok
+                            <RequiredItem />
                           </span>
                         </label>
                         <input
@@ -881,7 +883,8 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                       <div className="form-control">
                         <label className="label">
                           <span className="label-text">
-                            Output Cost / Mtok<span className="text-error">*</span>
+                            Output Cost / Mtok
+                            <RequiredItem />
                           </span>
                         </label>
                         <input
@@ -908,7 +911,8 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                     <div className="form-control">
                       <label className="label">
                         <span className="label-text">
-                          Description<span className="text-error">*</span>
+                          Description
+                          <RequiredItem />
                         </span>
                       </label>
                       <textarea
@@ -924,7 +928,8 @@ export default function AddNewModelModal({ disableServiceChange = false }) {
                     <div className="form-control">
                       <label className="label">
                         <span className="label-text">
-                          Knowledge Cutoff<span className="text-error">*</span>
+                          Knowledge Cutoff
+                          <RequiredItem />
                         </span>
                       </label>
                       <input
