@@ -53,6 +53,31 @@ import { mdComponentsDark, mdRemarkPlugins, mdProseClass } from "@/utils/markdow
 
 const mdComponents = mdComponentsDark;
 
+const isRichUiMessage = (message) => {
+  if (!message || !message.content) return false;
+  if (message.type === "richui_json" || message.type === "template") return true;
+
+  let content = message.content;
+  if (typeof content === "string") {
+    const trimmed = content.trim();
+    if (
+      trimmed.startsWith("{") &&
+      trimmed.includes('"type"') &&
+      (trimmed.includes('"Card"') || trimmed.includes('"Title"') || trimmed.includes('"children"'))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parsed && (parsed.type === "Card" || parsed.type === "template" || Array.isArray(parsed.children));
+      } catch {
+        return false;
+      }
+    }
+  } else if (typeof content === "object") {
+    return content.type === "Card" || content.type === "template" || Array.isArray(content.children);
+  }
+  return false;
+};
+
 const ChatImage = ({ src, alt, onClick }) => {
   const [isLoading, setIsLoading] = useState(true);
 
@@ -1197,7 +1222,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                     : message.sender === "error"
                                       ? "rounded-xl w-full overflow-hidden bg-error/10 border border-error/30 text-error px-4 py-3 text-sm"
                                       : "chat-bubble w-fit max-w-full text-sm text-neutral-content break-words whitespace-pre-wrap"
-                                } ${message?.type === "template" || message?.type === "richui_json" ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
+                                } ${isRichUiMessage(message) ? "!bg-transparent !shadow-none !p-0 !border-0" : ""}`}
                               >
                                 {/* Show loader overlay if this is the message being tested and no result yet */}
                                 {isRunningTestCase &&
@@ -1324,7 +1349,7 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                         /* Regular message with markdown */
                                         <div className={message.sender === "assistant" ? mdProseClass.dark : undefined}>
                                           <ReactMarkdown components={mdComponents} remarkPlugins={mdRemarkPlugins}>
-                                            {message.type !== "template" && message.type !== "richui_json"
+                                            {!isRichUiMessage(message)
                                               ? (() => {
                                                   const raw =
                                                     message.testCaseResult && message.sender === "assistant"
@@ -1341,43 +1366,50 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                         </div>
                                       )}
 
-                                      {(message?.type === "richui_json" || message?.type === "template") &&
-                                        message?.content && (
-                                          <div className="mt-4 richui-container w-full">
-                                            {(() => {
-                                              return (
-                                                <RenderNode
-                                                  node={message.content}
-                                                  onAction={(action) => {
-                                                    if (action?.type === "reply" && action?.text) {
-                                                      if (handleSendMessageRef.current && inputRef.current) {
-                                                        // Set the input field value and triggers send
-                                                        inputRef.current.value = action.text;
-                                                        setTimeout(() => {
-                                                          handleSendMessageRef.current(null, true);
-                                                        }, 50);
-                                                        // Clear the input field after sending
-                                                        setTimeout(() => {
-                                                          if (inputRef.current) {
-                                                            inputRef.current.value = "";
-                                                          }
-                                                        }, 200);
-                                                      } else {
-                                                        console.warn(
-                                                          "[Chat] handleSendMessageRef or inputRef is missing",
-                                                          {
-                                                            handleSendMessageRef: handleSendMessageRef.current,
-                                                            inputRef: inputRef.current,
-                                                          }
-                                                        );
-                                                      }
+                                      {isRichUiMessage(message) && message?.content && (
+                                        <div className="mt-4 richui-container w-full">
+                                          {(() => {
+                                            let parsedContent = message.content;
+                                            if (typeof message.content === "string") {
+                                              try {
+                                                parsedContent = JSON.parse(message.content);
+                                              } catch (e) {
+                                                console.error("Failed to parse richui_json content", e);
+                                              }
+                                            }
+                                            return (
+                                              <RenderNode
+                                                node={parsedContent}
+                                                onAction={(action) => {
+                                                  if (action?.type === "reply" && action?.text) {
+                                                    if (handleSendMessageRef.current && inputRef.current) {
+                                                      // Set the input field value and triggers send
+                                                      inputRef.current.value = action.text;
+                                                      setTimeout(() => {
+                                                        handleSendMessageRef.current(null, true);
+                                                      }, 50);
+                                                      // Clear the input field after sending
+                                                      setTimeout(() => {
+                                                        if (inputRef.current) {
+                                                          inputRef.current.value = "";
+                                                        }
+                                                      }, 200);
+                                                    } else {
+                                                      console.warn(
+                                                        "[Chat] handleSendMessageRef or inputRef is missing",
+                                                        {
+                                                          handleSendMessageRef: handleSendMessageRef.current,
+                                                          inputRef: inputRef.current,
+                                                        }
+                                                      );
                                                     }
-                                                  }}
-                                                />
-                                              );
-                                            })()}
-                                          </div>
-                                        )}
+                                                  }
+                                                }}
+                                              />
+                                            );
+                                          })()}
+                                        </div>
+                                      )}
 
                                       {/* Render message attachments (images, etc.) */}
                                       {_renderMessageAttachments(message)}
@@ -1480,19 +1512,17 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                                 </div>
 
                                 <div className="flex items-center gap-1.5 see-on-hover ml-auto">
-                                  {message?.type !== "richui_json" &&
-                                    message?.type !== "template" &&
-                                    !(message?.llm_urls?.length > 0) && (
-                                      <button
-                                        data-testid={`playground-ai-response-pencil-button-${message.id}`}
-                                        id={`chat-edit-message-button-${message.id}`}
-                                        onClick={() => handleEditMessage(message.id, message.content)}
-                                        className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
-                                        title="Edit message"
-                                      >
-                                        <Edit2 className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
+                                  {!isRichUiMessage(message) && !(message?.llm_urls?.length > 0) && (
+                                    <button
+                                      data-testid={`playground-ai-response-pencil-button-${message.id}`}
+                                      id={`chat-edit-message-button-${message.id}`}
+                                      onClick={() => handleEditMessage(message.id, message.content)}
+                                      className="btn btn-xs btn-ghost text-base-content/50 hover:text-base-content hover:bg-base-300/50 h-7 w-7 p-0 min-h-0 rounded-md transition-colors flex items-center justify-center"
+                                      title="Edit message"
+                                    >
+                                      <Edit2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
                                   {!(message?.llm_urls?.length > 0) && (
                                     <button
                                       data-testid={`playground-ai-response-copy-button-${message.id}`}
