@@ -139,11 +139,19 @@ export const CONFIG_HISTORY_FEATURE_OPTIONS = [
   { value: "service", label: "Service" },
   { value: "model", label: "Model" },
   { value: "fall_back", label: "Fallback" },
+  { value: "tone", label: "Tone" },
+  { value: "responseStyle", label: "Response Style" },
+  { value: "reviewer_agent", label: "Reviewer Agent" },
   { value: "IsstarterQuestionEnable", label: "Starter Questions" },
   { value: "functionData", label: "Functions" },
+  { value: "pre_tools", label: "Pre Tools" },
   { value: "bridge_summary", label: "Bridge Summary" },
   { value: "agents", label: "Connected Agents" },
   { value: "apikey_object_id", label: "API Keys" },
+  { value: "response_type", label: "Response Type" },
+  { value: "agent_info", label: "Agent Info" },
+  { value: "settings", label: "Settings" },
+  { value: "Version published", label: "Version Published" },
 ];
 
 export const CONFIG_HISTORY_HIDDEN_TYPES = ["system_prompt_version_id", "variables_state"];
