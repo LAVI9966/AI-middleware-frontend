@@ -10,15 +10,16 @@ import useTutorialVideos from "@/hooks/useTutorialVideos";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { createNewAuthData, deleteAuthData } from "@/store/action/authkeyAction";
 import { MODAL_TYPE, PAUTH_KEY_COLUMNS } from "@/utils/enums";
-import { closeModal, formatDate, formatRelativeTime, openModal, RequiredItem } from "@/utils/utility";
+import { closeModal, formatDate, formatRelativeTime, openModal } from "@/utils/utility";
 import { CopyIcon, TrashIcon } from "@/components/Icons";
 import React, { useEffect, useState, use } from "react";
 import { useDispatch } from "react-redux";
 import { toast } from "react-toastify";
 import DeleteModal from "@/components/UI/DeleteModal";
+import Modal from "@/components/UI/Modal";
 import SearchItems from "@/components/UI/SearchItems";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
-import { Lock } from "lucide-react";
+import { Lock, Key } from "lucide-react";
 export const runtime = "edge";
 
 function Page({ params }) {
@@ -46,6 +47,12 @@ function Page({ params }) {
     showTutorial: false,
     showSuggestion: isFirstPauthCreation,
   });
+
+  const handleClosePauthKeyModal = () => {
+    closeModal(MODAL_TYPE.PAUTH_KEY_MODAL);
+    const input = document.getElementById("authNameInput");
+    if (input) input.value = "";
+  };
 
   useEffect(() => {
     setFilterPauthKeys(authData);
@@ -223,15 +230,33 @@ function Page({ params }) {
           </div>
         )}
       </div>
-      <dialog id={MODAL_TYPE.PAUTH_KEY_MODAL} className="modal modal-bottom sm:modal-middle">
-        <div className="modal-box">
-          <h3 className="font-bold text-lg mb-2">Create New Auth Key</h3>
-          <label className="input input-sm input-bordered flex items-center gap-2">
-            <span>Name{RequiredItem()} :</span>
+      <Modal
+        MODAL_ID={MODAL_TYPE.PAUTH_KEY_MODAL}
+        onClose={handleClosePauthKeyModal}
+        title="Create New Auth Key"
+        description="A unique key used to validate API requests securely"
+        icon={<Key size={16} className="text-trace-gold" />}
+        widthClass="w-[min(480px,92vw)]"
+        footer={
+          <div className="flex gap-2">
+            <button className="btn btn-ghost btn-sm" onClick={handleClosePauthKeyModal}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={(e) => createAuthKeyHandler(e, document.getElementById("authNameInput").value)}
+            >
+              Create
+            </button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="form-control">
             <input
               autoComplete="off"
               type="text"
-              className="grow input input-sm border-none"
+              className="input input-bordered w-full input-sm h-9 px-3 text-sm focus-visible:ring-[3px] border-base-content/20"
               id="authNameInput"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -247,22 +272,9 @@ function Page({ params }) {
               required
               maxLength={25}
             />
-          </label>
-          <div className="modal-action">
-            <form method="dialog">
-              <div className="flex gap-2">
-                <button className="btn btn-sm">Cancel</button>
-              </div>
-            </form>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={(e) => createAuthKeyHandler(e, document.getElementById("authNameInput").value)}
-            >
-              + Create
-            </button>
           </div>
         </div>
-      </dialog>
+      </Modal>
 
       <DeleteModal
         onConfirm={DeleteAuth}

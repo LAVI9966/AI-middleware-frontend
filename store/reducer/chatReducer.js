@@ -246,7 +246,7 @@ export const chatReducer = createSlice({
 
     // RT Layer: Update streaming message
     updateRtLayerMessage: (state, action) => {
-      const { channelId, messageId, content, isComplete, llmUrls } = action.payload;
+      const { channelId, messageId, content, isComplete, llmUrls, usage, latency } = action.payload;
 
       if (state.messagesByChannel[channelId]) {
         const messageIndex = state.messagesByChannel[channelId].findIndex((msg) => msg.id === messageId);
@@ -257,6 +257,8 @@ export const chatReducer = createSlice({
             isLoading: !isComplete,
             isStreaming: !isComplete,
             ...(llmUrls && llmUrls.length > 0 ? { llm_urls: llmUrls } : {}),
+            ...(usage ? { usage } : {}),
+            ...(latency ? { latency } : {}),
           };
         }
       }
@@ -410,6 +412,26 @@ export const chatReducer = createSlice({
       delete state.threadIdByChannel[channelId];
       delete state.testCaseConversationByChannel[channelId];
     },
+
+    // Set fallback data for a message
+    setFallbackData: (state, action) => {
+      const { channelId, messageId, fallbackData } = action.payload;
+      if (state.messagesByChannel[channelId]) {
+        let messageIndex = -1;
+        if (messageId) {
+          messageIndex = state.messagesByChannel[channelId].findIndex((msg) => msg.id === messageId);
+        }
+        if (messageIndex === -1) {
+          messageIndex = state.messagesByChannel[channelId].findLastIndex((msg) => msg.sender === "assistant");
+        }
+        if (messageIndex !== -1) {
+          state.messagesByChannel[channelId][messageIndex] = {
+            ...state.messagesByChannel[channelId][messageIndex],
+            ...fallbackData,
+          };
+        }
+      }
+    },
   },
 });
 
@@ -440,6 +462,7 @@ export const {
   setReviewData,
   appendReviewDelta,
   setReviewError,
+  setFallbackData,
 } = chatReducer.actions;
 
 export default chatReducer.reducer;

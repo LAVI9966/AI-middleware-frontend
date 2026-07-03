@@ -1,7 +1,6 @@
 "use client";
 import React from "react";
 import Modal from "./Modal";
-import { X } from "lucide-react";
 
 /**
  * A reusable confirmation modal component that displays above all other UI elements
@@ -36,50 +35,40 @@ const ConfirmationModal = ({
   const handleCancel = onCancel;
   const handleClose = onClose || onCancel;
 
-  return (
-    <Modal MODAL_ID={modalType} onClose={handleClose}>
-      <div className="modal-backdrop" onClick={handleClose} />
-      <div
-        data-testid="confirmation-modal-container"
-        id="confirmation-modal-container"
-        className="modal-box bg-base-100 rounded-lg shadow-xl max-w-md w-full relative animate-fadeIn"
-        onClick={(e) => e.stopPropagation()}
+  const footer = (
+    <div className="flex justify-end gap-2">
+      <button
+        data-testid="confirmation-modal-cancel-button"
+        id="confirmation-modal-cancel-button"
+        className={`btn btn-sm ${cancelButtonClass}`}
+        onClick={handleCancel}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            {icon && <div className={`p-2 rounded-full ${iconClass}`}>{icon}</div>}
-            <h3 className="font-semibold text-lg">{title}</h3>
-          </div>
-          <button className="btn btn-ghost btn-xs btn-circle" onClick={handleClose}>
-            <X size={16} />
-          </button>
-        </div>
+        {cancelText}
+      </button>
 
-        {/* Message/Content */}
-        <div className="text-base-content mb-6">{typeof message === "string" ? <p>{message}</p> : message}</div>
+      <button
+        data-testid="confirmation-modal-confirm-button"
+        id="confirmation-modal-confirm-button"
+        className={`btn btn-sm ${confirmButtonClass}`}
+        onClick={onConfirm}
+      >
+        {confirmText}
+      </button>
+    </div>
+  );
 
-        {/* Actions */}
-        <div className="modal-action flex justify-end gap-2">
-          <button
-            data-testid="confirmation-modal-cancel-button"
-            id="confirmation-modal-cancel-button"
-            className={`btn btn-sm ${cancelButtonClass}`}
-            onClick={handleCancel}
-          >
-            {cancelText}
-          </button>
+  const modalIcon = icon ? <div className={`p-2 rounded-full ${iconClass}`}>{icon}</div> : null;
 
-          <button
-            data-testid="confirmation-modal-confirm-button"
-            id="confirmation-modal-confirm-button"
-            className={`btn btn-sm ${confirmButtonClass}`}
-            onClick={onConfirm}
-          >
-            {confirmText}
-          </button>
-        </div>
-      </div>
+  return (
+    <Modal
+      MODAL_ID={modalType}
+      onClose={handleClose}
+      title={title}
+      icon={modalIcon}
+      footer={footer}
+      widthClass="w-[min(448px,92vw)]"
+    >
+      <div className="text-base-content">{typeof message === "string" ? <p>{message}</p> : message}</div>
     </Modal>
   );
 };

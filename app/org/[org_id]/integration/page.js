@@ -12,6 +12,7 @@ import IntegrationModal from "@/components/modals/IntegrationModal";
 import SearchItems from "@/components/UI/SearchItems";
 import { EllipsisIcon, RefreshIcon } from "@/components/Icons";
 import { ClockFading, Pencil } from "lucide-react";
+import Modal from "@/components/UI/Modal";
 import UsageLimitModal from "@/components/modals/UsageLimitModal";
 import { updateIntegrationDataAction } from "@/store/action/integrationAction";
 import { toast } from "react-toastify";
@@ -34,7 +35,28 @@ const Page = ({ params }) => {
   const [filterIntegration, setFilterIntegration] = useState([]); // Search-filtered integrations
   const [selectedIntegrationForLimit, setSelectedIntegrationForLimit] = useState(null);
   const [renameIntegration, setRenameIntegration] = useState(null);
-  const renameInputRef = React.useRef("");
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [currentName, setCurrentName] = useState("");
+
+  const handleOpenRenameModal = (row) => {
+    setRenameIntegration(row);
+    setCurrentName(row?.originalName || "");
+    setTimeout(() => {
+      const dialog = document.getElementById("RENAME_EMBED_MODAL");
+      if (dialog && typeof dialog.showModal === "function") {
+        dialog.showModal();
+      }
+    }, 50);
+  };
+
+  const handleCloseRenameModal = () => {
+    const dialog = document.getElementById("RENAME_EMBED_MODAL");
+    if (dialog && typeof dialog.close === "function") {
+      dialog.close();
+    }
+    setRenameIntegration(null);
+    setCurrentName("");
+  };
 
   // Use portal dropdown hook
   const { handlePortalOpen, handlePortalCloseImmediate, PortalDropdown, PortalStyles } = usePortalDropdown();
@@ -102,17 +124,25 @@ const Page = ({ params }) => {
   };
 
   const handleRenameIntegration = async () => {
-    const newName = renameInputRef.current?.value?.trim();
+    const newName = currentName.trim();
     if (!newName) {
       toast.error("Name cannot be empty");
       return;
     }
-    const dataToSend = { ...renameIntegration.originalItem, name: newName };
-    const res = await dispatch(updateIntegrationDataAction(resolvedParams.org_id, dataToSend));
-    if (res?.data) {
-      toast.success("Embed renamed successfully");
+    setIsRenaming(true);
+    try {
+      const dataToSend = { ...renameIntegration.originalItem, name: newName };
+      const res = await dispatch(updateIntegrationDataAction(resolvedParams.org_id, dataToSend));
+      if (res?.data) {
+        toast.success("Embed renamed successfully");
+        handleCloseRenameModal();
+      }
+    } catch (error) {
+      toast.error("Failed to rename embed");
+      console.error(error);
+    } finally {
+      setIsRenaming(false);
     }
-    setRenameIntegration(null);
   };
 
   const resetUsage = async (integration) => {
@@ -150,7 +180,7 @@ const Page = ({ params }) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handlePortalCloseImmediate();
-                setRenameIntegration(row);
+                handleOpenRenameModal(row);
               }}
             >
               <Pencil size={16} />
@@ -243,33 +273,60 @@ const Page = ({ params }) => {
       <IntegrationModal params={resolvedParams} type="embed" />
       <UsageLimitModal data={selectedIntegrationForLimit} onConfirm={handleUpdateIntegrationLimit} item="Embed Name" />
 
-      {renameIntegration && (
-        <div className="modal modal-open">
-          <div className="modal-box max-w-sm">
-            <h3 className="font-bold text-lg mb-4">Rename Embed</h3>
+      <Modal
+        MODAL_ID="RENAME_EMBED_MODAL"
+        onClose={handleCloseRenameModal}
+        title="Rename Embed"
+        description="Provide a new name for this embed integration"
+        icon={<Pencil size={16} className="text-trace-gold" />}
+        widthClass="w-[min(480px,92vw)]"
+        footer={
+          <div className="flex gap-2">
+            <button className="btn btn-ghost btn-sm" onClick={handleCloseRenameModal} disabled={isRenaming}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleRenameIntegration}
+              disabled={isRenaming || !currentName.trim() || currentName.trim() === renameIntegration?.originalName}
+            >
+              {isRenaming ? (
+                <>
+                  <span className="loading loading-spinner loading-xs mr-1"></span>
+                  Renaming...
+                </>
+              ) : (
+                "Rename"
+              )}
+            </button>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="form-control">
             <input
+              key={renameIntegration?._id || "none"}
               type="text"
-              className="input input-bordered input-sm w-full mb-2"
-              defaultValue={renameIntegration.originalName}
+              className="input input-bordered w-full input-sm"
+              value={currentName}
+              onChange={(e) => setCurrentName(e.target.value)}
               maxLength={50}
-              ref={renameInputRef}
               autoFocus
+              disabled={isRenaming}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleRenameIntegration();
+                if (
+                  e.key === "Enter" &&
+                  !isRenaming &&
+                  currentName.trim() &&
+                  currentName.trim() !== renameIntegration?.originalName
+                ) {
+                  handleRenameIntegration();
+                }
               }}
             />
-            <div className="modal-action">
-              <button className="btn btn-sm" onClick={() => setRenameIntegration(null)}>
-                Cancel
-              </button>
-              <button className="btn btn-sm btn-primary" onClick={handleRenameIntegration}>
-                Rename
-              </button>
-            </div>
           </div>
-          <div className="modal-backdrop" onClick={() => setRenameIntegration(null)} />
         </div>
-      )}
+      </Modal>
 
       {/* Portal components from hook */}
       <PortalStyles />

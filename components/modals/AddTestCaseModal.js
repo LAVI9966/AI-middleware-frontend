@@ -3,7 +3,7 @@ import { createTestCaseAction } from "@/store/action/testCasesAction";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { CloseIcon } from "@/components/Icons";
-import { Trash2, ChevronDown as ChevronDownIcon } from "lucide-react";
+import { Trash2, ChevronDown as ChevronDownIcon, FlaskConical } from "lucide-react";
 import { useParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
@@ -265,155 +265,221 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
     setTestCaseName("");
   };
 
-  return (
-    <Modal MODAL_ID={MODAL_TYPE.ADD_TEST_CASE_MODAL} onClose={handleClose}>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-low-medium overflow-auto h-auto bg-base-100">
-        <form
-          id="add-testcase-modal-form"
-          onSubmit={handleSubmit}
-          className="bg-base-100 mb-auto mt-auto rounded-lg shadow-2xl max-w-6xl w-[90vw] my-8 flex flex-col p-6 md:p-10 transition-all duration-300 ease-in-out animate-fadeIn"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Add Test Case</h2>
-            <button
-              data-testid="add-testcase-close-x-button"
-              id="add-testcase-close-x-button"
-              type="button"
-              className="btn btn-circle btn-ghost btn-sm"
-              onClick={handleClose}
-            >
-              ✕
-            </button>
-          </div>
+  const footerContent = (
+    <div className="flex gap-2">
+      <button
+        data-testid="add-testcase-cancel-button"
+        id="add-testcase-cancel-button"
+        type="button"
+        className="btn btn-sm btn-ghost"
+        onClick={handleClose}
+      >
+        Cancel
+      </button>
+      <button
+        data-testid="add-testcase-create-button"
+        id="add-testcase-create-button"
+        type="submit"
+        form="add-testcase-modal-form"
+        className="btn btn-sm btn-primary px-6"
+        disabled={isLoading}
+      >
+        {isLoading ? <span className="loading loading-spinner loading-xs"></span> : "Create"}
+      </button>
+    </div>
+  );
 
-          <div className="space-y-4">
-            {/* Test Case Name Section */}
-            <div className="space-y-2 bg-base-50 rounded-lg p-4 border border-base-200">
-              <label className="text-sm font-semibold text-base-content">Test Case Name</label>
-              <input
-                data-testid="add-testcase-name-input"
-                id="add-testcase-name-input"
-                type="text"
-                placeholder="Enter test case name"
-                value={testCaseName}
-                onChange={(e) => setTestCaseName(e.target.value)}
-                className="input input-sm input-bordered bg-base-100 w-full focus:outline-none"
-              />
+  return (
+    <Modal
+      MODAL_ID={MODAL_TYPE.ADD_TEST_CASE_MODAL}
+      onClose={handleClose}
+      title="Add Test Case"
+      icon={<FlaskConical size={16} className="text-trace-gold" />}
+      widthClass="w-[min(1152px,92vw)]"
+      footer={footerContent}
+    >
+      <form id="add-testcase-modal-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="space-y-4">
+          {/* Test Case Name Section */}
+          <div className="space-y-2 bg-base-50 rounded-lg p-4 border border-base-200">
+            <label className="text-sm font-semibold text-base-content">Test Case Name</label>
+            <input
+              data-testid="add-testcase-name-input"
+              id="add-testcase-name-input"
+              type="text"
+              placeholder="Enter test case name"
+              value={testCaseName}
+              onChange={(e) => setTestCaseName(e.target.value)}
+              className="input input-sm input-bordered bg-base-100 w-full focus:outline-none"
+            />
+          </div>
+          {/* Variables Section */}
+          {Object.keys(editableVariables).length > 0 && (
+            <div className="space-y-3 bg-base-50 rounded-lg p-4 border border-base-200">
+              <div className="text-sm font-semibold text-base-content mb-4">Variables</div>
+              <div className="space-y-3">
+                {Object.entries(editableVariables).map(([key, value]) => (
+                  <div key={key} className="bg-base-100 rounded-lg p-3 border border-base-200">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-semibold text-base-content mb-1 block">Key</label>
+                        <div className="text-sm font-mono bg-base-200 px-3 py-2 rounded text-base-content">{key}</div>
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold text-base-content mb-1 block">Value</label>
+                        <AutoResizeTextarea
+                          value={typeof value === "string" ? value : JSON.stringify(value)}
+                          onChange={(e) => handleVariableChange(key, e.target.value)}
+                          className="textarea textarea-bordered textarea-sm bg-base-50 text-sm w-full leading-relaxed"
+                          placeholder="Enter value"
+                          rows={1}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            {/* Variables Section */}
-            {Object.keys(editableVariables).length > 0 && (
-              <div className="space-y-3 bg-base-50 rounded-lg p-4 border border-base-200">
-                <div className="text-sm font-semibold text-base-content mb-4">Variables</div>
-                <div className="space-y-3">
-                  {Object.entries(editableVariables).map(([key, value]) => (
-                    <div key={key} className="bg-base-100 rounded-lg p-3 border border-base-200">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-xs font-semibold text-base-content mb-1 block">Key</label>
-                          <div className="text-sm font-mono bg-base-200 px-3 py-2 rounded text-base-content">{key}</div>
+          )}
+
+          {/* Conversation History - Accordion Format */}
+          {getConversationPairs().length > 0 && (
+            <div className="mb-6">
+              <button
+                data-testid="add-testcase-conversation-toggle"
+                type="button"
+                onClick={() => setShowFullConversation(!showFullConversation)}
+                className="w-full flex items-center justify-between bg-base-50 hover:bg-base-100 rounded-lg px-4 py-3 border border-base-200 transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-sm font-medium text-base-content">Conversation History</span>
+                  <span className="text-xs text-base-content/60">({getConversationPairs().length})</span>
+                </div>
+                <ChevronDownIcon
+                  size={16}
+                  className={`text-base-content/40 transition-transform ${showFullConversation ? "rotate-180" : ""}`}
+                />
+              </button>
+              {showFullConversation && (
+                <div className="mt-3 bg-base-100 rounded-lg px-6 py-4 border border-base-200 space-y-4">
+                  {getConversationPairs().map((pair, pairIndex) => (
+                    <div key={pair.id || pairIndex} className="space-y-4">
+                      {/* User Message */}
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">User</span>
+                          <button
+                            type="button"
+                            onClick={() => removeConversationPair(pairIndex)}
+                            className="btn btn-ghost btn-xs text-error hover:bg-error/10"
+                            title="Remove this conversation"
+                          >
+                            <Trash2 size={13} />
+                          </button>
                         </div>
-                        <div>
-                          <label className="text-xs font-semibold text-base-content mb-1 block">Value</label>
-                          <AutoResizeTextarea
-                            value={typeof value === "string" ? value : JSON.stringify(value)}
-                            onChange={(e) => handleVariableChange(key, e.target.value)}
-                            className="textarea textarea-bordered textarea-sm bg-base-50 text-sm w-full leading-relaxed"
-                            placeholder="Enter value"
-                            rows={1}
-                          />
+                        <div className="w-[90%] bg-primary text-primary-content rounded-lg rounded-br-none px-4 py-3">
+                          <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              className="w-full text-sm leading-relaxed break-words whitespace-pre-wrap focus:outline-none"
+                              style={{ minHeight: "1.625rem" }}
+                              onBlur={(e) => handleChange(e.target.textContent, pair.startIndex, null)}
+                            >
+                              {pair.user?.content || ""}
+                            </div>
+                          </ExpandCollapse>
+                        </div>
+                      </div>
+                      {/* Assistant Message */}
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">AI</span>
+                        <div className="w-[90%] bg-base-300 text-base-content rounded-lg rounded-bl-none px-4 py-3">
+                          <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                            <div
+                              contentEditable
+                              suppressContentEditableWarning
+                              className="w-full text-sm leading-relaxed break-words whitespace-pre-wrap focus:outline-none"
+                              style={{ minHeight: "1.625rem" }}
+                              onBlur={(e) => handleChange(e.target.textContent, pair.startIndex + 1, null)}
+                            >
+                              {pair.assistant?.content || ""}
+                            </div>
+                          </ExpandCollapse>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* Conversation History - Accordion Format */}
-            {getConversationPairs().length > 0 && (
-              <div className="mb-6">
-                <button
-                  data-testid="add-testcase-conversation-toggle"
-                  type="button"
-                  onClick={() => setShowFullConversation(!showFullConversation)}
-                  className="w-full flex items-center justify-between bg-base-50 hover:bg-base-100 rounded-lg px-4 py-3 border border-base-200 transition-colors"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-sm font-medium text-base-content">Conversation History</span>
-                    <span className="text-xs text-base-content/60">({getConversationPairs().length})</span>
-                  </div>
-                  <ChevronDownIcon
-                    size={16}
-                    className={`text-base-content/40 transition-transform ${showFullConversation ? "rotate-180" : ""}`}
-                  />
-                </button>
-                {showFullConversation && (
-                  <div className="mt-3 bg-base-100 rounded-lg px-6 py-4 border border-base-200 space-y-4">
-                    {getConversationPairs().map((pair, pairIndex) => (
-                      <div key={pair.id || pairIndex} className="space-y-4">
-                        {/* User Message */}
-                        <div className="flex flex-col items-end gap-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">User</span>
-                            <button
-                              type="button"
-                              onClick={() => removeConversationPair(pairIndex)}
-                              className="btn btn-ghost btn-xs text-error hover:bg-error/10"
-                              title="Remove this conversation"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                          <div className="w-[90%] bg-primary text-primary-content rounded-lg rounded-br-none px-4 py-3">
-                            <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                className="w-full text-sm leading-relaxed break-words whitespace-pre-wrap focus:outline-none"
-                                style={{ minHeight: "1.625rem" }}
-                                onBlur={(e) => handleChange(e.target.textContent, pair.startIndex, null)}
+          {/* User Query - Last user message (always visible) */}
+          {finalTestCases && finalTestCases.length >= 2 && (
+            <div id="add-testcase-last-user-message" className="space-y-4">
+              {(() => {
+                const secondLastMessage = finalTestCases[finalTestCases.length - 2];
+                const secondLastIndex = finalTestCases.length - 2;
+                return (
+                  <div className="space-y-2" data-testid="add-testcase-user-query-wrapper">
+                    <div className="text-xs font-medium uppercase text-base-content tracking-wide">User Query</div>
+                    {secondLastMessage.role === "tools_call" || secondLastMessage.sender === "tools_call" ? (
+                      <div className="space-y-3">
+                        {secondLastMessage.tools?.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex gap-3 items-start group relative bg-base-100 rounded-lg p-3 shadow-sm"
+                          >
+                            <div className="flex-1 overflow-hidden bg-base-100 rounded p-2 font-mono text-sm text-base-content whitespace-pre-wrap break-words">
+                              {JSON.stringify(item, null, 2)}
+                            </div>
+                            {secondLastMessage.tools.length > 1 && (
+                              <button
+                                id={`add-testcase-second-last-remove-tool-${idx}`}
+                                type="button"
+                                className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => removeTool(secondLastIndex, idx)}
                               >
-                                {pair.user?.content || ""}
-                              </div>
-                            </ExpandCollapse>
+                                <CloseIcon size={16} />
+                              </button>
+                            )}
                           </div>
-                        </div>
-                        {/* Assistant Message */}
-                        <div className="flex flex-col items-start gap-1">
-                          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">AI</span>
-                          <div className="w-[90%] bg-base-300 text-base-content rounded-lg rounded-bl-none px-4 py-3">
-                            <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
-                              <div
-                                contentEditable
-                                suppressContentEditableWarning
-                                className="w-full text-sm leading-relaxed break-words whitespace-pre-wrap focus:outline-none"
-                                style={{ minHeight: "1.625rem" }}
-                                onBlur={(e) => handleChange(e.target.textContent, pair.startIndex + 1, null)}
-                              >
-                                {pair.assistant?.content || ""}
-                              </div>
-                            </ExpandCollapse>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : (
+                      <div className="bg-base-100 rounded-lg shadow-sm rounded p-3 text-sm text-base-content whitespace-pre-wrap break-words">
+                        <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                          <div className="whitespace-pre-wrap break-words">{secondLastMessage.content}</div>
+                        </ExpandCollapse>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
+                );
+              })()}
+            </div>
+          )}
+        </div>
 
-            {/* User Query - Last user message (always visible) */}
-            {finalTestCases && finalTestCases.length >= 2 && (
-              <div id="add-testcase-last-user-message" className="space-y-4">
-                {(() => {
-                  const secondLastMessage = finalTestCases[finalTestCases.length - 2];
-                  const secondLastIndex = finalTestCases.length - 2;
-                  return (
-                    <div className="space-y-2" data-testid="add-testcase-user-query-wrapper">
-                      <div className="text-xs font-medium uppercase text-base-content tracking-wide">User Query</div>
-                      {secondLastMessage.role === "tools_call" || secondLastMessage.sender === "tools_call" ? (
+        {/* User Expected Output Section */}
+        {finalTestCases && finalTestCases.length > 0 && (
+          <div
+            className="flex flex-col gap-4 p-6 pt-4 bg-base-200 bottom-0 rounded-lg"
+            data-testid="add-testcase-bottom-panel"
+          >
+            <div className="space-y-2">
+              <div className="text-xs font-semibold uppercase text-base-content tracking-wide">
+                User Expected Output
+              </div>
+              <div className="bg-base-50 rounded-lg border border-base-200 px-4 pt-3 pb-2">
+                <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                  {(() => {
+                    const lastMessage = finalTestCases[finalTestCases.length - 1];
+                    const lastIndex = finalTestCases.length - 1;
+                    if (lastMessage.role === "tools_call" || lastMessage.sender === "tools_call") {
+                      return (
                         <div className="space-y-3">
-                          {secondLastMessage.tools?.map((item, idx) => (
+                          {lastMessage.tools?.map((item, idx) => (
                             <div
                               key={idx}
                               className="flex gap-3 items-start group relative bg-base-100 rounded-lg p-3 shadow-sm"
@@ -421,12 +487,12 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                               <div className="flex-1 overflow-hidden bg-base-100 rounded p-2 font-mono text-sm text-base-content whitespace-pre-wrap break-words">
                                 {JSON.stringify(item, null, 2)}
                               </div>
-                              {secondLastMessage.tools.length > 1 && (
+                              {lastMessage.tools.length > 1 && (
                                 <button
-                                  id={`add-testcase-second-last-remove-tool-${idx}`}
+                                  id={`add-testcase-expected-remove-tool-${idx}`}
                                   type="button"
                                   className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  onClick={() => removeTool(secondLastIndex, idx)}
+                                  onClick={() => removeTool(lastIndex, idx)}
                                 >
                                   <CloseIcon size={16} />
                                 </button>
@@ -434,95 +500,20 @@ function AddTestCaseModal({ testCaseConversation, setTestCaseConversation, chann
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <div className="bg-base-100 rounded-lg shadow-sm rounded p-3 text-sm text-base-content whitespace-pre-wrap break-words">
-                          <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
-                            <div className="whitespace-pre-wrap break-words">{secondLastMessage.content}</div>
-                          </ExpandCollapse>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-4 p-6 pt-4 bg-base-200 bottom-0" data-testid="add-testcase-bottom-panel">
-            {/* User Expected Output Section */}
-            {finalTestCases && finalTestCases.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs font-semibold uppercase text-base-content tracking-wide">
-                  User Expected Output
-                </div>
-                <div className="bg-base-50 rounded-lg border border-base-200 px-4 pt-3 pb-2">
-                  <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
-                    {(() => {
-                      const lastMessage = finalTestCases[finalTestCases.length - 1];
-                      const lastIndex = finalTestCases.length - 1;
-                      if (lastMessage.role === "tools_call" || lastMessage.sender === "tools_call") {
-                        return (
-                          <div className="space-y-3">
-                            {lastMessage.tools?.map((item, idx) => (
-                              <div
-                                key={idx}
-                                className="flex gap-3 items-start group relative bg-base-100 rounded-lg p-3 shadow-sm"
-                              >
-                                <div className="flex-1 overflow-hidden bg-base-100 rounded p-2 font-mono text-sm text-base-content whitespace-pre-wrap break-words">
-                                  {JSON.stringify(item, null, 2)}
-                                </div>
-                                {lastMessage.tools.length > 1 && (
-                                  <button
-                                    id={`add-testcase-expected-remove-tool-${idx}`}
-                                    type="button"
-                                    className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => removeTool(lastIndex, idx)}
-                                  >
-                                    <CloseIcon size={16} />
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="bg-base-100 rounded p-3 text-sm text-base-content whitespace-pre-wrap break-words">
-                          {lastMessage.content}
-                        </div>
                       );
-                    })()}
-                  </ExpandCollapse>
-                </div>
-              </div>
-            )}
-
-            {/* Footer buttons */}
-            <div className="flex justify-end items-center">
-              <div className="flex gap-2">
-                <button
-                  data-testid="add-testcase-cancel-button"
-                  id="add-testcase-cancel-button"
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={handleClose}
-                >
-                  Cancel
-                </button>
-                <button
-                  data-testid="add-testcase-create-button"
-                  id="add-testcase-create-button"
-                  type="submit"
-                  className="btn btn-sm btn-primary px-6"
-                  disabled={isLoading}
-                >
-                  {isLoading ? <span className="loading loading-spinner"></span> : "Create"}
-                </button>
+                    }
+                    return (
+                      <div className="bg-base-100 rounded p-3 text-sm text-base-content whitespace-pre-wrap break-words">
+                        {lastMessage.content}
+                      </div>
+                    );
+                  })()}
+                </ExpandCollapse>
               </div>
             </div>
           </div>
-        </form>
-      </div>
+        )}
+      </form>
     </Modal>
   );
 }

@@ -2,7 +2,6 @@ import {
   BookOpen,
   MessageSquare,
   Building2,
-  Database,
   Shield,
   BarChart3,
   AlertTriangle,
@@ -20,6 +19,7 @@ import {
   LayoutTemplate,
   Sparkles,
   Wrench,
+  Key,
 } from "lucide-react";
 import { AddIcon, KeyIcon } from "@/components/Icons";
 import GiftIcon from "@/icons/GiftIcon";
@@ -32,7 +32,7 @@ export const ITEM_ICONS = {
   chatbotConfig: <FileSliders size={15} />,
   chatbot: <MessageSquare size={15} />,
   pauthkey: <Shield size={15} />,
-  apikeys: <Database size={15} />,
+  apikeys: <Key size={15} />,
   alerts: <AlertTriangle size={15} />,
   invite: <UserPlus size={15} />,
   metrics: <BarChart3 size={15} />,

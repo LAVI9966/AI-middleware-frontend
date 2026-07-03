@@ -1,7 +1,7 @@
 "use client";
 import { MODAL_TYPE } from "@/utils/enums";
 import React from "react";
-import { KeyboardIcon, XIcon } from "@/components/Icons";
+import { Keyboard } from "lucide-react";
 import { closeModal } from "@/utils/utility";
 import Modal from "../UI/Modal";
 
@@ -39,7 +39,6 @@ const KeyboardShortcutsModal = () => {
     closeModal(MODAL_TYPE.KEYBOARD_SHORTCUTS_MODAL);
   };
 
-  // Detect if user is on Mac
   const isMac = typeof window !== "undefined" && navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const modifierKey = isMac ? "⌘" : "Ctrl";
 
@@ -63,46 +62,19 @@ const KeyboardShortcutsModal = () => {
   ];
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.KEYBOARD_SHORTCUTS_MODAL}>
-      <form method="dialog" className="modal-backdrop" onClick={handleClose}>
-        <button>close</button>
-      </form>
-      <div className="modal-box absolute bottom-4 left-4 w-72 max-w-sm p-0 m-0">
-        <div
-          id="keyboard-shortcuts-modal-container"
-          className="relative bg-base-100 rounded-xl shadow-2xl overflow-hidden border border-base-300"
-        >
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-base-300 bg-base-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-base-200">
-                  <KeyboardIcon size={18} className="text-base-content" />
-                </div>
-                <div>
-                  <h2 className="text-base font-semibold text-base-content">Keyboard Shortcuts</h2>
-                </div>
-              </div>
-              <button
-                data-testid="keyboard-shortcuts-close-button"
-                id="keyboard-shortcuts-close-button"
-                onClick={handleClose}
-                className="p-1 hover:bg-base-200 rounded-lg transition-colors duration-200"
-                aria-label="Close"
-              >
-                <XIcon size={16} className="text-base-content/70" />
-              </button>
-            </div>
-          </div>
-
-          {/* Content Area */}
-          <div className="p-4 max-h-[60vh] overflow-y-auto">
-            <div className="space-y-4">
-              {shortcutCategories.map((category, index) => (
-                <ShortcutCategory key={index} title={category.title} shortcuts={category.shortcuts} />
-              ))}
-            </div>
-          </div>
+    <Modal
+      MODAL_ID={MODAL_TYPE.KEYBOARD_SHORTCUTS_MODAL}
+      onClose={handleClose}
+      title="Keyboard Shortcuts"
+      description="Quick reference for all available shortcuts"
+      icon={<Keyboard size={16} className="text-trace-gold" />}
+      widthClass="w-[min(380px,92vw)]"
+    >
+      <div id="keyboard-shortcuts-modal-container" className="max-h-[60vh] overflow-y-auto">
+        <div className="space-y-4">
+          {shortcutCategories.map((category, index) => (
+            <ShortcutCategory key={index} title={category.title} shortcuts={category.shortcuts} />
+          ))}
         </div>
       </div>
     </Modal>

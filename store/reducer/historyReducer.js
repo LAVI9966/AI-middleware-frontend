@@ -79,7 +79,14 @@ export const historyReducer = createSlice({
         (thread) => thread.thread_id === thread_id && thread.sub_thread_id === sub_thread_id
       );
       if (threadIndex !== -1) {
-        state.thread.push(Messages);
+        if (Messages && typeof Messages === "object") {
+          Object.values(Messages).forEach((message) => {
+            const exists = state.thread.some((msg) => msg.id === message.id);
+            if (!exists) {
+              state.thread.push(message);
+            }
+          });
+        }
       }
     },
     fetchRecursiveHistoryStart: (state) => {

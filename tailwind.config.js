@@ -34,6 +34,7 @@ const CHART_STYLE = {
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -283,6 +284,7 @@ module.exports = {
         },
         ".see-on-hover": {
           opacity: "0",
+          transition: "opacity 200ms ease",
         },
       });
     },

@@ -4,6 +4,7 @@ import { closeModal } from "@/utils/utility";
 import React, { useMemo } from "react";
 import Modal from "../UI/Modal";
 import { BotIcon } from "../Icons";
+import { Network } from "lucide-react";
 
 const ConnectedAgentsModal = ({ apiKey, orgId }) => {
   // Get all bridges/agents from the store
@@ -47,11 +48,27 @@ const ConnectedAgentsModal = ({ apiKey, orgId }) => {
 
   const handleClose = () => closeModal(MODAL_TYPE.CONNECTED_AGENTS_MODAL);
 
-  return (
-    <Modal MODAL_ID={MODAL_TYPE.CONNECTED_AGENTS_MODAL} onClose={handleClose}>
-      <div id="connected-agents-modal-container" className="modal-box focus:outline-none" tabIndex="-1">
-        <h3 className="font-bold text-lg mb-4">Connected Agents for API Key: {apiKey.name}</h3>
+  const footerContent = (
+    <button
+      data-testid="connected-agents-close-button"
+      id="connected-agents-close-button"
+      className="btn btn-sm focus:outline-none focus:ring-0"
+      onClick={handleClose}
+    >
+      Close
+    </button>
+  );
 
+  return (
+    <Modal
+      MODAL_ID={MODAL_TYPE.CONNECTED_AGENTS_MODAL}
+      onClose={handleClose}
+      title={`Connected Agents for API Key: ${apiKey.name}`}
+      icon={<Network size={16} className="text-trace-gold" />}
+      widthClass="w-[min(500px,92vw)]"
+      footer={footerContent}
+    >
+      <div id="connected-agents-modal-container" className="focus:outline-none" tabIndex="-1">
         {connectedAgents.length > 0 ? (
           <div id="connected-agents-list" data-testid="connected-agents-list" className="overflow-y-auto max-h-96">
             {connectedAgents.map((agent) => (
@@ -61,19 +78,6 @@ const ConnectedAgentsModal = ({ apiKey, orgId }) => {
         ) : (
           <EmptyState />
         )}
-
-        <div className="modal-action">
-          <form method="dialog">
-            <button
-              data-testid="connected-agents-close-button"
-              id="connected-agents-close-button"
-              className="btn focus:outline-none focus:ring-0"
-              onClick={handleClose}
-            >
-              Close
-            </button>
-          </form>
-        </div>
       </div>
     </Modal>
   );

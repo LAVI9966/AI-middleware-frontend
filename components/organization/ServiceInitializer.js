@@ -49,7 +49,7 @@ const ServiceInitializer = ({ isEmbedUser }) => {
 
     const timer = setTimeout(getModelData, 1000);
     return () => clearTimeout(timer);
-  }, [SERVICES, isOrgPage]);
+  }, [SERVICES, isOrgPage, MODELS]);
 
   return null;
 };

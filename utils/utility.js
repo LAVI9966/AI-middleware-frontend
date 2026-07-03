@@ -409,7 +409,12 @@ export function openModal(modalName) {
 export function closeModal(modalName) {
   const modalElement = document.getElementById(modalName);
   if (modalElement) {
-    modalElement.close();
+    // Ensure the modal is closed by calling close() and removing open attribute
+    if (modalElement.open) {
+      modalElement.close();
+    }
+    // Also remove the open attribute to ensure proper state
+    modalElement.removeAttribute("open");
   } else {
     console.error(`Modal with name ${modalName} not found`);
   }
@@ -709,7 +714,7 @@ export function generateRandomID(length = 10) {
   return result;
 }
 
-export const RequiredItem = () => <span className="text-error text-lg">*</span>;
+export const RequiredItem = () => <span className="text-red-500 text-lg ml-0.5">*</span>;
 
 export const sendDataToParent = (status, data, message) => {
   if (window.parent) {
@@ -1352,4 +1357,30 @@ export const formatTokensTable = (tokensObj) => {
   }
 
   return rows;
+};
+
+export const parseNestedJson = (val) => {
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parseNestedJson(parsed);
+      } catch {
+        return val;
+      }
+    }
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(parseNestedJson);
+  }
+  if (val !== null && typeof val === "object") {
+    const res = {};
+    for (const key of Object.keys(val)) {
+      res[key] = parseNestedJson(val[key]);
+    }
+    return res;
+  }
+  return val;
 };

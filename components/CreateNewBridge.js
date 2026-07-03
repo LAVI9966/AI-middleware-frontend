@@ -88,8 +88,10 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
     });
   }, [updateState, state.validationErrors]);
 
+  const INVALID_FOLDER_IDS = new Set(["uncategorized", "trash", "null"]);
+
   const getResolvedFolderId = useCallback(() => {
-    if (activeFolderId && activeFolderId !== "uncategorized") {
+    if (activeFolderId && !INVALID_FOLDER_IDS.has(activeFolderId)) {
       return activeFolderId;
     }
 
@@ -97,7 +99,7 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
       // 1. Try URL search params
       const urlParams = new URLSearchParams(window.location.search);
       const paramFolderId = urlParams.get("folder_id") || urlParams.get("folderId");
-      if (paramFolderId && paramFolderId !== "uncategorized" && paramFolderId !== "null") {
+      if (paramFolderId && !INVALID_FOLDER_IDS.has(paramFolderId)) {
         return paramFolderId;
       }
 
@@ -105,7 +107,7 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
       if (orgid) {
         const sessionKey = `activeFolderId_/org/${orgid}/agents`;
         const saved = sessionStorage.getItem(sessionKey);
-        if (saved && saved !== "uncategorized" && saved !== "null") {
+        if (saved && !INVALID_FOLDER_IDS.has(saved)) {
           return saved;
         }
       }
@@ -116,7 +118,7 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
           const key = sessionStorage.key(i);
           if (key && key.startsWith("activeFolderId_") && key.includes("/agents")) {
             const val = sessionStorage.getItem(key);
-            if (val && val !== "uncategorized" && val !== "null") {
+            if (val && !INVALID_FOLDER_IDS.has(val)) {
               return val;
             }
           }

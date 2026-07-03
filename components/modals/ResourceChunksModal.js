@@ -4,7 +4,7 @@ import Modal from "@/components/UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
 import { closeModal } from "@/utils/utility";
 import { getResourceChunks } from "@/config/knowledgeBaseApi";
-import { CloseIcon } from "@/components/Icons";
+import { Layers } from "lucide-react";
 
 const ResourceChunksModal = ({ resourceId, resourceName }) => {
   const [chunks, setChunks] = useState([]);
@@ -43,24 +43,15 @@ const ResourceChunksModal = ({ resourceId, resourceName }) => {
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.RESOURCE_CHUNKS_MODAL} onClose={handleClose}>
-      <div className="modal-box w-11/12 max-w-5xl border-2 border-base-300">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-base-300">
-          <div>
-            <h3 className="font-bold text-lg">Resource Chunks</h3>
-            {resourceName && <p className="text-sm text-gray-500 mt-1">Resource Name : {resourceName}</p>}
-          </div>
-          <button
-            data-testid="resource-chunks-close-header-button"
-            id="resource-chunks-close-header-button"
-            onClick={handleClose}
-            className="btn btn-sm btn-circle btn-ghost"
-          >
-            <CloseIcon size={16} />
-          </button>
-        </div>
-
+    <Modal
+      MODAL_ID={MODAL_TYPE.RESOURCE_CHUNKS_MODAL}
+      onClose={handleClose}
+      title="Resource Chunks"
+      description={resourceName ? `Resource: ${resourceName}` : "View all chunks for this resource"}
+      icon={<Layers size={16} className="text-trace-gold" />}
+      widthClass="w-[min(900px,92vw)]"
+    >
+      <div className="flex flex-col gap-4">
         {/* Content */}
         <div className="max-h-[70vh] overflow-y-auto">
           {isLoading ? (
@@ -118,7 +109,7 @@ const ResourceChunksModal = ({ resourceId, resourceName }) => {
 
         {/* Footer */}
         {!isLoading && !error && chunks.length > 0 && (
-          <div className="flex justify-between items-center mt-4 border-t border-base-300">
+          <div className="flex justify-between items-center pt-2 border-t border-base-content/10">
             <span className="text-sm text-gray-500">Total chunks: {chunks.length}</span>
           </div>
         )}

@@ -25,6 +25,7 @@ import {
   setReviewData,
   appendReviewDelta,
   setReviewError,
+  setFallbackData,
 } from "../reducer/chatReducer";
 import { haveSameItems, buildUserUrls, buildLlmUrls, extractImageUrlsFromResponse } from "@/utils/attachmentUtils";
 
@@ -109,11 +110,14 @@ export const addLoadingAssistantMessage = (channelId, messageId) => (dispatch) =
 export const updateAssistantMessageWithResponse = (channelId, messageId, responseData) => (dispatch) => {
   const content = responseData?.content || "";
   const additionalData = {
-    fallback: responseData?.fallback,
+    fallback: responseData?.fallback || responseData?.fall_back,
     firstAttemptError: responseData?.firstAttemptError,
     model: responseData?.model,
+    modelName: responseData?.model || responseData?.modelName,
     finish_reason: responseData?.finish_reason,
     role: responseData?.role || "assistant",
+    usage: responseData?.usage,
+    latency: responseData?.latency,
   };
 
   dispatch(
@@ -323,14 +327,26 @@ const handleStreamingDoneEvent = (dispatch, channelId, streamingState, rafId, pa
   // Skip streaming update if this was a template response (already rendered)
   if (!streamingState.isTemplateResponse && streamingState.messageId) {
     const llmUrls = extractImageUrlsFromResponse(parsed);
-    dispatch(handleRtLayerStreamingUpdate(channelId, streamingState.messageId, streamingState.content, true, llmUrls));
+    const usage = parsed?.usage || parsed?.response?.usage;
+    const latency = parsed?.latency || parsed?.response?.latency;
+    dispatch(
+      handleRtLayerStreamingUpdate(
+        channelId,
+        streamingState.messageId,
+        streamingState.content,
+        true,
+        llmUrls,
+        usage,
+        latency
+      )
+    );
   }
   dispatch(setChatLoading(channelId, false));
 };
 
 // Handle RT layer streaming update
 export const handleRtLayerStreamingUpdate =
-  (channelId, messageId, content, isComplete = false, llmUrls = []) =>
+  (channelId, messageId, content, isComplete = false, llmUrls = [], usage = null, latency = null) =>
   (dispatch) => {
     dispatch(
       updateRtLayerMessage({
@@ -339,6 +355,8 @@ export const handleRtLayerStreamingUpdate =
         content,
         isComplete,
         llmUrls,
+        usage,
+        latency,
       })
     );
 
@@ -468,6 +486,22 @@ export const sendMessageWithApiStreaming =
                   llm_urls: [],
                   tools_data: {},
                   annotations: null,
+                })
+              );
+            } else if (parsed.event === "fallback") {
+              dispatch(
+                setFallbackData({
+                  channelId,
+                  messageId: streamingState.messageId,
+                  fallbackData: {
+                    fallback: true,
+                    firstAttemptError: parsed.error,
+                    modelName: parsed.to_model,
+                    model: parsed.to_model,
+                    fromModel: parsed.from_model,
+                    fromService: parsed.from_service,
+                    toService: parsed.to_service,
+                  },
                 })
               );
             } else if (parsed.event === "review_phase") {

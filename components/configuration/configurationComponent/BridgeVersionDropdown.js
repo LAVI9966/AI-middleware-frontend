@@ -273,6 +273,9 @@ function BridgeVersionDropdown({
         },
         (data) => {
           if (data && data.version_id) {
+            // Close the modal after successful version creation
+            closeModal(MODAL_TYPE.VERSION_DESCRIPTION_MODAL);
+
             if (isEmbedUser) {
               const newVersionData = bridgeVersionMappingRef.current?.[data.version_id];
               sendDataToParent(

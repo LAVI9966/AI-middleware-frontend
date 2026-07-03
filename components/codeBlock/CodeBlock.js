@@ -1,5 +1,6 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { parseNestedJson } from "@/utils/utility";
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import js from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
@@ -56,10 +57,52 @@ function useIsDark() {
 function CodeBlock({ inline, className, children, showCopy = true, plain = false, ...props }) {
   const match = /language-(\w+)/.exec(className || "");
   const [copyStatus, setCopyStatus] = useState("Copy");
+  const [viewMode, setViewMode] = useState("code");
   const resetTimerRef = useRef(null);
   const codeString = String(children).replace(/\n$/, "");
   const isDark = useIsDark();
   const hlTheme = isDark ? oneDark : oneLight;
+
+  const isHtml = !!(
+    (match &&
+      (match[1]?.toLowerCase() === "html" ||
+        match[1]?.toLowerCase() === "xml" ||
+        match[1]?.toLowerCase() === "svg" ||
+        match[1]?.toLowerCase() === "xhtml")) ||
+    (codeString.trim().startsWith("<") && /<[a-z1-6]/i.test(codeString.trim()))
+  );
+
+  const formattedCodeString = useMemo(() => {
+    const trimmed = codeString.trim();
+    const isJsonLang = match && match[1]?.toLowerCase() === "json";
+    const looksLikeJson =
+      !match &&
+      ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]")));
+
+    if (isJsonLang || looksLikeJson) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const cleaned = parseNestedJson(parsed);
+        return JSON.stringify(cleaned, null, 2);
+      } catch {
+        return codeString;
+      }
+    }
+    return codeString;
+  }, [codeString, match]);
+
+  useEffect(() => {
+    setViewMode("code");
+  }, [codeString]);
+
+  const iframeSrcDoc = useMemo(() => {
+    if (viewMode !== "preview" || !isHtml) return "";
+
+    if (codeString.toLowerCase().includes("<head>")) {
+      return codeString.replace(/<head>/i, `<head>`);
+    }
+    return `\${codeString}`;
+  }, [codeString, viewMode, isHtml]);
 
   if (!inline && match && plain) {
     return (
@@ -81,13 +124,16 @@ function CodeBlock({ inline, className, children, showCopy = true, plain = false
         PreTag="div"
         {...props}
       >
-        {codeString}
+        {formattedCodeString}
       </SyntaxHighlighter>
     );
   }
 
   // DaisyUI / Tailwind based container classes
-  const blockClasses = `text-sm w-full rounded-lg border border-base-300 bg-base-200 text-base-content overflow-hidden`;
+  // In light mode use a very subtle background so the block doesn't look heavy on the white page
+  const blockClasses = isDark
+    ? `text-sm w-full rounded-lg border border-base-300 bg-base-200 text-base-content overflow-hidden`
+    : `text-sm w-full rounded-lg border border-base-200 bg-base-100 text-base-content overflow-hidden`;
 
   const languageMap = {
     js: "JavaScript",
@@ -132,10 +178,10 @@ function CodeBlock({ inline, className, children, showCopy = true, plain = false
 
     try {
       if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(codeString);
+        await navigator.clipboard.writeText(formattedCodeString);
         setCopyStatus("Copied!");
       } else {
-        fallbackCopy(codeString);
+        fallbackCopy(formattedCodeString);
       }
     } catch {
       setCopyStatus("Failed");
@@ -143,7 +189,7 @@ function CodeBlock({ inline, className, children, showCopy = true, plain = false
 
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     resetTimerRef.current = setTimeout(() => setCopyStatus("Copy"), 2000);
-  }, [codeString]);
+  }, [formattedCodeString]);
 
   useEffect(() => {
     return () => {
@@ -151,44 +197,103 @@ function CodeBlock({ inline, className, children, showCopy = true, plain = false
     };
   }, []);
 
-  return !inline && match ? (
+  return !inline ? (
     <div data-testid="code-block-container" id="code-block-container" className={blockClasses}>
-      <div className="flex items-center justify-between px-3 py-2 border-b border-base-300 bg-base-100/70">
+      <div
+        className={`flex items-center justify-between px-3 py-2 border-b ${isDark ? "border-base-300 bg-base-100/70" : "border-base-200 bg-base-200/40"}`}
+      >
         <span className="text-xs font-semibold uppercase tracking-wider text-base-content/70">
           {languageLabel || "Code"}
         </span>
-        {showCopy && (
-          <button
-            data-testid="code-block-copy-button"
-            id="code-block-copy-button"
-            type="button"
-            onClick={handleCopy}
-            className="btn btn-ghost btn-xs font-medium text-xs px-2 py-1 text-base-content"
-          >
-            {copyStatus}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {isHtml && (
+            <div
+              className={`flex items-center rounded-md p-0.5 gap-0.5 ${isDark ? "bg-base-300/50" : "bg-base-200/50"}`}
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode("code")}
+                className={`px-2.5 py-0.5 text-xs font-medium rounded transition-all ${
+                  viewMode === "code"
+                    ? "bg-base-100 text-base-content shadow-sm"
+                    : "text-base-content/60 hover:text-base-content"
+                }`}
+              >
+                Code
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("preview")}
+                className={`px-2.5 py-0.5 text-xs font-medium rounded transition-all ${
+                  viewMode === "preview"
+                    ? "bg-base-100 text-base-content shadow-sm"
+                    : "text-base-content/60 hover:text-base-content"
+                }`}
+              >
+                Preview
+              </button>
+            </div>
+          )}
+          {showCopy && (
+            <button
+              data-testid="code-block-copy-button"
+              id="code-block-copy-button"
+              type="button"
+              onClick={handleCopy}
+              className="btn btn-ghost btn-xs font-medium text-xs px-2 py-1 text-base-content"
+            >
+              {copyStatus}
+            </button>
+          )}
+        </div>
       </div>
-      <SyntaxHighlighter
-        language={match[1]}
-        style={{
-          ...hlTheme,
-          'pre[class*="language-"]': { ...hlTheme['pre[class*="language-"]'], background: "transparent" },
-          'code[class*="language-"]': { ...hlTheme['code[class*="language-"]'], background: "transparent" },
-        }}
-        wrapLongLines
-        customStyle={{ margin: 0, padding: "1rem", fontSize: "0.8125rem", background: "transparent" }}
-        codeTagProps={{
-          style: {
-            fontFamily:
-              'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            background: "transparent",
-          },
-        }}
-        PreTag="div"
-      >
-        {codeString}
-      </SyntaxHighlighter>
+      {viewMode === "preview" ? (
+        <div className="w-full bg-white relative animate-fade-in" style={{ height: "400px" }}>
+          <iframe
+            srcDoc={iframeSrcDoc}
+            title="HTML Preview"
+            className="w-full h-full border-0 bg-white"
+            sandbox="allow-scripts allow-modals"
+          />
+        </div>
+      ) : (
+        <SyntaxHighlighter
+          language={match ? match[1] : undefined}
+          style={{
+            ...hlTheme,
+            'pre[class*="language-"]': {
+              ...hlTheme['pre[class*="language-"]'],
+              background: "transparent",
+              // Soften light-mode token colours slightly
+              ...(isDark ? {} : { color: "#374151" }),
+            },
+            'code[class*="language-"]': { ...hlTheme['code[class*="language-"]'], background: "transparent" },
+            // Soften specific token colours in light mode so they aren't too saturated
+            ...(isDark
+              ? {}
+              : {
+                  ".token.string": { color: "#059669" }, // emerald-600 — softer than default red-orange
+                  ".token.number": { color: "#0284c7" }, // sky-600
+                  ".token.boolean": { color: "#7c3aed" }, // violet-600
+                  ".token.null": { color: "#9ca3af" }, // gray-400
+                  ".token.property": { color: "#b45309" }, // amber-700
+                  ".token.punctuation": { color: "#6b7280" }, // gray-500
+                }),
+          }}
+          wrapLongLines
+          customStyle={{ margin: 0, padding: "1rem", fontSize: "0.8125rem", background: "transparent" }}
+          codeTagProps={{
+            style: {
+              fontFamily:
+                'ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              background: "transparent",
+            },
+          }}
+          PreTag="div"
+        >
+          {formattedCodeString}
+        </SyntaxHighlighter>
+      )}
     </div>
   ) : (
     <code

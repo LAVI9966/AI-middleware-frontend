@@ -13,6 +13,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { json, jsonParseLinter } from "@codemirror/lang-json";
 import { useThemeManager } from "@/customHooks/useThemeManager";
 import { linter, lintGutter } from "@codemirror/lint";
+import { FileJson } from "lucide-react";
 
 function JsonSchemaModal({
   params = null,
@@ -37,10 +38,8 @@ function JsonSchemaModal({
     };
   });
 
-  // Use provided schema or fall back to Redux schema
   const effectiveSchema = schema !== null ? schema : json_schema;
 
-  // Use useMemo to always get the latest formatted JSON schema
   const jsonSchemaRequirements = useMemo(() => {
     return typeof effectiveSchema === "object" ? JSON.stringify(effectiveSchema, null, 4) : effectiveSchema || "";
   }, [effectiveSchema]);
@@ -58,10 +57,8 @@ function JsonSchemaModal({
 
   const handleApply = async (schemaToApply) => {
     try {
-      // Ensure we're parsing only if it's a string and not already an object
       const parsedSchema = typeof schemaToApply === "string" ? JSON.parse(schemaToApply) : schemaToApply;
 
-      // Use custom save handler if provided, otherwise use Redux dispatch
       if (onSaveSchema) {
         onSaveSchema(parsedSchema);
       } else if (params?.id && searchParams?.version) {
@@ -84,7 +81,6 @@ function JsonSchemaModal({
         return;
       }
       toast.success("Schema applied successfully");
-      // Keep modal open to show the updated schema in "Current Schema" section
     } catch (error) {
       toast.error("Invalid JSON Schema");
       console.error("JSON parse error:", error);
@@ -96,60 +92,53 @@ function JsonSchemaModal({
   };
 
   return (
-    <Modal MODAL_ID={MODAL_TYPE.JSON_SCHEMA}>
+    <Modal
+      MODAL_ID={MODAL_TYPE.JSON_SCHEMA}
+      onClose={handleCloseModal}
+      title="Improve JSON Schema"
+      description="Use AI to optimize and refine your JSON schema"
+      icon={<FileJson size={16} className="text-trace-gold" />}
+      widthClass="w-[min(96vw,1600px)]"
+    >
       <div
         id="json-schema-modal-container"
-        className="modal-box max-w-screen-2xl h-[calc(100%-10rem)] w-[calc(100%-2rem)] bg-base-100 overflow-hidden flex flex-col"
+        className="flex gap-4 overflow-hidden"
+        style={{ height: "calc(100dvh - 14rem)", minHeight: "400px" }}
       >
-        <div className="flex justify-between items-center mb-2 pt-3 px-4">
-          <h3 className="font-bold text-lg">Improve JSON Schema</h3>
-          <button
-            data-testid="json-schema-close-button"
-            id="json-schema-close-button"
-            onClick={handleCloseModal}
-            className="btn btn-sm"
-            type="button"
-          >
-            Close
-          </button>
+        {/* AI Assistant Canvas - Left Side (50%) */}
+        <div className="flex-1 flex flex-col min-w-0 bg-base-200 rounded-lg overflow-hidden">
+          <Canvas
+            OptimizePrompt={handleOptimizeApi}
+            messages={messages}
+            setMessages={setMessages}
+            handleApplyOptimizedPrompt={handleApply}
+            label="Schema"
+            width="100%"
+            height="100%"
+            onResetThreadId={onResetThreadId}
+          />
         </div>
 
-        <div className="flex-1 flex gap-4 px-4 pb-4 overflow-hidden">
-          {/* AI Assistant Canvas - Left Side (50%) */}
-          <div className="flex-1 flex flex-col min-w-0 bg-base-200 rounded-lg overflow-hidden">
-            <Canvas
-              OptimizePrompt={handleOptimizeApi}
-              messages={messages}
-              setMessages={setMessages}
-              handleApplyOptimizedPrompt={handleApply}
-              label="Schema"
-              width="100%"
-              height="100%"
-              onResetThreadId={onResetThreadId}
-            />
+        {/* Current JSON Schema - Right Side (50%) */}
+        <div className="flex-1 flex flex-col bg-base-200 rounded-lg overflow-hidden border border-base-300">
+          <div className="px-4 py-3 border-b border-base-300 bg-base-100">
+            <h4 className="font-semibold text-sm">Current Schema</h4>
           </div>
-
-          {/* Current JSON Schema - Right Side (50%) */}
-          <div className="flex-1 flex flex-col bg-base-200 rounded-lg overflow-hidden border border-base-300">
-            <div className="px-4 py-3 border-b border-base-300 bg-base-100">
-              <h4 className="font-semibold text-sm">Current Schema</h4>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              {jsonSchemaRequirements ? (
-                <CodeMirror
-                  value={jsonSchemaRequirements}
-                  height="100%"
-                  extensions={[json(), linter(jsonParseLinter()), lintGutter()]}
-                  theme={actualTheme}
-                  editable={false}
-                  className="h-full text-sm"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-base-content/50">
-                  <p className="text-sm">No schema defined</p>
-                </div>
-              )}
-            </div>
+          <div className="flex-1 overflow-hidden">
+            {jsonSchemaRequirements ? (
+              <CodeMirror
+                value={jsonSchemaRequirements}
+                height="100%"
+                extensions={[json(), linter(jsonParseLinter()), lintGutter()]}
+                theme={actualTheme}
+                editable={false}
+                className="h-full text-sm"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-base-content/50">
+                <p className="text-sm">No schema defined</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

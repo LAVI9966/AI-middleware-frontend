@@ -62,13 +62,13 @@ const OrganizationHeader = ({ organizationsArray, setDisplayedOrganizations }) =
                 data={organizationsArray}
                 setFilterItems={setDisplayedOrganizations}
                 item="Workspaces"
-                style="input input-sm input-bordered w-full border-base-300 bg-base-200/80 text-base-content placeholder-base-content/60 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none px-4 transition-all duration-150 shadow-sm rounded-lg"
+                style="input input-sm input-bordered w-full border border-base-content/30 bg-base-200/80 text-base-content placeholder-base-content/60 focus:border-primary focus:outline-none px-4 transition-all duration-150 rounded-none"
               />
             </div>
             <button
               id="org-header-create-workspace-button"
               onClick={() => openModal(MODAL_TYPE.CREATE_ORG_MODAL)}
-              className="btn btn-primary btn-sm whitespace-nowrap"
+              className="btn btn-primary btn-sm whitespace-nowrap rounded-none border border-primary"
             >
               + Create New Workspace
             </button>
@@ -76,7 +76,7 @@ const OrganizationHeader = ({ organizationsArray, setDisplayedOrganizations }) =
 
           <div
             id="org-header-user-menu-button"
-            className="shrink-0 w-9 h-9 bg-primary rounded-sm flex items-center justify-center cursor-pointer"
+            className="shrink-0 w-9 h-9 bg-primary rounded-none border border-primary-content/20 flex items-center justify-center cursor-pointer"
           >
             <span onClick={() => setOpen(true)} className="text-primary-content font-semibold text-sm">
               {getInitials(userdetails?.name || orgName)}
@@ -92,14 +92,14 @@ const OrganizationHeader = ({ organizationsArray, setDisplayedOrganizations }) =
             <button
               id="org-header-create-workspace-button-alt"
               onClick={() => openModal(MODAL_TYPE.CREATE_ORG_MODAL)}
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm rounded-none border border-primary"
             >
               + Create New Workspace
             </button>
           </div>
           <div
             id="org-header-user-menu-button-alt"
-            className="shrink-0 w-9 h-9 bg-primary rounded-sm flex items-center justify-center cursor-pointer"
+            className="shrink-0 w-9 h-9 bg-primary rounded-none border border-primary-content/20 flex items-center justify-center cursor-pointer"
           >
             <span onClick={() => setOpen(true)} className="text-primary-content font-semibold text-sm">
               {getInitials(userdetails?.name || orgName)}
