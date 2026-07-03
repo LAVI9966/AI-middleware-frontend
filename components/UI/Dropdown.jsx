@@ -411,7 +411,7 @@ const Dropdown = ({
             </ul>
           </div>
 
-          {bottomOption && !isEmbedUser && (
+          {bottomOption && (
             <div className="border-t border-base-content/10 p-1">
               <button
                 data-testid={bottomOption.testId || `${testId}-bottom-option`}
