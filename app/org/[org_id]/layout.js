@@ -545,6 +545,7 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
     return (
       <div className="h-screen flex flex-col overflow-hidden">
         <ThemeManager userType={themeUserType} />
+        <ServiceInitializer />
         {/* Main Content Area for Embed Users */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Sticky Navbar */}
