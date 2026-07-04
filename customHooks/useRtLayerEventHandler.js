@@ -37,6 +37,33 @@ import { useDispatch, useSelector } from "react-redux";
 // ---------------------------------------------------------------------------
 const channelClientRegistry = new Map(); // Map<channelId, { client, refCount }>
 
+function parseRtMessage(message) {
+  return typeof message === "string" ? JSON.parse(message) : message;
+}
+
+function handleOrgRtChannelMessage(parsedData, dispatch, orgId) {
+  if (parsedData?.type === "apikey_status_update") {
+    const { apikey_id, status } = parsedData;
+    if (apikey_id && status) {
+      dispatch(updateApiKeyStatusReducer({ org_id: orgId, apikey_id, status }));
+    }
+  }
+}
+
+function handleAgentCreateRtMessage(parsedData) {
+  if (parsedData?.type === "agent_created" && parsedData.agent) {
+    window.dispatchEvent(new CustomEvent("gtwy:agent-created", { detail: parsedData.agent }));
+    return;
+  }
+  if (parsedData?.type === "agent_create_failed") {
+    window.dispatchEvent(
+      new CustomEvent("gtwy:agent-create-failed", {
+        detail: parsedData.message || "Failed to create agent",
+      })
+    );
+  }
+}
+
 function useRtLayerEventHandler(channelIdentifier = "") {
   const [client, setClient] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -46,14 +73,18 @@ function useRtLayerEventHandler(channelIdentifier = "") {
   const listenerRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const SERVICES = useSelector((state) => state.serviceReducer.services);
+  const isEmbedUser = useSelector((state) => state.appInfoReducer.embedUserDetails?.isEmbedUser);
+  const currentUserId =
+    useSelector((state) => state.userDetailsReducer?.userDetails?.id) || sessionStorage.getItem("gtwy_user_id");
 
   // Extract path parameters with error handling
   const { bridgeId, orgId } = useMemo(() => {
     try {
       const path = pathName.split("?")[0].split("/");
+      const embedOrgId = typeof window !== "undefined" ? sessionStorage.getItem("gtwy_org_id") : null;
       return {
-        bridgeId: path[5],
-        orgId: path[2],
+        bridgeId: path[1] === "org" ? path[5] : null,
+        orgId: path[1] === "org" ? path[2] : embedOrgId,
       };
     } catch (error) {
       console.error("Error parsing path parameters:", error);
@@ -602,22 +633,20 @@ function useRtLayerEventHandler(channelIdentifier = "") {
     };
   }, [client, dispatch]);
 
-  // Listen to org-level channel for API key status updates
+  // Org channel — API key status (org_{org_id})
   useEffect(() => {
-    if (!client || !orgId) return;
+    if (!client) return;
 
-    const orgChannel = `org_${orgId}`;
+    const path = pathName.split("?")[0].split("/");
+    const rtOrgId = path[1] === "org" ? path[2] : sessionStorage.getItem("gtwy_org_id");
+    if (!rtOrgId) return;
+
+    const orgChannel = `org_${rtOrgId}`;
     const orgListener = client.on(orgChannel, (message) => {
       try {
-        const parsedData = typeof message === "string" ? JSON.parse(message) : message;
-        if (parsedData?.type === "apikey_status_update") {
-          const { apikey_id, status } = parsedData;
-          if (apikey_id && status) {
-            dispatch(updateApiKeyStatusReducer({ org_id: orgId, apikey_id, status }));
-          }
-        }
+        handleOrgRtChannelMessage(parseRtMessage(message), dispatch, rtOrgId);
       } catch (error) {
-        console.error("Error processing apikey status update:", error);
+        console.error("Error processing org RT message:", error);
       }
     });
 
@@ -626,7 +655,31 @@ function useRtLayerEventHandler(channelIdentifier = "") {
         orgListener.remove();
       }
     };
-  }, [client, orgId, dispatch]);
+  }, [client, pathName, orgId, isEmbedUser, dispatch]);
+
+  // Agent create with purpose (org_{org_id}_{user_id}) — user id from getUserDetails
+  useEffect(() => {
+    if (!client || !currentUserId) return;
+
+    const path = pathName.split("?")[0].split("/");
+    const rtOrgId = path[1] === "org" ? path[2] : sessionStorage.getItem("gtwy_org_id");
+    if (!rtOrgId) return;
+
+    const agentCreateChannel = `org_${rtOrgId}_${currentUserId}`.replace(/ /g, "_");
+    const listener = client.on(agentCreateChannel, (message) => {
+      try {
+        handleAgentCreateRtMessage(parseRtMessage(message));
+      } catch (error) {
+        console.error("Error processing agent create RT message:", error);
+      }
+    });
+
+    return () => {
+      if (listener && typeof listener.remove === "function") {
+        listener.remove();
+      }
+    };
+  }, [client, pathName, orgId, isEmbedUser, currentUserId, dispatch]);
 
   // Cleanup on unmount
   useEffect(() => {
