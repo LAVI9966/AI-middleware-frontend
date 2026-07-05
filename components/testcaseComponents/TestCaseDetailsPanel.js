@@ -499,7 +499,10 @@ const TestCaseDetailsPanel = ({
         data-testid="testcase-details-panel-card"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-base-200 flex items-center justify-end bg-base-50">
+        <div className="px-6 py-4 border-b border-base-200 flex items-center justify-between bg-base-50">
+          <div className="text-xs text-base-content/50">
+            {selectedTestCase?.createdAt && <>Created: {new Date(selectedTestCase.createdAt).toLocaleString()}</>}
+          </div>
           <div className="flex items-center gap-2">
             <button
               data-testid="testcase-run-button"
@@ -770,6 +773,36 @@ const TestCaseDetailsPanel = ({
               data-testid="testcase-expected-panel"
             >
               <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                {/* Render images extracted from markdown or URLs in expected text */}
+                {(() => {
+                  const imageUrls = [];
+                  const mdRegex = /!\[.*?\]\((.*?)\)/g;
+                  let match;
+                  while ((match = mdRegex.exec(editedExpected)) !== null) {
+                    imageUrls.push(match[1]);
+                  }
+                  const urlRegex = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|svg)/gi;
+                  while ((match = urlRegex.exec(editedExpected)) !== null) {
+                    if (!imageUrls.includes(match[0])) imageUrls.push(match[0]);
+                  }
+                  return imageUrls.length > 0 ? (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {imageUrls.map((url, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={url}
+                            alt={`Expected image ${idx + 1}`}
+                            className="max-w-full h-auto rounded-lg border border-base-200"
+                            style={{ maxHeight: "300px" }}
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
                 <AutoResizeTextarea
                   data-testid="testcase-expected-textarea"
                   value={editedExpected}
@@ -870,6 +903,7 @@ const TestCaseDetailsPanel = ({
                       ? runError
                       : runError?.error || runError?.message || (runError ? "Run failed" : null);
                   const toolsCallData = currentRun?.tools_call_data || [];
+                  const llmUrls = currentRun?.llm_urls || [];
                   const matchingTypeFromResult =
                     currentRun?.matching_type || selectedTestCase?.matching_type || "cosine";
                   // The reducer keys `seen` by `${versionId}:${modelKey}:${testcaseId}`.
@@ -1031,17 +1065,25 @@ const TestCaseDetailsPanel = ({
                                     Error
                                   </span>
                                 ) : (
-                                  <InfoTooltip
-                                    tooltipContent={
-                                      currentRun?.reason || getScoreMessage(score, matchingTypeFromResult)
-                                    }
-                                  >
+                                  <>
                                     <span
-                                      className={`text-lg font-bold cursor-help ${getScoreColor(score, matchingTypeFromResult)}`}
+                                      className={`text-lg font-bold ${getScoreColor(score, matchingTypeFromResult)}`}
                                     >
                                       {getScoreDisplay(score, matchingTypeFromResult)}
                                     </span>
-                                  </InfoTooltip>
+                                    <InfoTooltip
+                                      tooltipContent={
+                                        currentRun?.reason || getScoreMessage(score, matchingTypeFromResult)
+                                      }
+                                    >
+                                      <button
+                                        className="w-5 h-5 flex items-center justify-center rounded-full border border-base-300 bg-base-100 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 transition-colors"
+                                        title="View reason"
+                                      >
+                                        <Info size={14} />
+                                      </button>
+                                    </InfoTooltip>
+                                  </>
                                 )}
                                 {totalRuns > 1 && (
                                   <div className="flex items-center gap-1 ml-1">
@@ -1232,20 +1274,47 @@ const TestCaseDetailsPanel = ({
                             </div>
                           ) : (
                             <div className="text-sm text-base-content leading-relaxed mb-3">
+                              {/* Render images if llm_urls exists */}
+                              {llmUrls && llmUrls.length > 0 && (
+                                <div className="mb-3 flex flex-wrap gap-2">
+                                  {llmUrls.map((urlObj, idx) => (
+                                    <div key={idx} className="relative">
+                                      {urlObj.type === "image" && urlObj.permanent_url && (
+                                        <img
+                                          src={urlObj.permanent_url}
+                                          alt={`Generated image ${idx + 1}`}
+                                          className="max-w-full h-auto rounded-lg border border-base-200"
+                                          style={{ maxHeight: "300px" }}
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Render text output */}
                               {typeof modelOutput === "string" ? (
-                                <ReactMarkdown
-                                  components={{
-                                    code: ({ node, inline, className, children, ...props }) => (
-                                      <CodeBlock className={className} {...props}>
-                                        {children}
-                                      </CodeBlock>
-                                    ),
-                                  }}
-                                >
-                                  {modelOutput}
-                                </ReactMarkdown>
+                                (() => {
+                                  try {
+                                    JSON.parse(modelOutput);
+                                    return <CodeBlock className="language-json">{modelOutput}</CodeBlock>;
+                                  } catch {
+                                    return (
+                                      <ReactMarkdown
+                                        components={{
+                                          code: ({ node, inline, className, children, ...props }) => (
+                                            <CodeBlock className={className} {...props}>
+                                              {children}
+                                            </CodeBlock>
+                                          ),
+                                        }}
+                                      >
+                                        {modelOutput}
+                                      </ReactMarkdown>
+                                    );
+                                  }
+                                })()
                               ) : (
-                                JSON.stringify(modelOutput)
+                                <CodeBlock className="language-json">{JSON.stringify(modelOutput, null, 2)}</CodeBlock>
                               )}
                             </div>
                           )}
@@ -1310,6 +1379,7 @@ const TestCaseDetailsPanel = ({
                                 ? runError
                                 : runError?.error || runError?.message || (runError ? "Run failed" : null);
                             const toolsCallData = run?.tools_call_data || [];
+                            const llmUrls = run?.llm_urls || [];
                             const matchingTypeFromResult = selectedTestCase?.matching_type || "cosine";
 
                             return (
@@ -1415,6 +1485,24 @@ const TestCaseDetailsPanel = ({
                                   </div>
                                 ) : (
                                   <div className="text-sm text-base-content leading-relaxed">
+                                    {/* Render images if llm_urls exists */}
+                                    {llmUrls && llmUrls.length > 0 && (
+                                      <div className="mb-3 flex flex-wrap gap-2">
+                                        {llmUrls.map((urlObj, idx) => (
+                                          <div key={idx} className="relative">
+                                            {urlObj.type === "image" && urlObj.permanent_url && (
+                                              <img
+                                                src={urlObj.permanent_url}
+                                                alt={`Generated image ${idx + 1}`}
+                                                className="max-w-full h-auto rounded-lg border border-base-200"
+                                                style={{ maxHeight: "300px" }}
+                                              />
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {/* Render text output */}
                                     {typeof modelOutput === "string" ? (
                                       <ReactMarkdown
                                         components={{

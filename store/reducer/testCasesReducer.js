@@ -78,6 +78,7 @@ const applyResultToTestCase = (
     latency: result?.latency || null,
     metadata: { bridge_id: result.bridge_id || bridgeId },
     created_at: nowIso,
+    llm_urls: result.llm_urls || null,
   });
   // Mirror the backend's `execution.lastExecutedAt` so the in-memory testcase
   // matches what a refresh would fetch. Without this, the single-run button's
@@ -145,6 +146,7 @@ const testCasesReducer = createSlice({
                   latency: historyItem?.latency || null,
                   created_at: historyItem?.created_at,
                   updated_at: historyItem?.updated_at,
+                  llm_urls: historyItem?.llm_urls || null,
                   // Keep original data for reference
                   _original: historyItem,
                 });
@@ -195,6 +197,7 @@ const testCasesReducer = createSlice({
                 latency: historyItem?.latency || null,
                 created_at: historyItem?.created_at,
                 updated_at: historyItem?.updated_at,
+                llm_urls: historyItem?.llm_urls || null,
                 // Keep original data for reference
                 _original: historyItem,
               });

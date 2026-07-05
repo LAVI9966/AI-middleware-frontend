@@ -40,7 +40,7 @@ const AutoResizeTextarea = React.forwardRef(function AutoResizeTextarea(
         resize();
       }}
       rows={minRows}
-      className={`resize-y overflow-auto ${className}`}
+      className={`resize-none overflow-auto ${className}`}
       {...rest}
     />
   );
