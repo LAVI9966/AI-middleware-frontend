@@ -8,6 +8,7 @@ import InfiniteScroll from "react-infinite-scroll-component";
 import {
   deleteTestCaseAction,
   deleteMultipleTestCasesAction,
+  deleteAllTestCasesByAgentAction,
   getAllTestCasesOfBridgeAction,
   runTestCaseAction,
   updateTestCaseAction,
@@ -279,6 +280,7 @@ function TestCases({ params }) {
   const [renamingTestCaseId, setRenamingTestCaseId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const debounceTimer = useRef(null);
+  const [isReloadingAfterDelete, setIsReloadingAfterDelete] = useState(false);
   const [globalMatchingTypeLocal, setGlobalMatchingTypeLocal] = useState(persistedConfig?.matchingType || "AI");
   const [globalCustomPrompt, setGlobalCustomPrompt] = useState(
     currentBridge?.agent_info?.ai_matching_custom_prompt || currentBridge?.ai_matching_custom_prompt || ""
@@ -583,15 +585,49 @@ function TestCases({ params }) {
     const ids = Array.from(bulkSelectedIds);
     if (ids.length === 0) return;
     setIsBulkDeleting(true);
+    setIsReloadingAfterDelete(true);
     try {
       await dispatch(deleteMultipleTestCasesAction({ testCaseIds: ids, bridgeId: resolvedParams?.id }));
       setBulkSelectedIds(new Set());
       setSelectedTestCaseIndex(0);
       closeModal(MODAL_TYPE.DELETE_TESTCASE_BULK_MODAL);
+
+      // Reload test cases from page 1 after bulk delete
+      setPage(1);
+      setHasMore(true);
+      const res = await dispatch(getAllTestCasesOfBridgeAction({ bridgeId: resolvedParams?.id, page: 1 }));
+      if (res?.success) {
+        setHasMore(Array.isArray(res?.data) && res.data.length >= 30);
+      }
     } catch (error) {
       console.error("Error bulk deleting test cases:", error);
     } finally {
       setIsBulkDeleting(false);
+      setIsReloadingAfterDelete(false);
+    }
+  };
+
+  const openDeleteAllTestCasesModal = () => {
+    if (!Array.isArray(testCases) || testCases.length === 0) return;
+    openModal(MODAL_TYPE.DELETE_ALL_TESTCASES_MODAL);
+  };
+
+  const confirmDeleteAllTestCases = async () => {
+    setIsBulkDeleting(true);
+    setIsReloadingAfterDelete(true);
+    try {
+      await dispatch(deleteAllTestCasesByAgentAction({ bridgeId: resolvedParams?.id }));
+      setBulkSelectedIds(new Set());
+      setSelectedTestCaseIndex(0);
+      setPage(1);
+      setHasMore(false);
+    } catch (error) {
+      console.error("Error deleting all test cases:", error);
+      toast.error("Failed to delete all test cases");
+    } finally {
+      setIsBulkDeleting(false);
+      setIsReloadingAfterDelete(false);
+      closeModal(MODAL_TYPE.DELETE_ALL_TESTCASES_MODAL);
     }
   };
 
@@ -708,7 +744,7 @@ function TestCases({ params }) {
       )}
 
       {/* Show skeleton while loading */}
-      {isLoadingTestCases ? (
+      {isLoadingTestCases || isReloadingAfterDelete ? (
         <TestCaseLoadingSkeleton />
       ) : (Array.isArray(testCases) && testCases.length > 0) || searchKeyword || isSearching ? (
         <>
@@ -907,6 +943,24 @@ function TestCases({ params }) {
                     bridgeId={resolvedParams?.id}
                   />
                 </div>
+                <button
+                  onClick={openDeleteAllTestCasesModal}
+                  className={`flex items-center gap-2 border border-error rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200 ${
+                    isBulkDeleting || !Array.isArray(testCases) || testCases.length === 0
+                      ? "bg-error text-white/50 cursor-not-allowed shadow-none"
+                      : "bg-error text-white cursor-pointer shadow-[0_4px_12px_rgba(239,68,68,0.3)] hover:bg-error/90"
+                  }`}
+                  disabled={isBulkDeleting || !Array.isArray(testCases) || testCases.length === 0}
+                >
+                  {isBulkDeleting ? (
+                    <>
+                      <span className="inline-block w-3 h-3 rounded-full border-2 border-error-content border-t-transparent animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete All TestCases"
+                  )}
+                </button>
               </>
             )}
           </div>
@@ -1044,7 +1098,7 @@ function TestCases({ params }) {
                       <thead className="bg-base-50" data-testid="testcase-list-table-head">
                         <tr className="border-b border-base-200">
                           <th
-                            style={{ left: 0, width: 36, minWidth: 36 }}
+                            style={{ top: 0, left: 0, width: 36, minWidth: 36 }}
                             className="px-2 py-3 text-left text-xs font-semibold text-base-content uppercase tracking-wider sticky bg-base-50 z-30"
                           >
                             <input
@@ -1079,13 +1133,13 @@ function TestCases({ params }) {
                             />
                           </th>
                           <th
-                            style={{ left: 36, width: 40, minWidth: 40 }}
+                            style={{ top: 0, left: 36, width: 40, minWidth: 40 }}
                             className="px-2 py-3 text-left text-xs font-semibold text-base-content uppercase tracking-wider sticky bg-base-50 z-30"
                           >
                             #
                           </th>
                           <th
-                            style={{ left: 76, width: 140, minWidth: 140 }}
+                            style={{ top: 0, left: 76, width: 140, minWidth: 140 }}
                             className="px-2 py-3 text-left text-xs font-semibold text-base-content uppercase tracking-wider sticky bg-base-50 z-30"
                           >
                             Name
@@ -1094,7 +1148,7 @@ function TestCases({ params }) {
                             <th
                               key={idx}
                               data-testid={`testcase-list-version-header-${idx}`}
-                              className="px-2 py-3 text-center text-xs font-semibold text-base-content uppercase tracking-wider min-w-[60px] bg-base-50 "
+                              className="px-2 py-3 text-center text-xs font-semibold text-base-content uppercase tracking-wider min-w-[60px] bg-base-50 sticky top-0"
                             >
                               v{versions.indexOf(version) + 1}
                             </th>
@@ -1359,6 +1413,17 @@ function TestCases({ params }) {
         onConfirm={confirmBulkDeleteTestCases}
         loading={isBulkDeleting}
         buttonTitle="Delete"
+        isAsync
+      />
+
+      <DeleteModal
+        modalType={MODAL_TYPE.DELETE_ALL_TESTCASES_MODAL}
+        title="Delete All Test Cases"
+        description="Are you sure you want to delete ALL test cases for this agent? This action cannot be undone."
+        onConfirm={confirmDeleteAllTestCases}
+        loading={isBulkDeleting}
+        buttonTitle="Delete All"
+        isAsync
       />
 
       <Modal

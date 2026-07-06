@@ -118,6 +118,7 @@ const TestCaseModelDropdown = ({ selectedModels = [], onChange, selectedVersions
     } else {
       onChange([...selectedModels, { model: modelName, service: provider }]);
     }
+    setIsOpen(false);
   };
 
   return (
@@ -142,7 +143,7 @@ const TestCaseModelDropdown = ({ selectedModels = [], onChange, selectedVersions
             data-testid="testcase-model-dropdown-backdrop"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute top-[calc(100%+8px)] left-0 z-[100] w-[280px] max-h-[400px] overflow-y-auto bg-base-100 border border-base-300 rounded-2xl shadow-lg p-2">
+          <div className="absolute top-[calc(100%+8px)] -left-16 z-[100] w-[280px] max-h-[400px] overflow-y-auto bg-base-100 border border-base-300 rounded-2xl shadow-lg p-2 flex flex-col">
             <div className="flex items-center justify-between gap-2 px-2.5 pt-1.5 pb-2.5 border-b border-base-200 mb-1.5">
               <span className="text-[11px] font-bold tracking-[0.05em] text-base-content/50 uppercase">
                 Select Models
@@ -184,8 +185,8 @@ const TestCaseModelDropdown = ({ selectedModels = [], onChange, selectedVersions
               </button>
             </div>
 
-            {/* Search */}
-            <div className="px-1.5 pb-1.5">
+            {/* Search - Sticky */}
+            <div className="sticky top-0 z-10 px-1.5 pb-1.5 bg-base-100">
               <div className="flex items-center gap-2 px-2 py-1.5 rounded-[9px] border border-base-content/30 bg-base-100 focus-within:border-primary">
                 <Search size={12} className="text-base-content/40 flex-shrink-0" />
                 <input
@@ -199,95 +200,98 @@ const TestCaseModelDropdown = ({ selectedModels = [], onChange, selectedVersions
               </div>
             </div>
 
-            {filteredGroups.length === 0 ? (
-              <div className="px-2.5 py-3 text-[12px] text-base-content/50 text-center">
-                No models match "{searchQuery}"
-              </div>
-            ) : null}
+            {/* Scrollable Content */}
+            <div className="overflow-y-auto flex-1">
+              {filteredGroups.length === 0 ? (
+                <div className="px-2.5 py-3 text-[12px] text-base-content/50 text-center">
+                  No models match "{searchQuery}"
+                </div>
+              ) : null}
 
-            {filteredGroups.map((group) => {
-              const missingVersions = getVersionsMissingService(group.provider);
-              const isServiceUnavailable = missingVersions.length > 0;
-              const missingLabels = missingVersions.map((v) => v.label).join(", ");
-              const missingVisible = missingVersions
-                .slice(0, 3)
-                .map((v) => v.label)
-                .join(", ");
-              const missingHidden = Math.max(0, missingVersions.length - 3);
-              const unavailableTooltip = isServiceUnavailable
-                ? `No API key configured for ${group.provider} in ${missingLabels}`
-                : "";
-              return (
-                <div key={group.provider}>
-                  <div className="flex items-center justify-between gap-2 px-2.5 pt-1.5 pb-1">
-                    <span className="text-[11px] font-bold tracking-wide text-base-content/50">{group.provider}</span>
-                    {isServiceUnavailable && (
-                      <InfoTooltip tooltipContent={unavailableTooltip}>
-                        <span
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-error bg-error/10 px-1.5 py-0.5 rounded cursor-help"
-                          data-testid={`testcase-model-service-missing-${group.provider}`}
-                        >
-                          <AlertCircle size={10} />
-                          No Api Key: {missingVisible}
-                          {missingHidden > 0 && <span className="opacity-80">... +{missingHidden}</span>}
-                        </span>
-                      </InfoTooltip>
-                    )}
-                  </div>
-                  {group.models.map((model) => {
-                    const isActive = isModelSelected(model.name, group.provider);
-                    const disabled = isServiceUnavailable && !isActive;
-                    const versionsWithModel = getVersionsWithModel(model.name);
-                    const versionsLabel = versionsWithModel.map((v) => v.label).join(", ");
-                    const isConnected = versionsWithModel.length > 0;
-                    return (
-                      <button
-                        key={model.name}
-                        onClick={() => toggleModel(model.name, group.provider)}
-                        disabled={disabled}
-                        title={disabled ? unavailableTooltip : versionsLabel ? `Connected to: ${versionsLabel}` : ""}
-                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-[9px] text-left text-[13.5px] transition-colors ${
-                          disabled
-                            ? "cursor-not-allowed opacity-50 bg-transparent text-base-content/40"
-                            : isActive
-                              ? "cursor-pointer bg-primary/10 font-bold text-primary"
-                              : "cursor-pointer bg-transparent font-normal text-base-content/70 hover:bg-base-200"
-                        }`}
-                      >
-                        <span
-                          className={`w-4 h-4 flex-shrink-0 rounded border flex items-center justify-center ${
-                            isActive
-                              ? "bg-primary border-primary"
-                              : disabled
-                                ? "bg-base-200 border-base-content/20"
-                                : "bg-base-100 border-base-content/40"
+              {filteredGroups.map((group) => {
+                const missingVersions = getVersionsMissingService(group.provider);
+                const isServiceUnavailable = missingVersions.length > 0;
+                const missingLabels = missingVersions.map((v) => v.label).join(", ");
+                const missingVisible = missingVersions
+                  .slice(0, 3)
+                  .map((v) => v.label)
+                  .join(", ");
+                const missingHidden = Math.max(0, missingVersions.length - 3);
+                const unavailableTooltip = isServiceUnavailable
+                  ? `No API key configured for ${group.provider} in ${missingLabels}`
+                  : "";
+                return (
+                  <div key={group.provider}>
+                    <div className="flex items-center justify-between gap-2 px-2.5 pt-1.5 pb-1">
+                      <span className="text-[11px] font-bold tracking-wide text-base-content/50">{group.provider}</span>
+                      {isServiceUnavailable && (
+                        <InfoTooltip tooltipContent={unavailableTooltip}>
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-error bg-error/10 px-1.5 py-0.5 rounded cursor-help"
+                            data-testid={`testcase-model-service-missing-${group.provider}`}
+                          >
+                            <AlertCircle size={10} />
+                            No Api Key: {missingVisible}
+                            {missingHidden > 0 && <span className="opacity-80">... +{missingHidden}</span>}
+                          </span>
+                        </InfoTooltip>
+                      )}
+                    </div>
+                    {group.models.map((model) => {
+                      const isActive = isModelSelected(model.name, group.provider);
+                      const disabled = isServiceUnavailable && !isActive;
+                      const versionsWithModel = getVersionsWithModel(model.name);
+                      const versionsLabel = versionsWithModel.map((v) => v.label).join(", ");
+                      const isConnected = versionsWithModel.length > 0;
+                      return (
+                        <button
+                          key={model.name}
+                          onClick={() => toggleModel(model.name, group.provider)}
+                          disabled={disabled}
+                          title={disabled ? unavailableTooltip : versionsLabel ? `Connected to: ${versionsLabel}` : ""}
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-[9px] text-left text-[13.5px] transition-colors ${
+                            disabled
+                              ? "cursor-not-allowed opacity-50 bg-transparent text-base-content/40"
+                              : isActive
+                                ? "cursor-pointer bg-primary/10 font-bold text-primary"
+                                : "cursor-pointer bg-transparent font-normal text-base-content/70 hover:bg-base-200"
                           }`}
                         >
-                          {isActive && <Check size={12} strokeWidth={3} className="text-primary-content" />}
-                        </span>
-                        <span className="truncate min-w-0 flex-1">{model.name}</span>
-                        {isConnected && (
-                          <InfoTooltip tooltipContent={`Connected to: ${versionsLabel}`}>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-success cursor-help flex-shrink-0">
-                              {versionsWithModel.slice(0, 3).map((v) => (
-                                <span key={v.id} className="border border-success/40 px-1.5 py-0.5 rounded">
-                                  {v.label}
-                                </span>
-                              ))}
-                              {versionsWithModel.length > 3 && (
-                                <span className="border border-success/40 px-1.5 py-0.5 rounded">
-                                  +{versionsWithModel.length - 3}
-                                </span>
-                              )}
-                            </span>
-                          </InfoTooltip>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                          <span
+                            className={`w-4 h-4 flex-shrink-0 rounded border flex items-center justify-center ${
+                              isActive
+                                ? "bg-primary border-primary"
+                                : disabled
+                                  ? "bg-base-200 border-base-content/20"
+                                  : "bg-base-100 border-base-content/40"
+                            }`}
+                          >
+                            {isActive && <Check size={12} strokeWidth={3} className="text-primary-content" />}
+                          </span>
+                          <span className="truncate min-w-0 flex-1">{model.name}</span>
+                          {isConnected && (
+                            <InfoTooltip tooltipContent={`Connected to: ${versionsLabel}`}>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-success cursor-help flex-shrink-0">
+                                {versionsWithModel.slice(0, 3).map((v) => (
+                                  <span key={v.id} className="border border-success/40 px-1.5 py-0.5 rounded">
+                                    {v.label}
+                                  </span>
+                                ))}
+                                {versionsWithModel.length > 3 && (
+                                  <span className="border border-success/40 px-1.5 py-0.5 rounded">
+                                    +{versionsWithModel.length - 3}
+                                  </span>
+                                )}
+                              </span>
+                            </InfoTooltip>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </>
       )}

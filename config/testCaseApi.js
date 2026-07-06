@@ -67,6 +67,17 @@ export const deleteMultipleTestCasesApi = async ({ testCaseIds }) => {
   }
 };
 
+// Delete all test cases for a specific agent/bridge
+export const deleteAllTestCasesByAgentApi = async ({ bridgeId }) => {
+  try {
+    const response = await axios.delete(`${URL}/api/testcases/agent/${bridgeId}`);
+    return response.data;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
 export const runTestCaseApi = async ({
   versionIds,
   testcase_id,

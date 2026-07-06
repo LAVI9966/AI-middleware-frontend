@@ -411,6 +411,12 @@ const TestCaseSidebar = ({ params, resolvedParams, matching_type, onTestCaseClic
                         </>
                       )}
                     </div>
+                    {/* Created at timestamp */}
+                    {testCase.createdAt && (
+                      <div className="text-xs text-base-content/50">
+                        {new Date(testCase.createdAt).toLocaleDateString()}
+                      </div>
+                    )}
                     <div className="flex items-center space-x-1">
                       <button
                         data-testid={`testcase-toggle-expand-${testCase._id}`}
