@@ -193,6 +193,13 @@ const Navbar = ({ isEmbedUser, params }) => {
     }
   }, [savingStatus.status, savingStatus.timestamp]);
 
+  useEffect(() => {
+    setIsEditingName(false);
+    setEditedName(agentName);
+
+    return () => setIsEditingName(false);
+  }, [bridgeId, agentName]);
+
   // Calculate active tab index for tab switcher animation
   const activeTabIndex = useMemo(() => {
     return TABS.findIndex((tab) => tab.id === activeTab);
