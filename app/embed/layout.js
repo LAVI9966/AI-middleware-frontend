@@ -12,6 +12,7 @@ import defaultUserTheme from "@/public/themes/default-user-theme.json";
 import Protected from "@/components/Protected";
 import { EMBED_ARRAY_KEYS, EMBED_OBJECT_KEYS, EMBED_PASSTHROUGH_KEYS, EMBED_SKIP_KEYS } from "@/utils/enums";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
 const Layout = ({ children, isEmbedUser }) => {
   const searchParams = useSearchParams();
@@ -38,6 +39,8 @@ const Layout = ({ children, isEmbedUser }) => {
   }, [allBridges]);
 
   const { changeTheme } = useThemeManager();
+
+  useRtLayerEventHandler();
 
   useEffect(() => {
     if (isEmbedUser && themeMode && urlParamsObj.folder_id) {
@@ -118,6 +121,7 @@ const Layout = ({ children, isEmbedUser }) => {
       sessionStorage.setItem("local_token", urlParamsObj.token);
       sessionStorage.setItem("gtwy_org_id", urlParamsObj.org_id);
       sessionStorage.setItem("gtwy_folder_id", urlParamsObj.folder_id);
+      sessionStorage.setItem("gtwy_user_id", urlParamsObj.user_id);
       if (urlParamsObj.folder_id) {
         sessionStorage.setItem("embedUser", true);
       }

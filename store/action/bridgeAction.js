@@ -64,6 +64,38 @@ import {
 import { getAllResponseTypeSuccess } from "../reducer/responseTypeReducer";
 import { markUpdateInitiatedByCurrentTab } from "@/utils/utility";
 import { callViasocketCreateFullFlow } from "@/config/utilityApi";
+
+const AGENT_CREATE_RT_TIMEOUT_MS = 5 * 60 * 1000;
+
+/** Waits for agent_created / agent_create_failed from useRtLayerEventHandler (org channel). */
+function waitForAgentCreateRtResult() {
+  return new Promise((resolve, reject) => {
+    let timeoutId;
+    const finish = (callback, value) => {
+      clearTimeout(timeoutId);
+      window.removeEventListener("gtwy:agent-created", onCreated);
+      window.removeEventListener("gtwy:agent-create-failed", onFailed);
+      callback(value);
+    };
+    const onCreated = (event) => finish(resolve, event.detail);
+    const onFailed = (event) => finish(reject, new Error(event.detail || "Failed to create agent"));
+
+    timeoutId = setTimeout(
+      () => finish(reject, new Error("Agent creation timed out. Please try again.")),
+      AGENT_CREATE_RT_TIMEOUT_MS
+    );
+    window.addEventListener("gtwy:agent-created", onCreated);
+    window.addEventListener("gtwy:agent-create-failed", onFailed);
+  });
+}
+
+async function finishCreateBridgeWithAi(dispatch, orgId, agent) {
+  const data = { data: { success: true, agent }, status: 200, statusText: "OK" };
+  dispatch(createBridgeReducer({ data, orgId }));
+  await dispatch(getAllFunctions());
+  return data;
+}
+
 //   ---------------------------------------------------- ADMIN ROUTES ---------------------------------------- //
 export const getSingleBridgesAction =
   ({ id, version }) =>
@@ -133,21 +165,44 @@ export const createAgentFromTemplateAction = (templateId, onSuccess) => async (d
 export const createBridgeAction = (dataToSend, onSuccess) => async (dispatch, getState) => {
   try {
     dispatch(clearPreviousBridgeDataReducer());
+
+    // Always expect RT layer response now (backend always returns 202)
+    const rtPromise = waitForAgentCreateRtResult();
     const response = await createBridge(dataToSend.dataToSend);
-    // Extract only the necessary serializable data from the response
-    const serializableData = {
-      data: response.data,
-      status: response.status,
-      statusText: response.statusText,
-    };
-    onSuccess(serializableData);
-    dispatch(createBridgeReducer({ data: serializableData, orgId: dataToSend.orgid }));
-    if (response?.data?._id) {
-      trackAgentEvent("created", {
-        agent_id: response.data._id,
-        name: response.data.name,
-        org_id: dataToSend.orgid,
-      });
+
+    // Check if backend returned 202 (RT layer response)
+    if (response?.status === 202 || response?.data?.accepted) {
+      const agent = await rtPromise;
+      const serializableData = {
+        data: { success: true, agent },
+        status: 200,
+        statusText: "OK",
+      };
+      onSuccess(serializableData);
+      dispatch(createBridgeReducer({ data: serializableData, orgId: dataToSend.orgid }));
+      if (agent?._id) {
+        trackAgentEvent("created", {
+          agent_id: agent._id,
+          name: agent.name,
+          org_id: dataToSend.orgid,
+        });
+      }
+    } else {
+      // Fallback for direct response (backward compatibility)
+      const serializableData = {
+        data: response.data,
+        status: response.status,
+        statusText: response.statusText,
+      };
+      onSuccess(serializableData);
+      dispatch(createBridgeReducer({ data: serializableData, orgId: dataToSend.orgid }));
+      if (response?.data?._id) {
+        trackAgentEvent("created", {
+          agent_id: response.data._id,
+          name: response.data.name,
+          org_id: dataToSend.orgid,
+        });
+      }
     }
   } catch (error) {
     if (error?.response?.data?.message?.includes("duplicate key")) {
@@ -165,7 +220,18 @@ export const createBridgeWithAiAction =
   async (dispatch, getState) => {
     try {
       dispatch(clearPreviousBridgeDataReducer());
-      const data = await createBridge(dataToSend);
+
+      // Always expect RT layer response now (backend always returns 202)
+      const rtPromise = waitForAgentCreateRtResult();
+      const response = await createBridge(dataToSend);
+
+      if (response?.status === 202 || response?.data?.accepted) {
+        const agent = await rtPromise;
+        return finishCreateBridgeWithAi(dispatch, orgId, agent);
+      }
+
+      // Fallback for direct response (backward compatibility)
+      const data = response;
       dispatch(createBridgeReducer({ data, orgId: orgId }));
       await dispatch(getAllFunctions());
       return data;

@@ -382,6 +382,11 @@ export const ON_CLICK_ACTION_TYPES = ["reply", "sendDataToFrontend"];
 
 export const PROXY_SCRIPT_SRC = "https://36blocks.com/assets/proxy-auth/proxy-auth.js";
 
+export const AI_CREATE_STEPS = [
+  { label: "Understanding your purpose", hint: "Reading what you described" },
+  { label: "Generating configuration", hint: "AI is shaping prompts & settings" },
+  { label: "Creating your agent", hint: "Saving to your workspace" },
+];
 export const DEFAULT_STARTER_QUESTIONS = [
   "What can you help me with?",
   "Give me a quick overview of your capabilities.",
