@@ -35,14 +35,13 @@ const Protected = (WrappedComponent) => {
       return () => clearTimeout(timer);
     }, [router]);
 
-    const hasMainAppToken = !!getFromCookies("proxy_token");
-    const isEmbedState = !!(isEmbedUser || isEmbedUserFromUserDetails);
-    const hasEmbedToken = !!sessionStorage.getItem("local_token");
-    // If the user has main-app auth (proxy_token cookie), ignore stale embed state
-    // so the main app layout always renders correctly even after using embed in the same tab.
-    const effectiveIsEmbedUser = !hasMainAppToken && isEmbedState && hasEmbedToken;
-
-    return <WrappedComponent {...props} isEmbedUser={effectiveIsEmbedUser} isFocus={isFocus} />;
+    return (
+      <WrappedComponent
+        {...props}
+        isEmbedUser={!!((isEmbedUser || isEmbedUserFromUserDetails) && sessionStorage.getItem("local_token"))}
+        isFocus={isFocus}
+      />
+    );
   };
   return ProtectedComponent;
 };
