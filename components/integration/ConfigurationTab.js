@@ -599,7 +599,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
         createPortal(
           <div className="space-y-3">
             {/* Save Button */}
-            <div className="flex sticky top-0 bg-base-100 items-center justify-between pb-2 border-b border-base-300">
+            <div className="flex sticky top-0 z-20 bg-base-100 items-center justify-between pb-2 border-b border-base-300">
               <span className="text-xs text-base-content/60">
                 {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
               </span>
@@ -701,7 +701,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           </div>
                           <div
                             data-testid="embed-config-json-schema-codemirror"
-                            className="border border-base-300 rounded-md overflow-hidden"
+                            className="relative z-0 border border-base-300 rounded-md overflow-hidden"
                           >
                             <CodeMirror
                               value={(() => {
