@@ -6,6 +6,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import EmbedListSuggestionDropdownMenu from "./EmbedListSuggestionDropdownMenu";
 import { AddIcon } from "@/components/Icons";
 import { getSelectedVariablesPath } from "@/utils/variableValidation";
+import { getStatusClass } from "@/utils/utility";
 
 function ReviewerToolSelector({ params, searchParams, isPublished, isEditor }) {
   const dispatch = useDispatch();
@@ -30,6 +31,21 @@ function ReviewerToolSelector({ params, searchParams, isPublished, isEditor }) {
   const selectedTool = useMemo(() => {
     return selectedToolId ? functionData[selectedToolId] : null;
   }, [functionData, selectedToolId]);
+
+  const selectedToolStatus = useMemo(() => {
+    return selectedTool ? selectedTool.status || integrationData?.[selectedTool.script_id]?.status : null;
+  }, [selectedTool, integrationData]);
+
+  const statusLabel = useMemo(() => {
+    if (!selectedTool) return "";
+    return selectedTool.description?.trim() === ""
+      ? "Ongoing"
+      : selectedToolStatus === 1
+        ? "active"
+        : selectedToolStatus === 0
+          ? "paused"
+          : selectedToolStatus;
+  }, [selectedTool, selectedToolStatus]);
 
   const handleSelectTool = (functionId) => {
     dispatch(
@@ -98,6 +114,13 @@ function ReviewerToolSelector({ params, searchParams, isPublished, isEditor }) {
                   integrationData?.[selectedTool.script_id]?.title ||
                   selectedTool.script_id ||
                   "Untitled"}
+              </span>
+              <span
+                className={`rounded-full capitalize px-1.5 py-0.5 text-[9px] font-semibold text-black ${getStatusClass(
+                  statusLabel
+                )}`}
+              >
+                {statusLabel}
               </span>
             </div>
             {!isReadOnly && (

@@ -54,13 +54,19 @@ function EmbedListSuggestionDropdownMenu({
 
   const handleItemClick = (id) => {
     onSelect(id); // Assuming onSelect is a function you've defined elsewhere
+    setSearchQuery("");
+    document.activeElement?.blur();
   };
   const handlePrebuiltToolClick = (tool) => {
     onSelectPrebuiltTool(tool);
+    setSearchQuery("");
+    document.activeElement?.blur();
   };
 
   const handleBuiltInPreToolClick = (type) => {
     onSelectBuiltInPreTool(type);
+    setSearchQuery("");
+    document.activeElement?.blur();
   };
 
   const renderEmbedSuggestions = useMemo(
