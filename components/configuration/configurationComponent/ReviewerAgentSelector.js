@@ -132,7 +132,7 @@ function ReviewerAgentSelector({ params, searchParams, isPublished, isEditor }) 
             autoComplete="off"
             type="checkbox"
             disabled={isReadOnly}
-            className="toggle toggle-sm toggle-primary"
+            className="toggle toggle-sm"
             checked={isEnabled}
             onChange={handleToggleChange}
           />
@@ -148,7 +148,7 @@ function ReviewerAgentSelector({ params, searchParams, isPublished, isEditor }) 
               <input
                 type="radio"
                 name="reviewer_type"
-                className="radio radio-xs radio-primary"
+                className="radio radio-xs"
                 checked={reviewerType === "agent"}
                 disabled={isReadOnly}
                 onChange={() => {
@@ -176,7 +176,7 @@ function ReviewerAgentSelector({ params, searchParams, isPublished, isEditor }) 
               <input
                 type="radio"
                 name="reviewer_type"
-                className="radio radio-xs radio-primary"
+                className="radio radio-xs"
                 checked={reviewerType === "prompt"}
                 disabled={isReadOnly}
                 onChange={() => {
@@ -204,7 +204,7 @@ function ReviewerAgentSelector({ params, searchParams, isPublished, isEditor }) 
               <input
                 type="radio"
                 name="reviewer_type"
-                className="radio radio-xs radio-primary"
+                className="radio radio-xs"
                 checked={reviewerType === "tool"}
                 disabled={isReadOnly}
                 onChange={() => {
