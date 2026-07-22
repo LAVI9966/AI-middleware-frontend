@@ -418,6 +418,7 @@ function ToolStep({ step, inRail = true }) {
       {open && (
         <div className="pb-1 pt-1">
           <IoPanel label="Input" value={step.input} />
+          {step.queryParams && <IoPanel label="Query Params" value={step.queryParams} />}
           <IoPanel label="Output" value={step.output} />
         </div>
       )}
