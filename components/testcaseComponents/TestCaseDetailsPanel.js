@@ -185,29 +185,6 @@ const TestCaseDetailsPanel = ({
   );
   const [copiedVersion, setCopiedVersion] = useState(null);
   const [movedVersion, setMovedVersion] = useState(null);
-  const [isHistorySliderOpen, setIsHistorySliderOpen] = useState(false);
-
-  const handleOpenHistory = (messageId) => {
-    if (!bridgeId) return;
-    if (typeof window === "undefined" || typeof window.openGtwy !== "function") {
-      console.error("GTWY embed script not loaded yet");
-      return;
-    }
-    setIsHistorySliderOpen(true);
-    // Wait a tick to ensure slider DOM (parentId) is mounted before opening embed.
-    setTimeout(() => {
-      window.GtwyEmbed?.sendDataToGtwy?.({ parentId: "gtwyHistoryParentId" });
-      window.openGtwy({
-        agent_id: bridgeId,
-        historyEmbed: true,
-        message_id: messageId || null,
-      });
-    }, 50);
-  };
-
-  const handleCloseHistory = () => {
-    setIsHistorySliderOpen(false);
-  };
 
   const handleCopyResponse = useCallback((versionId, output) => {
     const text = typeof output === "string" ? output : JSON.stringify(output, null, 2);
@@ -1171,16 +1148,6 @@ const TestCaseDetailsPanel = ({
                                           <span>Move to Expected</span>
                                         </>
                                       )}
-                                    </button>
-                                    <button
-                                      onClick={() => handleOpenHistory(currentRun?.message_id)}
-                                      className="h-6 px-2 flex items-center gap-1 rounded border border-base-300 bg-base-100 text-xs text-base-content/70 hover:bg-base-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      title="View details"
-                                      data-testid={`testcase-version-details-${versions.indexOf(version) + 1}`}
-                                      disabled={!bridgeId || !currentRun?.message_id}
-                                    >
-                                      <Info size={12} />
-                                      <span>More Info</span>
                                     </button>
                                     <button
                                       onClick={() => handleCopyResponse(version, modelOutput)}
