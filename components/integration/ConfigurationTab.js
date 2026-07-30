@@ -358,7 +358,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
       apikey_object_id: integrationData?.apikey_object_id || {},
       prompt: config.prompt || {},
       // If showResponseType is false, response_type should be null
-      response_type: initialConfig.showResponseType === false ? null : config?.response_type || {},
+      response_type: !initialConfig.showResponseType === false ? null : config?.response_type || {},
     };
   });
   const [theme, setTheme] = useState(config?.theme_config || defaultUserTheme);
@@ -386,6 +386,11 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
         const configForSend = { ...restConfig };
         if (configForSend.showPlayground !== undefined) {
           configForSend.hideplayground = !configForSend.showPlayground;
+        }
+
+        // When showResponseType is on, folder-level response_type must be null
+        if (configForSend.showResponseType === true) {
+          configForSend.response_type = null;
         }
 
         const dataToSend = {
