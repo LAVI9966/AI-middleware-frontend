@@ -1326,13 +1326,18 @@ export const formatTokensTable = (tokensObj) => {
 
   Object.keys(tokensObj).forEach((tk) => {
     if (!processedTokenKeys.has(tk)) {
+      const rawVal = tokensObj[tk];
+      if (rawVal !== null && typeof rawVal === "object") {
+        processedTokenKeys.add(tk);
+        return;
+      }
       let matchedCostKey = null;
       const potentialCostKey = tk.replace(/_tokens$/, "_cost");
       if (costObj[potentialCostKey] !== undefined) matchedCostKey = potentialCostKey;
 
       rows.push({
         label: tk.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-        token: tokensObj[tk],
+        token: rawVal,
         cost: matchedCostKey ? costObj[matchedCostKey] : undefined,
       });
 
