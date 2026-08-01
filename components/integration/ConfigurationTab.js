@@ -206,6 +206,14 @@ const CONFIG_SCHEMA = [
     defaultValue: false,
     section: "Interface Options",
   },
+  {
+    key: "showReviewAgent",
+    type: "toggle",
+    label: "Show Review Agent",
+    description: "Display review agent settings",
+    defaultValue: false,
+    section: "Interface Options",
+  },
 ];
 
 // Model Customization Component
@@ -337,18 +345,22 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
     return initial;
   };
 
-  const [configuration, setConfiguration] = useState(() => ({
-    ...generateInitialConfig(),
-    theme_config: config?.theme_config || defaultUserTheme,
-    tools_id: config?.tools_id || [],
-    pre_tool_id: config?.pre_tool_id || null,
-    post_tool_id: config?.post_tool_id || null,
-    variables_path: config?.variables_path || {},
-    models: config?.models || {},
-    apikey_object_id: integrationData?.apikey_object_id || {},
-    prompt: config.prompt || {},
-    response_type: config?.response_type || {},
-  }));
+  const [configuration, setConfiguration] = useState(() => {
+    const initialConfig = generateInitialConfig();
+    return {
+      ...initialConfig,
+      theme_config: config?.theme_config || defaultUserTheme,
+      tools_id: config?.tools_id || [],
+      pre_tool_id: config?.pre_tool_id || null,
+      post_tool: config?.post_tool || null,
+      variables_path: config?.variables_path || {},
+      models: config?.models || {},
+      apikey_object_id: integrationData?.apikey_object_id || {},
+      prompt: config.prompt || {},
+      // If showResponseType is false, response_type should be null
+      response_type: !initialConfig.showResponseType === false ? null : config?.response_type || {},
+    };
+  });
   const [theme, setTheme] = useState(config?.theme_config || defaultUserTheme);
 
   // Cleanup on unmount
@@ -376,6 +388,11 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
           configForSend.hideplayground = !configForSend.showPlayground;
         }
 
+        // When showResponseType is on, folder-level response_type must be null
+        if (configForSend.showResponseType === true) {
+          configForSend.response_type = null;
+        }
+
         const dataToSend = {
           folder_id: data?.folder_id,
           orgId: data?.org_id,
@@ -400,9 +417,75 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
 
   // For toggles/selects — update state + send preview immediately
   const handleConfigChange = (key, value) => {
-    setConfiguration((prev) => ({ ...prev, [key]: value }));
+    setConfiguration((prev) => {
+      const updated = { ...prev, [key]: value };
+
+      // When showResponseType is turned off, set response_type to null
+      if (key === "showResponseType" && value === false) {
+        updated.response_type = null;
+      }
+
+      return updated;
+    });
     setHasUnsavedChanges(true);
-    window.GtwyEmbed?.sendDataToGtwy({ [key]: value });
+
+    // Send the appropriate data to preview
+    const dataToSend = { [key]: value };
+    if (key === "showResponseType" && value === false) {
+      dataToSend.response_type = null;
+    }
+
+    window.GtwyEmbed?.sendDataToGtwy(dataToSend);
+  };
+
+  // Special handler for post_tool changes (nested object format)
+  const handlePostToolChange = (toolId) => {
+    if (!toolId) {
+      const postToolValue = null;
+      setConfiguration((prev) => ({ ...prev, post_tool: postToolValue }));
+      setHasUnsavedChanges(true);
+      window.GtwyEmbed?.sendDataToGtwy({ post_tool: postToolValue });
+    } else {
+      const fn = functionData?.[toolId];
+      const postToolValue = {
+        id: toolId,
+        script_id: fn?.script_id || toolId,
+        args: {},
+      };
+      setConfiguration((prev) => ({ ...prev, post_tool: postToolValue }));
+      setHasUnsavedChanges(true);
+      window.GtwyEmbed?.sendDataToGtwy({ post_tool: postToolValue });
+    }
+  };
+
+  // Special handler for post_tool config/args changes
+  const handlePostToolConfigChange = (key, value) => {
+    if (key === "variables_path") {
+      const scriptId = configuration.post_tool?.script_id;
+
+      // If post_tool doesn't exist, this means it was already removed by handlePostToolChange
+      if (!configuration.post_tool?.id) {
+        return;
+      }
+
+      // If scriptId exists, extract the args from the wrapped structure
+      // ToolsConfiguration wraps it as { [script_id]: args }
+      // We need to unwrap it and store args directly as flat key-value pairs
+      if (scriptId && value?.[scriptId]) {
+        const actualArgs = value[scriptId];
+
+        const updatedPostTool = {
+          id: configuration.post_tool.id,
+          script_id: scriptId,
+          args: actualArgs, // Store args as flat key-value pairs
+        };
+        setConfiguration((prev) => ({ ...prev, post_tool: updatedPostTool }));
+        setHasUnsavedChanges(true);
+        window.GtwyEmbed?.sendDataToGtwy({ post_tool: updatedPostTool });
+      }
+    } else {
+      handleConfigChange(key, value);
+    }
   };
 
   // For text inputs (models, prompt) — only update state on change
@@ -591,7 +674,7 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
         createPortal(
           <div className="space-y-3">
             {/* Save Button */}
-            <div className="flex sticky top-0 bg-base-100 items-center justify-between pb-2 border-b border-base-300">
+            <div className="flex sticky top-0 z-20 bg-base-100 items-center justify-between pb-2 border-b border-base-300">
               <span className="text-xs text-base-content/60">
                 {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}
               </span>
@@ -693,10 +776,12 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                           </div>
                           <div
                             data-testid="embed-config-json-schema-codemirror"
-                            className="border border-base-300 rounded-md overflow-hidden"
+                            className="relative z-0 border border-base-300 rounded-md overflow-hidden"
                           >
                             <CodeMirror
                               value={(() => {
+                                // When showResponseType is false, show empty if response_type is null
+                                if (configuration?.response_type === null) return "";
                                 const schemaValue = configuration?.response_type?.json_schema;
                                 if (schemaValue === undefined || schemaValue === null) return "";
                                 return typeof schemaValue === "object"
@@ -711,13 +796,10 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
                               onChange={(val) => {
                                 const raw = val ?? "";
                                 if (raw.trim() === "") {
-                                  // Remove response_type key entirely when empty
-                                  setConfiguration((prev) => {
-                                    const { response_type, ...rest } = prev;
-                                    return rest;
-                                  });
+                                  // Set response_type to null when empty (not removing the key)
+                                  setConfiguration((prev) => ({ ...prev, response_type: null }));
                                   setHasUnsavedChanges(true);
-                                  window.GtwyEmbed?.sendDataToGtwy({ response_type: undefined });
+                                  window.GtwyEmbed?.sendDataToGtwy({ response_type: null });
                                   return;
                                 }
                                 let schemaToStore = raw;
@@ -901,12 +983,18 @@ const ConfigurationTab = ({ data, isConfigMode, onUnsavedChanges, onSaveRef }) =
             <div className="divider my-2"></div>
             <ToolsConfiguration
               singleToolMode={true}
-              selectedToolId={configuration.post_tool_id}
-              onToolChange={(toolId) => handleConfigChange("post_tool_id", toolId)}
+              selectedToolId={configuration.post_tool?.id || null}
+              onToolChange={handlePostToolChange}
               orgId={data?.org_id}
               params={{ org_id: data?.org_id }}
-              configuration={configuration}
-              onConfigChange={handleConfigChange}
+              configuration={{
+                ...configuration,
+                // Wrap args with script_id for ToolsConfiguration to consume
+                variables_path: configuration.post_tool?.script_id
+                  ? { [configuration.post_tool.script_id]: configuration.post_tool.args || {} }
+                  : {},
+              }}
+              onConfigChange={handlePostToolConfigChange}
               title="Post-Tool Configuration"
               modalType={MODAL_TYPE.POST_FUNCTION_PARAMETER_MODAL}
             />

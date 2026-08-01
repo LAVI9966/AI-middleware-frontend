@@ -29,7 +29,7 @@ import {
 import TestCaseSidebar from "./TestCaseSidebar";
 import AddTestCaseModal from "../modals/AddTestCaseModal";
 import { createConversationForTestCase, toggleSidebar, openModal, extractErrorMessage } from "@/utils/utility";
-import { MODAL_TYPE, DEFAULT_STARTER_QUESTIONS } from "@/utils/enums";
+import { MODAL_TYPE, DEFAULT_STARTER_QUESTIONS, AVAILABLE_MODEL_TYPES } from "@/utils/enums";
 import { validatePromptVariables, buildVariablesObject } from "@/utils/variableValidation";
 import { runTestCaseAction } from "@/store/action/testCasesAction";
 import { testRunResetReducer } from "@/store/reducer/testCasesReducer";
@@ -115,6 +115,13 @@ function StreamingMessage({ content, isStreaming }) {
 
 function ToolCallItem({ toolCall, isMessageComplete }) {
   const [open, setOpen] = useState(false);
+
+  // Auto-open when streaming content starts arriving during tool call
+  useEffect(() => {
+    if (toolCall.status === "calling" && toolCall.streamingContent) setOpen(true);
+  }, [toolCall.status, toolCall.streamingContent]);
+
+  // Auto-open when result arrives
   useEffect(() => {
     if (toolCall.status === "done") setOpen(true);
   }, [toolCall.status]);
@@ -122,6 +129,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
   useEffect(() => {
     if (isMessageComplete) setOpen(false);
   }, [isMessageComplete]);
+
   let parsedResult = null;
   if (toolCall.result) {
     try {
@@ -130,11 +138,15 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
       parsedResult = toolCall.result;
     }
   }
+
+  const hasBody = toolCall.status === "done" ? !!toolCall.result : !!toolCall.streamingContent;
+  const canToggle = hasBody;
+
   return (
     <div className="rounded-lg border border-base-300 bg-base-200 text-xs overflow-hidden">
       <div
-        className={`flex items-center gap-2 px-3 py-1.5 select-none ${toolCall.status === "done" ? "cursor-pointer" : "cursor-default"}`}
-        onClick={() => toolCall.status === "done" && setOpen((v) => !v)}
+        className={`flex items-center gap-2 px-3 py-1.5 select-none ${canToggle ? "cursor-pointer" : "cursor-default"}`}
+        onClick={() => canToggle && setOpen((v) => !v)}
       >
         {toolCall.status === "calling" ? (
           <span className="loading loading-spinner loading-xs text-primary" />
@@ -142,7 +154,7 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
           <Wrench className="h-3.5 w-3.5 text-success shrink-0" />
         )}
         <span className=" font-medium truncate flex-1">{toolCall.name}</span>
-        {toolCall.status === "calling" ? (
+        {!canToggle ? (
           <span className="text-base-content/50 italic">calling…</span>
         ) : open ? (
           <ChevronUp className="h-3.5 w-3.5 shrink-0" />
@@ -150,9 +162,19 @@ function ToolCallItem({ toolCall, isMessageComplete }) {
           <ChevronDown className="h-3.5 w-3.5 shrink-0" />
         )}
       </div>
-      {toolCall.status === "done" && open && (
-        <div className="border-t border-base-300 px-3 py-2 bg-base-100  whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
-          {typeof parsedResult === "object" ? JSON.stringify(parsedResult, null, 2) : String(parsedResult)}
+      {open && hasBody && (
+        <div className="border-t border-base-300 px-3 py-2 bg-base-100 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+          {toolCall.status === "done" ? (
+            // Final tool result
+            typeof parsedResult === "object" ? (
+              JSON.stringify(parsedResult, null, 2)
+            ) : (
+              String(parsedResult)
+            )
+          ) : (
+            // Live streaming output while the tool is executing
+            <span className="text-base-content/70">{toolCall.streamingContent}</span>
+          )}
         </div>
       )}
     </div>
@@ -435,25 +457,35 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
       }
     }, 100);
   };
-
-  // Convert current chat messages to the format expected by AddTestCaseModal
   const handleAddConversationToTestCase = () => {
     if (!messages || messages.length === 0) return;
 
-    // Build conversation from current messages (user + assistant only)
-    const conversation = messages
-      .filter((msg) => msg.sender === "user" || msg.sender === "assistant")
-      .map((msg) => ({
-        role: msg.sender,
-        content: typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content),
-      }));
+    // Find the most recent user + assistant message pair.
+    const lastUserMsg = [...messages].reverse().find((m) => m?.sender === "user");
+    const lastAssistantMsg = [...messages].reverse().find((m) => m?.sender === "assistant");
+    if (!lastUserMsg || !lastAssistantMsg) return;
 
-    if (conversation.length === 0) return;
-    if (variables && Object.keys(variables).length > 0) {
-      conversation[0] = { ...conversation[0], threadVariables: { ...variables } };
-    }
+    const userUrls = lastUserMsg?.user_urls ?? lastUserMsg?.image_urls ?? [];
 
-    setTestCaseConversation(conversation);
+    const item = {
+      user:
+        typeof lastUserMsg?.content === "string"
+          ? lastUserMsg.content
+          : lastUserMsg?.content == null
+            ? ""
+            : JSON.stringify(lastUserMsg.content),
+      llm_message:
+        typeof lastAssistantMsg?.content === "string"
+          ? lastAssistantMsg.content
+          : lastAssistantMsg?.content == null
+            ? ""
+            : JSON.stringify(lastAssistantMsg.content),
+      user_urls: userUrls,
+      threadVariables: typeof variables === "object" && !Array.isArray(variables) ? { ...variables } : {},
+      message_id: lastAssistantMsg?.message_id ?? lastAssistantMsg?.id ?? null,
+    };
+
+    setTestCaseConversation([item]);
     openModal(MODAL_TYPE.ADD_TEST_CASE_MODAL);
   };
 
@@ -902,7 +934,10 @@ function Chat({ params, userMessage, isOrchestralModel = false, searchParams, is
                 className="btn btn-sm gap-1.5 px-3"
                 onClick={handleAddConversationToTestCase}
                 disabled={
-                  !messages || messages.filter((m) => m.sender === "user" || m.sender === "assistant").length === 0
+                  !messages ||
+                  messages.filter((m) => m.sender === "user" || m.sender === "assistant").length === 0 ||
+                  modelType === AVAILABLE_MODEL_TYPES.IMAGE ||
+                  messages.some((m) => m?.llm_urls?.length > 0)
                 }
               >
                 + Add To Testcase

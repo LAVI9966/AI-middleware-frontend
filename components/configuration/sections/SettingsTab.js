@@ -10,6 +10,7 @@ import BridgeTypeToggle from "../configurationComponent/BridgeTypeToggle";
 import ChatbotConfigSection from "../ChatbotConfigSection";
 import ReviewerAgentSelector from "../configurationComponent/ReviewerAgentSelector";
 import UnsupportedFeatureOverlay from "../UnsupportedFeatureOverlay";
+import PostEmbedList from "../configurationComponent/PostEmbedList";
 import { useDispatch } from "react-redux";
 import { updateBridgeVersionAction } from "@/store/action/bridgeAction";
 
@@ -28,6 +29,7 @@ const SettingsTab = () => {
     isPublished,
     isEditor,
     cacheOn,
+    showReviewAgent,
   } = useConfigurationContext();
 
   const shouldShowTriggers = useMemo(() => bridgeType === "trigger" && !isEmbedUser, [bridgeType, isEmbedUser]);
@@ -110,7 +112,7 @@ const SettingsTab = () => {
                 </label>
               </div>
             )}
-            {!isEmbedUser && (
+            {(!isEmbedUser || (isEmbedUser && showReviewAgent)) && (
               <div data-testid="reviewer-agent-section" id="reviewer-agent-section">
                 <ReviewerAgentSelector
                   params={params}
@@ -149,6 +151,20 @@ const SettingsTab = () => {
                 </label>
               </div>
             )}
+
+            {/* Post Tool Configuration */}
+            {!isEmbedUser && (
+              <div data-testid="post-tool-section" id="post-tool-section">
+                <PostEmbedList
+                  params={params}
+                  searchParams={searchParams}
+                  isPublished={isPublished}
+                  isEditor={isEditor}
+                  isEmbedUser={isEmbedUser}
+                />
+              </div>
+            )}
+
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="">
                 <ToneDropdown

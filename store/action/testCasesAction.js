@@ -2,6 +2,7 @@ import {
   createTestCaseApi,
   deleteTestCaseApi,
   deleteMultipleTestCasesApi,
+  deleteAllTestCasesByAgentApi,
   getAllTestCasesOfBridgeApi,
   runTestCaseApi,
   updateTestCaseApi,
@@ -88,6 +89,20 @@ export const deleteMultipleTestCasesAction =
     } catch (error) {
       console.error(error);
     }
+  };
+
+export const deleteAllTestCasesByAgentAction =
+  ({ bridgeId }) =>
+  async (dispatch) => {
+    const response = await deleteAllTestCasesByAgentApi({ bridgeId });
+    if (!response?.success) {
+      const msg = response?.error || "Failed to delete all test cases";
+      toast.error(msg);
+      throw new Error(msg);
+    }
+    dispatch(getAllTestCasesReducer({ bridgeId, data: [], total: 0 }));
+    toast.success(`All test cases deleted successfully (${response?.deletedCount || 0} deleted)`);
+    return response;
   };
 
 export const runTestCaseAction =

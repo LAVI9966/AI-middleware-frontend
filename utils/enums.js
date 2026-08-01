@@ -61,10 +61,13 @@ export const MODAL_TYPE = {
   AUTH_DATA_MODAL: "AUTH_DATA_MODAL",
   DELETE_MODAL: "DELETE_MODAL",
   DELETE_TESTCASE_BULK_MODAL: "DELETE_TESTCASE_BULK_MODAL",
+  RUN_ALL_TESTCASE_CONFIRM_MODAL: "RUN_ALL_TESTCASE_CONFIRM_MODAL",
+  DELETE_ALL_TESTCASES_MODAL: "DELETE_ALL_TESTCASES_MODAL",
   DELETE_PREBUILT_TOOL_MODAL: "DELETE_PREBUILT_TOOL_MODAL",
   DELETE_TOOL_MODAL: "DELETE_TOOL_MODAL",
   DELETE_AGENT_MODAL: "DELETE_AGENT_MODAL",
   DELETE_PRE_TOOL_MODAL: "DELETE_PRE_TOOL_MODAL",
+  DELETE_POST_TOOL_MODAL: "DELETE_POST_TOOL_MODAL",
   DELETE_KNOWLEDGE_BASE_MODAL: "DELETE_KNOWLEDGE_BASE_MODAL",
   BRIDGE_TYPE_MODAL: "BRIDGE_TYPE_MODAL",
   ADD_NEW_MODEL_MODAL: "ADD_NEW_MODEL_MODAL",
@@ -80,6 +83,7 @@ export const MODAL_TYPE = {
   DELETE_VERSION_MODAL: "DELETE_VERSION_MODAL",
   PREBUILT_TOOLS_CONFIG_MODAL: "PREBUILT_TOOLS_CONFIG_MODAL",
   PREBUILT_PRE_TOOL_CONFIG_MODAL: "prebuilt-pre-tool-config-modal",
+  PREBUILT_POST_TOOL_CONFIG_MODAL: "prebuilt-post-tool-config-modal",
   INVITE_USER: "INVITE_USER",
   ORCHESTRAL_DELETE_MODAL: "ORCHESTRAL_DELETE_MODAL",
   ACCESS_MANAGEMENT_MODAL: "ACCESS_MANAGEMENT_MODAL",
@@ -309,7 +313,7 @@ export const HISTORY_FILTER_BY_FIELDS = {
   variables: "",
 };
 
-export const EMBED_OBJECT_KEYS = new Set(["theme_config", "prompt", "models", "apikey_object_id"]);
+export const EMBED_OBJECT_KEYS = new Set(["theme_config", "prompt", "models", "apikey_object_id", "tools_id"]);
 export const EMBED_ARRAY_KEYS = new Set(["tools_id"]);
 export const EMBED_PASSTHROUGH_KEYS = new Set(["themeMode", "slide"]);
 export const EMBED_SKIP_KEYS = new Set([
@@ -380,6 +384,11 @@ export const ON_CLICK_ACTION_TYPES = ["reply", "sendDataToFrontend"];
 
 export const PROXY_SCRIPT_SRC = "https://36blocks.com/assets/proxy-auth/proxy-auth.js";
 
+export const AI_CREATE_STEPS = [
+  { label: "Understanding your purpose", hint: "Reading what you described" },
+  { label: "Generating configuration", hint: "AI is shaping prompts & settings" },
+  { label: "Creating your agent", hint: "Saving to your workspace" },
+];
 export const DEFAULT_STARTER_QUESTIONS = [
   "What can you help me with?",
   "Give me a quick overview of your capabilities.",

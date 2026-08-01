@@ -17,6 +17,7 @@ import GeminiIcon from "@/icons/GeminiIcon";
 import GoogleDocIcon from "@/icons/GoogleDocIcon";
 import Grok from "@/icons/Grok";
 import GroqIcon from "@/icons/GroqIcon";
+import MinimaxIcon from "@/icons/minimax";
 import MistralIcon from "@/icons/MistralIcon";
 import MoonshotIcon from "@/icons/MoonshotIcon";
 import NeevCloudIcon from "@/icons/NeevCloudIcon";
@@ -312,6 +313,8 @@ export const getIconOfService = (service, height, width) => {
       return <MoonshotIcon height={height} width={width} />;
     case "neev_cloud":
       return <NeevCloudIcon height={height} width={width} />;
+    case "minimax":
+      return <MinimaxIcon height={height} width={width} />;
     default:
       return <OpenAiIcon height={height} width={width} />;
   }
@@ -1323,13 +1326,18 @@ export const formatTokensTable = (tokensObj) => {
 
   Object.keys(tokensObj).forEach((tk) => {
     if (!processedTokenKeys.has(tk)) {
+      const rawVal = tokensObj[tk];
+      if (rawVal !== null && typeof rawVal === "object") {
+        processedTokenKeys.add(tk);
+        return;
+      }
       let matchedCostKey = null;
       const potentialCostKey = tk.replace(/_tokens$/, "_cost");
       if (costObj[potentialCostKey] !== undefined) matchedCostKey = potentialCostKey;
 
       rows.push({
         label: tk.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-        token: tokensObj[tk],
+        token: rawVal,
         cost: matchedCostKey ? costObj[matchedCostKey] : undefined,
       });
 

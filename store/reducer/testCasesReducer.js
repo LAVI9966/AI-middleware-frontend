@@ -64,6 +64,7 @@ const applyResultToTestCase = (
     reason: result.reason || null,
     success: result.success,
     error: result.error || null,
+    message_id: result.message_id || null,
     tools_call_data: result.tools_call_data || null,
     service: finalService,
     model: finalModel,
@@ -77,6 +78,7 @@ const applyResultToTestCase = (
     latency: result?.latency || null,
     metadata: { bridge_id: result.bridge_id || bridgeId },
     created_at: nowIso,
+    llm_urls: result.llm_urls || null,
   });
   // Mirror the backend's `execution.lastExecutedAt` so the in-memory testcase
   // matches what a refresh would fetch. Without this, the single-run button's
@@ -125,6 +127,7 @@ const testCasesReducer = createSlice({
                   score: historyItem?.testcase_data?.score || 0,
                   model_output: historyItem?.llm_message,
                   error: historyItem?.error,
+                  message_id: historyItem?.message_id || null,
                   matching_type: historyItem?.testcase_data?.matching_type || testCase?.matching_type || "cosine",
                   reason: historyItem?.testcase_data?.reason || historyItem?.reason || null,
                   actual: historyItem?.testcase_data?.actual,
@@ -143,6 +146,7 @@ const testCasesReducer = createSlice({
                   latency: historyItem?.latency || null,
                   created_at: historyItem?.created_at,
                   updated_at: historyItem?.updated_at,
+                  llm_urls: historyItem?.llm_urls || null,
                   // Keep original data for reference
                   _original: historyItem,
                 });
@@ -180,6 +184,7 @@ const testCasesReducer = createSlice({
                 score: historyItem?.testcase_data?.score || 0,
                 model_output: historyItem?.llm_message,
                 error: historyItem?.error,
+                message_id: historyItem?.message_id || null,
                 matching_type: historyItem?.testcase_data?.matching_type || testCase?.matching_type || "cosine",
                 reason: historyItem?.testcase_data?.reason || historyItem?.reason || null,
                 actual: historyItem?.testcase_data?.actual,
@@ -192,6 +197,7 @@ const testCasesReducer = createSlice({
                 latency: historyItem?.latency || null,
                 created_at: historyItem?.created_at,
                 updated_at: historyItem?.updated_at,
+                llm_urls: historyItem?.llm_urls || null,
                 // Keep original data for reference
                 _original: historyItem,
               });

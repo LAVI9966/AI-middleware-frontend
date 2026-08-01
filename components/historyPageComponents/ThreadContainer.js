@@ -54,8 +54,8 @@ const ThreadContainer = ({
   const searchParamsHook = useSearchParams();
   const router = useRouter();
 
-  const threadIdFromURL = searchParamsHook.get("thread_id");
-  const subThreadIdFromURL = searchParamsHook.get("subThread_id");
+  const threadIdFromURL = decodeURIComponent(searchParamsHook.get("thread_id") || "");
+  const subThreadIdFromURL = decodeURIComponent(searchParamsHook.get("subThread_id") || "");
   const versionFromURL = searchParamsHook.get("version");
   const errorFromURL = searchParamsHook.get("error");
 
@@ -111,6 +111,8 @@ const ThreadContainer = ({
 
       const itemWithVariables = {
         ...item,
+        // Backend fetches ai_config using message_id (see historyService.findHistoryByMessageId).
+        message_id: item?.message_id || threadItem?.message_id || item?.id || null,
         AiConfig: AiConfigForVariable,
         threadVariables: threadVariables,
       };

@@ -70,6 +70,19 @@ function ConfigHistorySlider({ versionId }) {
     [versionId, pageSize]
   );
 
+  // Close slider when versionId changes (agent navigation)
+  useEffect(() => {
+    const sliderElement = document.getElementById("default-config-history-slider");
+    if (!sliderElement) return;
+
+    const isOpen = !sliderElement.classList.contains("translate-x-full");
+    if (isOpen) {
+      // Close the slider when agent changes
+      toggleSidebar("default-config-history-slider", "right");
+      resetFilters();
+    }
+  }, [versionId, resetFilters]);
+
   // Listen for slider open/close events using MutationObserver
   useEffect(() => {
     const sliderElement = document.getElementById("default-config-history-slider");

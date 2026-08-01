@@ -88,19 +88,27 @@ const Sidebar = memo(
     onAnalyticsMessageNavigate,
     searchMessageId = null,
   }) => {
-    const { subThreads, subThreadsParentId, userFeedbackCount, bridgeVersionsArray, bridgeType, analyticsThreads } =
-      useCustomSelector((state) => ({
-        subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
-        subThreadsParentId: state?.historyReducer?.subThreadsParentId,
-        userFeedbackCount: state?.historyReducer?.userFeedbackCount,
-        bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
-          ? state.bridgeReducer.allBridgesMap[params.id].versions
-          : [],
-        bridgeType:
-          state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType ||
-          state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridge_type,
-        analyticsThreads: state?.analyticsReducer?.analyticsData?.[params?.id]?.threads,
-      }));
+    const {
+      subThreads,
+      subThreadsParentId,
+      userFeedbackCount,
+      bridgeVersionsArray,
+      bridgeType,
+      analyticsThreads,
+      historyEmbed,
+    } = useCustomSelector((state) => ({
+      subThreads: Array.isArray(state?.historyReducer?.subThreads) ? state.historyReducer.subThreads : [],
+      subThreadsParentId: state?.historyReducer?.subThreadsParentId,
+      userFeedbackCount: state?.historyReducer?.userFeedbackCount,
+      bridgeVersionsArray: Array.isArray(state?.bridgeReducer?.allBridgesMap?.[params?.id]?.versions)
+        ? state.bridgeReducer.allBridgesMap[params.id].versions
+        : [],
+      bridgeType:
+        state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridgeType ||
+        state?.bridgeReducer?.allBridgesMap?.[params?.id]?.bridge_type,
+      analyticsThreads: state?.analyticsReducer?.analyticsData?.[params?.id]?.threads,
+      historyEmbed: state?.appInfoReducer?.embedUserDetails?.historyEmbed || false,
+    }));
 
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [selectedThreadIds, _setSelectedThreadIds] = useState([]);
@@ -248,6 +256,9 @@ const Sidebar = memo(
     }, []);
 
     useEffect(() => {
+      // In historyEmbed mode we only render a single message via
+      // getMessageByIdApi and must NOT trigger the filter/keyword history API.
+      if (historyEmbed) return;
       if (searchParams?.message_id) {
         // Set the search query state and input value
         if (searchRef?.current) {
@@ -255,7 +266,7 @@ const Sidebar = memo(
         }
         handleChange();
       }
-    }, [searchParams?.message_id]);
+    }, [searchParams?.message_id, historyEmbed]);
 
     const handleChange = useCallback(
       (e) => {
@@ -534,11 +545,14 @@ const Sidebar = memo(
 
     return (
       <div
-        className={`h-full flex flex-col text-xs ${isAnalytics ? "bg-white dark:bg-base-200" : "bg-base-200"} transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`h-full flex flex-col text-xs ${isAnalytics ? "bg-white dark:bg-base-200" : "bg-base-200"} transition-all duration-300 ease-in-out ${
+          isAnalytics || isCollapsed ? "overflow-hidden" : "overflow-y-auto min-h-0"
+        } ${
           isCollapsed
             ? `w-[48px] min-w-[48px] max-w-[48px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 ${isAnalytics ? "" : "ml-4"}`
             : `w-[280px] min-w-[280px] max-w-[280px] ${isAnalytics ? "border-l" : "border-r"} border-base-300 relative ${isAnalytics ? "" : "ml-4"}`
         }`}
+        id={!isAnalytics && !isCollapsed ? "sidebar" : undefined}
       >
         {isCollapsed ? (
           <div
@@ -808,16 +822,21 @@ const Sidebar = memo(
                 )}
               </form>
             </div>
-            <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay"></label>
+            {!isAnalytics && (
+              <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay"></label>
+            )}
 
-            {/* Fixed: Render search loader at the top level, not inside InfiniteScroll */}
-            <div className="flex-1 overflow-y-auto" id="sidebar">
+            {/* History: root scrolls (filters + threads). Analytics: threads scroll in inner pane. */}
+            <div
+              className={isAnalytics ? "flex-1 overflow-y-auto" : undefined}
+              id={isAnalytics ? "sidebar" : undefined}
+            >
               {historyData.length === 0 &&
               (loading || searchLoading || (isAnalytics && analyticsThreads === undefined)) ? (
                 isAnalytics ? (
                   <AnalyticsThreadListSkeleton />
                 ) : (
-                  <div className="flex justify-center items-center bg-base-200 h-full">
+                  <div className="flex justify-center items-center bg-base-200 py-12">
                     <span className="loading loading-spinner loading-md"></span>
                   </div>
                 )

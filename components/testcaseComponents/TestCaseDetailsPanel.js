@@ -9,6 +9,9 @@ import {
   Copy,
   Check as CheckIcon,
   GripVertical,
+  ArrowUpToLine,
+  Info,
+  ExternalLink,
 } from "lucide-react";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
@@ -22,6 +25,7 @@ import CodeBlock from "@/components/codeBlock/CodeBlock";
 import ToolsDataModal from "@/components/historyPageComponents/ToolsDataModal";
 import { FileClockIcon } from "@/components/Icons";
 import InfoTooltip from "@/components/InfoTooltip";
+import { PdfIcon } from "@/icons/pdfIcon";
 import { setTestCaseConfig } from "@/store/reducer/testCaseConfigReducer";
 import ExpandCollapse from "@/components/UI/ExpandCollapse";
 
@@ -60,10 +64,20 @@ const TestCaseDetailsPanel = ({
     const missing = baseComparisonVersions.filter((v) => !valid.includes(v));
     return [...valid, ...missing];
   });
+  const arraysEqual = (a, b) => {
+    if (a === b) return true;
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+    return true;
+  };
   const setVersionOrder = useCallback(
     (next) => {
       setVersionOrderState((prev) => {
         const value = typeof next === "function" ? next(prev) : next;
+        // Skip state update AND dispatch when the order hasn't actually changed.
+        // Dispatching unconditionally caused a re-render → prop change → effect →
+        // setVersionOrder → dispatch loop (Maximum update depth exceeded).
+        if (arraysEqual(prev, value)) return prev;
         if (bridgeId) dispatch(setTestCaseConfig({ bridgeId, versionOrder: value }));
         return value;
       });
@@ -74,8 +88,10 @@ const TestCaseDetailsPanel = ({
     setVersionOrder((prev) => {
       const kept = prev.filter((v) => baseComparisonVersions.includes(v));
       const added = baseComparisonVersions.filter((v) => !kept.includes(v));
-      return [...kept, ...added];
+      const nextOrder = [...kept, ...added];
+      return arraysEqual(prev, nextOrder) ? prev : nextOrder;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseComparisonVersions]);
   const comparisonVersions = versionOrder;
 
@@ -168,6 +184,7 @@ const TestCaseDetailsPanel = ({
     []
   );
   const [copiedVersion, setCopiedVersion] = useState(null);
+  const [movedVersion, setMovedVersion] = useState(null);
 
   const handleCopyResponse = useCallback((versionId, output) => {
     const text = typeof output === "string" ? output : JSON.stringify(output, null, 2);
@@ -177,6 +194,31 @@ const TestCaseDetailsPanel = ({
       setTimeout(() => setCopiedVersion((curr) => (curr === versionId ? null : curr)), 1500);
     });
   }, []);
+
+  const handleMoveToExpected = useCallback(
+    (versionId, output) => {
+      if (!selectedTestCase?._id) return;
+      const text = typeof output === "string" ? output : JSON.stringify(output, null, 2);
+      if (!text) return;
+      const nextExpected = { ...(selectedTestCase?.expected || {}), response: text };
+      setEditedExpected(text);
+      dispatch(
+        updateTestCaseAction({
+          testCaseId: selectedTestCase._id,
+          dataToUpdate: {
+            conversation: selectedTestCase?.conversation,
+            type: selectedTestCase?.type,
+            expected: nextExpected,
+            matching_type: selectedTestCase?.matching_type,
+            variables: selectedTestCase?.variables,
+          },
+        })
+      );
+      setMovedVersion(versionId);
+      setTimeout(() => setMovedVersion((curr) => (curr === versionId ? null : curr)), 1500);
+    },
+    [dispatch, selectedTestCase]
+  );
   const toolsDataModalRef = useRef(null);
 
   const handleCloseToolsDataModal = () => {
@@ -436,7 +478,10 @@ const TestCaseDetailsPanel = ({
         data-testid="testcase-details-panel-card"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-base-200 flex items-center justify-end bg-base-50">
+        <div className="px-6 py-4 border-b border-base-200 flex items-center justify-between bg-base-50">
+          <div className="text-xs text-base-content/50">
+            {selectedTestCase?.createdAt && <>Created: {new Date(selectedTestCase.createdAt).toLocaleString()}</>}
+          </div>
           <div className="flex items-center gap-2">
             <button
               data-testid="testcase-run-button"
@@ -594,14 +639,28 @@ const TestCaseDetailsPanel = ({
             </div>
           )}
 
-          {/* Input Section - last user message (editable) */}
+          {/* Input Section - last user message (editable).
+              If no user message exists yet, render an empty editable field so
+              the user can add one; typing appends a new user message at the
+              start of the conversation. */}
           {(() => {
             const lastUserIdx = [...editedConversation]
               .map((m, i) => ({ m, i }))
               .reverse()
               .find(({ m }) => m?.role === "user")?.i;
-            if (lastUserIdx === undefined) return null;
-            const lastUserContent = editedConversation[lastUserIdx]?.content || "";
+
+            const hasUser = lastUserIdx !== undefined;
+            const lastUserContent = hasUser ? editedConversation[lastUserIdx]?.content || "" : "";
+
+            const handleEmptyUserChange = (val) => {
+              if (val === "" && !hasUser) return;
+              setEditedConversation((prev) => {
+                // Prepend a new user message; keep any existing assistant/expected messages.
+                const next = [{ role: "user", content: val }, ...prev];
+                return next;
+              });
+            };
+
             return (
               <div className="mb-5">
                 <div
@@ -618,8 +677,13 @@ const TestCaseDetailsPanel = ({
                     <AutoResizeTextarea
                       data-testid="testcase-input-textarea"
                       value={typeof lastUserContent === "string" ? lastUserContent : JSON.stringify(lastUserContent)}
-                      onChange={(e) => handleConversationChange(lastUserIdx, e.target.value)}
-                      onBlur={() => handleConversationBlur(lastUserIdx)}
+                      placeholder={hasUser ? "" : "Enter user query..."}
+                      onChange={(e) =>
+                        hasUser
+                          ? handleConversationChange(lastUserIdx, e.target.value)
+                          : handleEmptyUserChange(e.target.value)
+                      }
+                      onBlur={() => hasUser && handleConversationBlur(lastUserIdx)}
                       className="w-full bg-transparent text-sm text-base-content leading-relaxed outline-none"
                     />
                   </ExpandCollapse>
@@ -627,6 +691,52 @@ const TestCaseDetailsPanel = ({
               </div>
             );
           })()}
+
+          {/* User URLs Section */}
+          {Array.isArray(selectedTestCase?.user_urls) && selectedTestCase.user_urls.length > 0 && (
+            <div className="mb-6">
+              <div className="text-xs font-semibold text-base-content/70 mb-2 uppercase tracking-wide">Attachments</div>
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {selectedTestCase.user_urls.map((urlObj, idx) => {
+                  const urlString = typeof urlObj === "string" ? urlObj : urlObj?.url;
+                  if (!urlString) return null;
+                  const isImageUrl = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(urlString);
+                  const isPdfUrl = /\.pdf($|\?)/i.test(urlString);
+                  if (isImageUrl) {
+                    return (
+                      <img
+                        key={`user-${idx}`}
+                        src={urlString}
+                        alt={`User Image ${idx + 1}`}
+                        width={80}
+                        height={80}
+                        className="object-cover rounded-lg cursor-pointer flex-shrink-0"
+                        onClick={() => window.open(urlString, "_blank")}
+                      />
+                    );
+                  }
+                  if (isPdfUrl) {
+                    return (
+                      <a
+                        key={`user-${idx}`}
+                        href={urlString}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 text-primary bg-base-200 rounded-lg hover:bg-base-300 flex-shrink-0"
+                      >
+                        <PdfIcon height={20} width={20} />
+                        <span className="text-sm font-medium max-w-[6rem] truncate text-primary">
+                          {urlString.split("/").pop() || "PDF"}
+                        </span>
+                        <ExternalLink className="text-primary" size={14} />
+                      </a>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Expected Output — collapses to 4 lines with "...show more" */}
           <div className="mb-6">
@@ -641,6 +751,36 @@ const TestCaseDetailsPanel = ({
               data-testid="testcase-expected-panel"
             >
               <ExpandCollapse collapsedHeight={160} fadeHeight={60}>
+                {/* Render images extracted from markdown or URLs in expected text */}
+                {(() => {
+                  const imageUrls = [];
+                  const mdRegex = /!\[.*?\]\((.*?)\)/g;
+                  let match;
+                  while ((match = mdRegex.exec(editedExpected)) !== null) {
+                    imageUrls.push(match[1]);
+                  }
+                  const urlRegex = /https?:\/\/[^\s]+\.(?:jpg|jpeg|png|gif|webp|svg)/gi;
+                  while ((match = urlRegex.exec(editedExpected)) !== null) {
+                    if (!imageUrls.includes(match[0])) imageUrls.push(match[0]);
+                  }
+                  return imageUrls.length > 0 ? (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {imageUrls.map((url, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={url}
+                            alt={`Expected image ${idx + 1}`}
+                            className="max-w-full h-auto rounded-lg border border-base-200"
+                            style={{ maxHeight: "300px" }}
+                            onError={(e) => {
+                              e.target.style.display = "none";
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
                 <AutoResizeTextarea
                   data-testid="testcase-expected-textarea"
                   value={editedExpected}
@@ -741,6 +881,7 @@ const TestCaseDetailsPanel = ({
                       ? runError
                       : runError?.error || runError?.message || (runError ? "Run failed" : null);
                   const toolsCallData = currentRun?.tools_call_data || [];
+                  const llmUrls = currentRun?.llm_urls || [];
                   const matchingTypeFromResult =
                     currentRun?.matching_type || selectedTestCase?.matching_type || "cosine";
                   // The reducer keys `seen` by `${versionId}:${modelKey}:${testcaseId}`.
@@ -902,17 +1043,25 @@ const TestCaseDetailsPanel = ({
                                     Error
                                   </span>
                                 ) : (
-                                  <InfoTooltip
-                                    tooltipContent={
-                                      currentRun?.reason || getScoreMessage(score, matchingTypeFromResult)
-                                    }
-                                  >
+                                  <>
                                     <span
-                                      className={`text-lg font-bold cursor-help ${getScoreColor(score, matchingTypeFromResult)}`}
+                                      className={`text-lg font-bold ${getScoreColor(score, matchingTypeFromResult)}`}
                                     >
                                       {getScoreDisplay(score, matchingTypeFromResult)}
                                     </span>
-                                  </InfoTooltip>
+                                    <InfoTooltip
+                                      tooltipContent={
+                                        currentRun?.reason || getScoreMessage(score, matchingTypeFromResult)
+                                      }
+                                    >
+                                      <button
+                                        className="w-5 h-5 flex items-center justify-center rounded-full border border-base-300 bg-base-100 text-base-content/60 hover:bg-base-200 hover:text-base-content/80 transition-colors"
+                                        title="View reason"
+                                      >
+                                        <Info size={14} />
+                                      </button>
+                                    </InfoTooltip>
+                                  </>
                                 )}
                                 {totalRuns > 1 && (
                                   <div className="flex items-center gap-1 ml-1">
@@ -981,18 +1130,38 @@ const TestCaseDetailsPanel = ({
                                   </span>
                                 )}
                                 {hasRun && !runErrorMessage && modelOutput && (
-                                  <button
-                                    onClick={() => handleCopyResponse(version, modelOutput)}
-                                    className="ml-auto w-6 h-6 flex items-center justify-center rounded border border-base-300 bg-base-100 text-base-content/70 hover:bg-base-200"
-                                    title="Copy response"
-                                    data-testid={`testcase-version-copy-${versions.indexOf(version) + 1}`}
-                                  >
-                                    {copiedVersion === version ? (
-                                      <CheckIcon size={12} className="text-success" />
-                                    ) : (
-                                      <Copy size={12} />
-                                    )}
-                                  </button>
+                                  <div className="ml-auto flex items-center gap-1">
+                                    <button
+                                      onClick={() => handleMoveToExpected(version, modelOutput)}
+                                      className="h-6 px-2 flex items-center gap-1 rounded border border-base-300 bg-base-100 text-[10px] font-semibold text-base-content/70 hover:bg-base-200"
+                                      title="Set this response as the expected output"
+                                      data-testid={`testcase-version-move-to-expected-${versions.indexOf(version) + 1}`}
+                                    >
+                                      {movedVersion === version ? (
+                                        <>
+                                          <CheckIcon size={12} className="text-success" />
+                                          <span className="text-success">Moved</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ArrowUpToLine size={12} />
+                                          <span>Move to Expected</span>
+                                        </>
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => handleCopyResponse(version, modelOutput)}
+                                      className="w-6 h-6 flex items-center justify-center rounded border border-base-300 bg-base-100 text-base-content/70 hover:bg-base-200"
+                                      title="Copy response"
+                                      data-testid={`testcase-version-copy-${versions.indexOf(version) + 1}`}
+                                    >
+                                      {copiedVersion === version ? (
+                                        <CheckIcon size={12} className="text-success" />
+                                      ) : (
+                                        <Copy size={12} />
+                                      )}
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             )}
@@ -1073,20 +1242,47 @@ const TestCaseDetailsPanel = ({
                             </div>
                           ) : (
                             <div className="text-sm text-base-content leading-relaxed mb-3">
+                              {/* Render images if llm_urls exists */}
+                              {llmUrls && llmUrls.length > 0 && (
+                                <div className="mb-3 flex flex-wrap gap-2">
+                                  {llmUrls.map((urlObj, idx) => (
+                                    <div key={idx} className="relative">
+                                      {urlObj.type === "image" && urlObj.permanent_url && (
+                                        <img
+                                          src={urlObj.permanent_url}
+                                          alt={`Generated image ${idx + 1}`}
+                                          className="max-w-full h-auto rounded-lg border border-base-200"
+                                          style={{ maxHeight: "300px" }}
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {/* Render text output */}
                               {typeof modelOutput === "string" ? (
-                                <ReactMarkdown
-                                  components={{
-                                    code: ({ node, inline, className, children, ...props }) => (
-                                      <CodeBlock className={className} {...props}>
-                                        {children}
-                                      </CodeBlock>
-                                    ),
-                                  }}
-                                >
-                                  {modelOutput}
-                                </ReactMarkdown>
+                                (() => {
+                                  try {
+                                    JSON.parse(modelOutput);
+                                    return <CodeBlock className="language-json">{modelOutput}</CodeBlock>;
+                                  } catch {
+                                    return (
+                                      <ReactMarkdown
+                                        components={{
+                                          code: ({ node, inline, className, children, ...props }) => (
+                                            <CodeBlock className={className} {...props}>
+                                              {children}
+                                            </CodeBlock>
+                                          ),
+                                        }}
+                                      >
+                                        {modelOutput}
+                                      </ReactMarkdown>
+                                    );
+                                  }
+                                })()
                               ) : (
-                                JSON.stringify(modelOutput)
+                                <CodeBlock className="language-json">{JSON.stringify(modelOutput, null, 2)}</CodeBlock>
                               )}
                             </div>
                           )}
@@ -1151,6 +1347,7 @@ const TestCaseDetailsPanel = ({
                                 ? runError
                                 : runError?.error || runError?.message || (runError ? "Run failed" : null);
                             const toolsCallData = run?.tools_call_data || [];
+                            const llmUrls = run?.llm_urls || [];
                             const matchingTypeFromResult = selectedTestCase?.matching_type || "cosine";
 
                             return (
@@ -1256,6 +1453,24 @@ const TestCaseDetailsPanel = ({
                                   </div>
                                 ) : (
                                   <div className="text-sm text-base-content leading-relaxed">
+                                    {/* Render images if llm_urls exists */}
+                                    {llmUrls && llmUrls.length > 0 && (
+                                      <div className="mb-3 flex flex-wrap gap-2">
+                                        {llmUrls.map((urlObj, idx) => (
+                                          <div key={idx} className="relative">
+                                            {urlObj.type === "image" && urlObj.permanent_url && (
+                                              <img
+                                                src={urlObj.permanent_url}
+                                                alt={`Generated image ${idx + 1}`}
+                                                className="max-w-full h-auto rounded-lg border border-base-200"
+                                                style={{ maxHeight: "300px" }}
+                                              />
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {/* Render text output */}
                                     {typeof modelOutput === "string" ? (
                                       <ReactMarkdown
                                         components={{
