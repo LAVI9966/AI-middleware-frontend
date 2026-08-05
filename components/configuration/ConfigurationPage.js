@@ -70,14 +70,16 @@ const ConfigurationPage = ({
     // Original logic for non-embed users
     return (
       (currentOrgRole === "Editor" &&
-        (bridge?.users?.length === 0 ||
-          !bridge?.users ||
-          (bridge?.users?.length > 0 && bridge?.users?.some((user) => user === currentUser.id)))) ||
-      (currentOrgRole === "Viewer" && bridge?.users?.some((user) => user === currentUser.id)) ||
+        (bridge?.settings?.editAccess?.length === 0 ||
+          !bridge?.settings?.editAccess ||
+          (bridge?.settings?.editAccess?.length > 0 &&
+            bridge?.settings?.editAccess?.some((user) => String(user) === String(currentUser.id))))) ||
+      (currentOrgRole === "Viewer" &&
+        bridge?.settings?.editAccess?.some((user) => String(user) === String(currentUser.id))) ||
       currentOrgRole === "Creator" ||
       isAdminOrOwner
     );
-  }, [currentOrgRole, currentUser, bridge?.users, isAdminOrOwner, isEmbedUser]);
+  }, [currentOrgRole, currentUser, bridge?.settings?.editAccess, isAdminOrOwner, isEmbedUser]);
   // }, [bridgeType, currentView, params.org_id, params.id, searchParams.version, router]);
 
   const handleNavigation = useCallback(

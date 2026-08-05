@@ -732,7 +732,7 @@ function Home({ params, searchParams, isEmbedUser }) {
         agent_limit_original: item?.bridge_limit || 0,
         agent_usage: item?.bridge_usage ? parseFloat(item.bridge_usage).toFixed(4) : 0,
         isLoading: loadingAgentId === item._id,
-        users: item?.users,
+        users: item?.settings?.editAccess,
         last_used: renderMetricsTimestamp(item, lastUsed),
         last_used_original: item.metrics?.last_used_time || lastUsed,
         last_used_orignal: usageMetricsMap[item._id]?.last_used_time || lastUsed,
@@ -1107,8 +1107,8 @@ function Home({ params, searchParams, isEmbedUser }) {
       (currentOrgRole === "Editor" &&
         (row.users?.length === 0 ||
           !row.users ||
-          (row.users?.length > 0 && row.users?.some((user) => user.id === currentUser.id)))) ||
-      (currentOrgRole === "Viewer" && row.users?.some((user) => user.id === currentUser.id)) ||
+          (row.users?.length > 0 && row.users?.some((user) => String(user) === String(currentUser.id))))) ||
+      (currentOrgRole === "Viewer" && row.users?.some((user) => String(user) === String(currentUser.id))) ||
       currentOrgRole === "Creator" ||
       isAdminOrOwner;
 
