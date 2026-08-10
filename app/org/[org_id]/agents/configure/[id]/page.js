@@ -152,6 +152,12 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const { bridgeType, bridgeName, isFocus, reduxPrompt, bridge, isLoading, hasError, hasData } =
     useConfigurationSelector(resolvedParams, resolvedSearchParams);
 
+  const currentVariablesState = useCustomSelector(
+    (state) =>
+      state?.bridgeReducer?.bridgeVersionMapping?.[resolvedParams?.id]?.[resolvedSearchParams?.version]?.agent_info
+        ?.variables_state || {}
+  );
+
   const showPlayground = useCustomSelector((state) => {
     const details = state?.appInfoReducer?.embedUserDetails || {};
     if (details.showPlayground !== undefined) return details.showPlayground;
@@ -419,22 +425,19 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
           : newValue !== (reduxPrompt || "").trim();
 
       if (hasChanged) {
+        const dataToSend = { configuration: { prompt: newValue } };
+        if (JSON.stringify(variablesState) !== JSON.stringify(currentVariablesState)) {
+          dataToSend.agent_info = { variables_state: variablesState };
+        }
         dispatch(
           updateBridgeVersionAction({
             versionId: resolvedSearchParams?.version,
-            dataToSend: {
-              configuration: {
-                prompt: newValue,
-              },
-              agent_info: {
-                variables_state: variablesState,
-              },
-            },
+            dataToSend,
           })
         );
       }
     },
-    [dispatch, resolvedSearchParams?.version, reduxPrompt]
+    [dispatch, resolvedSearchParams?.version, reduxPrompt, currentVariablesState]
   );
 
   const scrollToTextarea = () => {
