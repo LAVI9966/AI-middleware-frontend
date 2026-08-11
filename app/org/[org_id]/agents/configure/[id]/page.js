@@ -152,6 +152,12 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
   const { bridgeType, bridgeName, isFocus, reduxPrompt, bridge, isLoading, hasError, hasData } =
     useConfigurationSelector(resolvedParams, resolvedSearchParams);
 
+  const currentVariablesState = useCustomSelector(
+    (state) =>
+      state?.bridgeReducer?.bridgeVersionMapping?.[resolvedParams?.id]?.[resolvedSearchParams?.version]?.agent_info
+        ?.variables_state || {}
+  );
+
   const showPlayground = useCustomSelector((state) => {
     const details = state?.appInfoReducer?.embedUserDetails || {};
     if (details.showPlayground !== undefined) return details.showPlayground;
@@ -403,7 +409,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       const newValue = isObject ? newPrompt : (newPrompt || "").trim();
       const promptForVars = isObject ? Object.values(newPrompt).join(" ") : newValue;
       const promptVariables = extractPromptVariables(promptForVars);
-      const variablesState = {};
+      const variablesState = { ...(currentVariablesState || {}) };
 
       promptVariables.forEach((varName) => {
         const existing = currentVariablesState?.[varName];
@@ -436,7 +442,7 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
         );
       }
     },
-    [dispatch, resolvedSearchParams?.version, reduxPrompt]
+    [dispatch, resolvedSearchParams?.version, reduxPrompt, currentVariablesState]
   );
 
   const scrollToTextarea = () => {

@@ -533,6 +533,12 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
       const dbVariablesMap = new Map(
         (Array.isArray(variablesKeyValue) ? variablesKeyValue : []).map((variable) => [variable.key, variable])
       );
+      const currentKeys = new Set(
+        (currentVariables || []).map((item) => (typeof item?.key === "string" ? item.key.trim() : "")).filter(Boolean)
+      );
+      if ([...dbVariablesMap.keys()].some((key) => key && !currentKeys.has(key))) {
+        return true;
+      }
 
       return currentVariables.some((current) => {
         const key = typeof current?.key === "string" ? current.key.trim() : "";
@@ -640,8 +646,14 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
             };
           })
           ?.filter(Boolean) ?? [];
-      // Deep check filtered pairs against existing variable_state
-      const currentVariableState = Object.assign({}, ...filteredPairs);
+      // Keep existing vars; overlay slider rows; drop only keys removed from the slider
+      const currentVariableState = Object.assign({}, variable_state || {}, ...filteredPairs);
+      (variablesKeyValue || []).forEach((item) => {
+        const key = typeof item?.key === "string" ? item.key.trim() : "";
+        if (key && !filteredPairs.some((pair) => pair[key])) {
+          delete currentVariableState[key];
+        }
+      });
 
       // Check if there are actual changes between current and existing variable_state
       const hasVariableStateChanged = () => {
@@ -733,16 +745,14 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
       const allVariables = normalised.filter((v) => v.key && v.key.trim());
 
       // Update all variables in Redux
-      if (allVariables.length > 0) {
-        dispatch(
-          updateVariables({
-            data: allVariables,
-            bridgeId: params.id,
-            versionId,
-            groupId: activeGroupId,
-          })
-        );
-      }
+      dispatch(
+        updateVariables({
+          data: allVariables,
+          bridgeId: params.id,
+          versionId,
+          groupId: activeGroupId,
+        })
+      );
 
       // Check if variables have actually changed compared to DB data before making API calls
       if (!hasVariablesChanged(normalised)) {
