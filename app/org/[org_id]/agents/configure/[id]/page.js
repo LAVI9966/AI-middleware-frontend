@@ -406,9 +406,11 @@ const Page = ({ params, searchParams, isEmbedUser }) => {
       const variablesState = {};
 
       promptVariables.forEach((varName) => {
+        const existing = currentVariablesState?.[varName];
         variablesState[varName] = {
-          status: "required",
-          default_value: "",
+          status: existing?.status || "required",
+          default_value: existing?.default_value ?? "",
+          type: existing?.type || "string",
         };
       });
 
