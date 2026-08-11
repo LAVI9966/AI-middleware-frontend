@@ -110,6 +110,15 @@ const fallbackValueForType = (type) => {
   }
 };
 
+/** Prefer persisted type from variables_state; fall back to inferring from values. */
+const resolveStoredVariableType = (variableStateData) => {
+  const storedType = variableStateData?.type;
+  if (storedType && VARIABLE_TYPES.some((t) => t.value === storedType)) {
+    return storedType;
+  }
+  return inferType(variableStateData?.value || variableStateData?.default_value, "") || "string";
+};
+
 const normaliseDraftList = (list = []) =>
   list.map((item) => ({
     id: item.id || item.__localId || createLocalId(),
@@ -306,14 +315,18 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
           : [];
 
       // Create a fresh copy to avoid reference issues
-      const allVariables = baseVariables.map((variable) => ({
-        id: variable.id || createLocalId(),
-        key: variable.key || "",
-        value: variable.value || "",
-        defaultValue: variable.defaultValue || "",
-        type: variable.type || "string",
-        required: variable.required !== false,
-      }));
+      const allVariables = baseVariables.map((variable) => {
+        const key = variable.key || "";
+        const variableStateData = key ? variable_state?.[key] : null;
+        return {
+          id: variable.id || createLocalId(),
+          key,
+          value: variable.value || "",
+          defaultValue: variable.defaultValue ?? variableStateData?.default_value ?? "",
+          type: variableStateData?.type ? resolveStoredVariableType(variableStateData) : variable.type || "string",
+          required: variable.required !== false,
+        };
+      });
 
       // Add variables from variables_path
       Object.keys(variablesPath || {}).forEach((functionId) => {
@@ -338,7 +351,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
               key: trimmedKey,
               value: variableStateData?.value || "",
               defaultValue: variableStateData?.default_value || "",
-              type: inferType(variableStateData?.value || variableStateData?.default_value, "") || "string",
+              type: resolveStoredVariableType(variableStateData),
               required: variableStateData?.status === "required" || false,
             });
           }
@@ -357,7 +370,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
             key: trimmedKey,
             value: variableStateData?.value || "",
             defaultValue: variableStateData?.default_value || "",
-            type: inferType(variableStateData?.value || variableStateData?.default_value, "") || "string",
+            type: resolveStoredVariableType(variableStateData),
             required: variableStateData?.status === "required" || false,
           });
         }
@@ -380,7 +393,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
             key: trimmedKey,
             value: variableStateData?.value || "",
             defaultValue: variableStateData?.default_value || "",
-            type: inferType(variableStateData?.value || variableStateData?.default_value, "") || "string",
+            type: resolveStoredVariableType(variableStateData),
             required: variableStateData?.status === "required" || false,
           });
         }
@@ -625,6 +638,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
               [key]: {
                 status: pair?.required ? "required" : "optional",
                 default_value: formattedDefaultValue ?? formattedValue ?? "",
+                type: type || "string",
               },
             };
           })
@@ -652,6 +666,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
           // Deep compare the variable objects
           return (
             existing.status !== current.status ||
+            existing.type !== current.type ||
             JSON.stringify(existing.default_value) !== JSON.stringify(current.default_value)
           );
         });
