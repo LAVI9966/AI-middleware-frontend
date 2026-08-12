@@ -110,6 +110,15 @@ const fallbackValueForType = (type) => {
   }
 };
 
+/** Prefer persisted type from variables_state; fall back to inferring from values. */
+const resolveStoredVariableType = (variableStateData) => {
+  const storedType = variableStateData?.type;
+  if (storedType && VARIABLE_TYPES.some((t) => t.value === storedType)) {
+    return storedType;
+  }
+  return inferType(variableStateData?.value || variableStateData?.default_value, "") || "string";
+};
+
 const normaliseDraftList = (list = []) =>
   list.map((item) => ({
     id: item.id || item.__localId || createLocalId(),
@@ -306,14 +315,18 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
           : [];
 
       // Create a fresh copy to avoid reference issues
-      const allVariables = baseVariables.map((variable) => ({
-        id: variable.id || createLocalId(),
-        key: variable.key || "",
-        value: variable.value || "",
-        defaultValue: variable.defaultValue || "",
-        type: variable.type || "string",
-        required: variable.required !== false,
-      }));
+      const allVariables = baseVariables.map((variable) => {
+        const key = variable.key || "";
+        const variableStateData = key ? variable_state?.[key] : null;
+        return {
+          id: variable.id || createLocalId(),
+          key,
+          value: variable.value || "",
+          defaultValue: variable.defaultValue ?? variableStateData?.default_value ?? "",
+          type: variableStateData?.type ? resolveStoredVariableType(variableStateData) : variable.type || "string",
+          required: variable.required !== false,
+        };
+      });
 
       // Add variables from variables_path
       Object.keys(variablesPath || {}).forEach((functionId) => {
@@ -338,7 +351,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
               key: trimmedKey,
               value: variableStateData?.value || "",
               defaultValue: variableStateData?.default_value || "",
-              type: inferType(variableStateData?.value || variableStateData?.default_value, "") || "string",
+              type: resolveStoredVariableType(variableStateData),
               required: variableStateData?.status === "required" || false,
             });
           }
@@ -357,7 +370,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
             key: trimmedKey,
             value: variableStateData?.value || "",
             defaultValue: variableStateData?.default_value || "",
-            type: inferType(variableStateData?.value || variableStateData?.default_value, "") || "string",
+            type: resolveStoredVariableType(variableStateData),
             required: variableStateData?.status === "required" || false,
           });
         }
@@ -380,7 +393,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
             key: trimmedKey,
             value: variableStateData?.value || "",
             defaultValue: variableStateData?.default_value || "",
-            type: inferType(variableStateData?.value || variableStateData?.default_value, "") || "string",
+            type: resolveStoredVariableType(variableStateData),
             required: variableStateData?.status === "required" || false,
           });
         }
@@ -514,16 +527,22 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
     }
   }, [activeGroup, draftVariables]);
 
-  // Function to check if variables have actually changed (only prompt and variables_path variables)
+  // Function to check if variables have actually changed
   const hasVariablesChanged = useCallback(
     (currentVariables) => {
       const dbVariablesMap = new Map(
         (Array.isArray(variablesKeyValue) ? variablesKeyValue : []).map((variable) => [variable.key, variable])
       );
+      const currentKeys = new Set(
+        (currentVariables || []).map((item) => (typeof item?.key === "string" ? item.key.trim() : "")).filter(Boolean)
+      );
+      if ([...dbVariablesMap.keys()].some((key) => key && !currentKeys.has(key))) {
+        return true;
+      }
 
       return currentVariables.some((current) => {
         const key = typeof current?.key === "string" ? current.key.trim() : "";
-        if (!key || (!promptKeySet.has(key) && !variablesPathKeySet.has(key))) {
+        if (!key) {
           return false;
         }
 
@@ -570,10 +589,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
         pairsToProcess
           .filter((pair) => {
             const key = typeof pair?.key === "string" ? pair.key.trim() : "";
-            if (!key) {
-              return false;
-            }
-            return promptKeySet.has(key) || variablesPathKeySet.has(key);
+            return Boolean(key);
           })
           .map((pair) => {
             const key = typeof pair?.key === "string" ? pair.key.trim() : "";
@@ -625,12 +641,19 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
               [key]: {
                 status: pair?.required ? "required" : "optional",
                 default_value: formattedDefaultValue ?? formattedValue ?? "",
+                type: type || "string",
               },
             };
           })
           ?.filter(Boolean) ?? [];
-      // Deep check filtered pairs against existing variable_state
-      const currentVariableState = Object.assign({}, ...filteredPairs);
+      // Keep existing vars; overlay slider rows; drop only keys removed from the slider
+      const currentVariableState = Object.assign({}, variable_state || {}, ...filteredPairs);
+      (variablesKeyValue || []).forEach((item) => {
+        const key = typeof item?.key === "string" ? item.key.trim() : "";
+        if (key && !filteredPairs.some((pair) => pair[key])) {
+          delete currentVariableState[key];
+        }
+      });
 
       // Check if there are actual changes between current and existing variable_state
       const hasVariableStateChanged = () => {
@@ -652,6 +675,7 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
           // Deep compare the variable objects
           return (
             existing.status !== current.status ||
+            existing.type !== current.type ||
             JSON.stringify(existing.default_value) !== JSON.stringify(current.default_value)
           );
         });
@@ -721,16 +745,14 @@ const VariableCollectionSlider = ({ params, versionId, isEmbedUser }) => {
       const allVariables = normalised.filter((v) => v.key && v.key.trim());
 
       // Update all variables in Redux
-      if (allVariables.length > 0) {
-        dispatch(
-          updateVariables({
-            data: allVariables,
-            bridgeId: params.id,
-            versionId,
-            groupId: activeGroupId,
-          })
-        );
-      }
+      dispatch(
+        updateVariables({
+          data: allVariables,
+          bridgeId: params.id,
+          versionId,
+          groupId: activeGroupId,
+        })
+      );
 
       // Check if variables have actually changed compared to DB data before making API calls
       if (!hasVariablesChanged(normalised)) {
