@@ -32,7 +32,7 @@ const VIEW_TABS = [
 ];
 
 const NewThreadContainer = ({
-  thread,
+  thread = [],
   filterOption,
   isFetchingMore,
   setIsFetchingMore,
@@ -341,7 +341,7 @@ const NewThreadContainer = ({
 
       const messageIdFromURL = searchParamsHook.get("message_id");
       const fetchKey = `${thread_id}|${subThreadId}|${version}|${error}|${filterOption}|${messageIdFromURL}`;
-      if (lastFetchedThreadKeyRef.current === fetchKey && thread.length > 0) {
+      if (lastFetchedThreadKeyRef.current === fetchKey && thread?.length > 0) {
         return;
       }
 
