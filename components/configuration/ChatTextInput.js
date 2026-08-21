@@ -277,15 +277,8 @@ function ChatTextInput({
 
     const newMessage = inputRef?.current?.value.replace(/\r?\n/g, "\n");
 
-    if ((uploadedFiles?.length > 0 || uploadedImages?.length > 0) && newMessage?.trim() === "") {
-      dispatch(
-        setChatError(
-          channelIdentifier,
-          uploadedImages?.length > 0
-            ? "A message is required when uploading an image."
-            : "A message is required when uploading a PDF."
-        )
-      );
+    if (uploadedFiles?.length > 0 && newMessage?.trim() === "") {
+      dispatch(setChatError(channelIdentifier, "A message is required when uploading a PDF."));
       return;
     }
 
@@ -476,7 +469,9 @@ function ChatTextInput({
     }
   }, [handleSendMessageRef, handleSendMessage]);
 
-  const requiresMessageForAttachments = uploadedImages.length > 0 || uploadedFiles.length > 0;
+  // Only image-type models reject image-only turns; require a query before send
+  const requiresMessageForAttachments =
+    modelType === "image" && (uploadedImages.length > 0 || uploadedFiles.length > 0);
   const isSendDisabled = loading || uploading || (requiresMessageForAttachments && !hasMessageText);
 
   const handleKeyDown = useCallback(
@@ -1097,7 +1092,7 @@ function ChatTextInput({
             hasUnsavedPrompt
               ? "Save your prompt first"
               : requiresMessageForAttachments && !hasMessageText
-                ? "Add a message to send with your attachment"
+                ? "Add a message to send with your image"
                 : "Send message"
           }
         >
