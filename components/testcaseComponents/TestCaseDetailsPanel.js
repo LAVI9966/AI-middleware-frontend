@@ -825,7 +825,7 @@ const TestCaseDetailsPanel = ({
             {/* Version Outputs Grid */}
             {comparisonVersions.length > 0 ? (
               <div
-                className={`grid gap-4 ${comparisonVersions.length === 1 ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}
+                className={`grid gap-4 min-w-0 ${comparisonVersions.length === 1 ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}
                 data-testid="testcase-version-output-grid"
               >
                 {comparisonVersions.map((version, idx) => {
@@ -938,7 +938,7 @@ const TestCaseDetailsPanel = ({
                       onDragOver={handleVersionDragOver}
                       onDrop={(e) => handleVersionDrop(e, version)}
                       onDragEnd={handleVersionDragEnd}
-                      className={`bg-base-50 border rounded-lg p-4 h-fit relative transition-all cursor-grab active:cursor-grabbing ${
+                      className={`bg-base-50 border rounded-lg p-4 h-fit relative transition-all cursor-grab active:cursor-grabbing min-w-0 overflow-hidden ${
                         draggedVersion === version ? "opacity-50" : ""
                       } ${draggedVersion && draggedVersion !== version ? "ring-2 ring-primary/30" : ""} ${
                         isVersionPending ? "border-primary/40" : runErrorMessage ? "border-error/40" : "border-base-200"
@@ -1241,12 +1241,12 @@ const TestCaseDetailsPanel = ({
                               {runErrorMessage}
                             </div>
                           ) : (
-                            <div className="text-sm text-base-content leading-relaxed mb-3">
+                            <div className="text-sm text-base-content leading-relaxed mb-3 min-w-0 max-w-full overflow-x-auto break-words [overflow-wrap:anywhere] [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_code]:break-all [&_a]:break-all [&_img]:max-w-full [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto">
                               {/* Render images if llm_urls exists */}
                               {llmUrls && llmUrls.length > 0 && (
                                 <div className="mb-3 flex flex-wrap gap-2">
                                   {llmUrls.map((urlObj, idx) => (
-                                    <div key={idx} className="relative">
+                                    <div key={idx} className="relative max-w-full">
                                       {urlObj.type === "image" && urlObj.permanent_url && (
                                         <img
                                           src={urlObj.permanent_url}
