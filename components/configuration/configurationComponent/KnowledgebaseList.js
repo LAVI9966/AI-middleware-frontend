@@ -17,6 +17,7 @@ import DeleteModal from "@/components/UI/DeleteModal";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
 import useDeleteOperation from "@/customHooks/useDeleteOperation";
 import { CircleQuestionMark, FileSearch, SquarePenIcon } from "lucide-react";
+import { toast } from "react-toastify";
 
 const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true }) => {
   // Determine if content is read-only (either published or user is not an editor)
@@ -24,7 +25,7 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
   // Use the tutorial videos hook
   const { getKnowledgeBaseVideo } = useTutorialVideos();
 
-  const { knowledgeBaseData, knowbaseVersionData, shouldToolsShow } = useCustomSelector((state) => {
+  const { knowledgeBaseData, knowbaseVersionData, shouldToolsShow, isOrgBlocked } = useCustomSelector((state) => {
     const modelReducer = state?.modelReducer?.serviceModels;
     const versionData = state?.bridgeReducer?.bridgeVersionMapping?.[params?.id]?.[searchParams?.version];
     const bridgeDataFromState = state?.bridgeReducer?.allBridgesMap?.[params?.id];
@@ -39,6 +40,7 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
       knowledgeBaseData: state?.knowledgeBaseReducer?.knowledgeBaseData?.[params?.org_id] || [],
       knowbaseVersionData: isPublished ? bridgeDataFromState?.doc_ids || [] : versionData?.doc_ids || [],
       shouldToolsShow: modelReducer?.[serviceName]?.[modelTypeName]?.[modelName]?.validationConfig?.tools,
+      isOrgBlocked: state?.userDetailsReducer?.blockedOrgIds?.includes(params?.org_id) || false,
     };
   });
 
@@ -200,6 +202,12 @@ const KnowledgebaseList = ({ params, searchParams, isPublished, isEditor = true 
           id="knowledgebase-add-new-button"
           className="py-2 border-t border-base-300 w-full sticky bottom-0 bg-base-100"
           onClick={() => {
+            if (isOrgBlocked) {
+              toast.error(
+                "Your org is blocked. You cannot create knowledge bases. Contact support@gtwy.ai for assistance."
+              );
+              return;
+            }
             if (window.openRag) {
               window.openRag();
             } else {

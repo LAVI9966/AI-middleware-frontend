@@ -1149,32 +1149,36 @@ function Home({ params, searchParams, isEmbedUser }) {
               setTimeout(() => openModal(MODAL_TYPE.DELETE_MODAL), 10);
             }}
           />
-          <div className="divider my-1"></div>
-          <div className={`dropdown dropdown-hover dropdown-left ${isNearBottom ? "dropdown-top" : ""} w-full`}>
-            <label
-              tabIndex={0}
-              data-testid="agent-move-to-folder-dropdown"
-              className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center justify-between cursor-pointer"
-            >
-              <div className="flex items-center gap-2 text-base-content">
-                <Folder size={14} className="text-base-content/70" />
-                <span>Move to Folder</span>
+          {!isEmbedUser && (
+            <>
+              <div className="divider my-1"></div>
+              <div className={`dropdown dropdown-hover dropdown-left ${isNearBottom ? "dropdown-top" : ""} w-full`}>
+                <label
+                  tabIndex={0}
+                  data-testid="agent-move-to-folder-dropdown"
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-base-200 flex items-center justify-between cursor-pointer"
+                >
+                  <div className="flex items-center gap-2 text-base-content">
+                    <Folder size={14} className="text-base-content/70" />
+                    <span>Move to Folder</span>
+                  </div>
+                </label>
+                <div
+                  tabIndex={0}
+                  className={`dropdown-content z-[100] ${isNearBottom ? "bottom-0 top-auto pb-2" : "top-0 bottom-auto pt-2"} right-full pr-2`}
+                >
+                  <MoveToFolderMenu
+                    folders={folders}
+                    currentFolderId={row.folder_id}
+                    onMove={(folderId) => {
+                      moveResource(row._id, folderId);
+                      handlePortalCloseImmediate();
+                    }}
+                  />
+                </div>
               </div>
-            </label>
-            <div
-              tabIndex={0}
-              className={`dropdown-content z-[100] ${isNearBottom ? "bottom-0 top-auto pb-2" : "top-0 bottom-auto pt-2"} right-full pr-2`}
-            >
-              <MoveToFolderMenu
-                folders={folders}
-                currentFolderId={row.folder_id}
-                onMove={(folderId) => {
-                  moveResource(row._id, folderId);
-                  handlePortalCloseImmediate();
-                }}
-              />
-            </div>
-          </div>
+            </>
+          )}
         </div>
       );
 
