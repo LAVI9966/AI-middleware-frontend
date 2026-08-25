@@ -5,6 +5,7 @@ import { useDispatch } from "react-redux";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { useQueryParams } from "@/customHooks/useQueryParams";
 import { useCustomSelector } from "@/customHooks/customSelector";
+import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 import { getThread } from "@/store/action/historyAction";
 import { getAgentAnalyticsAction } from "@/store/action/analyticsAction";
 import { setSelectedVersion } from "@/store/reducer/historyReducer";
@@ -120,15 +121,27 @@ function Page({ params, searchParams }) {
   const pathName = usePathname();
   const dispatch = useDispatch();
 
-  const { thread, analyticsData, selectedVersion, knowledgeBaseData, analyticsLoading } = useCustomSelector((state) => {
-    return {
-      thread: state?.historyReducer?.thread || [],
-      analyticsData: state?.analyticsReducer?.analyticsData?.[resolvedParams.id] || {},
-      selectedVersion: state?.historyReducer?.selectedVersion || "all",
-      knowledgeBaseData: state?.knowledgeBaseReducer?.knowledgeBaseData?.[resolvedParams?.org_id] || [],
-      analyticsLoading: state?.analyticsReducer?.loading || false,
-    };
-  });
+  const { thread, analyticsData, selectedVersion, knowledgeBaseData, analyticsLoading, isEmbedUser, reduxUserId } =
+    useCustomSelector((state) => {
+      return {
+        thread: state?.historyReducer?.thread || [],
+        analyticsData: state?.analyticsReducer?.analyticsData?.[resolvedParams.id] || {},
+        selectedVersion: state?.historyReducer?.selectedVersion || "all",
+        knowledgeBaseData: state?.knowledgeBaseReducer?.knowledgeBaseData?.[resolvedParams?.org_id] || [],
+        analyticsLoading: state?.analyticsReducer?.loading || false,
+        isEmbedUser: state?.appInfoReducer?.embedUserDetails?.isEmbedUser,
+        reduxUserId: state?.userDetailsReducer?.userDetails?.id,
+      };
+    });
+
+  // Backend analytics pushes charts to `${org_id}_${bridge_id}_${user_id}` (same as ConfigurationPage).
+  const currentUserId =
+    isEmbedUser && typeof window !== "undefined" ? sessionStorage.getItem("gtwy_user_id") : reduxUserId;
+  const analyticsRtChannelId = useMemo(() => {
+    if (!resolvedParams?.org_id || !resolvedParams?.id || !currentUserId) return "";
+    return `${resolvedParams.org_id}_${resolvedParams.id}_${currentUserId}`.replace(/ /g, "_");
+  }, [resolvedParams?.org_id, resolvedParams?.id, currentUserId]);
+  useRtLayerEventHandler(analyticsRtChannelId);
 
   // Derive pagination from analytics response
   const hasMore = analyticsData?.pagination?.has_more ?? false;
