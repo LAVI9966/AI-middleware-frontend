@@ -64,7 +64,7 @@ function handleAgentCreateRtMessage(parsedData) {
   }
 }
 
-function useRtLayerEventHandler(channelIdentifier = "") {
+function useRtLayerEventHandler(channelIdentifier = "", agentCreateChannelOverride = null) {
   const [client, setClient] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState(null);
@@ -677,15 +677,18 @@ function useRtLayerEventHandler(channelIdentifier = "") {
     };
   }, [client, pathName, orgId, isEmbedUser, dispatch]);
 
-  // Agent create with purpose (org_{org_id}_{user_id}) — user id from getUserDetails
   useEffect(() => {
-    if (!client || !currentUserId) return;
+    if (!client) return;
 
-    const path = pathName.split("?")[0].split("/");
-    const rtOrgId = path[1] === "org" ? path[2] : sessionStorage.getItem("gtwy_org_id");
-    if (!rtOrgId) return;
+    let agentCreateChannel = agentCreateChannelOverride;
+    if (!agentCreateChannel) {
+      if (!currentUserId) return;
+      const path = pathName.split("?")[0].split("/");
+      const rtOrgId = path[1] === "org" ? path[2] : sessionStorage.getItem("gtwy_org_id");
+      if (!rtOrgId) return;
+      agentCreateChannel = `org_${rtOrgId}_${currentUserId}`.replace(/ /g, "_");
+    }
 
-    const agentCreateChannel = `org_${rtOrgId}_${currentUserId}`.replace(/ /g, "_");
     const listener = client.on(agentCreateChannel, (message) => {
       try {
         handleAgentCreateRtMessage(parseRtMessage(message));
@@ -699,7 +702,7 @@ function useRtLayerEventHandler(channelIdentifier = "") {
         listener.remove();
       }
     };
-  }, [client, pathName, orgId, isEmbedUser, currentUserId, dispatch]);
+  }, [client, pathName, orgId, isEmbedUser, currentUserId, agentCreateChannelOverride, dispatch]);
 
   // Cleanup on unmount
   useEffect(() => {
