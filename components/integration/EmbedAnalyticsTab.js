@@ -432,9 +432,7 @@ const EmbedAnalyticsTab = ({ data }) => {
                                     >
                                       <div className="flex flex-col truncate">
                                         <span className="font-medium truncate">{a.name}</span>
-                                        <span className="text-[11px] text-base-content/50 truncate">
-                                          {a.bridge_id}
-                                        </span>
+                                        <span className="text-[11px] text-base-content/50 truncate">{a.bridge_id}</span>
                                       </div>
                                       <span className="text-xs text-base-content/70 shrink-0">
                                         {a.total_requests} req · {formatCost(a.est_cost)}
