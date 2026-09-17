@@ -3,8 +3,10 @@ import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 import { Check, CreditCard, ExternalLink, RefreshCw, AlertTriangle, X } from "lucide-react";
-import { getWalletBalance, getMyPlan, getPlans } from "@/config/walletApi";
+import { getMyPlan, getPlans } from "@/config/walletApi";
 import { getPlanAction } from "@/store/action/planAction";
+import { getWalletAction } from "@/store/action/walletAction";
+import { useCustomSelector } from "@/customHooks/customSelector";
 import useSubscription from "@/customHooks/useSubscription";
 import { formatPlanAmount, planIntervalLabel } from "@/utils/billingPrice";
 
@@ -112,23 +114,16 @@ export default function PlansPage() {
 function PlansPageInner() {
   useParams(); // org_id comes from the route only for display context; the API resolves org from the auth token.
   const dispatch = useDispatch();
-  const [wallet, setWallet] = useState(null);
+  const { wallet, loadingWallet } = useCustomSelector((state) => ({
+    wallet: state.walletReducer?.data,
+    loadingWallet: !state.walletReducer?.loaded,
+  }));
   const [plan, setPlan] = useState(null);
   const [plans, setPlans] = useState([]);
-  const [loadingWallet, setLoadingWallet] = useState(true);
   const [loadingPlan, setLoadingPlan] = useState(true);
   const [loadingPlans, setLoadingPlans] = useState(true);
 
-  const loadWallet = useCallback(async () => {
-    try {
-      const res = await getWalletBalance();
-      setWallet(res?.data ?? null);
-    } catch {
-      setWallet(null);
-    } finally {
-      setLoadingWallet(false);
-    }
-  }, []);
+  const loadWallet = useCallback(() => dispatch(getWalletAction()), [dispatch]);
 
   const loadPlan = useCallback(async () => {
     try {
@@ -346,7 +341,7 @@ function PlansPageInner() {
                       : "border-base-200 bg-base-100"
                   }`}
                 >
-                  {paid && (
+                  {paid && !isCurrent && (
                     <span className="absolute right-5 top-0 rounded-b-lg bg-primary px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[.05em] text-primary-content">
                       Recommended
                     </span>
@@ -442,11 +437,11 @@ function PlansPageInner() {
           <div className="flex flex-wrap items-center justify-end gap-2.5">
             <button
               type="button"
-              disabled={sub.busy !== null || !sub.view?.can_manage}
+              disabled={!sub.view?.can_manage}
               onClick={sub.onPortal}
               className="btn btn-outline btn-sm h-auto gap-1.5 rounded-[10px] py-2.5 text-[12.5px] font-semibold"
             >
-              {sub.busy === "portal" ? "Opening…" : "Invoices & usage"}
+              Invoices & usage
               <ExternalLink className="h-[13px] w-[13px]" />
             </button>
           </div>

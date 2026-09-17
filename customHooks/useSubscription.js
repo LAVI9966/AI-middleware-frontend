@@ -164,14 +164,18 @@ export default function useSubscription({ onChanged } = {}) {
     };
   }, [status, load]);
 
-  const run = async (key, fn, { successMsg, failMsg, redirect, intent } = {}) => {
+  const run = async (key, fn, { successMsg, failMsg, redirect, newTab, intent } = {}) => {
     setBusy(key);
     try {
       const res = await fn();
       if (redirect) {
         if (!res?.data?.url) throw new Error("no redirect url");
         if (intent) rememberCheckoutReturn(intent);
-        // Keep the button in its busy state while the browser navigates away.
+        if (newTab) {
+          window.open(res.data.url, "_blank", "noopener,noreferrer");
+          setBusy(null);
+          return;
+        }
         window.location.assign(res.data.url);
         return;
       }
@@ -205,7 +209,8 @@ export default function useSubscription({ onChanged } = {}) {
       successMsg: (d) => (d?.status === "already_paid" ? "This invoice was already paid." : "Payment retry requested."),
       failMsg: "Could not retry payment",
     });
-  const onPortal = () => run("portal", getBillingPortal, { redirect: true, failMsg: "Could not open billing portal" });
+  const onPortal = () =>
+    run("portal", getBillingPortal, { redirect: true, newTab: true, failMsg: "Could not open billing portal" });
 
   return {
     view,

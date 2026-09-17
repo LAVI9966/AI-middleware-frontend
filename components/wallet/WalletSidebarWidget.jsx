@@ -1,30 +1,25 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getWalletBalance } from "@/config/walletApi";
+import { useDispatch } from "react-redux";
+import { useCustomSelector } from "@/customHooks/customSelector";
+import { getWalletAction } from "@/store/action/walletAction";
 import { WalletIcon } from "lucide-react";
 const CREDIT_RATE_USD = 0.0025;
 
 export default function WalletSidebarWidget({ orgId, showLabel = true }) {
   const router = useRouter();
-  const [wallet, setWallet] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await getWalletBalance();
-      setWallet(res?.data ?? null);
-    } catch {
-      setWallet(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const dispatch = useDispatch();
+  const { wallet, loaded } = useCustomSelector((state) => ({
+    wallet: state.walletReducer?.data,
+    loaded: state.walletReducer?.loaded,
+  }));
 
   useEffect(() => {
-    setLoading(true);
-    load();
-  }, [load, orgId]);
+    dispatch(getWalletAction());
+  }, [dispatch, orgId]);
+
+  const loading = !loaded;
 
   // Same rule as WalletCard: credits_ongoing_balance is the live number.
   const credits = wallet ? Number(wallet.credits_ongoing_balance ?? 0) : null;
