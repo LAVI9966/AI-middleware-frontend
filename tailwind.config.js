@@ -64,6 +64,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['"DM Sans"', "sans-serif"],
+        mono: ["var(--font-dm-mono)", "monospace"],
       },
       zIndex: {
         "very-low": "0",

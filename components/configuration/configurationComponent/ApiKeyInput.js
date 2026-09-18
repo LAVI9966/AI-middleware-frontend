@@ -52,7 +52,16 @@ const ApiKeyInput = ({
         openModal(MODAL_TYPE.API_KEY_MODAL);
       } else if (selectedApiKeyId !== "GPT5_NANO_DEFAULT_KEY") {
         const service = bridge?.service;
-        const updated = { ...bridgeApikey_object_id, [service]: selectedApiKeyId };
+        const rawCurrentId = bridgeApikey_object_id?.[service];
+        const currentId = rawCurrentId && typeof rawCurrentId === "object" ? rawCurrentId._id : rawCurrentId;
+
+        const updated = { ...bridgeApikey_object_id };
+        if (currentId && String(currentId) === String(selectedApiKeyId)) {
+          delete updated[service];
+        } else {
+          updated[service] = selectedApiKeyId;
+        }
+
         dispatch(
           updateBridgeVersionAction({
             bridgeId: params?.id,
@@ -84,9 +93,11 @@ const ApiKeyInput = ({
 
   // Determine the currently selected value
   const selectedValue = useMemo(() => {
-    const serviceApiKeyId =
+    const rawServiceApiKeyId =
       typeof bridgeApikey_object_id === "object" ? bridgeApikey_object_id?.[bridge?.service] : bridgeApikey_object_id;
-    const currentApiKey = apikeydata.find((apiKey) => apiKey?._id === serviceApiKeyId);
+    const serviceApiKeyId =
+      rawServiceApiKeyId && typeof rawServiceApiKeyId === "object" ? rawServiceApiKeyId._id : rawServiceApiKeyId;
+    const currentApiKey = apikeydata.find((apiKey) => String(apiKey?._id) === String(serviceApiKeyId));
 
     // Special handling for gpt-5-nano model - show default key if no API key is added and bridge type is chatbot
     if (bridge?.configuration?.model === "gpt-5-nano" && bridgeType === "chatbot" && !serviceApiKeyId) {
