@@ -10,6 +10,7 @@ import { CircleQuestionMark, Sparkles, CircleAlert, Plus, Lock } from "lucide-re
 import InfoTooltip from "@/components/InfoTooltip";
 import AddNewModelModal from "@/components/modals/AddNewModal";
 import ConfirmationModal from "@/components/UI/ConfirmationModal";
+import { toast } from "react-toastify";
 
 // Model Preview component to display model specifications
 export const ModelPreview = memo(({ hoveredModel, modelSpecs, dropdownRef }) => {
@@ -301,6 +302,9 @@ const ModelDropdown = ({
           value: modelName,
           label: displayLabel,
           disabled: needsByok,
+          onDisabledClick: needsByok
+            ? () => toast.error(`${displayName} isn't available on your current plan. Upgrade to Pro to use it.`)
+            : undefined,
           // pass meta to use in onChange and onOptionHover
           meta: { group, modelName, specs },
         });

@@ -287,7 +287,7 @@ const Dropdown = ({
                           )}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (opt.disabled) return;
+                            if (opt.disabled) return opt.onDisabledClick && opt.onDisabledClick(opt);
                             handleSelect(opt.value, opt);
                           }}
                           onMouseEnter={() => onOptionHover && onOptionHover(opt)}
@@ -378,7 +378,7 @@ const Dropdown = ({
                               )}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (opt.disabled) return;
+                                if (opt.disabled) return opt.onDisabledClick && opt.onDisabledClick(opt);
                                 handleSelect(opt.value, opt);
                               }}
                               onMouseEnter={() => onOptionHover && onOptionHover(opt)}

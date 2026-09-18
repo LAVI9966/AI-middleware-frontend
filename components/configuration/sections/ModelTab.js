@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useMemo } from "react";
+import Link from "next/link";
+import { Lock } from "lucide-react";
 import ServiceDropdown from "../configurationComponent/ServiceDropdown";
 import ModelDropdown from "../configurationComponent/ModelDropdown";
 import ApiKeyInput from "../configurationComponent/ApiKeyInput";
@@ -35,7 +37,12 @@ const ModelTab = () => {
     [isEmbedUser, showDefaultApikeys]
   );
 
-  const planServices = useCustomSelector((state) => state?.planReducer?.services);
+  const { planServices, isOnFreePlan } = useCustomSelector((state) => ({
+    planServices: state?.planReducer?.services,
+    // planReducer.services is "*" once the plan itself is loaded and unrestricted;
+    // null only before the plan has loaded at all — don't flash the banner then.
+    isOnFreePlan: state?.planReducer?.loaded && state?.planReducer?.services !== "*",
+  }));
 
   const isServiceInPlan = useMemo(() => {
     if (!service || !planServices) return false;
@@ -122,6 +129,21 @@ const ModelTab = () => {
             />
           </div>
         </div>
+
+        {isOnFreePlan && (
+          <div className="flex w-full items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs">
+            <span className="flex items-center gap-1.5 text-base-content/70">
+              <Lock size={11} className="shrink-0 text-primary" />
+              You&apos;re on the Free plan — upgrade to Pro to use every service and model.
+            </span>
+            <Link
+              href={`/org/${params?.org_id}/plans`}
+              className="btn btn-primary btn-xs h-6 min-h-0 shrink-0 rounded-md px-2 text-[11px] font-semibold"
+            >
+              Upgrade
+            </Link>
+          </div>
+        )}
 
         {shouldRenderApiKey && !isServiceInPlan && (
           <div className="space-y-2">

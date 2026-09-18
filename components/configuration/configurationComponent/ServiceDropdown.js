@@ -8,6 +8,7 @@ import Protected from "@/components/Protected";
 import { getIconOfService, closeModal } from "@/utils/utility";
 import InfoTooltip from "@/components/InfoTooltip";
 import Dropdown from "@/components/UI/Dropdown";
+import { toast } from "react-toastify";
 import { ChevronDownIcon, CircleAlert } from "lucide-react";
 import { MODAL_TYPE } from "@/utils/enums";
 import ConfirmationModal from "@/components/UI/ConfirmationModal";
@@ -164,6 +165,12 @@ const ServiceDropdown = ({
         return {
           value: svc.value,
           disabled: needsByok,
+          onDisabledClick: needsByok
+            ? () =>
+                toast.error(
+                  `${svc.displayName || svc.value} isn't available on your current plan. Upgrade to Pro to use it.`
+                )
+            : undefined,
           label: needsByok ? (
             <InfoTooltip tooltipContent="Upgrade to Pro to use this service.">{content}</InfoTooltip>
           ) : (

@@ -41,6 +41,16 @@ export const getCreditPacks = async () => {
   }
 };
 
+export const getRecentInvoices = async () => {
+  try {
+    const { data } = await axios.get(`${URL}/api/billing/invoices`);
+    return data;
+  } catch (error) {
+    console.error("getRecentInvoices failed:", error);
+    throw error;
+  }
+};
+
 export const buyCredits = async (usd) => {
   try {
     const { data } = await axios.post(`${URL}/api/billing/credits`, { usd });
