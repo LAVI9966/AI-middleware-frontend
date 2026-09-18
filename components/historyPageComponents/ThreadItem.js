@@ -492,6 +492,12 @@ const ThreadItem = ({
     toast.success("Message copied to clipboard");
   }, []);
 
+  const handleCopyVersionId = useCallback(() => {
+    if (!item?.version_id) return;
+    navigator.clipboard.writeText(item.version_id);
+    toast.success("Version ID copied to clipboard");
+  }, [item?.version_id]);
+
   const { sliderState, openSlider, closeSlider } = useSlider();
   const dropupRef = useRef(null);
   const router = useRouter();
@@ -1256,9 +1262,6 @@ const ThreadItem = ({
     return (
       <ThreadInlinePanel className={panelClassName}>
         <div className="text-left">
-          <div className="px-4 py-2 border-b border-base-content/10 bg-base-200/50">
-            <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</span>
-          </div>
           {item?.message_id ? (
             <div
               key="message_id"
@@ -1288,7 +1291,9 @@ const ThreadItem = ({
               if (rows && rows.length > 0) {
                 return (
                   <div key="tokens" className="flex flex-col gap-2  px-4 py-3">
-                    <span className="text-xs font-semibold text-trace-gold uppercase tracking-wide">Token and Cost</span>
+                    <span className="text-xs font-semibold text-trace-gold uppercase tracking-wide">
+                      Token and Cost
+                    </span>
                     <div className="overflow-x-auto w-full border border-base-content/10 bg-base-200/10 rounded-lg shadow-sm">
                       <table className="table table-xs w-full border-collapse">
                         <thead>
@@ -1561,14 +1566,21 @@ const ThreadItem = ({
           <span
             data-testid="thread-item-model-meta"
             className="inline-flex items-center gap-1.5 text-xs text-base-content/55"
-            title={[item?.service, item?.model, versionNumber ? `Version ${versionNumber}` : null]
-              .filter(Boolean)
-              .join(" · ")}
+            title={[item?.service, item?.model].filter(Boolean).join(" · ")}
           >
             {versionNumber ? (
-              <span className="rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-medium text-primary-content">
+              <button
+                type="button"
+                data-testid="thread-item-version-badge"
+                title={item?.version_id ? `Version ID: ${item.version_id}\nClick to copy` : `Version ${versionNumber}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopyVersionId();
+                }}
+                className="rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-medium text-primary-content transition-opacity hover:opacity-80"
+              >
                 V{versionNumber}
-              </span>
+              </button>
             ) : null}
             {item?.service ? getIconOfService(item.service, 12, 12) : null}
             {item?.model ? <span className="max-w-[180px] truncate">{item.model}</span> : null}

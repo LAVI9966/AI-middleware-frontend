@@ -347,6 +347,12 @@ const NewThreadItem = ({
     toast.success("Message copied to clipboard");
   }, []);
 
+  const handleCopyVersionId = useCallback(() => {
+    if (!item?.version_id) return;
+    navigator.clipboard.writeText(item.version_id);
+    toast.success("Version ID copied to clipboard");
+  }, [item?.version_id]);
+
   const handleCopyVariables = useCallback(() => {
     navigator.clipboard.writeText(JSON.stringify(variables, null, 2));
     setCopiedVariables(true);
@@ -543,9 +549,6 @@ const NewThreadItem = ({
   const renderMoreDetailsPanel = () => (
     <ThreadInlinePanel className="w-full">
       <div className="text-left">
-        <div className="border-b border-base-content/10 bg-base-200/50 px-4 py-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-base-content/70">Optional Details</span>
-        </div>
         {item?.message_id ? (
           <div className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0">
             <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Message ID</span>
@@ -737,9 +740,17 @@ const NewThreadItem = ({
         ) : null}
         {item?.model ? <span className="max-w-[180px] truncate">{item.model}</span> : null}
         {versionNumber ? (
-          <span className="rounded-md bg-blue-50 px-1.5 py-0.5 font-medium text-blue-600 dark:bg-blue-400/15 dark:text-blue-300">
+          <button
+            type="button"
+            title={item?.version_id ? `Version ID: ${item.version_id}\nClick to copy` : `Version ${versionNumber}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleCopyVersionId();
+            }}
+            className="rounded-md bg-blue-50 px-1.5 py-0.5 font-medium text-blue-600 transition-opacity hover:opacity-80 dark:bg-blue-400/15 dark:text-blue-300"
+          >
             V{versionNumber}
-          </span>
+          </button>
         ) : null}
         {totalTokens !== null ? <span>{totalTokens} tok</span> : null}
         {/* Cost intentionally omitted here — it is already shown in the Cost column of this row. */}
