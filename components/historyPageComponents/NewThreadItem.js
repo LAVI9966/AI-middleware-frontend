@@ -15,8 +15,9 @@ import ToolsDataModal from "./ToolsDataModal";
 import { truncate } from "./AssistFile";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import {
-  allowedAttributes,
   extractErrorMessage,
+  formatCostValue,
+  formatTokensTable,
   getIconOfService,
   omitHiddenVariables,
   openModal,
@@ -30,7 +31,6 @@ import { getAgentAnalyticsAction } from "@/store/action/analyticsAction";
 import { isWordFileUrl } from "@/utils/attachmentUtils";
 import { PdfIcon } from "@/icons/pdfIcon";
 import GoogleDocIcon from "@/icons/GoogleDocIcon";
-import CodeBlock from "../codeBlock/CodeBlock";
 
 const numberOrNull = (value) => (typeof value === "number" && !Number.isNaN(value) ? value : null);
 
@@ -546,51 +546,14 @@ const NewThreadItem = ({
         <div className="border-b border-base-content/10 bg-base-200/50 px-4 py-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-base-content/70">Optional Details</span>
         </div>
-        {allowedAttributes.optional
-          .filter(([key]) => key !== "tokens")
-          .sort((a, b) => a[1].localeCompare(b[1]))
-          .map(([key, displayKey]) => {
-            const value = item[key] !== undefined ? item[key] : key === "createdAt" ? item.created_at : undefined;
-            if (value === undefined || value === null) return null;
-
-            if (typeof value === "object" && key !== "createdAt") {
-              return Object.entries(value).map(([objKey, objValue]) => (
-                <div
-                  key={`${key}-${objKey}`}
-                  className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
-                >
-                  <span className="min-w-[120px] shrink-0 font-mono text-xs font-normal text-trace-gold">
-                    {objKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
-                  </span>
-                  <div className="min-w-0 flex-1 whitespace-pre-wrap break-all font-mono text-xs text-base-content">
-                    {typeof objValue === "object" && objValue !== null ? (
-                      <div className="w-full overflow-hidden rounded-lg border border-base-content/20 bg-base-200/50">
-                        <CodeBlock className="language-json" showCopy={false} plain={true}>
-                          {JSON.stringify(objValue, null, 2)}
-                        </CodeBlock>
-                      </div>
-                    ) : (
-                      objValue?.toString()
-                    )}
-                  </div>
-                </div>
-              ));
-            }
-
-            return (
-              <div
-                key={key}
-                className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
-              >
-                <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">{displayKey}</span>
-                <span className="whitespace-pre-wrap break-all text-xs text-base-content">
-                  {key === "createdAt" || key === "created_at" ? new Date(value).toLocaleString() : value?.toString()}
-                </span>
-              </div>
-            );
-          })}
+        {item?.message_id ? (
+          <div className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0">
+            <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Message ID</span>
+            <span className="whitespace-pre-wrap break-all font-mono text-xs text-base-content">{item.message_id}</span>
+          </div>
+        ) : null}
         {item?.batch_data?.batch_id ? (
-          <div className="flex items-start gap-4 px-4 py-2.5">
+          <div className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0">
             <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Batch ID</span>
             <span className="whitespace-pre-wrap break-all font-mono text-xs text-base-content">
               {item.batch_data.batch_id}

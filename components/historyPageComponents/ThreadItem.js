@@ -466,13 +466,6 @@ const ThreadItem = ({
   // Platform-injected variables are hidden from the user-facing variables panel
   const visibleVariables = useMemo(() => omitHiddenVariables(item?.variables), [item?.variables]);
 
-  // Only offer the Tokens & Cost panel when there is actually usage to show
-  const hasTokenData = useMemo(() => {
-    if (!item?.tokens || typeof item.tokens !== "object") return false;
-    const rows = formatTokensTable(item.tokens);
-    return Array.isArray(rows) && rows.length > 0;
-  }, [item?.tokens]);
-
   const handleCopyAllVariables = () => {
     const jsonString = JSON.stringify(visibleVariables, null, 2);
     navigator.clipboard.writeText(jsonString);
@@ -1264,10 +1257,30 @@ const ThreadItem = ({
       <ThreadInlinePanel className={panelClassName}>
         <div className="text-left">
           <div className="px-4 py-2 border-b border-base-content/10 bg-base-200/50">
-            <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">
-              Tokens &amp; Cost
-            </span>
+            <span className="text-xs font-semibold text-base-content/70 uppercase tracking-wide">Optional Details</span>
           </div>
+          {item?.message_id ? (
+            <div
+              key="message_id"
+              className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+            >
+              <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Message ID</span>
+              <span className="text-xs break-all text-base-content whitespace-pre-wrap font-mono">
+                {item.message_id}
+              </span>
+            </div>
+          ) : null}
+          {item?.batch_data?.batch_id ? (
+            <div
+              key="batch_id"
+              className="flex items-start gap-4 border-b border-base-content/10 px-4 py-2.5 last:border-b-0"
+            >
+              <span className="min-w-[120px] shrink-0 text-xs font-normal text-trace-gold">Batch ID</span>
+              <span className="text-xs break-all text-base-content whitespace-pre-wrap font-mono">
+                {item.batch_data.batch_id}
+              </span>
+            </div>
+          ) : null}
           {(() => {
             const tokensVal = item.tokens;
             if (tokensVal !== undefined && tokensVal !== null && typeof tokensVal === "object") {
@@ -1275,6 +1288,7 @@ const ThreadItem = ({
               if (rows && rows.length > 0) {
                 return (
                   <div key="tokens" className="flex flex-col gap-2  px-4 py-3">
+                    <span className="text-xs font-semibold text-trace-gold uppercase tracking-wide">Token and Cost</span>
                     <div className="overflow-x-auto w-full border border-base-content/10 bg-base-200/10 rounded-lg shadow-sm">
                       <table className="table table-xs w-full border-collapse">
                         <thead>
@@ -1522,10 +1536,10 @@ const ThreadItem = ({
             Variables
           </ThreadActionPill>
         ) : null}
-        {!isEmbedUser && hasTokenData ? (
+        {!isEmbedUser ? (
           <ThreadActionPill
-            testId="thread-item-user-tokens-cost-button"
-            id="thread-item-user-tokens-cost-button"
+            testId="thread-item-user-more-button"
+            id="thread-item-user-more-button"
             trailing={ChevronRight}
             trailingClassName={`transition-transform duration-200 ${isMoreDetailsExpanded ? "rotate-90" : ""}`}
             active={isMoreDetailsExpanded}
@@ -1540,7 +1554,7 @@ const ThreadItem = ({
               });
             }}
           >
-            Tokens &amp; Cost
+            More
           </ThreadActionPill>
         ) : null}
         {item?.model || item?.service || versionNumber ? (
