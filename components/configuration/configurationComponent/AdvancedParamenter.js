@@ -617,7 +617,7 @@ const AdvancedParameters = ({
       !isDefaultValue && sliderDisplayValue !== null ? (
         <span
           className={`inline-flex items-center justify-center min-w-9 px-1.5 py-0.5 text-xs font-medium tabular-nums ${
-            error ? "bg-error/10 text-error" : "bg-base-100 text-base-content/80"
+            error ? "text-error" : "text-base-content/80"
           }`}
           id={sliderValueId}
         >
@@ -865,7 +865,7 @@ const AdvancedParameters = ({
                     handleInputChange(e, key);
                   }
                 }}
-                className={`input border-base-200 ${inputSizeClass} w-full bg-base-300 text-base-content/70 text-sm`}
+                className={`input border-base-200 ${inputSizeClass} w-full bg-transparent text-left text-base-content/70 text-sm`}
                 name={key}
                 disabled={isReadOnly}
                 placeholder="default"
@@ -973,7 +973,7 @@ const AdvancedParameters = ({
                       // Fallback for other keys or normal types
                       handleSelectChange(e, key, defaultValue, "{}", isDeafaultObject);
                     }}
-                    className={`select ${selectSizeClass} w-full`}
+                    className={`select ${selectSizeClass} w-full pr-8`}
                     name={key}
                     disabled={isReadOnly}
                   >
@@ -1466,6 +1466,7 @@ const AdvancedParameters = ({
                 >
                   Min
                 </button>
+                {sliderValueNode}
                 <input
                   autoComplete="off"
                   data-testid={`advanced-param-slider-${key}`}
@@ -1502,7 +1503,6 @@ const AdvancedParameters = ({
                   name={key}
                   disabled={isReadOnly}
                 />
-                {sliderValueNode}
                 <button
                   data-testid={`advanced-param-slider-max-btn-${key}`}
                   id={`advanced-param-slider-max-btn-${key}`}

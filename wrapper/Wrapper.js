@@ -16,16 +16,29 @@ const Wrapper = ({ children }) => {
   const [toastPortalTarget, setToastPortalTarget] = useState(null);
   useEffect(() => {
     const openDialogs = Array.from(document.querySelectorAll("dialog[open]"));
-    const currentTarget = () => (openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body);
+    const pruneDetached = () => {
+      let removed = false;
+      for (let i = openDialogs.length - 1; i >= 0; i -= 1) {
+        if (!openDialogs[i].isConnected) {
+          openDialogs.splice(i, 1);
+          removed = true;
+        }
+      }
+      return removed;
+    };
+    const currentTarget = () => {
+      pruneDetached();
+      return openDialogs.length ? openDialogs[openDialogs.length - 1] : document.body;
+    };
     setToastPortalTarget(currentTarget());
 
     const observer = new MutationObserver((mutations) => {
-      let changed = false;
+      let changed = pruneDetached();
       for (const mutation of mutations) {
         const target = mutation.target;
         if (!(target instanceof HTMLElement) || target.tagName !== "DIALOG") continue;
         const index = openDialogs.indexOf(target);
-        if (target.hasAttribute("open")) {
+        if (target.hasAttribute("open") && target.isConnected) {
           if (index === -1) {
             openDialogs.push(target);
             changed = true;
@@ -37,7 +50,12 @@ const Wrapper = ({ children }) => {
       }
       if (changed) setToastPortalTarget(currentTarget());
     });
-    observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ["open"] });
+    observer.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["open"],
+    });
 
     return () => observer.disconnect();
   }, []);
@@ -59,10 +77,12 @@ const Wrapper = ({ children }) => {
     document.title = title;
   }, [pathname]);
 
-  // Return a Provider component that wraps all the child components
-  // with the Redux store
-  // It also has a div that wraps all the child components
-  // And adds a Toaster for the notifications
+  const resolvedToastTarget = toastPortalTarget?.isConnected
+    ? toastPortalTarget
+    : typeof document !== "undefined"
+      ? document.body
+      : null;
+
   return (
     <>
       <Provider store={store}>
@@ -71,7 +91,7 @@ const Wrapper = ({ children }) => {
             <div className="w-screen">
               {children}
               <CommandPalette />
-              {toastPortalTarget &&
+              {resolvedToastTarget &&
                 createPortal(
                   <Toaster
                     position="top-center"
@@ -80,7 +100,7 @@ const Wrapper = ({ children }) => {
                       style: actualTheme === "dark" ? { background: "#333", color: "#fff" } : {},
                     }}
                   />,
-                  toastPortalTarget
+                  resolvedToastTarget
                 )}
             </div>
           </PostHogProvider>

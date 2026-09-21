@@ -111,7 +111,7 @@ export default function PrebuiltPromptsPage() {
     try {
       await resetPrebuiltPrompt(agentKey);
       setSavebtnEnabled(false);
-      toast((processedPrompts[agentKey]?.name || "Agent") + " prompt reset to default.");
+      toast((processedPrompts[agentKey]?.name || "Agent") + " prompt reset to default.", { icon: "ℹ️" });
     } catch (error) {
       toast.error("Failed to reset prompt. Please try again.");
       console.error("Reset error:", error);

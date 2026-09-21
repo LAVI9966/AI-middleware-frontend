@@ -65,6 +65,7 @@ const McpServerList = ({ params, searchParams, isPublished, isEditor = true }) =
       setServers(nextServers);
       await persistServers(nextServers);
       closeModal(MODAL_TYPE.MCP_SERVER_MODAL);
+      setEditIndex(null);
     } finally {
       setIsSaving(false);
     }

@@ -132,7 +132,7 @@ const RecommendedModal = ({
             ref={refs.setReference}
             data-testid="get-recommended-model-button"
             id="get-recommended-model-button"
-            className="flex items-center gap-2 text-sm font-medium text-primary hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn btn-xs btn-primary flex items-center gap-2 text-xs font-medium normal-case disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleGetRecommendations}
             disabled={isLoadingRecommendations || isPublished || !isEditor}
           >

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Server } from "lucide-react";
 import Modal from "../UI/Modal";
 import { MODAL_TYPE } from "@/utils/enums";
@@ -11,11 +11,28 @@ const McpServerModal = ({ initialData, isEditing, onSave, isSaving = false }) =>
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
 
+  const initialDataRef = useRef(initialData);
+  initialDataRef.current = initialData;
+
   useEffect(() => {
-    setName(initialData?.name || "");
-    setUrl(initialData?.url || "");
-    setError("");
-  }, [initialData]);
+    const dialog = document.getElementById(MCP_MODAL_ID);
+    if (!dialog) return;
+
+    const syncFromInitialData = () => {
+      setName(initialDataRef.current?.name || "");
+      setUrl(initialDataRef.current?.url || "");
+      setError("");
+    };
+
+    if (dialog.hasAttribute("open")) syncFromInitialData();
+
+    const observer = new MutationObserver(() => {
+      if (dialog.hasAttribute("open")) syncFromInitialData();
+    });
+    observer.observe(dialog, { attributes: true, attributeFilter: ["open"] });
+
+    return () => observer.disconnect();
+  }, []);
 
   const resetForm = () => {
     setName("");

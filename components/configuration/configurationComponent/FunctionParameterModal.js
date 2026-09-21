@@ -339,7 +339,7 @@ const ParameterCard = ({
               data-testid={`param-type-select-${currentPath}`}
               id={`param-type-select-${currentPath}`}
               disabled={isReadOnly}
-              className="select select-xs text-xs"
+              className="select select-xs text-xs w-auto min-w-20 pr-7"
               value={param.type || "string"}
               onChange={(e) => onTypeChange(currentPath, e.target.value)}
             >
@@ -422,7 +422,7 @@ const ParameterCard = ({
                 }
               }}
             />
-            <span className="text-xs">Set allowed values</span>
+            <span className="text-xs whitespace-nowrap">Set allowed values</span>
 
             {param.hasOwnProperty("enum") && (
               <input
@@ -432,7 +432,7 @@ const ParameterCard = ({
                 disabled={isReadOnly}
                 type="text"
                 placeholder="['a','b','c']"
-                className="input input-xs text-xs"
+                className="input input-xs h-6 min-h-6 text-xs flex-1 min-w-0"
                 value={editingEnum}
                 onChange={(e) => {
                   setEditingEnum(e.target.value);
@@ -1462,45 +1462,49 @@ function FunctionParameterModal({
                     />
                   </label>
                 </div>
-                <div id="function-param-environment-wrapper" className="flex flex-row ml-2">
-                  <div className="form-control flex flex-row w-full max-w-xs items-center">
-                    <label className="label flex items-center gap-1">
-                      <span className="">Agent's Environment</span>
-                      <InfoTooltip
-                        id="function-param-environment-tooltip"
-                        tooltipContent="Select the environment of the agent you want to use."
-                      >
-                        <CircleQuestionMark
-                          id="function-param-environment-icon"
-                          size={14}
-                          className="text-gray-500 hover:text-gray-700 cursor-help"
-                        />
-                      </InfoTooltip>
-                    </label>
-                    <select
-                      id="function-param-environment-select"
-                      disabled={isReadOnly}
-                      className="select select-xs ml-2"
-                      value={toolData?.environment || ""}
-                      onChange={(e) => {
-                        setToolData({ ...toolData, environment: e.target.value });
-                        setIsModified(true);
-                      }}
+                <div
+                  id="function-param-environment-wrapper"
+                  className="flex flex-row flex-nowrap items-center gap-1 ml-2"
+                >
+                  <label
+                    htmlFor="function-param-environment-select"
+                    className="flex flex-nowrap items-center gap-1 p-0 whitespace-nowrap"
+                  >
+                    <span className="whitespace-nowrap">Agent&apos;s Environment</span>
+                    <InfoTooltip
+                      id="function-param-environment-tooltip"
+                      tooltipContent="Select the environment of the agent you want to use."
                     >
-                      {Object.keys(environmentConfig || {}).length > 0 ? (
-                        <>
-                          <option value="">Published Version</option>
-                          {Object.keys(environmentConfig).map((env) => (
-                            <option key={env} value={env}>
-                              {env}
-                            </option>
-                          ))}
-                        </>
-                      ) : (
-                        <option value="">No environments configured</option>
-                      )}
-                    </select>
-                  </div>
+                      <CircleQuestionMark
+                        id="function-param-environment-icon"
+                        size={14}
+                        className="text-gray-500 hover:text-gray-700 cursor-help"
+                      />
+                    </InfoTooltip>
+                  </label>
+                  <select
+                    id="function-param-environment-select"
+                    disabled={isReadOnly}
+                    className="select select-xs w-auto min-w-[10rem] pr-7"
+                    value={toolData?.environment || ""}
+                    onChange={(e) => {
+                      setToolData({ ...toolData, environment: e.target.value });
+                      setIsModified(true);
+                    }}
+                  >
+                    {Object.keys(environmentConfig || {}).length > 0 ? (
+                      <>
+                        <option value="">Published Version</option>
+                        {Object.keys(environmentConfig).map((env) => (
+                          <option key={env} value={env}>
+                            {env}
+                          </option>
+                        ))}
+                      </>
+                    ) : (
+                      <option value="">No environments configured</option>
+                    )}
+                  </select>
                 </div>
               </div>
             </div>
