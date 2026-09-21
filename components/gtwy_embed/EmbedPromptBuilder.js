@@ -233,8 +233,11 @@ const EmbedPromptBuilder = ({ configuration, onChange, onPromptBlur, onValidate,
       <h5 className="text-sm font-semibold border-b border-base-300 pb-2">Prompt Configuration</h5>
       <div className="space-y-4 p-2 bg-base-200 rounded-lg border border-base-300">
         {/* Toggle: Use Default Prompt */}
-        <div className="form-control bg-base-200 rounded flex w-full flex-row flex-nowrap items-center justify-between gap-2">
-          <span data-testid="embed-config-toggle-useDefaultPrompt" className="label text-sm ml-1 whitespace-nowrap">
+        <div className="bg-base-200 rounded flex w-full flex-row flex-nowrap items-center justify-between gap-2">
+          <span
+            data-testid="embed-config-toggle-useDefaultPrompt"
+            className="text-sm ml-1 whitespace-nowrap text-base-content"
+          >
             Use default prompt
           </span>
           <input

@@ -470,60 +470,56 @@ const ChatbotConfigurationTab = ({ params, chatbotId, isInSidebar = false }) => 
           </label>
 
           {/* Show Tool Calls Toggle */}
-          <div className="form-control">
-            <label
-              data-testid="chatbot-config-hide-tool-toggle"
-              className="label cursor-pointer justify-between gap-8 px-0"
-            >
-              <div className="flex flex-col">
-                <span className="font-medium text-xs">Hide Tool Calls</span>
-                <span className="text-xs text-base-content/50">
-                  {formData.hide_tool ? "Hidden from chat" : "Shown in chat"}
-                </span>
-              </div>
-              <input
-                autoComplete="off"
-                data-testid="chatbot-config-hide-tool-checkbox"
-                id="chatbot-config-hide-tool-checkbox"
-                type="checkbox"
-                className="toggle toggle-sm toggle-primary"
-                checked={formData.hide_tool}
-                onChange={(event) => {
-                  event.preventDefault();
-                  handleToggleChange("hide_tool");
-                }}
-              />
-            </label>
-          </div>
+          <label
+            data-testid="chatbot-config-hide-tool-toggle"
+            className="flex w-full flex-row flex-nowrap items-center justify-between gap-8 cursor-pointer py-1"
+          >
+            <div className="flex flex-col">
+              <span className="font-medium text-xs">Hide Tool Calls</span>
+              <span className="text-xs text-base-content/50">
+                {formData.hide_tool ? "Hidden from chat" : "Shown in chat"}
+              </span>
+            </div>
+            <input
+              autoComplete="off"
+              data-testid="chatbot-config-hide-tool-checkbox"
+              id="chatbot-config-hide-tool-checkbox"
+              type="checkbox"
+              className="toggle toggle-sm toggle-primary"
+              checked={formData.hide_tool}
+              onChange={(event) => {
+                event.preventDefault();
+                handleToggleChange("hide_tool");
+              }}
+            />
+          </label>
 
           {/* Allow Model Switch Toggle */}
-          <div className="form-control">
-            <label
-              data-testid="chatbot-config-allow-modal-switch-toggle"
-              className="label cursor-pointer justify-between gap-8 px-0"
-            >
-              <div className="flex flex-col">
-                <span className="font-medium text-xs">Allow Model Switch</span>
-                <span className="text-xs text-base-content/50">
-                  {formData.allowModalSwitch
-                    ? "Users can switch the AI model in chat"
-                    : "AI model is fixed for this chatbot"}
-                </span>
-              </div>
-              <input
-                autoComplete="off"
-                data-testid="chatbot-config-allow-modal-switch-checkbox"
-                id="chatbot-config-allow-modal-switch-checkbox"
-                type="checkbox"
-                className="toggle toggle-sm toggle-primary"
-                checked={formData.allowModalSwitch}
-                onChange={(event) => {
-                  event.preventDefault();
-                  handleToggleChange("allowModalSwitch");
-                }}
-              />
-            </label>
-          </div>
+          <label
+            data-testid="chatbot-config-allow-modal-switch-toggle"
+            className="flex w-full flex-row flex-nowrap items-center justify-between gap-8 cursor-pointer py-1"
+          >
+            <div className="flex flex-col">
+              <span className="font-medium text-xs">Allow Model Switch</span>
+              <span className="text-xs text-base-content/50">
+                {formData.allowModalSwitch
+                  ? "Users can switch the AI model in chat"
+                  : "AI model is fixed for this chatbot"}
+              </span>
+            </div>
+            <input
+              autoComplete="off"
+              data-testid="chatbot-config-allow-modal-switch-checkbox"
+              id="chatbot-config-allow-modal-switch-checkbox"
+              type="checkbox"
+              className="toggle toggle-sm toggle-primary"
+              checked={formData.allowModalSwitch}
+              onChange={(event) => {
+                event.preventDefault();
+                handleToggleChange("allowModalSwitch");
+              }}
+            />
+          </label>
 
           {formData.allowModalSwitch && (
             <div className="form-control w-full">
