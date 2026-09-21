@@ -2,6 +2,7 @@
 import { useParams } from "next/navigation";
 import React, { Suspense, useCallback, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
+// eslint-disable-next-line unused-imports/no-unused-imports -- ExternalLink is only used by the commented-out "Manage billing" card below
 import { Check, CreditCard, ExternalLink, RefreshCw, AlertTriangle, Loader2, X, Zap } from "lucide-react";
 import { getMyPlan, getPlans, getCreditPacks, buyCredits, getRecentInvoices } from "@/config/walletApi";
 import { getPlanAction } from "@/store/action/planAction";
@@ -51,17 +52,17 @@ function StatusBanner({ sub }) {
 
   return (
     <div
-      className={`flex gap-3.5 rounded-2xl border p-4 ${isError ? "border-error/30 bg-error/10" : "border-base-300 bg-base-100"}`}
+      className={`flex gap-3 rounded-lg border p-4 ${isError ? "border-error/30 bg-error/10" : "border-base-300 bg-base-100"}`}
     >
       <div
-        className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg ${
+        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${
           isError ? "bg-error/20" : polling ? "bg-primary/10" : "bg-base-200"
         }`}
       >
         {polling ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+          <Loader2 size={14} className="animate-spin text-primary" />
         ) : (
-          <AlertTriangle className={`h-3.5 w-3.5 ${isError ? "text-error" : "text-base-content/50"}`} />
+          <AlertTriangle size={14} className={isError ? "text-error" : "text-base-content/50"} />
         )}
       </div>
       <div className="min-w-0 flex-1">
@@ -78,7 +79,7 @@ function StatusBanner({ sub }) {
               <>
                 Still waiting on the payment provider.
                 <button type="button" className="link link-primary inline-flex items-center gap-1" onClick={load}>
-                  <RefreshCw className="h-3 w-3" /> Check again
+                  <RefreshCw size={12} /> Check again
                 </button>
               </>
             ) : (
@@ -90,12 +91,7 @@ function StatusBanner({ sub }) {
         )}
         {status === "past_due" && (
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={onRetry}
-              className="h-auto rounded-[10px] border-0 bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-content disabled:opacity-60"
-            >
+            <button type="button" disabled={busy !== null} onClick={onRetry} className="btn btn-primary btn-sm">
               {busy === "retry" ? "Retrying…" : "Retry payment"}
             </button>
           </div>
@@ -105,10 +101,10 @@ function StatusBanner({ sub }) {
         <button
           type="button"
           onClick={() => setDismissedKey(errorKey)}
-          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-0 bg-transparent text-error hover:bg-error/20"
+          className="btn btn-ghost btn-xs btn-square shrink-0 text-error"
           aria-label="Dismiss"
         >
-          <X className="h-3.5 w-3.5" />
+          <X size={14} />
         </button>
       )}
     </div>
@@ -253,14 +249,14 @@ function PlansPageInner() {
 
   return (
     <main className="min-h-screen bg-base-200 text-base-content">
-      <div className="mx-auto flex max-w-[1000px] flex-col gap-6 p-6 pb-16">
-        <header className="flex flex-wrap items-start justify-between gap-6">
-          <div className="max-w-[600px]">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[.14em] text-base-content/50">
-              Billing
-            </div>
-            <h1 className="mb-2.5 text-[34px] font-bold leading-[1.1] tracking-[-.025em]">Plans &amp; Credits</h1>
-            <p className="text-[14.5px] leading-[1.6] text-base-content/60">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 pb-16">
+        <header className="border-b border-base-300 pb-4">
+          <div className="flex items-center gap-3 mb-1">
+            <CreditCard size={24} className="text-primary" />
+            <h1 className="text-2xl font-bold">Plans &amp; Credits</h1>
+          </div>
+          <div className="max-w-2xl">
+            <p className="text-sm text-base-content/60">
               Usage is billed per call at actual provider cost, drawn from this workspace&apos;s credit balance.
               {billingAvailable && " Upgrade to Pro for a monthly top-up and access to every model."}
             </p>
@@ -269,10 +265,12 @@ function PlansPageInner() {
 
         {billingAvailable && <StatusBanner sub={sub} />}
 
-        <section className="relative overflow-hidden rounded-2xl border border-base-200 bg-base-100 p-6 shadow-sm">
+        <section className="card relative overflow-hidden rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between">
             <div>
-              <div className="mb-3 text-xs font-medium text-base-content/50">Current balance</div>
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-base-content/50">
+                Current balance
+              </div>
               <div className="flex items-baseline gap-2">
                 {loadingWallet ? (
                   <span className="loading loading-dots loading-sm" />
@@ -280,11 +278,7 @@ function PlansPageInner() {
                   <span className="text-lg font-medium text-base-content/50">No wallet provisioned yet</span>
                 ) : (
                   <>
-                    <span
-                      className={`font-mono text-[46px] font-medium leading-none tracking-[-.03em] ${
-                        isNegative ? "text-error" : ""
-                      }`}
-                    >
+                    <span className={`font-mono text-4xl font-semibold leading-none ${isNegative ? "text-error" : ""}`}>
                       {currentCredits.toLocaleString()}
                     </span>
                     <span className="text-sm text-base-content/50">credits</span>
@@ -293,13 +287,13 @@ function PlansPageInner() {
               </div>
             </div>
             <div className="text-right">
-              <div className="mb-1.5 text-xs text-base-content/50">Current plan</div>
+              <div className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-base-content/50">
+                Current plan
+              </div>
               {loadingPlan ? (
                 <span className="loading loading-dots loading-xs" />
               ) : (
-                <span className="inline-block rounded-full border border-base-300 bg-base-200 px-3 py-1 text-[12.5px] font-semibold">
-                  {currentPlanLabel || "—"}
-                </span>
+                <span className="badge badge-ghost badge-sm font-semibold">{currentPlanLabel || "—"}</span>
               )}
             </div>
           </div>
@@ -317,7 +311,7 @@ function PlansPageInner() {
                 value={percentRemaining}
                 max="100"
               />
-              <div className="mt-2.5 text-[11.5px] text-base-content/40">Unused credits do not roll over</div>
+              <div className="mt-2.5 text-xs text-base-content/40">Unused credits do not roll over</div>
             </div>
           )}
 
@@ -330,14 +324,14 @@ function PlansPageInner() {
 
         <section className="flex flex-col gap-3.5">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
-            <h2 className="text-[19px] font-semibold tracking-[-.015em]">Available plans</h2>
-            <span className="text-[12.5px] text-base-content/50">Monthly pricing, cancel any time</span>
+            <h2 className="text-lg font-semibold">Available plans</h2>
+            <span className="text-xs text-base-content/50">Monthly pricing, cancel any time</span>
           </div>
 
           {loadingPlans ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {[0, 1].map((i) => (
-                <div key={i} className="skeleton h-32 rounded-2xl" />
+                <div key={i} className="skeleton h-32 rounded-lg" />
               ))}
             </div>
           ) : plans.length === 0 ? (
@@ -411,44 +405,37 @@ function PlansPageInner() {
                 return (
                   <div
                     key={p.plan_code}
-                    className={`relative flex flex-col overflow-hidden rounded-2xl border p-6 ${
-                      paid
-                        ? "border-primary/40 bg-primary/5 shadow-[0_0_0_1px_rgba(0,0,0,0.02)]"
-                        : "border-base-200 bg-base-100"
+                    className={`card relative flex flex-col overflow-hidden rounded-lg border p-6 shadow-sm ${
+                      paid ? "border-primary/40 bg-primary/5" : "border-base-300 bg-base-100"
                     }`}
                   >
                     {paid && !isCurrent && (
-                      <span className="absolute right-5 top-0 rounded-b-lg bg-primary px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[.05em] text-primary-content">
+                      <span className="badge badge-primary badge-sm absolute right-4 top-4 font-semibold uppercase tracking-wider">
                         Recommended
                       </span>
                     )}
                     <div className="flex items-center gap-2.5">
                       <span className="text-base font-semibold">{p.display_name}</span>
                       {isCurrent && (
-                        <span className="rounded-full border border-base-300 bg-base-200 px-2 py-0.5 text-[10.5px] font-semibold text-base-content/60">
-                          Current
-                        </span>
+                        <span className="badge badge-ghost badge-sm font-semibold text-base-content/60">Current</span>
                       )}
                     </div>
-                    <div className="mt-[7px] min-h-[34px] text-[12.5px] leading-[1.5] text-base-content/50">
+                    <div className="mt-2 min-h-[34px] text-xs leading-relaxed text-base-content/50">
                       {paid ? "Monthly top-up and the full model garden." : p.description || ""}
                     </div>
                     <div className="mb-1 mt-4 flex items-baseline gap-1.5">
-                      <span className="font-mono text-[38px] font-medium leading-none tracking-[-.03em]">
+                      <span className="font-mono text-3xl font-semibold leading-none">
                         {priceLabel ?? <span className="text-base-content/40">—</span>}
                       </span>
-                      <span className="text-[13px] text-base-content/50">/ {planIntervalLabel(p.price)}</span>
+                      <span className="text-sm text-base-content/50">/ {planIntervalLabel(p.price)}</span>
                     </div>
-                    <div className="h-4 text-[11.5px] text-base-content/40">
+                    <div className="h-4 text-xs text-base-content/40">
                       {paid ? "Billed monthly" : "No card required"}
                     </div>
                     <div className="my-5 flex flex-col gap-2.5">
                       {features.map((f) => (
-                        <div
-                          key={f}
-                          className="flex items-start gap-2.5 text-[13px] leading-[1.45] text-base-content/70"
-                        >
-                          <Check className="mt-0.5 h-[15px] w-[15px] shrink-0 text-primary" strokeWidth={2.6} />
+                        <div key={f} className="flex items-start gap-2.5 text-sm leading-snug text-base-content/70">
+                          <Check size={15} className="mt-0.5 shrink-0 text-primary" strokeWidth={2.6} />
                           <span>{f}</span>
                         </div>
                       ))}
@@ -457,11 +444,9 @@ function PlansPageInner() {
                       type="button"
                       disabled={!cta.onClick || sub.busy !== null}
                       onClick={cta.onClick ?? undefined}
-                      className={
-                        cta.variant === "primary"
-                          ? "mt-auto h-auto rounded-[10px] border-0 bg-primary py-2.5 text-[13px] font-semibold text-primary-content hover:brightness-110 disabled:opacity-60"
-                          : "mt-auto h-auto cursor-default rounded-[10px] border border-base-content/25 bg-transparent py-2.5 text-[13px] font-semibold text-base-content opacity-60"
-                      }
+                      className={`btn btn-sm mt-auto w-full ${
+                        cta.variant === "primary" ? "btn-primary" : "btn-outline cursor-default"
+                      }`}
                     >
                       {cta.label}
                     </button>
@@ -470,21 +455,21 @@ function PlansPageInner() {
               })}
 
               {/* Static "Scale" plan — no backend plan_code, always shown, opens Calendly. */}
-              <div className="relative flex flex-col overflow-hidden rounded-2xl border border-base-200 bg-base-100 p-6">
+              <div className="card relative flex flex-col overflow-hidden rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm">
                 <div className="flex items-center gap-2.5">
                   <span className="text-base font-semibold">Scale</span>
                 </div>
-                <div className="mt-[7px] min-h-[34px] text-[12.5px] leading-[1.5] text-base-content/50">
+                <div className="mt-2 min-h-[34px] text-xs leading-relaxed text-base-content/50">
                   Contracted volume, SSO and support SLAs.
                 </div>
                 <div className="mb-1 mt-4 flex items-baseline gap-1.5">
-                  <span className="font-mono text-[38px] font-medium leading-none tracking-[-.03em]">Custom</span>
+                  <span className="font-mono text-3xl font-semibold leading-none">Custom</span>
                 </div>
-                <div className="h-4 text-[11.5px] text-base-content/40">Annual agreement</div>
+                <div className="h-4 text-xs text-base-content/40">Annual agreement</div>
                 <div className="my-5 flex flex-col gap-2.5">
                   {["Committed credit pool", "SSO & audit logs", "Dedicated support channel"].map((f) => (
-                    <div key={f} className="flex items-start gap-2.5 text-[13px] leading-[1.45] text-base-content/70">
-                      <Check className="mt-0.5 h-[15px] w-[15px] shrink-0 text-primary" strokeWidth={2.6} />
+                    <div key={f} className="flex items-start gap-2.5 text-sm leading-snug text-base-content/70">
+                      <Check size={15} className="mt-0.5 shrink-0 text-primary" strokeWidth={2.6} />
                       <span>{f}</span>
                     </div>
                   ))}
@@ -495,7 +480,7 @@ function PlansPageInner() {
                   data-cal-link="human-gtwy-ai/book-a-demo-with-gtwy"
                   data-cal-origin="https://cal.id"
                   data-cal-config='{"layout":"month_view"}'
-                  className="mt-auto h-auto rounded-[10px] border border-base-content/25 bg-transparent py-2.5 text-[13px] font-semibold text-base-content hover:bg-base-content hover:text-base-100"
+                  className="btn btn-outline btn-sm mt-auto w-full"
                 >
                   Talk to sales
                 </button>
@@ -504,14 +489,14 @@ function PlansPageInner() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-base-200 bg-base-100 p-6">
+        <section className="card rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 text-[19px] font-semibold tracking-[-.015em]">
-                <Zap className="h-4 w-4 text-base-content/50" />
+              <div className="flex items-center gap-2 text-lg font-semibold">
+                <Zap size={16} className="text-base-content/50" />
                 Buy extra credits
               </div>
-              <div className="mt-1 text-[12.5px] text-base-content/50">
+              <div className="mt-1 text-xs text-base-content/50">
                 One-time purchase, paid through Stripe. Works on any plan.
               </div>
             </div>
@@ -525,11 +510,11 @@ function PlansPageInner() {
           {loadingPacks ? (
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="skeleton h-[210px] rounded-2xl" />
+                <div key={i} className="skeleton h-[210px] rounded-lg" />
               ))}
             </div>
           ) : !creditPacks?.packs?.length ? (
-            <p className="mt-5 text-[12.5px] text-base-content/50">
+            <p className="mt-5 text-xs text-base-content/50">
               {creditPacks?.can_buy === false
                 ? "Save a card to your workspace before buying extra credits."
                 : "No credit packs are available on your current plan."}
@@ -545,25 +530,23 @@ function PlansPageInner() {
                 return (
                   <div
                     key={pack.usd}
-                    className="relative flex flex-col items-center rounded-2xl border border-base-200 bg-base-200/40 px-4 py-8 text-center"
+                    className="card relative flex flex-col items-center rounded-lg border border-base-300 bg-base-200/40 px-4 py-8 text-center"
                   >
                     {isSuggested && (
-                      <span className="absolute right-3 top-3 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.05em] text-primary-content">
+                      <span className="badge badge-primary badge-sm absolute right-3 top-3 font-semibold uppercase tracking-wider">
                         Popular
                       </span>
                     )}
                     <span className="flex h-16 w-16 items-center justify-center rounded-full bg-base-100 shadow-sm">
-                      <Zap className="h-[26px] w-[26px] text-base-content/60" />
+                      <Zap size={26} className="text-base-content/60" />
                     </span>
-                    <span className="mt-5 text-[32px] font-bold leading-none tracking-[-.03em]">${pack.usd}</span>
-                    <span className="mt-2 text-[15px] text-base-content/60">
-                      {pack.credits.toLocaleString()} credits
-                    </span>
+                    <span className="mt-5 font-mono text-3xl font-semibold leading-none">${pack.usd}</span>
+                    <span className="mt-2 text-sm text-base-content/60">{pack.credits.toLocaleString()} credits</span>
                     <button
                       type="button"
                       disabled={!creditPacks.can_buy || buyingUsd !== null}
                       onClick={() => confirmBuyCredits(pack)}
-                      className="mt-4 h-auto w-full rounded-lg border border-base-content/20 bg-base-100 py-2.5 text-[12.5px] font-semibold text-base-content hover:bg-base-content hover:text-base-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-base-100 disabled:hover:text-base-content"
+                      className="btn btn-outline btn-sm mt-4 w-full"
                     >
                       {buyingUsd === pack.usd ? <span className="loading loading-spinner loading-xs" /> : "Buy now"}
                     </button>
@@ -573,74 +556,68 @@ function PlansPageInner() {
             </div>
           )}
 
-          <p className="mt-4 text-[11.5px] text-base-content/45">
+          <p className="mt-4 text-xs text-base-content/50">
             Secured by Stripe · card charged once · credits land in your wallet instantly
           </p>
 
           {creditPacks?.can_buy === false && creditPacks?.packs?.length > 0 && (
-            <p className="mt-3 text-[12px] text-base-content/40">Save a card to your workspace to enable purchases.</p>
+            <p className="mt-3 text-xs text-base-content/40">Save a card to your workspace to enable purchases.</p>
           )}
         </section>
 
-        {billingAvailable && (
-          <section className="grid grid-cols-1 gap-4 rounded-2xl border border-base-200 bg-base-100 p-6 sm:grid-cols-[1fr_auto]">
-            <div>
-              <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
-                <CreditCard className="h-4 w-4 text-base-content/50" />
-                Manage billing
+        {/* eslint-disable-next-line no-commented-code/no-commented-code -- intentionally kept so the card can be restored */}
+        {/* Manage billing card — temporarily hidden.
+          {billingAvailable && (
+            <section className="card grid grid-cols-1 gap-4 rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm sm:grid-cols-[1fr_auto]">
+              <div>
+                <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold">
+                  <CreditCard size={16} className="text-base-content/50" />
+                  Manage billing
+                </div>
+                <div className="text-xs leading-relaxed text-base-content/50">
+                  View invoices, update your card, or manage your subscription in the billing portal.
+                </div>
               </div>
-              <div className="text-[12.5px] leading-[1.55] text-base-content/50">
-                View invoices, update your card, or manage your subscription in the billing portal.
+              <div className="flex flex-wrap items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  disabled={!sub.view?.can_manage}
+                  onClick={sub.onPortal}
+                  className="btn btn-outline btn-sm gap-1.5"
+                >
+                  Invoices & usage
+                  <ExternalLink size={13} />
+                </button>
               </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2.5">
-              <button
-                type="button"
-                disabled={!sub.view?.can_manage}
-                onClick={sub.onPortal}
-                className="inline-flex h-auto items-center gap-1.5 rounded-[10px] border border-base-content/25 bg-transparent px-3.5 py-2.5 text-[12.5px] font-semibold text-base-content disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                Invoices & usage
-                <ExternalLink className="h-[13px] w-[13px]" />
-              </button>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
+        */}
 
         {billingAvailable && sub.view?.plan === "paid" && sub.status !== "canceled" && (
-          <section className="grid grid-cols-1 gap-4 rounded-2xl border border-base-200 bg-base-100 p-6 sm:grid-cols-[1fr_auto]">
+          <section className="card grid grid-cols-1 gap-4 rounded-lg border border-base-300 bg-base-100 p-6 shadow-sm sm:grid-cols-[1fr_auto]">
             <div>
               <div className="text-sm font-semibold">Auto-renew</div>
-              <div className="mt-1 text-[12.5px] leading-[1.55] text-base-content/50">
+              <div className="mt-1 text-xs leading-relaxed text-base-content/50">
                 {sub.view?.billing?.cancel_at_period_end
                   ? `Off — Pro will end${periodEnd ? ` on ${periodEnd}` : " at the close of the current period"}.`
                   : `On — your saved card is charged automatically each cycle${periodEnd ? `, next on ${periodEnd}` : ""}.`}
               </div>
             </div>
             <div className="flex items-center justify-end">
-              <button
-                type="button"
-                role="switch"
-                aria-checked={!sub.view?.billing?.cancel_at_period_end}
+              <input
+                type="checkbox"
                 aria-label="Auto-renew"
+                className="toggle toggle-primary toggle-sm"
+                checked={!sub.view?.billing?.cancel_at_period_end}
                 disabled={sub.busy !== null}
-                onClick={() => (sub.view?.billing?.cancel_at_period_end ? sub.onResume() : sub.onCancelAutoRenew())}
-                className={`relative h-6 w-11 shrink-0 rounded-full border-0 p-0 transition-colors disabled:opacity-60 ${
-                  sub.view?.billing?.cancel_at_period_end ? "bg-base-content/25" : "bg-primary"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-base-100 shadow transition-[left] ${
-                    sub.view?.billing?.cancel_at_period_end ? "left-0.5" : "left-[22px]"
-                  }`}
-                />
-              </button>
+                onChange={() => (sub.view?.billing?.cancel_at_period_end ? sub.onResume() : sub.onCancelAutoRenew())}
+              />
             </div>
           </section>
         )}
 
         {billingAvailable && invoices && invoices.length > 0 && (
-          <section className="overflow-hidden rounded-2xl border border-base-200 bg-base-100">
+          <section className="card overflow-hidden rounded-lg border border-base-300 bg-base-100 shadow-sm">
             <div className="flex items-baseline justify-between px-6 pb-3 pt-5">
               <div className="text-sm font-semibold">Recent payments</div>
               <span className="text-xs text-base-content/50">Full history in the billing portal</span>
@@ -651,19 +628,15 @@ function PlansPageInner() {
               invoices.map((inv) => (
                 <div
                   key={inv.id ?? `${inv.date}-${inv.description}`}
-                  className="grid grid-cols-[110px_1fr_auto_auto] items-center gap-4 border-t border-base-200 px-6 py-3 text-[13px]"
+                  className="grid grid-cols-[110px_1fr_auto_auto] items-center gap-4 border-t border-base-300 px-6 py-3 text-sm"
                 >
                   <span className="text-base-content/60">
                     {inv.date ? new Date(inv.date).toLocaleDateString(undefined, { dateStyle: "medium" }) : "—"}
                   </span>
                   <span>{inv.description}</span>
                   <span
-                    className={`w-fit justify-self-start rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      inv.status === "Paid"
-                        ? "bg-success/15 text-success"
-                        : inv.status === "Failed"
-                          ? "bg-error/12 text-error"
-                          : "bg-base-200 text-base-content/70"
+                    className={`badge badge-sm w-fit justify-self-start font-semibold ${
+                      inv.status === "Paid" ? "badge-success" : inv.status === "Failed" ? "badge-error" : "badge-ghost"
                     }`}
                   >
                     {inv.status}

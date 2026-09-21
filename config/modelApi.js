@@ -75,8 +75,7 @@ export const deleteApikey = async (id, service) => {
     return response;
   } catch (error) {
     console.error(error);
-    toast.error(error?.response?.data?.message);
-    return error;
+    throw error;
   }
 };
 
