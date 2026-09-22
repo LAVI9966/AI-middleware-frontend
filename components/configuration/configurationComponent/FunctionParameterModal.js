@@ -339,7 +339,7 @@ const ParameterCard = ({
               data-testid={`param-type-select-${currentPath}`}
               id={`param-type-select-${currentPath}`}
               disabled={isReadOnly}
-              className="select select-xs text-xs w-auto min-w-20 pr-7"
+              className="select select-xs text-xs w-24 shrink-0 pr-7"
               value={param.type || "string"}
               onChange={(e) => onTypeChange(currentPath, e.target.value)}
             >

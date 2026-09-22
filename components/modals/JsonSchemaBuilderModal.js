@@ -118,7 +118,7 @@ const SchemaPropertyCard = ({
             data-testid={`schema-prop-type-select-${currentPath}`}
             id={`schema-prop-type-select-${currentPath}`}
             disabled={isReadOnly}
-            className="select select-xs text-xs"
+            className="select select-xs text-xs w-24 shrink-0 pr-7"
             value={property.type || "string"}
             onChange={(e) => onTypeChange(currentPath, e.target.value)}
           >
@@ -134,7 +134,7 @@ const SchemaPropertyCard = ({
               <select
                 id={`schema-prop-array-item-type-select-${currentPath}`}
                 disabled={isReadOnly}
-                className="select select-xs text-xs"
+                className="select select-xs text-xs w-24 shrink-0 pr-7"
                 value={property.items?.type || "string"}
                 onChange={(e) => onArrayItemTypeChange(currentPath, e.target.value)}
                 title="Array item type"
