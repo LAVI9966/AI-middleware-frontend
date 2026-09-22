@@ -32,7 +32,6 @@ export const createBridge = async (dataToSend) => {
   try {
     return await axios.post(`${URL}/api/agent/`, dataToSend);
   } catch (error) {
-    toast.error(error.response.data.error);
     throw error;
   }
 };

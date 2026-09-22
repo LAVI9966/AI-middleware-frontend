@@ -210,7 +210,7 @@ export const createBridgeAction = (dataToSend, onSuccess) => async (dispatch, ge
     if (error?.response?.data?.message?.includes("duplicate key")) {
       toast.error("Agent Name can't be duplicate");
     } else {
-      toast.error("Something went wrong");
+      toast.error(error?.response?.data?.message || error?.message || "Something went wrong");
     }
     console.error(error);
     throw error;
@@ -240,8 +240,6 @@ export const createBridgeWithAiAction =
     } catch (error) {
       if (error?.response?.data?.message?.includes("duplicate key")) {
         console.error("Agent Name can't be duplicate fallBack to manual bridge creation");
-      } else {
-        toast.error("Something went wrong");
       }
       console.error(error);
       throw error;
@@ -748,7 +746,7 @@ export const updateBridgeVersionAction =
         }
         // Update status to show warning
         dispatch(setSavingStatus({ status: "failed" }));
-        toast.error(data?.message || data?.error || "Failed to update version");
+        toast.error(data?.message || data?.error || "Failed to update version", { id: "update-bridge-version-error" });
 
         // Clear the status after 3 seconds
         setTimeout(() => {

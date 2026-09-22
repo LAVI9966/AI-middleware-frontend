@@ -729,7 +729,7 @@ const AdvancedParameters = ({
                     <button
                       type="button"
                       data-testid={`advanced-param-add-response-type-${key}`}
-                      className="flex h-8 w-44 items-center justify-between gap-2 border border-base-300 bg-base-100 px-3 text-sm text-base-content"
+                      className="flex h-8 w-44 items-center justify-between gap-2 border border-base-content/20 bg-base-100 px-3 text-sm text-base-content"
                       onClick={() => setResponseTypePickerOpen((v) => !v)}
                     >
                       {triggerLabel}

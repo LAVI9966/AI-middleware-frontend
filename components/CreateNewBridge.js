@@ -232,6 +232,9 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
       toast.error("Your org is blocked. You cannot create agents. Contact support@gtwy.ai for assistance.");
       return;
     }
+    if (state.isLoading || state.isAiLoading) {
+      return;
+    }
     const purpose = textAreaPurposeRef?.current?.value?.trim();
     const resolvedFolderId = getResolvedFolderId();
     updateState({
@@ -359,6 +362,8 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
     state.selectedModel,
     state.selectedService,
     state.selectedType,
+    state.isLoading,
+    state.isAiLoading,
     updateState,
     dispatch,
     orgid,
@@ -498,10 +503,10 @@ function CreateNewBridge({ orgid, isEmbedUser, defaultBridgeType = "api" }) {
                   id="create-new-bridge-submit-button"
                   className="btn btn-sm btn-primary min-w-[8.5rem]"
                   onClick={handleCreateAgent}
-                  disabled={state.isLoading || isOrgBlocked}
+                  disabled={state.isLoading || state.isAiLoading || isOrgBlocked}
                   title={isOrgBlocked ? "Your org is blocked. Contact support@gtwy.ai for assistance." : undefined}
                 >
-                  {state.isLoading ? (
+                  {state.isLoading || state.isAiLoading ? (
                     <>
                       <span className="loading loading-spinner loading-sm" />
                       Creating...
