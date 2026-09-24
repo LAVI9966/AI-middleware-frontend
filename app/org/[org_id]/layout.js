@@ -462,13 +462,11 @@ function layoutOrgPage({ children, params, searchParams, isEmbedUser, isFocus })
             );
           } else if (pathName.includes("agents")) {
             if (e?.data?.metadata?.createFrom === "preFunction") {
-              // Only add as pre-tool if not already present (preTools is an array of objects)
-              const alreadyPreTool =
-                Array.isArray(preTools) && preTools.some((pt) => pt?.config?.function_id === data?._id);
-              if (!alreadyPreTool) {
-                // Only one pre-tool can be active at a time — remove the currently
-                // connected pre-tools so the newly created one replaces them.
-                for (const existingPreTool of Array.isArray(preTools) ? preTools : []) {
+              // Only one pre-tool can be connected at a time
+              const existingPreTool = Array.isArray(preTools) ? preTools[0] : null;
+              if (existingPreTool?.config?.function_id !== data?._id) {
+                // Remove the currently connected pre-tool so the new one replaces it
+                if (existingPreTool) {
                   await dispatch(
                     updateApiAction(path[5], {
                       pre_tools: existingPreTool,
