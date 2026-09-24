@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, use, useRef } from "r
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import { useDispatch } from "react-redux";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {
   deleteTestCaseAction,
@@ -14,6 +14,7 @@ import {
   updateTestCaseAction,
 } from "@/store/action/testCasesAction";
 import { updateBridgeAction } from "@/store/action/bridgeAction";
+import { getErrorMessage } from "@/utils/errorHandler";
 import { setTestCaseConfig } from "@/store/reducer/testCaseConfigReducer";
 import { PlayIcon } from "@/components/Icons";
 import {
@@ -38,6 +39,7 @@ import { MODAL_TYPE } from "@/utils/enums";
 import { openModal, closeModal, getIconOfService } from "@/utils/utility";
 import InfoTooltip from "@/components/InfoTooltip";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import useRtLayerEventHandler from "@/customHooks/useRtLayerEventHandler";
 
 const TESTCASE_SPLIT_STORAGE_KEY = "testcase:list-details-split";
 
@@ -245,16 +247,37 @@ function TestCases({ params }) {
   const allBridges = useCustomSelector((state) => state?.bridgeReducer?.org?.[resolvedParams?.org_id]?.orgs || [])
     .slice()
     .reverse();
-  const { testCases, isFirstTestcase, testRun, testCasesTotal, currentBridge, bridgeVersionMapping, persistedConfig } =
-    useCustomSelector((state) => ({
-      testCases: state?.testCasesReducer?.testCases?.[resolvedParams?.id] || {},
-      isFirstTestcase: state?.userDetailsReducer?.userDetails?.meta?.onboarding?.TestCasesSetup || "",
-      testRun: state?.testCasesReducer?.testRuns?.[resolvedParams?.id] || null,
-      testCasesTotal: state?.testCasesReducer?.testCasesTotal?.[resolvedParams?.id] || 0,
-      currentBridge: state?.bridgeReducer?.allBridgesMap?.[resolvedParams?.id],
-      bridgeVersionMapping: state?.bridgeReducer?.bridgeVersionMapping?.[resolvedParams?.id] || {},
-      persistedConfig: state?.testCaseConfigReducer?.configs?.[resolvedParams?.id] || null,
-    }));
+  const {
+    testCases,
+    isFirstTestcase,
+    testRun,
+    testCasesTotal,
+    currentBridge,
+    bridgeVersionMapping,
+    persistedConfig,
+    isEmbedUser,
+    reduxUserId,
+  } = useCustomSelector((state) => ({
+    testCases: state?.testCasesReducer?.testCases?.[resolvedParams?.id] || {},
+    isFirstTestcase: state?.userDetailsReducer?.userDetails?.meta?.onboarding?.TestCasesSetup || "",
+    testRun: state?.testCasesReducer?.testRuns?.[resolvedParams?.id] || null,
+    testCasesTotal: state?.testCasesReducer?.testCasesTotal?.[resolvedParams?.id] || 0,
+    currentBridge: state?.bridgeReducer?.allBridgesMap?.[resolvedParams?.id],
+    bridgeVersionMapping: state?.bridgeReducer?.bridgeVersionMapping?.[resolvedParams?.id] || {},
+    persistedConfig: state?.testCaseConfigReducer?.configs?.[resolvedParams?.id] || null,
+    isEmbedUser: state?.appInfoReducer?.embedUserDetails?.isEmbedUser,
+    reduxUserId: state?.userDetailsReducer?.userDetails?.id,
+  }));
+
+  // Backend publishes testcase RTLayer events to `${org_id}_${bridge_id}_${user_id}`
+  // (same as ConfigurationPage / analytics). Layout default is org_bridge only.
+  const currentUserId =
+    isEmbedUser && typeof window !== "undefined" ? sessionStorage.getItem("gtwy_user_id") : reduxUserId;
+  const testcaseRtChannelId = useMemo(() => {
+    if (!resolvedParams?.org_id || !resolvedParams?.id || !currentUserId) return "";
+    return `${resolvedParams.org_id}_${resolvedParams.id}_${currentUserId}`.replace(/ /g, "_");
+  }, [resolvedParams?.org_id, resolvedParams?.id, currentUserId]);
+  useRtLayerEventHandler(testcaseRtChannelId);
 
   // Helper to merge-update the persisted per-bridge testcase config in redux.
   const updatePersistedConfig = useCallback(
@@ -752,7 +775,9 @@ function TestCases({ params }) {
                         bridgeId: resolvedParams?.id,
                         dataToSend: { agent_info: { ai_matching_custom_prompt: prompt } },
                       })
-                    );
+                    ).catch((error) => {
+                      toast.error(getErrorMessage(error) || "Failed to save custom prompt");
+                    });
                   }}
                   onCustomPromptClear={() => {
                     setGlobalCustomPrompt("");
@@ -763,7 +788,9 @@ function TestCases({ params }) {
                         bridgeId: resolvedParams?.id,
                         dataToSend: { agent_info: { ai_matching_custom_prompt: "" } },
                       })
-                    );
+                    ).catch((error) => {
+                      toast.error(getErrorMessage(error) || "Failed to clear custom prompt");
+                    });
                   }}
                   label="Matching"
                 />
@@ -997,7 +1024,7 @@ function TestCases({ params }) {
                     placeholder="Search test cases..."
                     value={searchKeyword}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="input input-sm input-bordered w-full pl-9 pr-9 bg-base-50 text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
+                    className="input input-sm w-full pl-9 pr-9 bg-base-50 text-base-content placeholder-base-content/40 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30"
                   />
                   <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
                     {searchKeyword && (

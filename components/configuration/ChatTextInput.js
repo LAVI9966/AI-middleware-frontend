@@ -1,7 +1,7 @@
 import { dryRun } from "@/config/index";
 import { useCustomSelector } from "@/customHooks/customSelector";
 import unsavedPromptGuard from "@/utils/unsavedPromptGuard";
-import { uploadImageAction } from "@/store/action/bridgeAction";
+import { uploadMultipleImagesAction } from "@/store/action/bridgeAction";
 import {
   setChatLoading,
   setChatError,
@@ -15,7 +15,7 @@ import {
 import Image from "next/image";
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useDispatch } from "react-redux";
-import { toast } from "react-toastify";
+import toast from "react-hot-toast";
 import { SendHorizontalIcon, UploadIcon, LinkIcon, PlayIcon, CloseCircleIcon } from "@/components/Icons";
 import { Paperclip } from "lucide-react";
 import { PdfIcon } from "@/icons/pdfIcon";
@@ -35,6 +35,23 @@ const DOC_MIME_TYPES = [
 ];
 const isDocFile = (file) => DOC_MIME_TYPES.includes(file.type);
 const DOC_ACCEPT = ".pdf,.doc,.docx";
+
+// Mirrors the limits enforced by the /image/processing/multi endpoint.
+const MAX_FILES_PER_REQUEST = 10;
+const MAX_TOTAL_UPLOAD_SIZE_BYTES = 35 * 1024 * 1024;
+
+const validateUploadLimits = (files) => {
+  if (files.length > MAX_FILES_PER_REQUEST) {
+    toast.error(`Only ${MAX_FILES_PER_REQUEST} files are allowed at a time.`);
+    return false;
+  }
+  const totalSize = files.reduce((size, file) => size + (file.size || 0), 0);
+  if (totalSize > MAX_TOTAL_UPLOAD_SIZE_BYTES) {
+    toast.error(`Combined file size must not exceed ${MAX_TOTAL_UPLOAD_SIZE_BYTES / (1024 * 1024)}MB.`);
+    return false;
+  }
+  return true;
+};
 
 function ChatTextInput({
   channelIdentifier,
@@ -77,6 +94,7 @@ function ChatTextInput({
   );
   const [validationError, setValidationError] = useState(null);
   const [imagePreviewLoadedKeys, setImagePreviewLoadedKeys] = useState(() => new Set());
+  const [hasMessageText, setHasMessageText] = useState(false);
   const dispatch = useDispatch();
   const [fileInput, setFileInput] = useState(null); // Use state for the file input element
   const versionId = searchParams?.version;
@@ -288,7 +306,10 @@ function ChatTextInput({
       }
     }
     dispatch(setChatError(channelIdentifier, ""));
-    if (modelType !== "completion") inputRef.current.value = "";
+    if (modelType !== "completion") {
+      inputRef.current.value = "";
+      setHasMessageText(false);
+    }
 
     // Capture current attachments and clear preview immediately for snappier UX.
     const selectedUploadedImages = [...uploadedImages];
@@ -344,6 +365,7 @@ function ChatTextInput({
         // Handle unsuccessful response: rollback via Redux
         if (!responseData || !responseData.success) {
           inputRef.current.value = data.content;
+          setHasMessageText(Boolean(data.content?.trim()));
           dispatch(setChatError(channelIdentifier, "Failed to get response"));
           return;
         }
@@ -382,6 +404,7 @@ function ChatTextInput({
 
         if (!responseData || !responseData.success) {
           inputRef.current.value = data.content;
+          setHasMessageText(Boolean(data.content?.trim()));
           dispatch(setChatError(channelIdentifier, "Failed to get response"));
           return;
         }
@@ -463,6 +486,11 @@ function ChatTextInput({
     }
   }, [handleSendMessageRef, handleSendMessage]);
 
+  // Only image-type models reject image-only turns; require a query before send
+  const requiresMessageForAttachments =
+    modelType === "image" && (uploadedImages.length > 0 || uploadedFiles.length > 0);
+  const isSendDisabled = loading || uploading || (requiresMessageForAttachments && !hasMessageText);
+
   const handleKeyDown = useCallback(
     (event) => {
       if (event.key === "Enter") {
@@ -472,14 +500,44 @@ function ChatTextInput({
           if (hasUnsavedPrompt) {
             event.preventDefault();
             openModal(MODAL_TYPE.UNSAVED_PROMPT_CHAT_MODAL);
-          } else if (!loading && !uploading) {
+          } else if (!isSendDisabled) {
             event.preventDefault();
             handleSendMessage(event);
+          } else {
+            event.preventDefault();
           }
         }
       }
     },
-    [loading, uploading, hasUnsavedPrompt, handleSendMessage]
+    [isSendDisabled, hasUnsavedPrompt, handleSendMessage]
+  );
+
+  // Uploads every selected attachment in one request and splits the resulting
+  // urls into images vs documents using the order-aligned response.
+  const uploadAttachments = useCallback(
+    async (filesToUpload) => {
+      const images = [];
+      const docs = [];
+      try {
+        const results = (await dispatch(uploadMultipleImagesAction(filesToUpload))) || [];
+        results.forEach((result, index) => {
+          if (!result?.success || !result?.image_url) return;
+          if (isDocFile(filesToUpload[index])) {
+            docs.push(result.image_url);
+          } else {
+            images.push(result.image_url);
+          }
+        });
+        const failed = results.filter((result) => !result?.success);
+        if (failed.length > 0) {
+          toast.error(failed[0]?.error || `${failed.length} file(s) failed to upload.`);
+        }
+      } catch (error) {
+        toast.error(error?.message || "File upload failed.");
+      }
+      return { images, docs };
+    },
+    [dispatch]
   );
 
   const handlePaste = useCallback(
@@ -506,11 +564,7 @@ function ChatTextInput({
         return;
       }
 
-      const largeFiles = files.filter((file) => file.size > 35 * 1024 * 1024);
-      if (largeFiles.length > 0) {
-        toast.error("Each file should be less than 35MB.");
-        return;
-      }
+      if (!validateUploadLimits(files)) return;
 
       const totalImages = uploadedImages.length + files.length;
       if (totalImages > 4) {
@@ -519,22 +573,16 @@ function ChatTextInput({
       }
 
       setUploading(true);
-
-      let currentImages = [...uploadedImages];
-      for (let file of files) {
-        const formData = new FormData();
-        formData.append("image", file);
-        const result = await dispatch(uploadImageAction(formData));
-
-        if (result.success) {
-          currentImages = [...currentImages, result.image_url];
-          dispatch(setChatUploadedImages(channelIdentifier, currentImages));
+      try {
+        const { images } = await uploadAttachments(files);
+        if (images.length > 0) {
+          dispatch(setChatUploadedImages(channelIdentifier, [...uploadedImages, ...images]));
         }
+      } finally {
+        setUploading(false);
       }
-
-      setUploading(false);
     },
-    [dispatch, isVision, uploadedImages, channelIdentifier]
+    [dispatch, isVision, uploadedImages, channelIdentifier, uploadAttachments]
   );
 
   const handleFilesUpload = useCallback(
@@ -546,11 +594,7 @@ function ChatTextInput({
 
       if (newImages.length === 0 && newFiles.length === 0) return;
 
-      const largeFiles = files.filter((file) => file.size > 35 * 1024 * 1024);
-      if (largeFiles.length > 0) {
-        toast.error("Each file should be less than 35MB.");
-        return;
-      }
+      if (!validateUploadLimits(files)) return;
 
       if (newImages.length > 0) {
         if (!isVision) {
@@ -570,30 +614,19 @@ function ChatTextInput({
       }
 
       setUploading(true);
-
-      let currentImages = [...uploadedImages];
-      let currentFiles = [...uploadedFiles];
-
-      for (let file of files) {
-        const formData = new FormData();
-        formData.append("image", file);
-        const isPdf = isDocFile(file);
-        const result = await dispatch(uploadImageAction(formData, isPdf));
-
-        if (result.success) {
-          if (isPdf) {
-            currentFiles = [...currentFiles, result.image_url];
-            dispatch(setChatUploadedFiles(channelIdentifier, currentFiles));
-          } else {
-            currentImages = [...currentImages, result.image_url];
-            dispatch(setChatUploadedImages(channelIdentifier, currentImages));
-          }
+      try {
+        const { images, docs } = await uploadAttachments(files);
+        if (images.length > 0) {
+          dispatch(setChatUploadedImages(channelIdentifier, [...uploadedImages, ...images]));
         }
+        if (docs.length > 0) {
+          dispatch(setChatUploadedFiles(channelIdentifier, [...uploadedFiles, ...docs]));
+        }
+      } finally {
+        setUploading(false);
       }
-
-      setUploading(false);
     },
-    [dispatch, isVision, isFileSupported, uploadedImages, uploadedFiles, channelIdentifier]
+    [dispatch, isVision, isFileSupported, uploadedImages, uploadedFiles, channelIdentifier, uploadAttachments]
   );
 
   useEffect(() => {
@@ -611,41 +644,33 @@ function ChatTextInput({
 
   const handleFileChange = async (e) => {
     const files = Array.from(e.target.files);
-    const largeFiles = files.filter((file) => file.size > 35 * 1024 * 1024);
-    if (largeFiles.length > 0) {
-      toast.error("Each file should be less than 35MB.");
-      return;
-    }
-    const newImages = files.filter((file) => file.type.startsWith("image/"));
+    try {
+      if (files.length === 0 || !validateUploadLimits(files)) return;
 
-    const totalImages = uploadedImages.length + newImages.length;
-    if (totalImages > 4) {
-      toast.error("Only four images are allowed.");
-      return;
-    }
-
-    if (files.length > 0) {
-      setUploading(true);
-
-      for (let file of files) {
-        const formData = new FormData();
-        formData.append("image", file);
-        const result = await dispatch(uploadImageAction(formData));
-
-        if (result.success) {
-          if (isDocFile(file)) {
-            dispatch(setChatUploadedFiles(channelIdentifier, [...uploadedFiles, result.image_url]));
-          } else {
-            dispatch(setChatUploadedImages(channelIdentifier, [...uploadedImages, result.image_url]));
-          }
-        }
+      const newImages = files.filter((file) => file.type.startsWith("image/"));
+      const totalImages = uploadedImages.length + newImages.length;
+      if (totalImages > 4) {
+        toast.error("Only four images are allowed.");
+        return;
       }
 
-      setUploading(false);
-    }
-    // Clear the file input value to allow re-uploading the same file
-    if (fileInput) {
-      fileInput.value = "";
+      setUploading(true);
+      try {
+        const { images, docs } = await uploadAttachments(files);
+        if (images.length > 0) {
+          dispatch(setChatUploadedImages(channelIdentifier, [...uploadedImages, ...images]));
+        }
+        if (docs.length > 0) {
+          dispatch(setChatUploadedFiles(channelIdentifier, [...uploadedFiles, ...docs]));
+        }
+      } finally {
+        setUploading(false);
+      }
+    } finally {
+      // Clear the file input value to allow re-uploading the same file
+      if (fileInput) {
+        fileInput.value = "";
+      }
     }
   };
 
@@ -717,7 +742,7 @@ function ChatTextInput({
     <div
       data-testid="chat-text-input-container"
       id="chat-text-input-container"
-      className="input-group flex justify-end items-end gap-2 w-full relative"
+      className="flex justify-end items-end gap-2 w-full relative"
     >
       {/* Unsaved prompt changes modal */}
       <ConfirmationModal
@@ -912,14 +937,14 @@ function ChatTextInput({
       )}
 
       {/* Input Group */}
-      <div className="input-group flex justify-end items-end gap-2 w-full relative">
+      <div className="flex justify-end items-end gap-2 w-full relative">
         {modelType !== "completion" && (
           <textarea
             data-testid="chat-message-textarea"
             id="chat-message-textarea"
             ref={inputRef}
             placeholder="Type here"
-            className={`textarea bg-base-100 textarea-bordered w-full max-h-[200px] resize-none overflow-y-auto h-auto ${
+            className={`textarea bg-base-100 w-full max-h-[200px] resize-none overflow-y-auto h-auto ${
               validationError || attachmentError
                 ? "border-error focus:border-error focus:ring-2 focus:ring-error/20"
                 : "focus:border-primary"
@@ -930,6 +955,7 @@ function ChatTextInput({
             onInput={(e) => {
               e.target.style.height = "auto"; // Reset height
               e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`; // Set to scroll height, max 200px
+              setHasMessageText(e.target.value.trim().length > 0);
             }}
           />
         )}
@@ -1072,18 +1098,25 @@ function ChatTextInput({
           </div>
         )}
         {/* Enhanced Send Button */}
-        <div className="tooltip tooltip-top" data-tip={hasUnsavedPrompt ? "Save your prompt first" : "Send message"}>
+        <div
+          className="tooltip tooltip-top"
+          data-tip={
+            hasUnsavedPrompt
+              ? "Save your prompt first"
+              : requiresMessageForAttachments && !hasMessageText
+                ? "Add a message to send with your image"
+                : "Send message"
+          }
+        >
           <button
             id="chat-send-button"
             className={`btn btn-circle transition-all duration-200 ${
-              loading || uploading
-                ? "btn-disabled"
-                : " btn hover:btn-primary-focus hover:scale-105 shadow-lg hover:shadow-xl"
+              isSendDisabled ? "btn-disabled" : " btn hover:btn-primary-focus hover:scale-105 shadow-lg hover:shadow-xl"
             }`}
             onClick={() => {
-              handleSendMessage();
+              if (!isSendDisabled) handleSendMessage();
             }}
-            disabled={loading || uploading}
+            disabled={isSendDisabled}
           >
             {loading || uploading ? (
               <span className="loading loading-dots loading-md"></span>
