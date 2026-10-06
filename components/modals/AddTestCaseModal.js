@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 import Modal from "../UI/Modal";
 import { clearChatTestCaseIdAction } from "@/store/action/chatAction";
 import AutoResizeTextarea from "@/components/UI/AutoResizeTextarea";
-import ExpandCollapse from "@/components/UI/ExpandCollapse";
+import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
 import { PdfIcon } from "@/icons/pdfIcon";
 import MockToolResponsesSection, {
   computeBridgeToolOptions,

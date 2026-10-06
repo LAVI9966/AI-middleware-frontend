@@ -17,10 +17,8 @@ import { MODAL_TYPE } from "@/utils/enums";
 import { openModal, formatRelativeTime, formatDate, getStatusClass } from "@/utils/utility";
 import CustomTable from "@/components/customTable/CustomTable";
 import usePortalDropdown from "@/customHooks/usePortalDropdown";
-import ResourcePage from "@/components/folders/ResourcePage";
-import FolderTabs from "@/components/folders/FolderTabs";
-import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
-import useFolders from "@/hooks/useFolders";
+import { ResourcePage } from "@/components/folders/ResourcePage";
+import { useFolders } from "@/hooks/useFolders";
 import { useFolderContext } from "@/components/folders/FolderContext";
 import Protected from "@/components/Protected";
 

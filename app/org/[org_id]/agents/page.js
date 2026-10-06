@@ -19,10 +19,10 @@ import {
 import { MODAL_TYPE } from "@/utils/enums";
 import useTutorialVideos from "@/hooks/useTutorialVideos";
 import { getIconOfService, openModal, formatRelativeTime, formatDate } from "@/utils/utility";
-import ResourcePage from "@/components/folders/ResourcePage";
-import FolderTabs from "@/components/folders/FolderTabs";
-import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
-import useFolders from "@/hooks/useFolders";
+import { ResourcePage } from "@/components/folders/ResourcePage";
+import { FolderTabs } from "@/components/folders/FolderTabs";
+import { MoveToFolderMenu } from "@/components/folders/MoveToFolderMenu";
+import { useFolders } from "@/hooks/useFolders";
 import { useFolderContext } from "@/components/folders/FolderContext";
 import { Folder, Funnel, Undo2, Infinity, Trash2 } from "lucide-react";
 

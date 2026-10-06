@@ -62,6 +62,10 @@
     "prettier": "^3.8.0",
     "tailwindcss": "^4.3.3"
   },
+  "overrides": {
+    "@typescript-eslint/eslint-plugin": "8.61.0",
+    "@typescript-eslint/parser": "8.61.0"
+  },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
       "prettier --write",

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HeartPulse, Info, RefreshCw } from "lucide-react";
 import CodeBlock from "@/components/codeBlock/CodeBlock";
 import GenericTable from "@/components/table/Table";
-import ExpandCollapse from "@/components/UI/ExpandCollapse";
+import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
 import {
   getCurlCode,
   getCurlBatchCode,

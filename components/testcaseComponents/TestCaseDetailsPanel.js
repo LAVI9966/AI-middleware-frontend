@@ -29,7 +29,7 @@ import { FileClockIcon, BotMessageIcon } from "@/components/Icons";
 import InfoTooltip from "@/components/InfoTooltip";
 import { PdfIcon } from "@/icons/pdfIcon";
 import { setTestCaseConfig } from "@/store/reducer/testCaseConfigReducer";
-import ExpandCollapse from "@/components/UI/ExpandCollapse";
+import { ExpandCollapse } from "@/components/UI/ExpandCollapse";
 import MockToolResponsesSection, {
   computeBridgeToolOptions,
 } from "@/components/testcaseComponents/MockToolResponsesSection";

@@ -17,12 +17,9 @@ import {
   getApiKeyStatusClass,
 } from "@/utils/utility";
 import { BookIcon, RefreshIcon, SquarePenIcon, TrashIcon } from "@/components/Icons";
-import ResourcePage from "@/components/folders/ResourcePage";
-import FolderTabs from "@/components/folders/FolderTabs";
-import MoveToFolderMenu from "@/components/folders/MoveToFolderMenu";
-import useFolders from "@/hooks/useFolders";
+import { ResourcePage } from "@/components/folders/ResourcePage";
+import { useFolders } from "@/hooks/useFolders";
 import { useFolderContext } from "@/components/folders/FolderContext";
-import { Folder } from "lucide-react";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch } from "react-redux";
